@@ -1,3 +1,8 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Nilma Entregas</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
@@ -98,7 +103,14 @@
   }
   .topbar-inner { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
   .brand { display: flex; align-items: center; gap: 10px; }
+  .logout-btn { margin-left: auto; }
   .brand-mark { width: 34px; height: 34px; border-radius: 50%; display: block; flex: none; }
+  .auth-gate { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
+  .auth-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-l); box-shadow: var(--shadow); padding: 28px 24px; max-width: 360px; width: 100%; text-align: center; }
+  .auth-card h2 { margin: 4px 0; }
+  .auth-card .field { text-align: left; }
+  .auth-logo { width: 56px; height: 56px; border-radius: 50%; margin: 0 auto 10px; display: block; }
+  .auth-card .btn { margin-top: 6px; }
   .brand-text { display: flex; align-items: baseline; gap: 8px; }
   .brand-name { font-family: var(--font-display); font-size: 1.35rem; font-weight: 700; color: var(--accent); letter-spacing: -.01em; }
   .brand-tag { font-size: .78rem; color: var(--ink-faint); }
@@ -278,6 +290,8 @@
     * { transition: none !important; animation: none !important; }
   }
 </style>
+</head>
+<body>
 
 <div class="topbar">
   <div class="topbar-inner">
@@ -287,6 +301,7 @@
         <span class="brand-name">Nilma</span>
         <span class="brand-tag">entregas sem papel</span>
       </span>
+      <button type="button" class="link-btn logout-btn" id="logoutBtn" hidden>Sair</button>
     </div>
     <div class="tabs" role="tablist">
       <button class="tab active" data-tab="nova" role="tab">Nova entrega</button>
@@ -299,7 +314,7 @@
 
 <main>
   <div id="no-db" class="no-db" hidden>
-    Este app precisa estar aberto pelo link publicado para salvar e sincronizar as entregas. Abra o link publicado para usar em modo completo.
+    Não foi possível conectar ao banco de dados. Verifique sua internet e recarregue a página.
   </div>
 
   <section id="tab-nova" class="view">
@@ -393,7 +408,7 @@
     <div class="card">
       <div class="card-head-row">
         <h2>Painel de entregas</h2>
-        <button type="button" class="btn-chip accent" id="exportBtn">⬇ Exportar CSV</button>
+        <button type="button" class="btn-chip accent" id="exportBtn">⬇ Exportar planilha</button>
       </div>
       <p class="card-hint">Quem já recebeu na competência selecionada. Toque em um cliente para ver o histórico completo.</p>
       <div class="filters">
@@ -418,6 +433,13 @@
   </section>
 
   <section id="tab-clientes" class="view" hidden>
+    <div class="card" id="importCard">
+      <div class="card-head-row">
+        <h2>Base inicial</h2>
+        <button type="button" class="btn-chip accent" id="importClientesBtn">Importar 315 clientes</button>
+      </div>
+      <p class="card-hint">Importa de uma vez a base de clientes já cadastrada. Pode clicar de novo sem medo — não duplica.</p>
+    </div>
     <form id="form-cliente" class="card" novalidate>
       <h2>Novo cliente</h2>
       <label class="field">
@@ -443,10 +465,46 @@
 <div class="toast" id="toast"></div>
 <div id="modalRoot"></div>
 
+<div class="auth-gate" id="authGate" hidden>
+  <form class="auth-card" id="loginForm" novalidate>
+    <img class="auth-logo" id="authLogo" alt="Nilma Contabilidade">
+    <h2>Nilma Entregas</h2>
+    <p class="card-hint">Entre com o e-mail e senha da equipe.</p>
+    <label class="field">
+      <span>E-mail</span>
+      <input class="input" id="loginEmail" type="email" autocomplete="username" required>
+    </label>
+    <label class="field">
+      <span>Senha</span>
+      <input class="input" id="loginSenha" type="password" autocomplete="current-password" required>
+    </label>
+    <div class="field-error" id="loginError" hidden>E-mail ou senha inválidos.</div>
+    <button type="submit" class="btn btn-primary" id="loginBtn">Entrar</button>
+  </form>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+  var firebaseConfig = {
+    apiKey: "AIzaSyAj0V_mMPUGxoMxU35E8VmV-zLhSakGvI8",
+    authDomain: "aquivamento-9a793.firebaseapp.com",
+    projectId: "aquivamento-9a793",
+    storageBucket: "aquivamento-9a793.firebasestorage.app",
+    messagingSenderId: "429946620838",
+    appId: "1:429946620838:web:e7ee0c3457a8ffabaa1d67"
+  };
+  firebase.initializeApp(firebaseConfig);
+</script>
+<script>
+  window.CLIENTES_SEED = ﻿[{"id":"empresa-6","nome":"VANDERLEI RUFINO DOS SANTOS","nomeFantasia":"","documento":"368.489.806-68","inscricaoEstadual":"isento","telefone":"03838451545","enquadramento":"Física","codigoOrigem":"6"},{"id":"empresa-10","nome":"DORNAS HAVANA LTDA - ME","nomeFantasia":"DORNAS HAVANA","documento":"01.884.649/0001-85","inscricaoEstadual":"680737193.00-01","telefone":"03838451323","enquadramento":"Simples","codigoOrigem":"10"},{"id":"empresa-13","nome":"ROGERIO CAMARGO ARRUDA E OUTRO","nomeFantasia":"","documento":"20538498862","inscricaoEstadual":"isento","telefone":"03838458153","enquadramento":"","codigoOrigem":"13"},{"id":"empresa-14","nome":"ELETRO PATY LETY LTDA ME","nomeFantasia":"","documento":"41.710.039/0001-80","inscricaoEstadual":"570865635.00-76","telefone":"03838413128","enquadramento":"","codigoOrigem":"14"},{"id":"empresa-15","nome":"CERAMICA FORTALEZA LTDA - ME","nomeFantasia":"CERAMICA FORTALEZA","documento":"05.328.847/0001-13","inscricaoEstadual":"627204456.00-11","telefone":"03834890750","enquadramento":"Simples","codigoOrigem":"15"},{"id":"empresa-23","nome":"FLORENCIO MENDES DE OLIVEIRA EIRELI","nomeFantasia":"CASA TAIO","documento":"25.330.911/0001-08","inscricaoEstadual":"680597785.00-25","telefone":"03838451500","enquadramento":"Simples","codigoOrigem":"23"},{"id":"empresa-27","nome":"IZAC ESTEVES SANTOS ME","nomeFantasia":"ESPACO MODAS","documento":"04.242.661/0001-84","inscricaoEstadual":"6271107570050","telefone":"03899406620","enquadramento":"","codigoOrigem":"27"},{"id":"empresa-37","nome":"LOTERIAS FREITAS 0026 MENDES LTDA","nomeFantasia":"CASA LOTERICA PINGO DE OURO","documento":"05.511.680/0001-21","inscricaoEstadual":"ISENTO","telefone":"03838451101","enquadramento":"Simples","codigoOrigem":"37"},{"id":"empresa-40","nome":"MADEIREIRA E MARCENARIA MIRANDA LTDA","nomeFantasia":"********","documento":"04.537.614/0001-68","inscricaoEstadual":"680133928.00-93","telefone":"03838451072","enquadramento":"Simples","codigoOrigem":"40"},{"id":"empresa-43","nome":"ORGANIZACAO ALVES E ARAUJO CONFEC LTDA","nomeFantasia":"VISUAL MODAS","documento":"03.700.474/0001-34","inscricaoEstadual":"680070647.00-00","telefone":"03838451246","enquadramento":"Simples","codigoOrigem":"43"},{"id":"empresa-49","nome":"POSTO DE COMBUSTIVEIS ALTA FLORESTA LTDA -","nomeFantasia":"POSTO ALTA FLORESTA","documento":"04.156.301/0001-60","inscricaoEstadual":"8591054110050","telefone":"03838247128","enquadramento":"Presumido","codigoOrigem":"49"},{"id":"empresa-50","nome":"ROSA MENDES DE OLIVEIRA CORBELLI LTDA","nomeFantasia":"CASA TAIO","documento":"02.123.913/0001-20","inscricaoEstadual":"627008961.00-83","telefone":"03838321304","enquadramento":"Simples","codigoOrigem":"50"},{"id":"empresa-51","nome":"ROSILENE MARQUES MARTINS - ME","nomeFantasia":"","documento":"41.738.014/0001-94","inscricaoEstadual":"680788707.00-57","telefone":"03838451612","enquadramento":"Simples","codigoOrigem":"51"},{"id":"empresa-54","nome":"SERRALHERIA OURO VERDE LTDA - EPP","nomeFantasia":"********","documento":"25.542.416/0001-62","inscricaoEstadual":"680597807.00-40","telefone":"03838451593","enquadramento":"Simples","codigoOrigem":"54"},{"id":"empresa-55","nome":"TORRA TORRA LTDA","nomeFantasia":"TORRA TORRA","documento":"03.238.183/0001-76","inscricaoEstadual":"680028806.00-58","telefone":"03838451553","enquadramento":"Simples","codigoOrigem":"55"},{"id":"empresa-58","nome":"TORNEARIA VOLPONI INDUSTRIA E COMERCIO LTDA","nomeFantasia":"TORNEARIA VOLPONI","documento":"02.174.144/0001-90","inscricaoEstadual":"6807194470020","telefone":"3838451818","enquadramento":"Simples","codigoOrigem":"58"},{"id":"empresa-62","nome":"CARLOS LUCAS MENDES","nomeFantasia":"","documento":"42460727615","inscricaoEstadual":"ISENTO","telefone":"3899740606","enquadramento":"Física","codigoOrigem":"62"},{"id":"empresa-65","nome":"MERCEARIA LAGOA GRANDE LTDA","nomeFantasia":"","documento":"05.059.813/0001-70","inscricaoEstadual":"680174766.00-34","telefone":"03899740162","enquadramento":"Simples","codigoOrigem":"65"},{"id":"empresa-66","nome":"ADERLEI DOS SANTOS E CIA LTDA","nomeFantasia":"POSTO CURRAL DE DENTRO","documento":"03.149.551/0001-00","inscricaoEstadual":"7870223370092","telefone":"03838459319","enquadramento":"Presumido","codigoOrigem":"66"},{"id":"empresa-76","nome":"GILDA HELENA LUCAS MARTINS ME","nomeFantasia":"","documento":"86.475.845/0001-59","inscricaoEstadual":"6808956470030","telefone":"03838453284","enquadramento":"","codigoOrigem":"76"},{"id":"empresa-79","nome":"BN ELETRODOMESTICOS LTDA EPP","nomeFantasia":"","documento":"07.676.248/0001-16","inscricaoEstadual":"772396701.00-13","telefone":"03838458133","enquadramento":"Simples","codigoOrigem":"79"},{"id":"empresa-80","nome":"TECNOAGRO PROJETOS E CONSULTORIA LTDA - ME","nomeFantasia":"TECNOAGRO PROJETOS E CONSULTORIA","documento":"08.662.761/0001-10","inscricaoEstadual":"ISENTO","telefone":"03838451071","enquadramento":"Simples","codigoOrigem":"80"},{"id":"empresa-81","nome":"CERAMICA MINAS FORTE LTDA","nomeFantasia":"CERAMICA MINAS FORTE","documento":"09.512.233/0001-48","inscricaoEstadual":"001068632.00-85","telefone":"03899114359","enquadramento":"Simples","codigoOrigem":"81"},{"id":"empresa-83","nome":"GRIFFIN ARTIGOS DO VESTUARIO E ACESSORIOS","nomeFantasia":"GRIFFIN","documento":"07.038.674/0001-24","inscricaoEstadual":"680321172.00-64","telefone":"03838451705","enquadramento":"Simples","codigoOrigem":"83"},{"id":"empresa-86","nome":"BIBOKA EMBALAGENS LTDA","nomeFantasia":"BIBOKA EMBALAGENS","documento":"07.648.035/0001-80","inscricaoEstadual":"680386282.00-59","telefone":"03838452828","enquadramento":"Simples","codigoOrigem":"86"},{"id":"empresa-96","nome":"BIG LANCHES DE TAIOBEIRAS LTDA","nomeFantasia":"BIG LANCHES","documento":"23.130.552/0001-10","inscricaoEstadual":"680579199.00-80","telefone":"03838451737","enquadramento":"Simples","codigoOrigem":"96"},{"id":"empresa-100","nome":"EDUARDO DE SOUZA MARTINS","nomeFantasia":"","documento":"153.605.041-53","inscricaoEstadual":"ISENTO","telefone":"03891341653","enquadramento":"","codigoOrigem":"100"},{"id":"empresa-101","nome":"CAULIM ALVES DE SOUZA LTDA","nomeFantasia":"MINIMERCADO UNIAO","documento":"06.125.107/0001-42","inscricaoEstadual":"680278549.00-87","telefone":"03891231988","enquadramento":"Simples","codigoOrigem":"101"},{"id":"empresa-137","nome":"FLORENCIO MENDES DE OLIVEIRA","nomeFantasia":"","documento":"36932930668","inscricaoEstadual":"isento","telefone":"03838451500","enquadramento":"Física","codigoOrigem":"137"},{"id":"empresa-145","nome":"BN ELETRODOMESTICOS LTDA EPP","nomeFantasia":"CASA TAIO","documento":"07.676.248/0002-05","inscricaoEstadual":"772396701.01-96","telefone":"03838328214","enquadramento":"Simples","codigoOrigem":"145"},{"id":"empresa-147","nome":"FLORENCIO MENDES DE OLIVEIRA LTDA","nomeFantasia":"CASA TAIO","documento":"25.330.911/0004-50","inscricaoEstadual":"680597785.01-06","telefone":"3838451500","enquadramento":"Simples","codigoOrigem":"147"},{"id":"empresa-149","nome":"ROSILENE MARQUES MARTINS - ME","nomeFantasia":"","documento":"41.738.014/0002-75","inscricaoEstadual":"680788707.01-38","telefone":"03838451612","enquadramento":"Simples","codigoOrigem":"149"},{"id":"empresa-152","nome":"JANIO JOSE DE ALMEIDA ME","nomeFantasia":"JJA REPRESENTACOES","documento":"06.934.601/0001-58","inscricaoEstadual":"ISENTO","telefone":"3891034440","enquadramento":"Simples","codigoOrigem":"152"},{"id":"empresa-161","nome":"FERNANDO GOMES DOS ANJOS","nomeFantasia":"","documento":"06330653666","inscricaoEstadual":"0000000000000","telefone":"3838452074","enquadramento":"","codigoOrigem":"161"},{"id":"empresa-174","nome":"ARMARINHO E PAPELARIA TAIOBEIRAS LTDA","nomeFantasia":"BETEL PAPELARIA","documento":"11.360.291/0001-45","inscricaoEstadual":"001837970.00-23","telefone":"03838451654","enquadramento":"Simples","codigoOrigem":"174"},{"id":"empresa-175","nome":"CONSTRU G MIRANDA MATERIAIS DE CONSTRUCAO","nomeFantasia":"CONSTRU G MIRANDA","documento":"11.479.674/0001-37","inscricaoEstadual":"001538457.00-24","telefone":"03838451050","enquadramento":"Simples","codigoOrigem":"175"},{"id":"empresa-177","nome":"EDSON FREITAS LIMA","nomeFantasia":"","documento":"470.783.086-20","inscricaoEstadual":"isento","telefone":"3838451510","enquadramento":"Domésticas","codigoOrigem":"177"},{"id":"empresa-179","nome":"FLORENCIO MENDES DE OLIVEIRA","nomeFantasia":"","documento":"36932930668","inscricaoEstadual":"ISENTO","telefone":"03838451500","enquadramento":"Física","codigoOrigem":"179"},{"id":"empresa-181","nome":"JOSE MENDES FREITAS","nomeFantasia":"","documento":"527.458.566-34","inscricaoEstadual":"ISENTO","telefone":"03838451014","enquadramento":"Física","codigoOrigem":"181"},{"id":"empresa-183","nome":"CLEIA CRUZ DE OLIVEIRA LTDA","nomeFantasia":"ALTERNATIVA TECIDOS 0026 ENXOVAIS","documento":"12.343.696/0001-38","inscricaoEstadual":"001641388.00-31","telefone":"03838451133","enquadramento":"Simples","codigoOrigem":"183"},{"id":"empresa-184","nome":"AGROINDUSTRIAL FAZENDA MARQUESA LTDA","nomeFantasia":"FAZENDA MARQUESA","documento":"12.357.823/0001-58","inscricaoEstadual":"001642921.00-06","telefone":"38998560725","enquadramento":"Simples","codigoOrigem":"184"},{"id":"empresa-191","nome":"PEDRO JORGE SANTOS SOUZA","nomeFantasia":"","documento":"595.288.695-72","inscricaoEstadual":"ISENTO","telefone":"03838458153","enquadramento":"Física","codigoOrigem":"191"},{"id":"empresa-205","nome":"ADEMILSON OLIVEIRA CRUZ","nomeFantasia":"BH PINTURAS E ACESSORIOS","documento":"13.005.048/0001-34","inscricaoEstadual":"001707413.00-01","telefone":"03891567716","enquadramento":"Simples","codigoOrigem":"205"},{"id":"empresa-207","nome":"JUSSARA DE OLIVEIRA GOMES PEREIRA","nomeFantasia":"BMJ SOM AUTOMOTIVO","documento":"12.673.416/0001-50","inscricaoEstadual":"001676530.00-82","telefone":"03838453214","enquadramento":"Simples","codigoOrigem":"207"},{"id":"empresa-211","nome":"ARLINDO ROCHA ALMEIDA JUNIOR","nomeFantasia":"","documento":"549.884.896-04","inscricaoEstadual":"ISENTO","telefone":"03838321385","enquadramento":"","codigoOrigem":"211"},{"id":"empresa-217","nome":"DARCI ALVES DE ARAUJO COSTA","nomeFantasia":"","documento":"26849011634","inscricaoEstadual":"ISENTO","telefone":"03838451510","enquadramento":"","codigoOrigem":"217"},{"id":"empresa-226","nome":"CARLOS LUCAS MENDES","nomeFantasia":"","documento":"424.607.276-15","inscricaoEstadual":"ISENTO","telefone":"3899740606","enquadramento":"Física","codigoOrigem":"226"},{"id":"empresa-228","nome":"CARLOS LUCAS MENDES","nomeFantasia":"","documento":"42460727615","inscricaoEstadual":"ISENTO","telefone":"3899740606","enquadramento":"Física","codigoOrigem":"228"},{"id":"empresa-231","nome":"AUTO GIRO PECAS E ACESSORIOS LTDA","nomeFantasia":"AUTO GIRO PECAS E ACESSORIOS","documento":"17.453.371/0001-21","inscricaoEstadual":"002087362.00-89","telefone":"03838453128","enquadramento":"Simples","codigoOrigem":"231"},{"id":"empresa-232","nome":"VICTOR GOMES ARRUDA SPOSITO","nomeFantasia":"FAZENDA MODELO","documento":"01631194658","inscricaoEstadual":"ISENTO","telefone":"03388341461","enquadramento":"Física","codigoOrigem":"232"},{"id":"empresa-236","nome":"MINIMERCADO SANTO EXPEDITO LTDA ME","nomeFantasia":"SUPERMERCADO DA PRACA","documento":"17.600.413/0001-00","inscricaoEstadual":"002100960.00-28","telefone":"03838451454","enquadramento":"Simples","codigoOrigem":"236"},{"id":"empresa-237","nome":"POSTO DE COMBUSTIVEIS BERIZAL LTDA ME","nomeFantasia":"POSTO BERIZAL","documento":"17.713.597/0001-14","inscricaoEstadual":"0021115040057","telefone":"3838458131","enquadramento":"Presumido","codigoOrigem":"237"},{"id":"empresa-246","nome":"ALEXSANDRA GONCALVES ALMEIDA","nomeFantasia":"********","documento":"04365243683","inscricaoEstadual":"12.411.063/0001-10","telefone":"001648660.00-80","enquadramento":"","codigoOrigem":"246"},{"id":"empresa-247","nome":"LAUDINO DOS SANTOS","nomeFantasia":"","documento":"073.555.408-07","inscricaoEstadual":"ISENTO","telefone":"03838451593","enquadramento":"","codigoOrigem":"247"},{"id":"empresa-249","nome":"LOTERIAS TAIOBEIRAS LTDA - ME","nomeFantasia":"PE QUENTE LOTERIAS","documento":"20.645.399/0001-75","inscricaoEstadual":"ISENTO","telefone":"03838452111","enquadramento":"Simples","codigoOrigem":"249"},{"id":"empresa-250","nome":"BRASAO INDUSTRIA FLORESTAL LTDA","nomeFantasia":"BRASAO AGROFLORESTAL","documento":"20.967.369/0001-85","inscricaoEstadual":"002423841.00-41","telefone":"3834890988","enquadramento":"Simples","codigoOrigem":"250"},{"id":"empresa-252","nome":"RENALD DA CRUZ FILHO LIMITADA","nomeFantasia":"DROGRARIA PAGUE POUCO","documento":"21.997.805/0001-21","inscricaoEstadual":"003774917.00-65","telefone":"03899313235","enquadramento":"Simples","codigoOrigem":"252"},{"id":"empresa-257","nome":"MODELO TRANSPORTES E SERVICOS LTDA","nomeFantasia":"MODELO EMPREENDIMENTOS E SERVICOS","documento":"22.702.871/0001-90","inscricaoEstadual":"002579434.00-02","telefone":"03388294496","enquadramento":"Simples","codigoOrigem":"257"},{"id":"empresa-265","nome":"ALTA FLORESTA TRANSPORTES LTDA - ME","nomeFantasia":"ALTA FLORESTA TRANSPORTES","documento":"26.030.345/0001-81","inscricaoEstadual":"002819639.00-41","telefone":"03899169161","enquadramento":"Simples","codigoOrigem":"265"},{"id":"empresa-269","nome":"VALDELICE ROCHA ALMEIDA","nomeFantasia":"","documento":"61847216668","inscricaoEstadual":"ISENTO","telefone":"3834890705","enquadramento":"Domésticas","codigoOrigem":"269"},{"id":"empresa-277","nome":"G.A.S SERVICOS LABORATORIAIS LTDA","nomeFantasia":"SPLAB","documento":"27.361.015/0001-31","inscricaoEstadual":"ISENTO","telefone":"03388375452","enquadramento":"Simples","codigoOrigem":"277"},{"id":"empresa-279","nome":"ALMEIDA 0026 SOUZA PRODUTOS ALIMENTICIOS LTDA","nomeFantasia":"SUPERBOM SUPERMERCADO","documento":"27.545.832/0001-40","inscricaoEstadual":"002950430.00-73","telefone":"03838452155","enquadramento":"Simples","codigoOrigem":"279"},{"id":"empresa-284","nome":"NILMA CONTABILIDADE LTDA","nomeFantasia":"NILMA CONTABILIDADE","documento":"27.872.981/0001-13","inscricaoEstadual":"ISENTO","telefone":"3838452074","enquadramento":"Simples","codigoOrigem":"284"},{"id":"empresa-285","nome":"CRUZ E COELHO SERVICOS MEDICOS LTDA - ME","nomeFantasia":"********","documento":"28.367.326/0001-70","inscricaoEstadual":"ISENTO","telefone":"03899788870","enquadramento":"Simples","codigoOrigem":"285"},{"id":"empresa-286","nome":"CRIATIVA EDUCACAO E TREINAMENTO LTDA","nomeFantasia":"","documento":"07.257.289/0001-78","inscricaoEstadual":"ISENTO","telefone":"03838452421","enquadramento":"Simples","codigoOrigem":"286"},{"id":"empresa-287","nome":"CRIATIVA PRESTACOES DE SERVICOS","nomeFantasia":"CRIATIVA II","documento":"12.403.955/0001-79","inscricaoEstadual":"ISENTO","telefone":"03838451889","enquadramento":"Simples","codigoOrigem":"287"},{"id":"empresa-288","nome":"VOLPONI COMERCIO DE ACESSORIOS EIRELI ME","nomeFantasia":"VOLPONI JOIAS","documento":"25.090.801/0001-16","inscricaoEstadual":"002785639.00-42","telefone":"03132951888","enquadramento":"Simples","codigoOrigem":"288"},{"id":"empresa-289","nome":"VOLPONI INDUSTRIA MECANICA LTDA","nomeFantasia":"INDUSTRIA VOLPONI","documento":"29.294.948/0001-89","inscricaoEstadual":"003097295.00-79","telefone":"03832131148","enquadramento":"Simples","codigoOrigem":"289"},{"id":"empresa-291","nome":"G.A.S SAUDE DE DIVISA ALEGRE LTDA","nomeFantasia":"SPLAB DIVISA ALEGRE","documento":"29.412.290/0001-62","inscricaoEstadual":"ISENTO","telefone":"03388375452","enquadramento":"Simples","codigoOrigem":"291"},{"id":"empresa-292","nome":"FITO INDUSTRIA E COMERCIO DE ALIMENTOS LTDA","nomeFantasia":"FITO ALIMENTOS","documento":"19.449.248/0001-62","inscricaoEstadual":"680997568.00-88","telefone":"03838451006","enquadramento":"Presumido","codigoOrigem":"292"},{"id":"empresa-296","nome":"MARCOS ANTONIO DA ROCHA","nomeFantasia":"","documento":"28.014.315/0001-07","inscricaoEstadual":"ISENTO","telefone":"03899499121","enquadramento":"","codigoOrigem":"296"},{"id":"empresa-298","nome":"TEOBALDO MENDES DE OLIVEIRA - EIRELI","nomeFantasia":"PAIZAO SUPERMERCADOS","documento":"07.061.814/0001-85","inscricaoEstadual":"680335244.00-76","telefone":"03838451859","enquadramento":"Simples","codigoOrigem":"298"},{"id":"empresa-299","nome":"TEOBALDO MENDES DE OLIVEIRA LTDA","nomeFantasia":"PAIZAO SUPERMERCADOS","documento":"07.061.814/0002-66","inscricaoEstadual":"680335244.01-57","telefone":"03838451859","enquadramento":"Simples","codigoOrigem":"299"},{"id":"empresa-300","nome":"TEOBALDO MENDES DE OLIVEIRA - EIRELI","nomeFantasia":"PAIZAO SUPERMERCADOS","documento":"07.061.814/0003-47","inscricaoEstadual":"680335244.02-38","telefone":"03834330033","enquadramento":"Simples","codigoOrigem":"300"},{"id":"empresa-301","nome":"TEOBALDO MENDES DE OLIVEIRA - EIRELI","nomeFantasia":"PAIZAO ATACADO","documento":"07.061.814/0004-28","inscricaoEstadual":"680335244.03-19","telefone":"03838452061","enquadramento":"Simples","codigoOrigem":"301"},{"id":"empresa-302","nome":"TEOBALDO MENDES DE OLIVEIRA","nomeFantasia":"","documento":"031.544.636-66","inscricaoEstadual":"ISENTO","telefone":"03838451859","enquadramento":"","codigoOrigem":"302"},{"id":"empresa-307","nome":"REGINALDA PEREIRA DA SILVA SOUSA","nomeFantasia":"NEGA FULO","documento":"14920571690","inscricaoEstadual":"27.541.142/0001-12","telefone":"002950020.00-66","enquadramento":"Simples","codigoOrigem":"307"},{"id":"empresa-308","nome":"AIDE MARIA MENDES ROCHA","nomeFantasia":"CASA AIDE","documento":"47828269668","inscricaoEstadual":"30.704.111/0001-40","telefone":"0032125710013","enquadramento":"","codigoOrigem":"308"},{"id":"empresa-309","nome":"FITO ALIMENTOS LTDA","nomeFantasia":"FITO ALIMENTOS","documento":"26.124.295/0001-00","inscricaoEstadual":"0028271490044","telefone":"03838451006","enquadramento":"Simples","codigoOrigem":"309"},{"id":"empresa-310","nome":"MOR LABORATORIO NUTRICIONAL EIRELI","nomeFantasia":"","documento":"29.574.842/0001-39","inscricaoEstadual":"798640204117","telefone":"03838451717","enquadramento":"Simples","codigoOrigem":"310"},{"id":"empresa-311","nome":"SELMA SIMONELLY DA SILVA PEREIRA","nomeFantasia":"","documento":"84343540634","inscricaoEstadual":"26.985.151/0001-30","telefone":"ISENTO","enquadramento":"MEI","codigoOrigem":"311"},{"id":"empresa-313","nome":"EMPORIO DAS CARNES LTDA","nomeFantasia":"EMPORIO DAS CARNES","documento":"28.806.815/0001-81","inscricaoEstadual":"003056361.00-69","telefone":"03891457575","enquadramento":"Simples","codigoOrigem":"313"},{"id":"empresa-314","nome":"M A REFLORESTAMENTO E TRANSPORTES LTDA","nomeFantasia":"M A REFLORESTAMENTO E TRANSPORTES","documento":"31.856.284/0001-46","inscricaoEstadual":"003304057.00-05","telefone":"11947348756","enquadramento":"Simples","codigoOrigem":"314"},{"id":"empresa-315","nome":"ROSIMEIRE DE SOUZA SARMENTO","nomeFantasia":"CONSTRUSOUZA","documento":"04426400643","inscricaoEstadual":"32.186.713/0001-88","telefone":"003331622.00-89","enquadramento":"","codigoOrigem":"315"},{"id":"empresa-316","nome":"BRUNA EVELIN MENDES DE OLIVEIRA","nomeFantasia":"DOCE AROMA PADARIA E LANCHONETE","documento":"09506554650","inscricaoEstadual":"32.254.654/0001-38","telefone":"003337496.00-14","enquadramento":"","codigoOrigem":"316"},{"id":"empresa-317","nome":"JAILSON JOSE DE ANDRADE","nomeFantasia":"********","documento":"09441454699","inscricaoEstadual":"30.357.378/0001-08","telefone":"003184443.00-73","enquadramento":"","codigoOrigem":"317"},{"id":"empresa-318","nome":"ADRIANA RODRIGUES DA ROCHA","nomeFantasia":"********","documento":"10809539659","inscricaoEstadual":"31.553.162/0001-80","telefone":"003279501.00-89","enquadramento":"","codigoOrigem":"318"},{"id":"empresa-321","nome":"VANDA ALVES DA SILVA","nomeFantasia":"KUKA CHIC","documento":"08143855678","inscricaoEstadual":"31.107.053/0001-30","telefone":"ISENTO","enquadramento":"","codigoOrigem":"321"},{"id":"empresa-323","nome":"ELIZENE BARBOSA BRITO FERREIRA","nomeFantasia":"MERCEARIA FERREIRA 0026amp; SALES","documento":"06083651654","inscricaoEstadual":"28.899.350/0001-50","telefone":"0030641430086","enquadramento":"","codigoOrigem":"323"},{"id":"empresa-324","nome":"GECYMARA DA SILVA PEREIRA","nomeFantasia":"STUDIO GW","documento":"35490592800","inscricaoEstadual":"28.540.943/0001-26","telefone":"ISENTO","enquadramento":"","codigoOrigem":"324"},{"id":"empresa-325","nome":"WILLIAN NERES DE OLIVEIRA","nomeFantasia":"********","documento":"07041310647","inscricaoEstadual":"30.346.293/0001-24","telefone":"003183541.00-90","enquadramento":"","codigoOrigem":"325"},{"id":"empresa-326","nome":"LEONEL RODRIGUES REPRESENTACOES LTDA","nomeFantasia":"LEONEL RODRIGUES REPRESENTACOES","documento":"30.295.591/0001-32","inscricaoEstadual":"003179501.00-96","telefone":"03891041751","enquadramento":"Simples","codigoOrigem":"326"},{"id":"empresa-327","nome":"EDNA DUARTE MENDES ESTEVES","nomeFantasia":"ESPACO MODAS","documento":"03260618600","inscricaoEstadual":"29.669.564/0001-01","telefone":"003129382.00-59","enquadramento":"","codigoOrigem":"327"},{"id":"empresa-328","nome":"ATILA KELLE FERREIRA DOS SANTOS","nomeFantasia":"********","documento":"36573425839","inscricaoEstadual":"29.992.326/0001-24","telefone":"ISENTO","enquadramento":"","codigoOrigem":"328"},{"id":"empresa-329","nome":"SILVANIO JOSE DA SILVA","nomeFantasia":"********","documento":"42907024817","inscricaoEstadual":"30.357.514/0001-60","telefone":"003184458.00-59","enquadramento":"","codigoOrigem":"329"},{"id":"empresa-330","nome":"OTACILIA MARINETE DE SOUZA","nomeFantasia":"********","documento":"27934397895","inscricaoEstadual":"25.448.068/0001-69","telefone":"002811481.00-92","enquadramento":"","codigoOrigem":"330"},{"id":"empresa-332","nome":"DOMINGA ROSA GOMES","nomeFantasia":"EVAN0027CAR","documento":"06371828630","inscricaoEstadual":"19.412.505/0001-91","telefone":"002278271.00-01","enquadramento":"","codigoOrigem":"332"},{"id":"empresa-333","nome":"DIRCEU APARECIDO ALVES LOPES","nomeFantasia":"GOSTO DE MINAS","documento":"08925199670","inscricaoEstadual":"19.537.621/0001-37","telefone":"002291479.00-23","enquadramento":"","codigoOrigem":"333"},{"id":"empresa-334","nome":"ACLECIO FERREIRA SALES","nomeFantasia":"VERDURAO TAIOBEIRAS","documento":"18207688807","inscricaoEstadual":"21.690.013/0001-00","telefone":"002493376.00-63","enquadramento":"","codigoOrigem":"334"},{"id":"empresa-335","nome":"ELDA RAMOS DOS SANTOS","nomeFantasia":"********","documento":"02678418685","inscricaoEstadual":"21.405.942/0001-20","telefone":"002465651.00-68","enquadramento":"","codigoOrigem":"335"},{"id":"empresa-336","nome":"IZAEL FERREIRA BRAGA","nomeFantasia":"CHARME","documento":"20598667822","inscricaoEstadual":"18.726.628/0001-34","telefone":"002208142.00-82","enquadramento":"","codigoOrigem":"336"},{"id":"empresa-337","nome":"GILMAR VIANA DE SOUZA","nomeFantasia":"********","documento":"03439957608","inscricaoEstadual":"13.136.958/0001-56","telefone":"001721656.00-60","enquadramento":"","codigoOrigem":"337"},{"id":"empresa-338","nome":"DIOGO ALVES ABADE","nomeFantasia":"LOJA FAVORITA","documento":"13828803679","inscricaoEstadual":"28.848.441/0001-67","telefone":"003059849.00-78","enquadramento":"","codigoOrigem":"338"},{"id":"empresa-339","nome":"MAGNO DANGELO FERREIRA","nomeFantasia":"DANGELLIS MOTOS","documento":"06414589675","inscricaoEstadual":"17.454.101/0001-35","telefone":"002087422.00-09","enquadramento":"","codigoOrigem":"339"},{"id":"empresa-341","nome":"GEICIMONE JACUNDINO RODRIGUES NEVES","nomeFantasia":"GEICIMONE JACUNDINO RODRIGUES NEVES","documento":"05108042680","inscricaoEstadual":"ISENTO","telefone":"03838451071","enquadramento":"","codigoOrigem":"341"},{"id":"empresa-342","nome":"ASSOCIACAO DE MULHERES EM PROL DO","nomeFantasia":"********","documento":"01.782.991/0001-74","inscricaoEstadual":"ISENTO","telefone":"03891668999","enquadramento":"Isentas","codigoOrigem":"342"},{"id":"empresa-343","nome":"RAIZZ EMPORIO DA SAUDE LTDA","nomeFantasia":"********","documento":"32.468.347/0001-50","inscricaoEstadual":"003355545.00-26","telefone":"03892234809","enquadramento":"Simples","codigoOrigem":"343"},{"id":"empresa-344","nome":"NELSON FERREIRA SALES","nomeFantasia":"VERDURAO LAGOA GRANDE","documento":"30003518841","inscricaoEstadual":"22.879.864/0001-68","telefone":"002594616.00-36","enquadramento":"","codigoOrigem":"344"},{"id":"empresa-345","nome":"EMPREENDIMENTO OLIVEIRA E COSTA LTDA","nomeFantasia":"MERCADINHO SAO JOSE","documento":"32.588.630/0001-15","inscricaoEstadual":"003365222.00-64","telefone":"03892211054","enquadramento":"Simples","codigoOrigem":"345"},{"id":"empresa-346","nome":"TARLEY ROCHA RODRIGUES","nomeFantasia":"********","documento":"12166998607","inscricaoEstadual":"29.876.369/0001-44","telefone":"ISENTO","enquadramento":"","codigoOrigem":"346"},{"id":"empresa-347","nome":"SILVANDE AUGUSTO MIRANDA","nomeFantasia":"","documento":"739.236.488-04","inscricaoEstadual":"ISENTO","telefone":"03838452074","enquadramento":"Física","codigoOrigem":"347"},{"id":"empresa-348","nome":"ORGANIZACOES JG LTDA","nomeFantasia":"********","documento":"17.281.126/0001-84","inscricaoEstadual":"003428920.00-01","telefone":"03898895962","enquadramento":"Simples","codigoOrigem":"348"},{"id":"empresa-350","nome":"SERGIO FERREIRA SALES","nomeFantasia":"********","documento":"73392596604","inscricaoEstadual":"32.849.777/0001-11","telefone":"0033857380071","enquadramento":"","codigoOrigem":"350"},{"id":"empresa-351","nome":"ANDERSON LUAN PEREIRA SALES","nomeFantasia":"********","documento":"13839905656","inscricaoEstadual":"32.849.893/0001-30","telefone":"0033857530065","enquadramento":"","codigoOrigem":"351"},{"id":"empresa-353","nome":"SAMIR LUCAS MENDES","nomeFantasia":"","documento":"00725610506","inscricaoEstadual":"ISENTO","telefone":"33988294496","enquadramento":"Física","codigoOrigem":"353"},{"id":"empresa-354","nome":"EDSON DE SOUZA MARTINS","nomeFantasia":"","documento":"74453890834","inscricaoEstadual":"ISENTO","telefone":"03898360725","enquadramento":"","codigoOrigem":"354"},{"id":"empresa-356","nome":"A7 COMERCIO DE VEICULOS LTDA","nomeFantasia":"A7 VEICULOS","documento":"13.728.235/0001-46","inscricaoEstadual":"0017812670090","telefone":"03891832000","enquadramento":"Presumido","codigoOrigem":"356"},{"id":"empresa-358","nome":"MITRA TRANSPORTE E SERVICOS LTDA","nomeFantasia":"MITRA FLORESTAL","documento":"22.633.579/0001-62","inscricaoEstadual":"002715071.00-50","telefone":"03899400535","enquadramento":"Presumido","codigoOrigem":"358"},{"id":"empresa-359","nome":"MITRA TRANSPORTE E SERVICOS LTDA","nomeFantasia":"MITRA FLORESTAL","documento":"22.633.579/0002-43","inscricaoEstadual":"172621708","telefone":"03899199524","enquadramento":"Presumido","codigoOrigem":"359"},{"id":"empresa-360","nome":"SUPERMERCADO CENTRAL DE BARREIROS LTDA","nomeFantasia":"SUPERMERCADO CENTRAL","documento":"06.020.563/0001-28","inscricaoEstadual":"772270193.00-20","telefone":"03897429030","enquadramento":"Simples","codigoOrigem":"360"},{"id":"empresa-362","nome":"VERA LUCIA DE OLIVEIRA","nomeFantasia":"LEVER","documento":"07.160.711/0001-72","inscricaoEstadual":"680329796.00-42","telefone":"03891700332","enquadramento":"Simples","codigoOrigem":"362"},{"id":"empresa-363","nome":"GS EMPREENDIMENTOS COMERCIAIS LTDA","nomeFantasia":"GS MADEIRAS","documento":"33.871.913/0001-32","inscricaoEstadual":"003465365.00-20","telefone":"03891035670","enquadramento":"Simples","codigoOrigem":"363"},{"id":"empresa-364","nome":"AGEU CHAVES MOREIRA","nomeFantasia":"VERATUPERWARE","documento":"05065256608","inscricaoEstadual":"33.877.867/0001-89","telefone":"ISENTO","enquadramento":"","codigoOrigem":"364"},{"id":"empresa-366","nome":"SOLUS REFLORESTAMENTO LTDA","nomeFantasia":"********","documento":"11.324.053/0001-84","inscricaoEstadual":"001495967.00-10","telefone":"03898157951","enquadramento":"Simples","codigoOrigem":"366"},{"id":"empresa-367","nome":"VS AGROFLORESTAL LTDA","nomeFantasia":"VS AGROFLORESTAL","documento":"34.764.424/0001-44","inscricaoEstadual":"003535706.00-37","telefone":"03388294496","enquadramento":"Presumido","codigoOrigem":"367"},{"id":"empresa-368","nome":"CERAMICA MINAS FORTE LTDA - ME","nomeFantasia":"********","documento":"09.512.233/0002-29","inscricaoEstadual":"001068632.01-66","telefone":"03899114359","enquadramento":"Simples","codigoOrigem":"368"},{"id":"empresa-370","nome":"MARILIA LUIZA DE OLIVEIRA","nomeFantasia":"","documento":"10950469696","inscricaoEstadual":"35.175.172/000180","telefone":"0035695690048","enquadramento":"","codigoOrigem":"370"},{"id":"empresa-371","nome":"ACSSP ADM PROMOCAO DE VENDAS LTDA","nomeFantasia":"UNE-NORTE DE MINAS","documento":"35.418.593/0001-95","inscricaoEstadual":"ISENTO","telefone":"03892238354","enquadramento":"Simples","codigoOrigem":"371"},{"id":"empresa-373","nome":"VALDENOR FERREIRA DE SA","nomeFantasia":"","documento":"01391265629","inscricaoEstadual":"35.471.831/0001-26","telefone":"0035942240051","enquadramento":"","codigoOrigem":"373"},{"id":"empresa-376","nome":"EUDES CESAR SANTOS SILVA","nomeFantasia":"","documento":"10105159697","inscricaoEstadual":"35.909.024/0001-42","telefone":"0036353530030","enquadramento":"","codigoOrigem":"376"},{"id":"empresa-377","nome":"GRACIMARA ALVES DAVID","nomeFantasia":"","documento":"96611456600","inscricaoEstadual":"ISENTO","telefone":"03891537487","enquadramento":"","codigoOrigem":"377"},{"id":"empresa-378","nome":"ALESSANDRA RODRIGUES DA ROCHA","nomeFantasia":"","documento":"06440288660","inscricaoEstadual":"36.099.699/0001-36","telefone":"ISENTO","enquadramento":"","codigoOrigem":"378"},{"id":"empresa-379","nome":"JOAO SOARES DA CRUZ","nomeFantasia":"","documento":"36.177.800/0001-20","inscricaoEstadual":"0036559520072","telefone":"03899727332","enquadramento":"","codigoOrigem":"379"},{"id":"empresa-380","nome":"LEONARDO MENDES MARQUES","nomeFantasia":"AUTO SOCORRO E BORRACHARIA DO GALEGUINHO","documento":"11.426.314/0001-77","inscricaoEstadual":"0015254260025","telefone":"03891211214","enquadramento":"Presumido","codigoOrigem":"380"},{"id":"empresa-381","nome":"THAIS MENDES FURTADO","nomeFantasia":"PINK BIJOUX","documento":"36.447.323/0001-75","inscricaoEstadual":"003676527.00-27","telefone":"03891327870","enquadramento":"Simples","codigoOrigem":"381"},{"id":"empresa-382","nome":"WILSON DA SILVA PEREIRA","nomeFantasia":"","documento":"11999271637","inscricaoEstadual":"36.470.240/0001-05","telefone":"ISENTO","enquadramento":"","codigoOrigem":"382"},{"id":"empresa-383","nome":"VICTOR GABRIEL MENDES MARQUES","nomeFantasia":"AÇOUGUE DO EDSON","documento":"12356071601","inscricaoEstadual":"36.486.945/0001-02","telefone":"0036793410059","enquadramento":"","codigoOrigem":"383"},{"id":"empresa-384","nome":"LUZIANE OLIVEIRA NASCIMENTO","nomeFantasia":"MERCADINHO NOGUEIRA","documento":"14244997717","inscricaoEstadual":"36.489.654/0001-78","telefone":"ISENTO","enquadramento":"","codigoOrigem":"384"},{"id":"empresa-386","nome":"ELISA DE ALENCAR COSTA","nomeFantasia":"LISA COSTA","documento":"07835277646","inscricaoEstadual":"19.251.517/0001-81","telefone":"002261694.00-27","enquadramento":"","codigoOrigem":"386"},{"id":"empresa-387","nome":"BERENICE DE OLIVEIRA SANTOS PENHA","nomeFantasia":"LAÇO DE MENINA","documento":"29.973.621/0001-33","inscricaoEstadual":"003153986.00-27","telefone":"3891517154","enquadramento":"","codigoOrigem":"387"},{"id":"empresa-388","nome":"MARCELO ANTONIO FURTADO","nomeFantasia":"10ZAO DA MAKE PINK BIJOUX","documento":"01.427.341/0001-00","inscricaoEstadual":"001753861.00-30","telefone":"3892146463","enquadramento":"Simples","codigoOrigem":"388"},{"id":"empresa-389","nome":"LATORRES DISTRIBUIDORA LTDA","nomeFantasia":"LATORRES DISTRIBUIDORA","documento":"02.028.356/0001-69","inscricaoEstadual":"003714004.00-60","telefone":"03892106777","enquadramento":"Simples","codigoOrigem":"389"},{"id":"empresa-390","nome":"CRISTIANO FERREIRA DE SALES","nomeFantasia":"","documento":"17221780609","inscricaoEstadual":"36.977.191/0001-93","telefone":"003716396.00-42","enquadramento":"","codigoOrigem":"390"},{"id":"empresa-391","nome":"MATER CAVE MATERIAIS DE CONSTRUCAO LTDA","nomeFantasia":"MATER CAVE","documento":"36.986.135/0001-15","inscricaoEstadual":"003717120.00-78","telefone":"03388294496","enquadramento":"","codigoOrigem":"391"},{"id":"empresa-393","nome":"INFANCY SERVICOS PEDIATRICOS LTDA","nomeFantasia":"INFANCY","documento":"37.169.758/0001-68","inscricaoEstadual":"ISENTO","telefone":"03891364888","enquadramento":"Simples","codigoOrigem":"393"},{"id":"empresa-394","nome":"AURORA REFLORESTAMENTO E TRANSPORTES LTDA","nomeFantasia":"AURORA REFLORESTAMENTO E TRANSPORTES","documento":"01.939.488/0001-80","inscricaoEstadual":"772693489.00-33","telefone":"03838452074","enquadramento":"Simples","codigoOrigem":"394"},{"id":"empresa-395","nome":"AURORA REFLORESTAMENTO E TRANSPORTES LTDA","nomeFantasia":"AURORA REFLORESTAMENTO E TRANSPORTES","documento":"01.939.488/0002-60","inscricaoEstadual":"772693489.01-14","telefone":"03898613335","enquadramento":"Simples","codigoOrigem":"395"},{"id":"empresa-396","nome":"FLOROCARV REFLORESTAMENTO E TRANSPORTES LTDA","nomeFantasia":"FLOROCARV REFLORESTAMENTO E TRANSPORTES","documento":"03.161.894/0001-90","inscricaoEstadual":"556071794.00-01","telefone":"3898613335","enquadramento":"Simples","codigoOrigem":"396"},{"id":"empresa-397","nome":"GABRIEL MENDES FURTADO","nomeFantasia":"PINK BIJOUX","documento":"13424902667","inscricaoEstadual":"37.239.682/0001-08","telefone":"0037397770088","enquadramento":"","codigoOrigem":"397"},{"id":"empresa-399","nome":"ILZA ROCHA SANTANA ARAUJO","nomeFantasia":"","documento":"00359179622","inscricaoEstadual":"37.447.955/0001-00","telefone":"003756880.00-83","enquadramento":"","codigoOrigem":"399"},{"id":"empresa-400","nome":"JOAO TEODORIO DE ARAUJO","nomeFantasia":"JOAOZINHO AUTOCENTER E LAVA-RAPIDO","documento":"08752452697","inscricaoEstadual":"37.461.796/0001-90","telefone":"003758306.00-28","enquadramento":"","codigoOrigem":"400"},{"id":"empresa-401","nome":"JORGE LUIZ MIRANDA","nomeFantasia":"","documento":"13855013675","inscricaoEstadual":"37.522.848/0001-90","telefone":"003763327.00-12","enquadramento":"","codigoOrigem":"401"},{"id":"empresa-402","nome":"URLENIO OLIVEIRA MARQUES","nomeFantasia":"","documento":"05565762685","inscricaoEstadual":"37.468.318/0001-01","telefone":"003758810.00-36","enquadramento":"","codigoOrigem":"402"},{"id":"empresa-403","nome":"MARCELO KLEITON PEREIRA LIMA","nomeFantasia":"","documento":"08234489674","inscricaoEstadual":"37.834.408/0001-79","telefone":"ISENTO","enquadramento":"","codigoOrigem":"403"},{"id":"empresa-404","nome":"GEHISA CRISTINA LUCAS MARTINS 031290088652","nomeFantasia":"GEHISA COSMETICOS","documento":"37.993.135/0001-05","inscricaoEstadual":"0038025490033","telefone":"03891427184","enquadramento":"","codigoOrigem":"404"},{"id":"empresa-406","nome":"JUSCELIA RIBEIRO SANTOS MIRANDA","nomeFantasia":"CENTER MOTOS","documento":"36.819.074/0001-00","inscricaoEstadual":"0037043840040","telefone":"03892429028","enquadramento":"","codigoOrigem":"406"},{"id":"empresa-407","nome":"DUDA HOME DE TAIOBEIRAS LTDA","nomeFantasia":"DUDA HOME","documento":"38.221.501/0001-70","inscricaoEstadual":"003821113.00-50","telefone":"03891924434","enquadramento":"Simples","codigoOrigem":"407"},{"id":"empresa-408","nome":"OURO VERDE MINERACAO LTDA","nomeFantasia":"","documento":"27.119.416/0001-80","inscricaoEstadual":"002914863.00-47","telefone":"03197991500","enquadramento":"Presumido","codigoOrigem":"408"},{"id":"empresa-409","nome":"OURO VERDE MINERACAO LTDA","nomeFantasia":"OURO VERDE MINERACAO E FLORESTAS","documento":"27.119.416/0002-60","inscricaoEstadual":"002914863.01-28","telefone":"3197991500","enquadramento":"Presumido","codigoOrigem":"409"},{"id":"empresa-411","nome":"MINAS FORESTRY EMPREENDIMENTOS FLORESTAIS","nomeFantasia":"MINAS FORESTRY","documento":"37.405.977/0001-07","inscricaoEstadual":"0037534920051","telefone":"3197991500","enquadramento":"Presumido","codigoOrigem":"411"},{"id":"empresa-412","nome":"KOPEK FORESTRY EMPREENDIMENTOS FLORESTAIS","nomeFantasia":"KOPEK FORESTRY","documento":"11.077.541/0001-34","inscricaoEstadual":"003892624.00-53","telefone":"2732228121","enquadramento":"Presumido","codigoOrigem":"412"},{"id":"empresa-413","nome":"BRAZILIAN FORESTRY EMPREENDIMENTOS","nomeFantasia":"","documento":"33.117.361/0001-71","inscricaoEstadual":"0035612260253","telefone":"2181574752","enquadramento":"Real","codigoOrigem":"413"},{"id":"empresa-414","nome":"BRAZILIAN FORESTRY EMPREENDIMENTOS","nomeFantasia":"","documento":"33.117.361/0002-52","inscricaoEstadual":"0035612260091","telefone":"2122831643","enquadramento":"Real","codigoOrigem":"414"},{"id":"empresa-415","nome":"LAVICA EMPREENDIMENTOS FLORESTAIS LTDA","nomeFantasia":"","documento":"21.276.022/0001-59","inscricaoEstadual":"87.276.520","telefone":"2122335554","enquadramento":"Presumido","codigoOrigem":"415"},{"id":"empresa-416","nome":"LAVICA EMPREENDIMENTOS FLORESTAIS LTDA","nomeFantasia":"********","documento":"21.276.022/0002-30","inscricaoEstadual":"002961427.00-04","telefone":"02122831643","enquadramento":"Presumido","codigoOrigem":"416"},{"id":"empresa-417","nome":"VERA REFLORESTAMENTOS LTDA","nomeFantasia":"VERA REFLORESTAMENTOS","documento":"39.435.173/0001-78","inscricaoEstadual":"003868509.00-83","telefone":"3888332786","enquadramento":"Simples","codigoOrigem":"417"},{"id":"empresa-418","nome":"BRAZILIAN FORESTRY EMPREENDIMENTOS","nomeFantasia":"","documento":"33.117.361/0003-33","inscricaoEstadual":"0035612260172","telefone":"02122831643","enquadramento":"Real","codigoOrigem":"418"},{"id":"empresa-419","nome":"FABRICIO YUKIO FUGITA","nomeFantasia":"","documento":"266.503.598-74","inscricaoEstadual":"003869696.00-25","telefone":"16981238998","enquadramento":"","codigoOrigem":"419"},{"id":"empresa-420","nome":"PATRICIA DIAS ROCHA MEIRELES","nomeFantasia":"LINDALI ACESSORIOS","documento":"39243513842","inscricaoEstadual":"30.970.070/0001-33","telefone":"003891547.00-95","enquadramento":"","codigoOrigem":"420"},{"id":"empresa-421","nome":"D FARMA FARMACIA DE MANIPULACAO LTDA","nomeFantasia":"D´FARMA","documento":"11.536.337/0001-34","inscricaoEstadual":"001548395.00-20","telefone":"3838451395","enquadramento":"Simples","codigoOrigem":"421"},{"id":"empresa-423","nome":"GUGA INDUSTRIA 0026 COMERCIO DE RACAO ANIMAL","nomeFantasia":"","documento":"15.311.502/0001-00","inscricaoEstadual":"001940905.00-22","telefone":"03838451209","enquadramento":"Simples","codigoOrigem":"423"},{"id":"empresa-424","nome":"JOELFLOR PEREIRA DA ROCHA","nomeFantasia":"","documento":"36857858691","inscricaoEstadual":"ISENTO","telefone":"03838451209","enquadramento":"Física","codigoOrigem":"424"},{"id":"empresa-425","nome":"JOELFLOR PEREIRA DA ROCHA","nomeFantasia":"","documento":"36857858691","inscricaoEstadual":"ISENTO","telefone":"03838451201","enquadramento":"Domésticas","codigoOrigem":"425"},{"id":"empresa-426","nome":"RENILSON RODRIGUES DA SILVA JUNIOR","nomeFantasia":"LAVA RAPIDO 2 IRMAOS","documento":"39.864.243/0001-03","inscricaoEstadual":"ISENTO","telefone":"03891640207","enquadramento":"","codigoOrigem":"426"},{"id":"empresa-428","nome":"LUCILENE SILVA DE SOUZA SOARES","nomeFantasia":"","documento":"40.053.573/0001-06","inscricaoEstadual":"0039170320020","telefone":"3888522571","enquadramento":"","codigoOrigem":"428"},{"id":"empresa-429","nome":"POSTO DE COMBUSTIVEIS ANDRIELE LIMITADA","nomeFantasia":"POSTO JM JOAO MANOEL","documento":"40.299.450/0001-41","inscricaoEstadual":"003933567.00-73","telefone":"03399068727","enquadramento":"Presumido","codigoOrigem":"429"},{"id":"empresa-432","nome":"AURORA REFLORESTAMENTO E TRANSPORTES LTDA","nomeFantasia":"AURORA REFLORESTAMENTO E TRANSPORTES","documento":"01.939.488/0003-41","inscricaoEstadual":"772693489.02-97","telefone":"03898613335","enquadramento":"Simples","codigoOrigem":"432"},{"id":"empresa-433","nome":"GUGA INDUSTRIA 0026 COMERCIO DE RACAO ANIMAL","nomeFantasia":"GUGA NUTRICAO ANIMAL","documento":"15.311.502/0002-91","inscricaoEstadual":"001940905.01-03","telefone":"03884057363","enquadramento":"Simples","codigoOrigem":"433"},{"id":"empresa-434","nome":"CONSTRUNOVO LTDA","nomeFantasia":"CONSTRUNOVO","documento":"40.470.754/0001-20","inscricaoEstadual":"003945823.00-04","telefone":"03399068727","enquadramento":"Simples","codigoOrigem":"434"},{"id":"empresa-435","nome":"MAGNA CRISTINA BARBOSA VEIGA","nomeFantasia":"DAMA NUA LINGERIE E MODA MASCULINA","documento":"08307338689","inscricaoEstadual":"36.974.610/0001-33","telefone":"0039603140007","enquadramento":"","codigoOrigem":"435"},{"id":"empresa-436","nome":"LIDIANE GETULIO DE SOUSA","nomeFantasia":"DELIKA","documento":"10006049699","inscricaoEstadual":"32.411.350/0001-37","telefone":"0039914900011","enquadramento":"","codigoOrigem":"436"},{"id":"empresa-437","nome":"JOAO PAULO COSTA MARTINS","nomeFantasia":"CATENGAS BAR E LANCHONETE","documento":"14130685619","inscricaoEstadual":"40.674.680/0001-43","telefone":"0039599540069","enquadramento":"","codigoOrigem":"437"},{"id":"empresa-441","nome":"OURO PRETO REFLORESTAMENTOS LTDA","nomeFantasia":"OURO PRETO REFLORESTAMENTOS","documento":"41.809.794/0001-16","inscricaoEstadual":"0040381730077","telefone":"03197991500","enquadramento":"Presumido","codigoOrigem":"441"},{"id":"empresa-442","nome":"CARMENSILVA ALVES RIBEIRO","nomeFantasia":"MERCADO SAO PEDRO","documento":"08198394699","inscricaoEstadual":"30.056.979/0001-80","telefone":"003160715.00-69","enquadramento":"","codigoOrigem":"442"},{"id":"empresa-443","nome":"SU SEDUCAO MODA INTIMA LTDA","nomeFantasia":"SU SEDUCAO MODA INTIMA","documento":"42.160.712/0001-18","inscricaoEstadual":"0040599390050","telefone":"03891237197","enquadramento":"Simples","codigoOrigem":"443"},{"id":"empresa-444","nome":"GALPAO VEICULOS E LOCADORA LTDA","nomeFantasia":"GALPAO VEICULOS E LOCADORA","documento":"42.469.613/0001-12","inscricaoEstadual":"0040791350061","telefone":"03838451114","enquadramento":"Presumido","codigoOrigem":"444"},{"id":"empresa-446","nome":"SPIROU CONSULTORIA E INVESTIMENTOS LTDA","nomeFantasia":"","documento":"41.228.638/0001-61","inscricaoEstadual":"0041615580085","telefone":"02181574752","enquadramento":"Presumido","codigoOrigem":"446"},{"id":"empresa-448","nome":"GRANMIX COMERCIO DE ALIMENTOS LTDA","nomeFantasia":"GRANMIX MERCADO SAUDAVEL","documento":"28.704.876/0002-19","inscricaoEstadual":"0030478440111","telefone":"3838451006","enquadramento":"Simples","codigoOrigem":"448"},{"id":"empresa-449","nome":"GRANMIX COMERCIO DE ALIMENTOS LTDA","nomeFantasia":"GRANMIX MERCADO SAUDAVEL","documento":"28.704.876/0003-08","inscricaoEstadual":"0030478440294","telefone":"3838451006","enquadramento":"Simples","codigoOrigem":"449"},{"id":"empresa-450","nome":"ACO FORTE METAIS LTDA","nomeFantasia":"","documento":"43.090.616/0001-03","inscricaoEstadual":"0041180510089","telefone":"03892366694","enquadramento":"Simples","codigoOrigem":"450"},{"id":"empresa-452","nome":"OURO VERDE MINERACAO LTDA","nomeFantasia":"","documento":"27.119.416/0004-22","inscricaoEstadual":"0029148630381","telefone":"03197991500","enquadramento":"Presumido","codigoOrigem":"452"},{"id":"empresa-453","nome":"BRAZILIAN FORESTRY EMPREENDIMENTOS","nomeFantasia":"ESTRADA MUNICIPAL","documento":"33.117.361/0004-14","inscricaoEstadual":"186423817","telefone":"2181574752","enquadramento":"Real","codigoOrigem":"453"},{"id":"empresa-455","nome":"CENTRO DE ODONTOLOGIA E SAUDE DE TAIOBEIRAS","nomeFantasia":"CLINICA LIFE","documento":"43.999.386/0001-08","inscricaoEstadual":"ISENTO","telefone":"03838451131","enquadramento":"Simples","codigoOrigem":"455"},{"id":"empresa-457","nome":"LOCADORA DANUBIO AZUL LTDA","nomeFantasia":"LOCADORA DANUBIO AZUL","documento":"44.187.077/0001-98","inscricaoEstadual":"0041954760035","telefone":"03891417033","enquadramento":"Simples","codigoOrigem":"457"},{"id":"empresa-458","nome":"PABLO RAMON MENDES FREITAS","nomeFantasia":"","documento":"061.070.826-03","inscricaoEstadual":"ISENTO","telefone":"03891292941","enquadramento":"Domésticas","codigoOrigem":"458"},{"id":"empresa-459","nome":"NORTE SUL TRANSPORTES E SERVICOS LTDA","nomeFantasia":"NORTE SUL","documento":"01.523.854/0001-15","inscricaoEstadual":"6801984490086","telefone":"03838451357","enquadramento":"Presumido","codigoOrigem":"459"},{"id":"empresa-460","nome":"NORTE SUL TRANSPORTES E SERVICOS LTDA","nomeFantasia":"NORTE SUL TRANSPORTES E SERVIC","documento":"01.523.854/0002-04","inscricaoEstadual":"ISENTO","telefone":"0383451354","enquadramento":"Presumido","codigoOrigem":"460"},{"id":"empresa-461","nome":"UNIVERSO CENTRO DE EDUCACAO INFANTIL LTDA","nomeFantasia":"UNIVERSO CENTRO DE EDUCACAO","documento":"45.340.523/0001-15","inscricaoEstadual":"ISENTO","telefone":"3891260908","enquadramento":"Simples","codigoOrigem":"461"},{"id":"empresa-462","nome":"3M EMPREENDIMENTOS FLORESTAIS LTDA","nomeFantasia":"********","documento":"45.430.962/0001-19","inscricaoEstadual":"0042789280037","telefone":"2181574752","enquadramento":"Presumido","codigoOrigem":"462"},{"id":"empresa-463","nome":"CENTRO DE ODONTOLOGIA ESTETICA LTDA","nomeFantasia":"","documento":"45.430.981/0001-45","inscricaoEstadual":"ISENTO","telefone":"3892168998","enquadramento":"Simples","codigoOrigem":"463"},{"id":"empresa-465","nome":"FSS SERVICOS MEDICOS LTDA","nomeFantasia":"FSS SERVICOS MEDICOS","documento":"45.520.312/0001-64","inscricaoEstadual":"ISENTO","telefone":"3888516640","enquadramento":"Simples","codigoOrigem":"465"},{"id":"empresa-466","nome":"WR SERVICOS FLORESTAIS LTDA","nomeFantasia":"WR SERVICOS FLORESTAIS","documento":"45.897.462/0001-91","inscricaoEstadual":"ISENTO","telefone":"03899268308","enquadramento":"Presumido","codigoOrigem":"466"},{"id":"empresa-467","nome":"CATVAN TECNOLOGIA LTDA","nomeFantasia":"QWERTY CONSULTORIA","documento":"15.669.699/0001-54","inscricaoEstadual":"0019745600040","telefone":"03897356017","enquadramento":"Simples","codigoOrigem":"467"},{"id":"empresa-468","nome":"CONSTRUTORA E INCORPORADORA OURO VERDE LTDA","nomeFantasia":"CONSTRUTORA E INCORPORADORA OURO VERDE","documento":"46.151.327/0001-65","inscricaoEstadual":"0043263840010","telefone":"3197991500","enquadramento":"Simples","codigoOrigem":"468"},{"id":"empresa-469","nome":"LEIDY DARMONY DE ALMEIDA RUFINO","nomeFantasia":"","documento":"075.465.576-82","inscricaoEstadual":"ISENTO","telefone":"03899065500","enquadramento":"Domésticas","codigoOrigem":"469"},{"id":"empresa-470","nome":"BALAO MAGICO KIDS LTDA","nomeFantasia":"BALAO MAGICO KIDS","documento":"46.197.689/0001-97","inscricaoEstadual":"0043291220021","telefone":"3891184936","enquadramento":"Simples","codigoOrigem":"470"},{"id":"empresa-471","nome":"JANIELA FERREIRA DE SOUZA","nomeFantasia":"VALE MODAS","documento":"07777404601","inscricaoEstadual":"27.556.595/0001-12","telefone":"ISENTO","enquadramento":"MEI","codigoOrigem":"471"},{"id":"empresa-473","nome":"LUANA MARTA DE ALMEIDA RUFINO","nomeFantasia":"","documento":"07546613698","inscricaoEstadual":"ISENTO","telefone":"02195075500","enquadramento":"","codigoOrigem":"473"},{"id":"empresa-474","nome":"LC FLORESTAL LTDA","nomeFantasia":"LC FLORESTAL","documento":"46.641.834/0001-87","inscricaoEstadual":"0043570950050","telefone":"3898001616","enquadramento":"Presumido","codigoOrigem":"474"},{"id":"empresa-475","nome":"ADERLEI DOS SANTOS","nomeFantasia":"","documento":"62752170653","inscricaoEstadual":"ISENTO","telefone":"03899740018","enquadramento":"","codigoOrigem":"475"},{"id":"empresa-476","nome":"OURO VERDE MINERACAO LTDA","nomeFantasia":"********","documento":"27.119.416/0005-03","inscricaoEstadual":"0029148630462","telefone":"3197991500","enquadramento":"Presumido","codigoOrigem":"476"},{"id":"empresa-477","nome":"MINAS MAIS VARIEDADES LTDA","nomeFantasia":"MINAS MAIS","documento":"18.174.530/0001-11","inscricaoEstadual":"0021543260012","telefone":"3895599963","enquadramento":"Simples","codigoOrigem":"477"},{"id":"empresa-478","nome":"MARINALVA ROCHA SOARES MENDES","nomeFantasia":"MIMOS","documento":"04710768641","inscricaoEstadual":"42.898.016/0001-03","telefone":"004105944.00-91","enquadramento":"","codigoOrigem":"478"},{"id":"empresa-479","nome":"ME ATACADO LTDA","nomeFantasia":"ME ATACADO","documento":"47.587.923/0001-55","inscricaoEstadual":"0044169720040","telefone":"03891727533","enquadramento":"Simples","codigoOrigem":"479"},{"id":"empresa-480","nome":"FLORENCIO M DE OLIVEIRA LTDA","nomeFantasia":"CASA TAIO","documento":"48.008.430/0001-86","inscricaoEstadual":"0044448570037","telefone":"03899742215","enquadramento":"","codigoOrigem":"480"},{"id":"empresa-481","nome":"B LIMA SERVICOS MEDICOS LTDA","nomeFantasia":"B LIMA SERVICOS MEDICOS","documento":"48.765.236/0001-45","inscricaoEstadual":"ISENTO","telefone":"3891220771","enquadramento":"Simples","codigoOrigem":"481"},{"id":"empresa-482","nome":"VICTOR ARAUJO SERVICOS MEDICOS LTDA","nomeFantasia":"VICTOR ARAUJO SERVICOS MEDICOS","documento":"48.860.906/0001-02","inscricaoEstadual":"ISENTO","telefone":"03891529484","enquadramento":"Simples","codigoOrigem":"482"},{"id":"empresa-483","nome":"L2S AGROTEC LTDA","nomeFantasia":"L2S AGROTEC LTDA","documento":"48.947.414/0001-59","inscricaoEstadual":"0045075370055","telefone":"03898334460","enquadramento":"Simples","codigoOrigem":"483"},{"id":"empresa-485","nome":"XTREME ACADEMIA ESPECIALIZADA LTDA","nomeFantasia":"XTREME ACADEMIA ESPECIALIZADA","documento":"49.032.922/0001-70","inscricaoEstadual":"0045132410065","telefone":"03892156711","enquadramento":"Simples","codigoOrigem":"485"},{"id":"empresa-486","nome":"VS MEDICINA ESPECIALIZADA LTDA","nomeFantasia":"VS MEDICINA ESPECIALIZADA","documento":"49.118.974/0001-63","inscricaoEstadual":"ISENTO","telefone":"03387107625","enquadramento":"Simples","codigoOrigem":"486"},{"id":"empresa-488","nome":"ASSOCIACAO BENEFICENTE GALPAO SOLIDARIO DE","nomeFantasia":"","documento":"49.008.784/0001-93","inscricaoEstadual":"ISENTO","telefone":"03899543714","enquadramento":"Isentas","codigoOrigem":"488"},{"id":"empresa-489","nome":"MARISFRUTAS LTDA","nomeFantasia":"MARISFRUTAS","documento":"31.829.322/0001-71","inscricaoEstadual":"003301858.00-44","telefone":"3899945562","enquadramento":"Simples","codigoOrigem":"489"},{"id":"empresa-492","nome":"VERSATIL LTDA","nomeFantasia":"VERSATIL","documento":"49.437.322/0001-91","inscricaoEstadual":"004538989.0019","telefone":"3891332266","enquadramento":"Simples","codigoOrigem":"492"},{"id":"empresa-493","nome":"ANTONIA0027S LTDA","nomeFantasia":"ANTONIA0027S","documento":"49.495.532/0001-36","inscricaoEstadual":"0045425500050","telefone":"38920085333","enquadramento":"Simples","codigoOrigem":"493"},{"id":"empresa-494","nome":"CAIXA ESCOLAR JOVITA SECUNDINA REGO","nomeFantasia":"","documento":"21.353.743/0001-15","inscricaoEstadual":"ISENTO","telefone":"3838451763","enquadramento":"Isentas","codigoOrigem":"494"},{"id":"empresa-495","nome":"SINDICATO DOS PRODUTORES RURAIS DE","nomeFantasia":"","documento":"48.610.488/0001-03","inscricaoEstadual":"ISENTO","telefone":"3899833446","enquadramento":"Isentas","codigoOrigem":"495"},{"id":"empresa-496","nome":"TIAGO SANTOS DE SOUZA","nomeFantasia":"TIAGO DOIDAO","documento":"49.691.141/0001-97","inscricaoEstadual":"ISENTO","telefone":"3891999290","enquadramento":"Simples","codigoOrigem":"496"},{"id":"empresa-498","nome":"JOSIANE LIMA DE AQUINO LTDA","nomeFantasia":"DROGARIA BEM ESTAR","documento":"49.905.228/0001-10","inscricaoEstadual":"0045679510057","telefone":"3898980732","enquadramento":"Simples","codigoOrigem":"498"},{"id":"empresa-499","nome":"34.887.774 FARLEN XAVIER SANTOS","nomeFantasia":"","documento":"34.887.774/0001-06","inscricaoEstadual":"0035457060012","telefone":"3898393837","enquadramento":"MEI","codigoOrigem":"499"},{"id":"empresa-501","nome":"CERAMICA FORTALEZA LTDA","nomeFantasia":"","documento":"05.328.847/0002-02","inscricaoEstadual":"6272044560194","telefone":"3834890750","enquadramento":"Simples","codigoOrigem":"501"},{"id":"empresa-502","nome":"VSPOSITO SERVICOS MEDICOS LTDA","nomeFantasia":"VSPOSITO SERVICOS MEDICOS","documento":"50.092.836/0001-31","inscricaoEstadual":"ISENTO","telefone":"7788719805","enquadramento":"Simples","codigoOrigem":"502"},{"id":"empresa-503","nome":"AMPLA SERVICOS DE SAUDE LTDA","nomeFantasia":"AMPLA","documento":"50.480.810/0001-60","inscricaoEstadual":"ISENTO","telefone":"3891962733","enquadramento":"Simples","codigoOrigem":"503"},{"id":"empresa-505","nome":"LISA COSTA AME LTDA","nomeFantasia":"LISA COSTA AME","documento":"50.617.577/0001-15","inscricaoEstadual":"0046131920001","telefone":"3892069577","enquadramento":"Simples","codigoOrigem":"505"},{"id":"empresa-506","nome":"FAST EMPREENDIMENTOS AERONAUTICO LTDA","nomeFantasia":"","documento":"50.899.177/0001-40","inscricaoEstadual":"ISENTO","telefone":"02181574752","enquadramento":"Presumido","codigoOrigem":"506"},{"id":"empresa-508","nome":"PRIME ESTETICA AVANCADA LTDA","nomeFantasia":"PRIME ESTETICA","documento":"51.302.098/0001-72","inscricaoEstadual":"0046785700094","telefone":"03891031211","enquadramento":"Simples","codigoOrigem":"508"},{"id":"empresa-509","nome":"OURO VERDE MINERACAO LTDA","nomeFantasia":"*************","documento":"27.119.416/0006-94","inscricaoEstadual":"208679521","telefone":"03197991500","enquadramento":"Presumido","codigoOrigem":"509"},{"id":"empresa-510","nome":"DOUGLAS AUTO CENTER LTDA","nomeFantasia":"DOUGLAS AUTO CENTER","documento":"49.816.918/0001-00","inscricaoEstadual":"0045623790046","telefone":"3891187175","enquadramento":"Simples","codigoOrigem":"510"},{"id":"empresa-511","nome":"VISUAL KIDS LTDA","nomeFantasia":"VISUAL KIDS","documento":"51.927.438/0001-50","inscricaoEstadual":"004698037.00-57","telefone":"03891384888","enquadramento":"Simples","codigoOrigem":"511"},{"id":"empresa-514","nome":"OLARIA E TRANSPORTES TK LTDA","nomeFantasia":"OLARIA TK","documento":"52.197.402/0001-21","inscricaoEstadual":"0047155640077","telefone":"03898086186","enquadramento":"Simples","codigoOrigem":"514"},{"id":"empresa-515","nome":"A7 MOBILE LTDA","nomeFantasia":"A7 LOCADORA DE VEICULOS","documento":"52.546.168/0001-09","inscricaoEstadual":"0047377510048","telefone":"3891832000","enquadramento":"Simples","codigoOrigem":"515"},{"id":"empresa-519","nome":"DARLENE DE FREITAS C VOLPONI LTDA","nomeFantasia":"","documento":"24.848.188/0001-90","inscricaoEstadual":"ISENTO","telefone":"03132736679","enquadramento":"Simples","codigoOrigem":"519"},{"id":"empresa-521","nome":"GALDUS PROJETOS INDUSTRIAIS LTDA","nomeFantasia":"GALDUS PROJETOS INDUSTRIAIS","documento":"53.497.778.0001-14","inscricaoEstadual":"ISENTO","telefone":"2196956467","enquadramento":"Simples","codigoOrigem":"521"},{"id":"empresa-522","nome":"PEREIRA RUAS TRANSPORTE E LOGISTICA LTDA","nomeFantasia":"","documento":"20.484.857/0001-31","inscricaoEstadual":"ISENTO","telefone":"03897405392","enquadramento":"Presumido","codigoOrigem":"522"},{"id":"empresa-524","nome":"CARRETAO POSTO DE COMBUSTIVEIS LTDA","nomeFantasia":"POSTO CARRETAO","documento":"53.997.059/0001-62","inscricaoEstadual":"0048267800050","telefone":"3899740018","enquadramento":"Real","codigoOrigem":"524"},{"id":"empresa-525","nome":"GILDO FARIA","nomeFantasia":"","documento":"51094363634","inscricaoEstadual":"ISENTO","telefone":"03499772974","enquadramento":"Física","codigoOrigem":"525"},{"id":"empresa-526","nome":"C0026R ESCOLA DE IDIOMAS LTDA","nomeFantasia":"QUIZ SPOKEN ENGLISH","documento":"54.267.715/0001-34","inscricaoEstadual":"ISENTO","telefone":"03888625862","enquadramento":"Simples","codigoOrigem":"526"},{"id":"empresa-527","nome":"GL MATERIAIS DE CONSTRUCAO LTDA","nomeFantasia":"GL MATERIAIS DE CONSTRUCAO","documento":"51.509.193/0001-41","inscricaoEstadual":"0046707790048","telefone":"03897232386","enquadramento":"Simples","codigoOrigem":"527"},{"id":"empresa-528","nome":"MIKAEL DOUGLAS A DE OLIVEIRA","nomeFantasia":"MIKAEL DO PASTEL","documento":"37.386.335/0001-08","inscricaoEstadual":"0037520640035","telefone":"03898786085","enquadramento":"Simples","codigoOrigem":"528"},{"id":"empresa-532","nome":"POUSADA, RESTAURANTE E PANIFICADORA JM-","nomeFantasia":"POUSADA, RESTAURANTE E PANIFICADORA JM -","documento":"54.811.429/0001-98","inscricaoEstadual":"0048739220052","telefone":"3398733145","enquadramento":"Simples","codigoOrigem":"532"},{"id":"empresa-533","nome":"ALINE CARVALHO FELIX MORONI","nomeFantasia":"","documento":"040.300.486-17","inscricaoEstadual":"ISENTO","telefone":"3197991500","enquadramento":"Domésticas","codigoOrigem":"533"},{"id":"empresa-536","nome":"ASSOCIAÇÃO COMERCIAL E EMPRESARIAL DE","nomeFantasia":"ACE","documento":"21369913000150","inscricaoEstadual":"ISENTO","telefone":"3838451791","enquadramento":"Isentas","codigoOrigem":"536"},{"id":"empresa-537","nome":"ARTEFATO ACABAMENTOS LTDA","nomeFantasia":"ARTEFATO ACABAMENTOS","documento":"54.515.907/0001-12","inscricaoEstadual":"0048567140072","telefone":"3888083457","enquadramento":"Simples","codigoOrigem":"537"},{"id":"empresa-538","nome":"SENA PARTICIPACOES LTDA","nomeFantasia":"CAFE AL-AMIR","documento":"35.721.733/0001-08","inscricaoEstadual":"0048089510043","telefone":"38992535517","enquadramento":"Simples","codigoOrigem":"538"},{"id":"empresa-540","nome":"CREATIVE COMPANY LTDA","nomeFantasia":"","documento":"41.281.219/0001-93","inscricaoEstadual":"ISENTO","telefone":"38991850145","enquadramento":"Simples","codigoOrigem":"540"},{"id":"empresa-541","nome":"AGRIENERGY FERTIAGRO LTDA","nomeFantasia":"AGRIENERGY FERTIAGRO","documento":"51.346.201/0001-86","inscricaoEstadual":"004.980.119/0086","telefone":"38991039132","enquadramento":"Simples","codigoOrigem":"541"},{"id":"empresa-542","nome":"FELIPE ANDRADE ACADEMIA ESPECIALIZADA LTDA","nomeFantasia":"TOP LIFE ACADEMIA","documento":"20.810.445/0001-44","inscricaoEstadual":"002.409.225/0088","telefone":"3838452074","enquadramento":"Simples","codigoOrigem":"542"},{"id":"empresa-543","nome":"FELIPE ANDRADE ACADEMIA ESPECIALIZADA LTDA","nomeFantasia":"ACADEMIA TOPFIT","documento":"20.810.445/0002-25","inscricaoEstadual":"ISENTO","telefone":"3838452074","enquadramento":"Simples","codigoOrigem":"543"},{"id":"empresa-544","nome":"HELLO NUTRITION COMERCIO DE ALIMENTOS E","nomeFantasia":"HELLO NUTRITION","documento":"34.192.587/0001-08","inscricaoEstadual":"0034912080020","telefone":"03834330090","enquadramento":"Simples","codigoOrigem":"544"},{"id":"empresa-545","nome":"HELLO NUTRITION COMERCIO DE ALIMENTOS E","nomeFantasia":"HELLO NUTRITION","documento":"34.192.587/0002-80","inscricaoEstadual":"151517066118","telefone":"03834330090","enquadramento":"Simples","codigoOrigem":"545"},{"id":"empresa-546","nome":"DERACI JOSE DE OLIVEIRA","nomeFantasia":"","documento":"88069257687","inscricaoEstadual":"ISENTO","telefone":"3899913434","enquadramento":"Física","codigoOrigem":"546"},{"id":"empresa-547","nome":"DERACI JOSE DE OLIVEIRA","nomeFantasia":"","documento":"88069257687","inscricaoEstadual":"ISENTO","telefone":"3899913434","enquadramento":"Física","codigoOrigem":"547"},{"id":"empresa-548","nome":"JOSIEL GOMES ARRUDA SPOSITO E OUTRO","nomeFantasia":"","documento":"83972854587","inscricaoEstadual":"ISENTO","telefone":"33988375452","enquadramento":"Física","codigoOrigem":"548"},{"id":"empresa-549","nome":"BOOZE PUB LTDA","nomeFantasia":"BOOZE PUB","documento":"58.148.306/0001-70","inscricaoEstadual":"0050442860080","telefone":"3892341795","enquadramento":"Simples","codigoOrigem":"549"},{"id":"empresa-550","nome":"PRIME FISIOTERAPIA E CONSULTORIOS MEDICOS","nomeFantasia":"","documento":"08.053.716/0001-69","inscricaoEstadual":"ISENTO","telefone":"3838451510","enquadramento":"Simples","codigoOrigem":"550"},{"id":"empresa-551","nome":"MURILLO MENDES DE OLIVEIRA","nomeFantasia":"MENDES CONDICIONAMENTO FISICO","documento":"15.204.619/0001-95","inscricaoEstadual":"ISENTO","telefone":"03838451367","enquadramento":"Simples","codigoOrigem":"551"},{"id":"empresa-552","nome":"CONSTRULAR MATERIAIS DE PINTURA E","nomeFantasia":"CONSTRULAR","documento":"59.109.244/0001-50","inscricaoEstadual":"0050990540049","telefone":"03838451539","enquadramento":"Simples","codigoOrigem":"552"},{"id":"empresa-553","nome":"GLM ODONTOLOGIA LTDA","nomeFantasia":"GLM","documento":"50.476.072/0001-88","inscricaoEstadual":"ISENTO","telefone":"3891343388","enquadramento":"Simples","codigoOrigem":"553"},{"id":"empresa-554","nome":"NEIDSON DANGELO MENDES MARQUES","nomeFantasia":"VAREJAO DA ECONOMIA","documento":"06.165.061/0001-95","inscricaoEstadual":"isento","telefone":"3892283218","enquadramento":"Presumido","codigoOrigem":"554"},{"id":"empresa-555","nome":"CARLOS LUCAS MENDES","nomeFantasia":"","documento":"42460727615","inscricaoEstadual":"ISENTO","telefone":"3899740606","enquadramento":"Física","codigoOrigem":"555"},{"id":"empresa-556","nome":"JOAO HERMES DE OLIVEIRA","nomeFantasia":"","documento":"52745457691","inscricaoEstadual":"ISENTO","telefone":"3898613335","enquadramento":"","codigoOrigem":"556"},{"id":"empresa-558","nome":"RENALD C FILHO LTDA","nomeFantasia":"DROGARIA PAGUE POUCO","documento":"60000827000127","inscricaoEstadual":"0051510100016","telefone":"3899313235","enquadramento":"Simples","codigoOrigem":"558"},{"id":"empresa-559","nome":"POSTO DE COMBUSTIVEIS JM JOAO MANOEL II LTDA","nomeFantasia":"POSTO JM JOAO MANOEL II","documento":"60.004.399/0001-00","inscricaoEstadual":"0051512550027","telefone":"3399433938","enquadramento":"Presumido","codigoOrigem":"559"},{"id":"empresa-560","nome":"CAMARA DE DIRIGENTES LOJISTAS DE TAIOBEIRAS","nomeFantasia":"C.D.L.","documento":"05.076.768/0001-62","inscricaoEstadual":"ISENTO","telefone":"3838451791","enquadramento":"Isentas","codigoOrigem":"560"},{"id":"empresa-561","nome":"SOMA NEGOCIOS E INTERMEDIACOES FINANCEIRAS","nomeFantasia":"SOMA NEGOCIOS","documento":"60351494000180","inscricaoEstadual":"ISENTO","telefone":"38991380242","enquadramento":"Simples","codigoOrigem":"561"},{"id":"empresa-562","nome":"GERLANE ALVES SOARES","nomeFantasia":"10ZAO DA BELEZZA","documento":"55.887.431/0001-03","inscricaoEstadual":"0049402050043","telefone":"38991256437","enquadramento":"Simples","codigoOrigem":"562"},{"id":"empresa-563","nome":"EVANDRO DE CASTRO","nomeFantasia":"","documento":"45388857620","inscricaoEstadual":"ISENTO","telefone":"3899324321","enquadramento":"Física","codigoOrigem":"563"},{"id":"empresa-564","nome":"HELLO NUTRITION COMERCIO DE ALIMENTOS E","nomeFantasia":"","documento":"34.192.587/0003-61","inscricaoEstadual":"0034912080101","telefone":"3131410090","enquadramento":"Simples","codigoOrigem":"564"},{"id":"empresa-565","nome":"DJALMA MOREIRA DE AGUIAR","nomeFantasia":"DIDI ESPORTES","documento":"60.615.935/0001-04","inscricaoEstadual":"0051860010091","telefone":"38991610148","enquadramento":"Simples","codigoOrigem":"565"},{"id":"empresa-567","nome":"VIVEIRO RENASCER LTDA","nomeFantasia":"VIVEIRO RENASCER","documento":"60.958.549/0001-15","inscricaoEstadual":"0052050480075","telefone":"3197991500","enquadramento":"Presumido","codigoOrigem":"567"},{"id":"empresa-568","nome":"BRAZILIAN COFFEE LTDA","nomeFantasia":"BRAZILIAN COFFEE","documento":"61.131.250/0001-55","inscricaoEstadual":"231944250","telefone":"02181574752","enquadramento":"Real","codigoOrigem":"568"},{"id":"empresa-569","nome":"RDS AGREGADOS 0026 LOGISTICA LTDA","nomeFantasia":"RDS AGREGADOS 0026 LOGISTICA","documento":"61.192.229/0001-60","inscricaoEstadual":"0052181020078","telefone":"01141407108","enquadramento":"Simples","codigoOrigem":"569"},{"id":"empresa-571","nome":"VOLPONI CONSTRUCOES MECANICAS INDUSTRIA E","nomeFantasia":"VOLPONI CONSTRUCOES MECANICAS","documento":"10.760.125/0001-73","inscricaoEstadual":"0011681060027","telefone":"3838451818","enquadramento":"Simples","codigoOrigem":"571"},{"id":"empresa-572","nome":"FREEDOM REFORESTING LTDA","nomeFantasia":"","documento":"57.338.982/0001-43","inscricaoEstadual":"233465782","telefone":"2194156809","enquadramento":"Presumido","codigoOrigem":"572"},{"id":"empresa-573","nome":"SCP-VIVEIRO RENASCER","nomeFantasia":"","documento":"61.684.943/0001-75","inscricaoEstadual":"ISENTO","telefone":"3197991500","enquadramento":"Presumido","codigoOrigem":"573"},{"id":"empresa-574","nome":"INSTITUTO VITA DIVISA ALEGRE LTDA","nomeFantasia":"INSTITUTO VITA","documento":"62.070.227/0001-60","inscricaoEstadual":"ISENTO","telefone":"03185343468","enquadramento":"","codigoOrigem":"574"},{"id":"empresa-575","nome":"BDV LTDA","nomeFantasia":"BDV","documento":"62.183.562/0001-75","inscricaoEstadual":"ISENTO","telefone":"2193373817","enquadramento":"Presumido","codigoOrigem":"575"},{"id":"empresa-576","nome":"GUIMARAES E SILVA INSTITUTO INTEGRADO LTDA","nomeFantasia":"SANTE ODONTOLOGIA INTEGRADA","documento":"62.488.492/0001-63","inscricaoEstadual":"ISENTO","telefone":"3891442461","enquadramento":"Simples","codigoOrigem":"576"},{"id":"empresa-577","nome":"CAFE RENASCER SPE LTDA","nomeFantasia":"CAFE RENASCER","documento":"62.602.722/0001-73","inscricaoEstadual":"235471404","telefone":"02181574752","enquadramento":"Real","codigoOrigem":"577"},{"id":"empresa-578","nome":"ELITE HIDRAULICA E SOLDAS LTDA","nomeFantasia":"ELITE HIDRAULICA E SOLDAS","documento":"55.487.685/0001-34","inscricaoEstadual":"0049146620087","telefone":"03898659608","enquadramento":"Simples","codigoOrigem":"578"},{"id":"empresa-579","nome":"MORONI 0026 XAVIER AUTOPECAS LTDA","nomeFantasia":"MORONI 0026 XAVIER AUTOPECAS","documento":"62.768.139/0001-37","inscricaoEstadual":"0053076400088","telefone":"03898140609","enquadramento":"Simples","codigoOrigem":"579"},{"id":"empresa-580","nome":"LUCAS MENDES FILHO MARQUES SUCUPIRA","nomeFantasia":"","documento":"10543264602","inscricaoEstadual":"ISENTO","telefone":"38998334460","enquadramento":"","codigoOrigem":"580"},{"id":"empresa-581","nome":"BC SAUDE LTDA","nomeFantasia":"BIO MUNDO MERCADO SAUDAVEL","documento":"63.079.603/0001-40","inscricaoEstadual":"0053246980055","telefone":"2193373817","enquadramento":"Simples","codigoOrigem":"581"},{"id":"empresa-582","nome":"FREEDOM REFORESTING LTDA","nomeFantasia":"","documento":"57.338.982/0002-24","inscricaoEstadual":"237.618.229","telefone":"0219416809","enquadramento":"Presumido","codigoOrigem":"582"},{"id":"empresa-583","nome":"EMPORIO VERDE DISTRIBUIDORA LTDA","nomeFantasia":"EMPORIO VERDE DISTRIBUIDORA","documento":"42.096.564/0001-10","inscricaoEstadual":"0040564220051","telefone":"3892287826","enquadramento":"Simples","codigoOrigem":"583"},{"id":"empresa-584","nome":"EMPREENDIMENTOS IMOBILIARIOS M0026A LTDA","nomeFantasia":"EMPREENDIMENTOS IMOBILIARIOS M0026A","documento":"63.533.881/0001-26","inscricaoEstadual":"ISENTO","telefone":"1147348756","enquadramento":"Presumido","codigoOrigem":"584"},{"id":"empresa-585","nome":"MORONI 0026 XAVIER AUTOPECAS LTDA","nomeFantasia":"MORONI 0026 XAVIER AUTOPECAS","documento":"62.768.139/0002-18","inscricaoEstadual":"084704462","telefone":"3898140609","enquadramento":"Simples","codigoOrigem":"585"},{"id":"empresa-586","nome":"LC SERVICOS AGRICOLAS E FLORESTAIS LTDA","nomeFantasia":"LC SERVICOS","documento":"63.712.522/0001-36","inscricaoEstadual":"ISENTO","telefone":"3898001616","enquadramento":"Simples","codigoOrigem":"586"},{"id":"empresa-589","nome":"CREATIVE DIGITAL LTDA","nomeFantasia":"CREATIVE DIGITAL","documento":"65.028.558/0001-20","inscricaoEstadual":"ISENTO","telefone":"3891850145","enquadramento":"Simples","codigoOrigem":"589"},{"id":"empresa-591","nome":"AAP INTERMEDIACOES LTDA","nomeFantasia":"AAP INTERMEDIACOES","documento":"65.116.389/0001-80","inscricaoEstadual":"ISENTO","telefone":"3838452074","enquadramento":"Simples","codigoOrigem":"591"},{"id":"empresa-592","nome":"HERMES REFLORESTAMENTO E TRANSPORTE LTDA","nomeFantasia":"HERMES REFLORESTAMENTO E TRANSPORTE","documento":"65.249.920/0001-93","inscricaoEstadual":"0054467800042","telefone":"3899345881","enquadramento":"Simples","codigoOrigem":"592"},{"id":"empresa-593","nome":"CONSTRUTOP MATERIAIS DE CONSTRUCAO LTDA","nomeFantasia":"CONSTRUTOP","documento":"65.385.342/0001-12","inscricaoEstadual":"0054541380048","telefone":"3899124791","enquadramento":"Simples","codigoOrigem":"593"},{"id":"empresa-594","nome":"HERMES REFLORESTAMENTO E TRANSPORTE LTDA","nomeFantasia":"HERMES REFLORESTAMENTO E TRANSPORTE","documento":"65.249.920/0002-74","inscricaoEstadual":"0054467800042","telefone":"3899345881","enquadramento":"Simples","codigoOrigem":"594"},{"id":"empresa-595","nome":"NERES EMPREENDIMENTOS LTDA","nomeFantasia":"NERES EMPREENDIMENTOS","documento":"37.638.746/0001-35","inscricaoEstadual":"0037733770041","telefone":"3892209712","enquadramento":"Simples","codigoOrigem":"595"},{"id":"empresa-596","nome":"ORGANIZACOES FURTADO LTDA","nomeFantasia":"10ZAO PINK BIJOUX","documento":"36.447.323/0002-56","inscricaoEstadual":"0036765270108","telefone":"3888120041","enquadramento":"Simples","codigoOrigem":"596"},{"id":"empresa-597","nome":"CONSTRU UNIAO MATERIAIS DE CONSTRUCAO LTDA","nomeFantasia":"CONSTRU UNIAO MATERIAIS DE CONSTRUCAO","documento":"66532864000162","inscricaoEstadual":"0055160720014","telefone":"3891110478","enquadramento":"Simples","codigoOrigem":"597"},{"id":"empresa-598","nome":"IMPERIO DAS PIZZAS TAIOBEIRAS LTDA","nomeFantasia":"","documento":"46076293000191","inscricaoEstadual":"0043214550047","telefone":"38975208891","enquadramento":"Simples","codigoOrigem":"598"},{"id":"empresa-599","nome":"BIBOKA EMBALAGENS LTDA","nomeFantasia":"BIBOKA EMBALAGENS","documento":"07.648.035/0002-61","inscricaoEstadual":"ISENTO","telefone":"3838452828","enquadramento":"Simples","codigoOrigem":"599"},{"id":"empresa-600","nome":"ALVES CRUZ ACADEMIA PREMIUM LTDA","nomeFantasia":"WF11 TAIOBEIRAS","documento":"67.578.303/0001-67","inscricaoEstadual":"ISENTO","telefone":"03892146863","enquadramento":"Simples","codigoOrigem":"600"},{"id":"empresa-601","nome":"LIZZ SHOW0027S LTDA","nomeFantasia":"SHOW DA LIZZ","documento":"40.619.741/0001-70","inscricaoEstadual":"ISENTO","telefone":"3892571903","enquadramento":"","codigoOrigem":"601"},{"id":"empresa-603","nome":"WB SUSHI LTDA","nomeFantasia":"WB SUSHI DELIVERY","documento":"64179447000152","inscricaoEstadual":"ISENTO","telefone":"3891802575","enquadramento":"","codigoOrigem":"603"},{"id":"empresa-604","nome":"OLARIA K0026K LTDA","nomeFantasia":"OLARIA K0026K","documento":"68.078.024/0001-05","inscricaoEstadual":"ISENTO","telefone":"(38)9881088","enquadramento":"","codigoOrigem":"604"},{"id":"empresa-605","nome":"LL CENTRO ESTETICO LTDA","nomeFantasia":"LL CENTRO ESTETICO","documento":"68.118.490/0001-69","inscricaoEstadual":"ISENTO","telefone":"3892168998","enquadramento":"","codigoOrigem":"605"},{"id":"empresa-13000","nome":"DOMINGOS RUBIAO ALVES MEIRA NETTO","nomeFantasia":"FRUTAS RUBIAO","documento":"10801014891","inscricaoEstadual":"0011354510020","telefone":"3838458153","enquadramento":"","codigoOrigem":"13000"},{"id":"empresa-41","nome":"MJ ELETRODOMESTICOS LTDA","nomeFantasia":"","documento":"","inscricaoEstadual":"","telefone":"","enquadramento":"Simples","codigoOrigem":"41"},{"id":"empresa-590","nome":"TORIBA TECNOLOGIA E GESTAO EMPRESARIAL LTDA","nomeFantasia":"","documento":"","inscricaoEstadual":"","telefone":"","enquadramento":"Simples","codigoOrigem":"590"}];
+</script>
 <script>
 (function () {
-  var db = null;
-  var downloadsCap = null;
+  var auth = firebase.auth();
+  var db = firebase.firestore();
   var clientesCache = new Map();
   var selectedClienteId = null;
   var currentGeo = null;
@@ -503,6 +561,30 @@
 
   function clienteLabel(c) {
     return (c.codigoOrigem ? c.codigoOrigem + ' - ' : '') + c.nome;
+  }
+
+  function errMsg(err, fallback) {
+    if (err && err.code === 'permission-denied') return 'Sem permissão — confira as regras do Firestore.';
+    if (err && err.code === 'unavailable') return 'Sem conexão. Verifique sua internet.';
+    return fallback;
+  }
+
+  // Grava o registro leve na coleção "entregas" e, se houver assinatura ou
+  // foto, guarda esses anexos num subdocumento à parte — assim as listas
+  // (Painel, Rota) não precisam baixar imagens só para exibir o resumo.
+  function saveEntregaComAnexos(parentData, anexos) {
+    return db.collection('entregas').add(parentData).then(function (ref) {
+      if (anexos && (anexos.assinatura || anexos.foto)) {
+        return ref.collection('anexos').doc('comprovante').set(anexos).then(function () { return ref; });
+      }
+      return ref;
+    });
+  }
+
+  function getAnexos(entregaId) {
+    return db.collection('entregas').doc(entregaId).collection('anexos').doc('comprovante').get()
+      .then(function (snap) { return snap.exists ? snap.data() : {}; })
+      .catch(function () { return {}; });
   }
 
   function fmtMoney(n) {
@@ -812,7 +894,7 @@
         clearFieldError('cliente');
         showToast('Cliente adicionado.');
       })
-      .catch(function () { showToast('Não foi possível adicionar o cliente.', 'error'); });
+      .catch(function (err) { showToast(errMsg(err, 'Não foi possível adicionar o cliente.'), 'error'); });
   }
 
   // ---------- form errors ----------
@@ -847,7 +929,7 @@
   $('form-nova').addEventListener('submit', function (e) {
     e.preventDefault();
     clearErrors();
-    if (!db) { showToast('Abra o link publicado para registrar entregas.', 'error'); return; }
+    if (!db) { showToast('Sem conexão com o banco. Tente novamente.', 'error'); return; }
     var isRota = formMode === 'rota';
     var competencia = $('competenciaInput').value;
     var itens = getSelectedItens();
@@ -865,23 +947,26 @@
     var cliente = clientesCache.get(selectedClienteId);
     var now = new Date().toISOString();
 
-    db.collection('entregas').add({
+    saveEntregaComAnexos({
       clienteId: selectedClienteId,
       clienteNome: cliente ? clienteLabel(cliente) : clienteInput.value,
       competencia: competencia,
       itens: itens,
       recebedor: isRota ? '' : recebedor,
-      assinatura: isRota ? null : mainSigPad.dataUrl(),
+      temAssinatura: !isRota,
+      temFoto: !!fotoDataUrl,
       geo: isRota ? null : currentGeo,
-      foto: fotoDataUrl,
       status: isRota ? 'pendente' : 'confirmada',
       criadoEm: now,
       confirmadoEm: isRota ? null : now
+    }, {
+      assinatura: isRota ? null : mainSigPad.dataUrl(),
+      foto: fotoDataUrl
     }).then(function () {
       showToast(isRota ? 'Adicionado à rota — aguardando assinatura.' : 'Entrega registrada com sucesso.');
       resetForm();
-    }).catch(function () {
-      showToast('Não foi possível salvar. Tente novamente.', 'error');
+    }).catch(function (err) {
+      showToast(errMsg(err, 'Não foi possível salvar.'), 'error');
     }).finally(function () {
       btn.disabled = false;
       btn.textContent = isRota ? 'Adicionar à rota' : 'Confirmar entrega';
@@ -910,7 +995,7 @@
     unsubEntregasPainel = db.collection('entregas').where('competencia', '==', comp).limit(500).onSnapshot(function (snap) {
       entregasPainelCache = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
       renderPainel();
-    }, function () { /* store falls back internally */ });
+    }, function (err) { showToast(errMsg(err, 'Não foi possível carregar o painel.'), 'error'); });
   }
 
   $('painelCompetencia').addEventListener('change', function () { subscribePainel(this.value); });
@@ -923,7 +1008,7 @@
     unsubPendentes = db.collection('entregas').where('status', '==', 'pendente').limit(500).onSnapshot(function (snap) {
       pendentesCache = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
       renderRota();
-    }, function () { /* store falls back internally */ });
+    }, function (err) { showToast(errMsg(err, 'Não foi possível carregar a rota.'), 'error'); });
   }
 
   $('rotaBusca').addEventListener('input', renderRota);
@@ -1045,9 +1130,9 @@
       var historico = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
       historico.sort(function (a, b) { return new Date(b.confirmadoEm || b.criadoEm) - new Date(a.confirmadoEm || a.criadoEm); });
       renderHistoricoList(cliente, historico);
-    }).catch(function () {
+    }).catch(function (err) {
       var inner = $('modalInner');
-      if (inner) inner.innerHTML = '<div class="empty-state">Não foi possível carregar o histórico.</div>';
+      if (inner) inner.innerHTML = '<div class="empty-state">' + errMsg(err, 'Não foi possível carregar o histórico.') + '</div>';
     });
   }
 
@@ -1100,8 +1185,7 @@
         '<button class="modal-close" id="modalClose" title="Voltar ao histórico">✕</button>' +
       '</div>' +
       '<div class="itens-list">' + itensHtml + '</div>' +
-      (entrega.assinatura ? '<img class="sig-preview" src="' + entrega.assinatura + '" alt="Assinatura de recebimento">' : '') +
-      (entrega.foto ? '<img class="sig-preview" src="' + entrega.foto + '" alt="Foto anexada">' : '') +
+      '<div id="anexosSlot"><p class="card-hint">Carregando comprovante...</p></div>' +
       '<dl>' +
         (total > 0 ? '<dt>Total</dt><dd class="num">' + fmtMoney(total) + '</dd>' : '') +
         '<dt>Recebido por</dt><dd>' + escapeHtml(entrega.recebedor || 'não informado') + '</dd>' +
@@ -1109,6 +1193,15 @@
         '<dt>Localização</dt><dd>' + geoLink + '</dd>' +
       '</dl>';
     $('modalClose').addEventListener('click', function () { renderHistoricoList(cliente, historico); });
+
+    getAnexos(entrega.id).then(function (anexos) {
+      var slot = $('anexosSlot');
+      if (!slot) return;
+      var html = '';
+      if (anexos.assinatura) html += '<img class="sig-preview" src="' + anexos.assinatura + '" alt="Assinatura de recebimento">';
+      if (anexos.foto) html += '<img class="sig-preview" src="' + anexos.foto + '" alt="Foto anexada">';
+      slot.innerHTML = html || '<p class="card-hint">Sem comprovante anexado.</p>';
+    });
   }
 
   function openConfirmPendingModal(entrega) {
@@ -1193,18 +1286,24 @@
       var btn = $('pendingConfirmBtn');
       btn.disabled = true;
       btn.textContent = 'Salvando...';
-      db.doc('entregas/' + entrega.id).update({
-        assinatura: pendingPad.dataUrl(),
+      var entregaRef = db.doc('entregas/' + entrega.id);
+      entregaRef.update({
         recebedor: $('pendingRecebedor').value.trim(),
         geo: pendingGeo,
-        foto: pendingFoto,
+        temAssinatura: true,
+        temFoto: !!pendingFoto,
         status: 'confirmada',
         confirmadoEm: new Date().toISOString()
       }).then(function () {
+        return entregaRef.collection('anexos').doc('comprovante').set({
+          assinatura: pendingPad.dataUrl(),
+          foto: pendingFoto
+        }, { merge: true });
+      }).then(function () {
         showToast('Entrega confirmada.');
         closeModal();
-      }).catch(function () {
-        showToast('Não foi possível confirmar.', 'error');
+      }).catch(function (err) {
+        showToast(errMsg(err, 'Não foi possível confirmar.'), 'error');
         btn.disabled = false;
         btn.textContent = 'Confirmar entrega';
       });
@@ -1219,16 +1318,10 @@
     return d.innerHTML;
   }
 
-  // ---------- exportar CSV ----------
-  function csvField(v) {
-    var s = v === null || v === undefined ? '' : String(v);
-    if (/[;"\n]/.test(s)) s = '"' + s.replace(/"/g, '""') + '"';
-    return s;
-  }
-
-  function buildCsv(entregas) {
+  // ---------- exportar planilha ----------
+  function buildLinhas(entregas) {
     var header = ['Cliente', 'Competência', 'Documentos', 'Total (R$)', 'Recebedor', 'Data/Hora', 'Localização'];
-    var lines = [header.map(csvField).join(';')];
+    var linhas = [header];
     entregas.slice().sort(function (a, b) { return new Date(a.criadoEm) - new Date(b.criadoEm); }).forEach(function (e) {
       var itensStr = (e.itens || []).map(function (i) {
         var label = typeof i === 'string' ? i : i.tipo;
@@ -1236,33 +1329,31 @@
       }).join(' | ');
       var total = (e.itens || []).reduce(function (s, i) { return s + ((i && i.valor) || 0); }, 0);
       var geoStr = e.geo ? (e.geo.lat + ',' + e.geo.lng) : '';
-      lines.push([
+      linhas.push([
         e.clienteNome, fmtCompetencia(e.competencia), itensStr,
-        total ? total.toFixed(2).replace('.', ',') : '',
-        e.recebedor || '', fmtDateTime(e.criadoEm), geoStr
-      ].map(csvField).join(';'));
+        total || 0, e.recebedor || '', fmtDateTime(e.criadoEm), geoStr
+      ]);
     });
-    return '﻿' + lines.join('\r\n');
+    return linhas;
   }
 
-  $('exportBtn').addEventListener('click', async function () {
+  $('exportBtn').addEventListener('click', function () {
     if (!entregasPainelCache.length) { showToast('Nenhuma entrega para exportar nesta competência.', 'error'); return; }
-    if (!downloadsCap) { showToast('Exportação indisponível neste modo de visualização.', 'error'); return; }
+    if (typeof XLSX === 'undefined') { showToast('Biblioteca de planilha não carregou. Recarregue a página.', 'error'); return; }
     var busca = $('painelBusca').value.trim().toLowerCase();
     var rows = busca ? entregasPainelCache.filter(function (e) { return (e.clienteNome || '').toLowerCase().indexOf(busca) !== -1; }) : entregasPainelCache;
     if (!rows.length) { showToast('Nenhuma entrega para exportar com esse filtro.', 'error'); return; }
-    try {
-      await downloadsCap.save({ filename: 'entregas-' + $('painelCompetencia').value + '.csv', data: buildCsv(rows) });
-      showToast('Arquivo salvo.');
-    } catch (e) {
-      if (e && e.code !== 'declined') showToast('Não foi possível exportar.', 'error');
-    }
+    var ws = XLSX.utils.aoa_to_sheet(buildLinhas(rows));
+    ws['!cols'] = [{ wch: 30 }, { wch: 12 }, { wch: 40 }, { wch: 12 }, { wch: 22 }, { wch: 18 }, { wch: 20 }];
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Entregas');
+    XLSX.writeFile(wb, 'entregas-' + $('painelCompetencia').value + '.xlsx');
+    showToast('Planilha baixada.');
   });
 
   // ---------- clientes tab ----------
   $('form-cliente').addEventListener('submit', function (e) {
     e.preventDefault();
-    if (!db) { showToast('Abra o link publicado para cadastrar clientes.', 'error'); return; }
     var nome = $('novoClienteNome').value.trim();
     if (!nome) return;
     db.collection('clientes').add({
@@ -1276,7 +1367,33 @@
       $('novoClienteDoc').value = '';
       $('novoClienteTel').value = '';
       showToast('Cliente cadastrado.');
-    }).catch(function () { showToast('Não foi possível cadastrar.', 'error'); });
+    }).catch(function (err) { showToast(errMsg(err, 'Não foi possível cadastrar.'), 'error'); });
+  });
+
+  $('importClientesBtn').addEventListener('click', function () {
+    var btn = this;
+    if (!window.CLIENTES_SEED || !window.CLIENTES_SEED.length) { showToast('Base inicial indisponível.', 'error'); return; }
+    if (!confirm('Importar ' + window.CLIENTES_SEED.length + ' clientes agora?')) return;
+    btn.disabled = true;
+    btn.textContent = 'Importando...';
+    var batch = db.batch();
+    window.CLIENTES_SEED.forEach(function (c) {
+      var ref = db.collection('clientes').doc(c.id);
+      batch.set(ref, {
+        nome: c.nome, nomeFantasia: c.nomeFantasia, documento: c.documento,
+        inscricaoEstadual: c.inscricaoEstadual, telefone: c.telefone,
+        enquadramento: c.enquadramento, codigoOrigem: c.codigoOrigem,
+        ativo: true, criadoEm: new Date().toISOString()
+      });
+    });
+    batch.commit().then(function () {
+      showToast(window.CLIENTES_SEED.length + ' clientes importados.');
+    }).catch(function () {
+      showToast('Falha ao importar. Confira as regras do Firestore.', 'error');
+    }).finally(function () {
+      btn.disabled = false;
+      btn.textContent = 'Importar 315 clientes';
+    });
   });
 
   $('clientesBusca').addEventListener('input', renderClientesList);
@@ -1298,45 +1415,64 @@
       row.querySelector('.cr-name').textContent = clienteLabel(c);
       row.querySelector('.cr-sub').textContent = sub;
       row.querySelector('.btn-chip').addEventListener('click', function () {
-        db.doc('clientes/' + c.id).update({ ativo: c.ativo === false }).catch(function () { showToast('Não foi possível atualizar.', 'error'); });
+        db.doc('clientes/' + c.id).update({ ativo: c.ativo === false }).catch(function (err) { showToast(errMsg(err, 'Não foi possível atualizar.'), 'error'); });
       });
       listEl.appendChild(row);
     });
   }
 
   // ---------- init ----------
-  function showNoDb() {
-    $('no-db').hidden = false;
-    document.querySelectorAll('input, button[type="submit"]').forEach(function (el) {
-      if (el.id !== 'painelBusca' && el.id !== 'clientesBusca') el.disabled = true;
-    });
-  }
+  var appStarted = false;
 
-  async function init() {
+  function startApp() {
+    if (appStarted) return;
+    appStarted = true;
     setupCanvas();
     captureGeo();
-    try {
-      db = window.claude ? await window.claude.use('db') : null;
-    } catch (e) {
-      db = null;
-    }
-    try {
-      downloadsCap = window.claude ? await window.claude.use('downloads') : null;
-    } catch (e) {
-      downloadsCap = null;
-    }
-    if (!db) { showNoDb(); return; }
 
     unsubClientes = db.collection('clientes').orderBy('nome').limit(1000).onSnapshot(function (snap) {
       clientesCache = new Map(snap.docs.map(function (d) { return [d.id, Object.assign({ id: d.id }, d.data())]; }));
+      $('importCard').hidden = clientesCache.size > 0;
       renderClientesList();
       renderPainel();
-    }, function () { /* falls back internally */ });
+    }, function (err) {
+      $('no-db').hidden = false;
+      $('no-db').textContent = errMsg(err, 'Não foi possível conectar ao banco de dados. Verifique sua internet e recarregue a página.');
+    });
 
     subscribePainel($('painelCompetencia').value);
     subscribePendentes();
   }
 
-  init();
+  $('loginForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    $('loginError').hidden = true;
+    var btn = $('loginBtn');
+    btn.disabled = true;
+    btn.textContent = 'Entrando...';
+    auth.signInWithEmailAndPassword($('loginEmail').value.trim(), $('loginSenha').value)
+      .catch(function () { $('loginError').hidden = false; })
+      .finally(function () {
+        btn.disabled = false;
+        btn.textContent = 'Entrar';
+      });
+  });
+
+  $('logoutBtn').addEventListener('click', function () { auth.signOut(); });
+
+  auth.onAuthStateChanged(function (user) {
+    if (user) {
+      $('authGate').hidden = true;
+      $('logoutBtn').hidden = false;
+      startApp();
+    } else {
+      var logo = document.querySelector('.brand-mark');
+      if (logo) $('authLogo').src = logo.src;
+      $('authGate').hidden = false;
+      $('logoutBtn').hidden = true;
+    }
+  });
 })();
 </script>
+</body>
+</html>
