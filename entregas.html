@@ -455,7 +455,10 @@
       <button type="submit" class="btn btn-primary">Adicionar cliente</button>
     </form>
     <div class="card">
-      <h2>Clientes</h2>
+      <div class="card-head-row">
+        <h2>Clientes</h2>
+        <button type="button" class="btn-chip accent" id="exportClientesBtn">⬇ Exportar planilha</button>
+      </div>
       <input class="input" id="clientesBusca" type="text" placeholder="Buscar..." style="margin:12px 0;">
       <div id="clientesList"></div>
     </div>
@@ -964,6 +967,7 @@
       temAssinatura: !isRota,
       temFoto: !!fotoDataUrl,
       geo: isRota ? null : currentGeo,
+      entregadoPor: (auth.currentUser && auth.currentUser.email) || '',
       status: isRota ? 'pendente' : 'confirmada',
       criadoEm: now,
       confirmadoEm: isRota ? null : now
@@ -1197,6 +1201,7 @@
       '<dl>' +
         (total > 0 ? '<dt>Total</dt><dd class="num">' + fmtMoney(total) + '</dd>' : '') +
         '<dt>Recebido por</dt><dd>' + escapeHtml(entrega.recebedor || 'não informado') + '</dd>' +
+        '<dt>Entregue por</dt><dd>' + escapeHtml(entrega.entregadoPor || 'não informado') + '</dd>' +
         '<dt>Data/hora</dt><dd>' + fmtDateTime(entrega.confirmadoEm || entrega.criadoEm) + '</dd>' +
         '<dt>Localização</dt><dd>' + geoLink + '</dd>' +
       '</dl>';
@@ -1300,6 +1305,7 @@
         geo: pendingGeo,
         temAssinatura: true,
         temFoto: !!pendingFoto,
+        entregadoPor: (auth.currentUser && auth.currentUser.email) || '',
         status: 'confirmada',
         confirmadoEm: new Date().toISOString()
       }).then(function () {
@@ -1402,6 +1408,27 @@
       btn.disabled = false;
       btn.textContent = 'Importar 315 clientes';
     });
+  });
+
+  $('exportClientesBtn').addEventListener('click', function () {
+    if (!clientesCache.size) { showToast('Nenhum cliente pra exportar.', 'error'); return; }
+    if (typeof XLSX === 'undefined') { showToast('Biblioteca de planilha não carregou. Recarregue a página.', 'error'); return; }
+    var linhas = [['Código', 'Nome', 'Nome Fantasia', 'Documento', 'Inscrição Estadual', 'Telefone', 'Enquadramento', 'Ativo']];
+    Array.from(clientesCache.values())
+      .sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); })
+      .forEach(function (c) {
+        linhas.push([
+          c.codigoOrigem || '', c.nome || '', c.nomeFantasia || '', c.documento || '',
+          c.inscricaoEstadual || '', c.telefone || '', c.enquadramento || '',
+          c.ativo === false ? 'Não' : 'Sim'
+        ]);
+      });
+    var ws = XLSX.utils.aoa_to_sheet(linhas);
+    ws['!cols'] = [{ wch: 10 }, { wch: 35 }, { wch: 25 }, { wch: 18 }, { wch: 18 }, { wch: 16 }, { wch: 14 }, { wch: 8 }];
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Clientes');
+    XLSX.writeFile(wb, 'clientes-nilma.xlsx');
+    showToast('Planilha baixada.');
   });
 
   $('clientesBusca').addEventListener('input', renderClientesList);
