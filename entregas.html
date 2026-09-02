@@ -1467,7 +1467,6 @@
 
     unsubClientes = db.collection('clientes').orderBy('nome').limit(1000).onSnapshot(function (snap) {
       clientesCache = new Map(snap.docs.map(function (d) { return [d.id, Object.assign({ id: d.id }, d.data())]; }));
-      $('importCard').hidden = clientesCache.size > 0;
       renderClientesList();
       renderPainel();
     }, function (err) {
