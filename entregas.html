@@ -433,6 +433,19 @@
   </section>
 
   <section id="tab-clientes" class="view" hidden>
+    <form id="form-equipe" class="card" hidden novalidate>
+      <h2>Equipe</h2>
+      <p class="card-hint">Cria um acesso novo com só nome e senha (sem precisar de e-mail).</p>
+      <label class="field">
+        <span>Nome</span>
+        <input class="input" id="novoUsuarioNome" type="text" placeholder="Nome de quem vai usar o app" required>
+      </label>
+      <label class="field">
+        <span>Senha</span>
+        <input class="input" id="novoUsuarioSenha" type="password" placeholder="Mínimo 6 caracteres" required>
+      </label>
+      <button type="submit" class="btn btn-primary">Criar acesso</button>
+    </form>
     <div class="card" id="importCard">
       <div class="card-head-row">
         <h2>Base inicial</h2>
@@ -472,16 +485,16 @@
   <form class="auth-card" id="loginForm" novalidate>
     <img class="auth-logo" id="authLogo" alt="Nilma Contabilidade">
     <h2>Nilma Entregas</h2>
-    <p class="card-hint">Entre com o e-mail e senha da equipe.</p>
+    <p class="card-hint">Entre com seu nome e senha da equipe.</p>
     <label class="field">
-      <span>E-mail</span>
-      <input class="input" id="loginEmail" type="email" autocomplete="username" required>
+      <span>Nome</span>
+      <input class="input" id="loginEmail" type="text" autocomplete="username" required>
     </label>
     <label class="field">
       <span>Senha</span>
       <input class="input" id="loginSenha" type="password" autocomplete="current-password" required>
     </label>
-    <div class="field-error" id="loginError" hidden>E-mail ou senha inválidos.</div>
+    <div class="field-error" id="loginError" hidden>Nome ou senha inválidos.</div>
     <button type="submit" class="btn btn-primary" id="loginBtn">Entrar</button>
   </form>
 </div>
@@ -566,6 +579,25 @@
     return (c.codigoOrigem ? c.codigoOrigem + ' - ' : '') + c.nome;
   }
 
+  // Login pede só nome e senha (sem Gmail). Por baixo, o Firebase Auth
+  // ainda exige um "e-mail" — a gente fabrica um a partir do nome, num
+  // domínio interno que nunca é usado pra enviar e-mail de verdade. Se a
+  // pessoa digitar algo com "@" (como a conta antiga sistemasnilma@gmail.com),
+  // usamos o valor literal, pra não quebrar contas já existentes.
+  var DIACRITICS_RE = new RegExp('[' + String.fromCharCode(0x0300) + '-' + String.fromCharCode(0x036f) + ']', 'g');
+  function emailFromNome(nome) {
+    var slug = nome.trim().toLowerCase()
+      .normalize('NFD').replace(DIACRITICS_RE, '')
+      .replace(/[^a-z0-9]+/g, '.')
+      .replace(/^\.+|\.+$/g, '');
+    return slug + '@nilma.local';
+  }
+
+  function resolveLoginEmail(input) {
+    input = input.trim();
+    return input.indexOf('@') !== -1 ? input : emailFromNome(input);
+  }
+
   function errMsg(err, fallback) {
     if (err && err.code === 'permission-denied') return 'Sem permissão — confira as regras do Firestore.';
     if (err && err.code === 'unavailable') return 'Sem conexão. Verifique sua internet.';
@@ -588,6 +620,15 @@
     return db.collection('entregas').doc(entregaId).collection('anexos').doc('comprovante').get()
       .then(function (snap) { return snap.exists ? snap.data() : {}; })
       .catch(function () { return {}; });
+  }
+
+  function downloadDataUrl(dataUrl, filename) {
+    var a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   }
 
   function fmtMoney(n) {
@@ -968,6 +1009,7 @@
       temFoto: !!fotoDataUrl,
       geo: isRota ? null : currentGeo,
       entregadoPor: (auth.currentUser && auth.currentUser.email) || '',
+      entregadoPorNome: currentUserNome || (auth.currentUser && auth.currentUser.email) || '',
       status: isRota ? 'pendente' : 'confirmada',
       criadoEm: now,
       confirmadoEm: isRota ? null : now
@@ -1201,7 +1243,7 @@
       '<dl>' +
         (total > 0 ? '<dt>Total</dt><dd class="num">' + fmtMoney(total) + '</dd>' : '') +
         '<dt>Recebido por</dt><dd>' + escapeHtml(entrega.recebedor || 'não informado') + '</dd>' +
-        '<dt>Entregue por</dt><dd>' + escapeHtml(entrega.entregadoPor || 'não informado') + '</dd>' +
+        '<dt>Entregue por</dt><dd>' + escapeHtml(entrega.entregadoPorNome || entrega.entregadoPor || 'não informado') + '</dd>' +
         '<dt>Data/hora</dt><dd>' + fmtDateTime(entrega.confirmadoEm || entrega.criadoEm) + '</dd>' +
         '<dt>Localização</dt><dd>' + geoLink + '</dd>' +
       '</dl>' +
@@ -1220,9 +1262,22 @@
       var slot = $('anexosSlot');
       if (!slot) return;
       var html = '';
-      if (anexos.assinatura) html += '<img class="sig-preview" src="' + anexos.assinatura + '" alt="Assinatura de recebimento">';
-      if (anexos.foto) html += '<img class="sig-preview" src="' + anexos.foto + '" alt="Foto anexada">';
+      if (anexos.assinatura) {
+        html += '<img class="sig-preview" src="' + anexos.assinatura + '" alt="Assinatura de recebimento">' +
+          '<button type="button" class="link-btn" data-anexo="assinatura">⬇ Salvar assinatura</button>';
+      }
+      if (anexos.foto) {
+        html += '<img class="sig-preview" src="' + anexos.foto + '" alt="Foto anexada">' +
+          '<button type="button" class="link-btn" data-anexo="foto">⬇ Salvar foto</button>';
+      }
       slot.innerHTML = html || '<p class="card-hint">Sem comprovante anexado.</p>';
+      slot.querySelectorAll('[data-anexo]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var tipo = btn.dataset.anexo;
+          var ext = tipo === 'assinatura' ? 'png' : 'jpg';
+          downloadDataUrl(anexos[tipo], 'entrega-' + entrega.id + '-' + tipo + '.' + ext);
+        });
+      });
     });
   }
 
@@ -1319,6 +1374,7 @@
         temAssinatura: true,
         temFoto: !!pendingFoto,
         entregadoPor: (auth.currentUser && auth.currentUser.email) || '',
+        entregadoPorNome: currentUserNome || (auth.currentUser && auth.currentUser.email) || '',
         status: 'confirmada',
         confirmadoEm: new Date().toISOString()
       }).then(function () {
@@ -1472,6 +1528,7 @@
   // ---------- init ----------
   var appStarted = false;
   var currentUserRole = 'staff';
+  var currentUserNome = '';
 
   // O primeiro e-mail que fizer login vira admin automaticamente (base
   // "usuarios" vazia); os próximos entram como equipe. Promover alguém a
@@ -1482,12 +1539,14 @@
     return ref.get().then(function (snap) {
       if (snap.exists) {
         currentUserRole = snap.data().role || 'staff';
+        currentUserNome = snap.data().nome || snap.data().email || user.email || '';
         return;
       }
       return db.collection('usuarios').limit(1).get().then(function (existing) {
         var role = existing.empty ? 'admin' : 'staff';
         currentUserRole = role;
-        return ref.set({ email: user.email, role: role, criadoEm: new Date().toISOString() });
+        currentUserNome = user.email || '';
+        return ref.set({ email: user.email, nome: currentUserNome, role: role, criadoEm: new Date().toISOString() });
       });
     }).catch(function () { currentUserRole = 'staff'; });
   }
@@ -1495,6 +1554,47 @@
   function podeExcluir(entrega) {
     return currentUserRole === 'admin' || (entrega.entregadoPor && auth.currentUser && entrega.entregadoPor === auth.currentUser.email);
   }
+
+  // Cria um novo login (nome + senha) sem tirar o admin da própria sessão:
+  // o Firebase troca a sessão ativa pra o usuário recém-criado se isso for
+  // feito no app principal, então usamos uma instância secundária só pra
+  // esse cadastro e a descartamos depois.
+  function criarContaEquipe(nome, senha) {
+    var email = emailFromNome(nome);
+    var secondaryApp = firebase.initializeApp(firebaseConfig, 'secundario-' + Date.now());
+    var secondaryAuth = secondaryApp.auth();
+    var secondaryDb = secondaryApp.firestore();
+    return secondaryAuth.createUserWithEmailAndPassword(email, senha).then(function (cred) {
+      return secondaryDb.collection('usuarios').doc(cred.user.uid).set({
+        nome: nome, email: email, role: 'staff', criadoEm: new Date().toISOString()
+      });
+    }).then(function () {
+      return secondaryAuth.signOut();
+    }).finally(function () {
+      return secondaryApp.delete();
+    });
+  }
+
+  $('form-equipe').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var nome = $('novoUsuarioNome').value.trim();
+    var senha = $('novoUsuarioSenha').value;
+    if (!nome || senha.length < 6) { showToast('Preencha o nome e uma senha com 6+ caracteres.', 'error'); return; }
+    var btn = e.target.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    btn.textContent = 'Criando...';
+    criarContaEquipe(nome, senha).then(function () {
+      showToast('Acesso criado para ' + nome + '.');
+      $('novoUsuarioNome').value = '';
+      $('novoUsuarioSenha').value = '';
+    }).catch(function (err) {
+      var msg = (err && err.code === 'auth/email-already-in-use') ? 'Já existe um acesso com esse nome.' : errMsg(err, 'Não foi possível criar o acesso.');
+      showToast(msg, 'error');
+    }).finally(function () {
+      btn.disabled = false;
+      btn.textContent = 'Criar acesso';
+    });
+  });
 
   function excluirEntrega(entrega, onDone) {
     if (!confirm('Excluir esta entrega? Essa ação não pode ser desfeita.')) return;
@@ -1514,6 +1614,7 @@
     appStarted = true;
     setupCanvas();
     captureGeo();
+    $('form-equipe').hidden = currentUserRole !== 'admin';
 
     unsubClientes = db.collection('clientes').orderBy('nome').limit(1000).onSnapshot(function (snap) {
       clientesCache = new Map(snap.docs.map(function (d) { return [d.id, Object.assign({ id: d.id }, d.data())]; }));
@@ -1534,7 +1635,7 @@
     var btn = $('loginBtn');
     btn.disabled = true;
     btn.textContent = 'Entrando...';
-    auth.signInWithEmailAndPassword($('loginEmail').value.trim(), $('loginSenha').value)
+    auth.signInWithEmailAndPassword(resolveLoginEmail($('loginEmail').value), $('loginSenha').value)
       .catch(function () { $('loginError').hidden = false; })
       .finally(function () {
         btn.disabled = false;
