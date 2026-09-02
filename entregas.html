@@ -1204,8 +1204,17 @@
         '<dt>Entregue por</dt><dd>' + escapeHtml(entrega.entregadoPor || 'não informado') + '</dd>' +
         '<dt>Data/hora</dt><dd>' + fmtDateTime(entrega.confirmadoEm || entrega.criadoEm) + '</dd>' +
         '<dt>Localização</dt><dd>' + geoLink + '</dd>' +
-      '</dl>';
+      '</dl>' +
+      (podeExcluir(entrega) ? '<button type="button" class="btn-chip danger" id="excluirEntregaBtn">🗑 Excluir entrega</button>' : '');
     $('modalClose').addEventListener('click', function () { renderHistoricoList(cliente, historico); });
+    if ($('excluirEntregaBtn')) {
+      $('excluirEntregaBtn').addEventListener('click', function () {
+        excluirEntrega(entrega, function () {
+          historico = historico.filter(function (e) { return e.id !== entrega.id; });
+          renderHistoricoList(cliente, historico);
+        });
+      });
+    }
 
     getAnexos(entrega.id).then(function (anexos) {
       var slot = $('anexosSlot');
@@ -1258,10 +1267,14 @@
             '<div class="geo-status" id="pendingGeoStatus">📍 obtendo localização...</div>' +
           '</label>' +
           '<button type="button" class="btn btn-primary" id="pendingConfirmBtn">Confirmar entrega</button>' +
+          (podeExcluir(entrega) ? '<button type="button" class="btn-chip danger" id="excluirPendenteBtn" style="margin-top:10px;">🗑 Remover da rota</button>' : '') +
         '</div>' +
       '</div>';
     $('modalClose').addEventListener('click', closeModal);
     $('overlay').addEventListener('click', function (e) { if (e.target.id === 'overlay') closeModal(); });
+    if ($('excluirPendenteBtn')) {
+      $('excluirPendenteBtn').addEventListener('click', function () { excluirEntrega(entrega, closeModal); });
+    }
 
     var pendingGeo = null;
     if (navigator.geolocation) {
@@ -1458,6 +1471,43 @@
 
   // ---------- init ----------
   var appStarted = false;
+  var currentUserRole = 'staff';
+
+  // O primeiro e-mail que fizer login vira admin automaticamente (base
+  // "usuarios" vazia); os próximos entram como equipe. Promover alguém a
+  // admin depois é feito direto no Firestore (coleção "usuarios", campo
+  // "role").
+  function ensureUsuarioDoc(user) {
+    var ref = db.collection('usuarios').doc(user.uid);
+    return ref.get().then(function (snap) {
+      if (snap.exists) {
+        currentUserRole = snap.data().role || 'staff';
+        return;
+      }
+      return db.collection('usuarios').limit(1).get().then(function (existing) {
+        var role = existing.empty ? 'admin' : 'staff';
+        currentUserRole = role;
+        return ref.set({ email: user.email, role: role, criadoEm: new Date().toISOString() });
+      });
+    }).catch(function () { currentUserRole = 'staff'; });
+  }
+
+  function podeExcluir(entrega) {
+    return currentUserRole === 'admin' || (entrega.entregadoPor && auth.currentUser && entrega.entregadoPor === auth.currentUser.email);
+  }
+
+  function excluirEntrega(entrega, onDone) {
+    if (!confirm('Excluir esta entrega? Essa ação não pode ser desfeita.')) return;
+    var ref = db.doc('entregas/' + entrega.id);
+    ref.collection('anexos').doc('comprovante').delete().catch(function () {}).then(function () {
+      return ref.delete();
+    }).then(function () {
+      showToast('Entrega excluída.');
+      if (onDone) onDone();
+    }).catch(function (err) {
+      showToast(errMsg(err, 'Não foi possível excluir.'), 'error');
+    });
+  }
 
   function startApp() {
     if (appStarted) return;
@@ -1498,7 +1548,7 @@
     if (user) {
       $('authGate').hidden = true;
       $('logoutBtn').hidden = false;
-      startApp();
+      ensureUsuarioDoc(user).then(startApp);
     } else {
       var logo = document.querySelector('.brand-mark');
       if (logo) $('authLogo').src = logo.src;
