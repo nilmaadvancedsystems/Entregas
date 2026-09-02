@@ -675,7 +675,13 @@
       ctx.stroke();
       if (!pad.hasSignature) { pad.hasSignature = true; if (pad.onDraw) pad.onDraw(); }
     }
-    function endStroke() { if (!drawing) return; drawing = false; saveSnapshot(); }
+    var pendingResize = false;
+    function endStroke() {
+      if (!drawing) return;
+      drawing = false;
+      saveSnapshot();
+      if (pendingResize) { pendingResize = false; setup(true); }
+    }
 
     // Touch events are the primary path on mobile — more consistently supported
     // across in-app webviews than Pointer Events. preventDefault (with an
@@ -704,17 +710,19 @@
     pad.clear = function () { setup(false); };
     pad.dataUrl = function () { return canvasEl.toDataURL('image/png'); };
 
-    // The artifact viewer can settle layout (fonts, host chrome sizing) a
-    // moment after first paint. If the canvas's rendered size ends up
-    // different from what was captured at setup time, touch coordinates and
-    // strokes drift out of alignment. Re-run setup (keeping any drawing)
-    // whenever the actual box size changes.
+    // The page can reflow after first paint (fonts loading, mobile browser
+    // chrome — like the address bar — hiding/showing as the user touches the
+    // page). If the canvas's rendered size changes, touch coordinates drift
+    // out of alignment, so re-run setup (keeping any drawing) when that
+    // happens — but NEVER while a stroke is in progress, or we'd wipe it
+    // mid-signature; a resize during a stroke is deferred to strokeEnd.
     if (window.ResizeObserver) {
       var lastW = 0, lastH = 0;
       var ro = new ResizeObserver(function (entries) {
         var box = entries[0].contentRect;
         if (Math.abs(box.width - lastW) > 1 || Math.abs(box.height - lastH) > 1) {
           lastW = box.width; lastH = box.height;
+          if (drawing) { pendingResize = true; return; }
           if (ctx) setup(true);
         }
       });
