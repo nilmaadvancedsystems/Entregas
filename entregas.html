@@ -130,6 +130,9 @@
 
   main { max-width: 760px; margin: 0 auto; padding: 20px 18px 80px; }
   .view { display: flex; flex-direction: column; gap: 18px; }
+  .view.tab-enter { animation: viewEnter .28s ease; }
+  @keyframes viewEnter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .view.tab-enter { animation: none; } }
 
   .card {
     background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-l);
@@ -167,7 +170,11 @@
   }
   .suggestion:last-child { border-bottom: none; }
   .suggestion:hover, .suggestion:focus-visible { background: var(--accent-soft); }
+  .avulso-toggle { display: flex; align-items: center; gap: 8px; font-size: .82rem; font-weight: 500;
+    color: var(--ink-soft); margin: 2px 0 8px; cursor: pointer; }
+  .avulso-toggle input { width: 16px; height: 16px; accent-color: var(--accent); flex: none; }
   .suggestion .s-nome { font-weight: 600; }
+  .suggestion .s-nome mark { background: var(--accent-soft); color: var(--accent); border-radius: 3px; padding: 0 1px; }
   .suggestion .s-doc { font-size: .78rem; color: var(--ink-faint); }
   .suggestion.add-new { color: var(--accent); font-weight: 600; }
 
@@ -188,9 +195,15 @@
 
   .sig-wrap { border: 1px dashed var(--border); border-radius: var(--radius-m); background: var(--surface-2); padding: 8px; }
   canvas#sigCanvas { display: block; width: 100%; height: 200px; touch-action: none; border-radius: var(--radius-s); background: #FFFFFF; }
-  .sig-row { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
-  .sig-status { font-size: .78rem; color: var(--ink-faint); }
-  .link-btn { border: none; background: none; color: var(--accent); font-weight: 600; font-size: .82rem; cursor: pointer; padding: 4px; }
+  .sig-row { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; gap: 10px; flex-wrap: wrap; }
+  .sig-status { font-size: .78rem; color: var(--ink-faint); flex: 1; min-width: 120px; }
+  .link-btn { border: none; background: none; color: var(--accent); font-weight: 600; font-size: .82rem; cursor: pointer; padding: 4px; flex: none; }
+
+  .sig-wrap:fullscreen, .sig-wrap:-webkit-full-screen {
+    background: var(--surface); display: flex; flex-direction: column; justify-content: center; padding: 20px;
+  }
+  .sig-wrap.sig-fullscreen canvas { width: 100%; }
+  .sig-wrap.sig-fullscreen .sig-row { margin-top: 14px; }
 
   .geo-status { font-size: .78rem; color: var(--ink-faint); display: flex; align-items: center; gap: 6px; margin-top: 10px; }
 
@@ -206,7 +219,14 @@
 
   .btn {
     border: none; border-radius: var(--radius-s); padding: 13px 18px; font-weight: 700; font-size: .92rem;
-    cursor: pointer; width: 100%;
+    cursor: pointer; width: 100%; transition: transform .12s ease, opacity .15s ease;
+  }
+  .btn:active:not(:disabled) { transform: scale(.97); }
+  .btn-chip, .tab, .entrega-row, .client-row, .suggestion { transition: transform .12s ease, background-color .15s ease; }
+  .btn-chip:active, .entrega-row:active, .client-row:active { transform: scale(.98); }
+  @media (prefers-reduced-motion: reduce) {
+    .btn, .btn-chip, .tab, .entrega-row, .client-row, .suggestion { transition: none; }
+    .btn:active:not(:disabled), .btn-chip:active, .entrega-row:active, .client-row:active { transform: none; }
   }
   .btn-primary { background: var(--accent); color: var(--accent-ink); }
   .btn-primary:disabled { opacity: .6; cursor: default; }
@@ -226,6 +246,24 @@
   }
   .toast.show { opacity: 1; transform: translate(-50%, 0); }
   .toast.error { background: var(--danger); color: #fff; }
+
+  .dash-strip { display: flex; gap: 10px; margin-bottom: 16px; }
+  .dash-item { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-s);
+    padding: 10px 8px; text-align: center; display: flex; flex-direction: column; gap: 2px; }
+  .dash-num { font-family: var(--font-mono); font-size: 1.35rem; font-weight: 700; color: var(--accent); }
+  .dash-label { font-size: .7rem; color: var(--ink-faint); font-weight: 600; text-transform: uppercase; letter-spacing: .02em; }
+
+  .skeleton { background: linear-gradient(90deg, var(--surface-2) 25%, var(--border) 37%, var(--surface-2) 63%);
+    background-size: 400% 100%; animation: skeleton-pulse 1.4s ease infinite; border-radius: var(--radius-s); }
+  @keyframes skeleton-pulse { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
+  .skeleton-row { height: 54px; margin-bottom: 8px; }
+
+  .flash-success { animation: flash-success-anim 900ms ease; }
+  @keyframes flash-success-anim {
+    0% { box-shadow: 0 0 0 0 var(--accent-soft); }
+    30% { box-shadow: 0 0 0 4px var(--accent-soft); }
+    100% { box-shadow: 0 0 0 0 transparent; }
+  }
 
   .summary-bar { display: flex; align-items: center; gap: 14px; }
   .summary-ring { width: 52px; height: 52px; border-radius: 50%; flex: none;
@@ -257,12 +295,21 @@
   .modal-overlay {
     position: fixed; inset: 0; background: rgba(10,16,14,.5); z-index: 60;
     display: flex; align-items: flex-end; justify-content: center;
+    animation: overlayEnter .2s ease;
   }
+  @keyframes overlayEnter { from { opacity: 0; } to { opacity: 1; } }
   @media (min-width: 640px) { .modal-overlay { align-items: center; } }
   .modal {
     background: var(--surface); border-radius: var(--radius-l) var(--radius-l) 0 0; padding: 20px;
     width: 100%; max-width: 520px; max-height: 88vh; overflow-y: auto; box-shadow: var(--shadow);
+    animation: modalEnter .25s cubic-bezier(.2,.8,.3,1);
   }
+  @keyframes modalEnter { from { opacity: 0; transform: translateY(28px); } to { opacity: 1; transform: none; } }
+  @media (min-width: 640px) {
+    .modal { animation-name: modalEnterCenter; }
+    @keyframes modalEnterCenter { from { opacity: 0; transform: translateY(12px) scale(.98); } to { opacity: 1; transform: none; } }
+  }
+  @media (prefers-reduced-motion: reduce) { .modal-overlay, .modal { animation: none; } }
   @media (min-width: 640px) { .modal { border-radius: var(--radius-l); } }
   .modal-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 14px; }
   .modal-head > div:first-child { min-width: 0; flex: 1; overflow-wrap: break-word; word-break: break-word; }
@@ -318,6 +365,20 @@
   </div>
 
   <section id="tab-nova" class="view">
+    <div class="dash-strip" id="dashStrip">
+      <div class="dash-item">
+        <span class="dash-num" id="dashHoje">–</span>
+        <span class="dash-label">entregues hoje</span>
+      </div>
+      <div class="dash-item">
+        <span class="dash-num" id="dashRota">–</span>
+        <span class="dash-label">na rota</span>
+      </div>
+      <div class="dash-item">
+        <span class="dash-num" id="dashClientes">–</span>
+        <span class="dash-label">clientes ativos</span>
+      </div>
+    </div>
     <form id="form-nova" class="card" novalidate>
       <h2>Registrar entrega</h2>
       <p class="card-hint" id="formHint">Preencha na hora, colha a assinatura e pronto — sem protocolo de papel.</p>
@@ -329,11 +390,16 @@
 
       <label class="field">
         <span>Cliente</span>
-        <div class="combobox">
+        <label class="avulso-toggle">
+          <input type="checkbox" id="avulsoToggle">
+          Pessoa física avulsa, sem cadastro (ex.: entrega de CCIR)
+        </label>
+        <div class="combobox" id="clienteComboboxWrap">
           <input class="input" id="clienteInput" type="text" placeholder="Buscar cliente..." autocomplete="off">
           <div class="suggestions" id="clienteSuggestions"></div>
         </div>
-        <div class="field-error" id="err-cliente">Selecione um cliente da lista.</div>
+        <input class="input" id="avulsoNomeInput" type="text" placeholder="Nome da pessoa" hidden autocomplete="off">
+        <div class="field-error" id="err-cliente">Selecione um cliente da lista, ou informe o nome.</div>
       </label>
 
       <label class="field">
@@ -379,6 +445,7 @@
           <canvas id="sigCanvas"></canvas>
           <div class="sig-row">
             <span class="sig-status" id="sigStatus">Peça para assinar com o dedo ou o mouse.</span>
+            <button type="button" class="link-btn sig-fullscreen-btn">⛶ Tela cheia</button>
             <button type="button" class="link-btn" id="clearSig">Limpar</button>
           </div>
         </div>
@@ -400,7 +467,7 @@
       <input class="input" id="rotaBusca" type="text" placeholder="Buscar cliente na rota...">
     </div>
     <div class="card" id="rotaListCard">
-      <div id="rotaList"></div>
+      <div id="rotaList"><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
     </div>
   </section>
 
@@ -429,7 +496,7 @@
         <div class="summary-text">Carregando...</div>
       </div>
     </div>
-    <div class="card" id="painelList"></div>
+    <div class="card" id="painelList"><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
   </section>
 
   <section id="tab-clientes" class="view" hidden>
@@ -473,7 +540,7 @@
         <button type="button" class="btn-chip accent" id="exportClientesBtn">⬇ Exportar planilha</button>
       </div>
       <input class="input" id="clientesBusca" type="text" placeholder="Buscar..." style="margin:12px 0;">
-      <div id="clientesList"></div>
+      <div id="clientesList"><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
     </div>
   </section>
 </main>
@@ -542,7 +609,8 @@
     { key: 'darf', label: 'DARF' },
     { key: 'dae', label: 'DAE' },
     { key: 'honorario', label: 'Honorário' },
-    { key: 'boleto', label: 'Boleto' }
+    { key: 'boleto', label: 'Boleto' },
+    { key: 'ccir', label: 'CCIR' }
   ];
 
   var MESES = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
@@ -558,6 +626,18 @@
     if (!comp) return '';
     var parts = comp.split('-');
     return MESES[parseInt(parts[1], 10) - 1] + '/' + parts[0];
+  }
+
+  function updateDashStrip() {
+    var hojeStr = new Date().toDateString();
+    var hoje = entregasPainelCache.filter(function (e) {
+      if (e.status !== 'confirmada' || !e.confirmadoEm) return false;
+      try { return new Date(e.confirmadoEm).toDateString() === hojeStr; } catch (err) { return false; }
+    }).length;
+    $('dashHoje').textContent = hoje;
+    $('dashRota').textContent = pendentesCache.length;
+    var ativos = Array.from(clientesCache.values()).filter(function (c) { return c.ativo !== false; }).length;
+    $('dashClientes').textContent = ativos;
   }
 
   function fmtDateTime(iso) {
@@ -577,6 +657,20 @@
 
   function clienteLabel(c) {
     return (c.codigoOrigem ? c.codigoOrigem + ' - ' : '') + c.nome;
+  }
+
+  function escapeHtml_(s) {
+    return String(s || '').replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function highlightMatch_(text, query) {
+    var safe = escapeHtml_(text);
+    if (!query) return safe;
+    var idx = text.toLowerCase().indexOf(query.toLowerCase());
+    if (idx === -1) return safe;
+    return escapeHtml_(text.slice(0, idx)) + '<mark>' + escapeHtml_(text.slice(idx, idx + query.length)) + '</mark>' + escapeHtml_(text.slice(idx + query.length));
   }
 
   // Login pede só nome e senha (sem Gmail). Por baixo, o Firebase Auth
@@ -649,19 +743,25 @@
       document.querySelectorAll('.tab').forEach(function (b) { b.classList.remove('active'); });
       btn.classList.add('active');
       ['nova', 'rota', 'painel', 'clientes'].forEach(function (name) {
-        $('tab-' + name).hidden = name !== btn.dataset.tab;
+        var el = $('tab-' + name);
+        el.hidden = name !== btn.dataset.tab;
       });
+      var shown = $('tab-' + btn.dataset.tab);
+      shown.classList.remove('tab-enter');
+      void shown.offsetWidth;
+      shown.classList.add('tab-enter');
       if (btn.dataset.tab === 'nova' && !geoRequested) captureGeo();
       if (btn.dataset.tab === 'nova') setTimeout(setupCanvas, 0);
     });
   });
 
   // ---------- signature (reusable pad factory) ----------
-  function createSignaturePad(canvasEl, cssHeight) {
+  function createSignaturePad(canvasEl, initialCssHeight) {
     var pad = { hasSignature: false, onDraw: null };
     var ctx = null;
     var drawing = false;
     var snapshot = null;
+    var cssHeight = initialCssHeight;
 
     function redrawSnapshot() {
       if (!snapshot || !ctx) return;
@@ -753,6 +853,8 @@
     pad.setup = function () { setup(true); };
     pad.clear = function () { setup(false); };
     pad.dataUrl = function () { return canvasEl.toDataURL('image/png'); };
+    pad.setHeight = function (h) { cssHeight = h; setup(true); };
+    canvasEl.__pad = pad;
 
     // The page can reflow after first paint (fonts loading, mobile browser
     // chrome — like the address bar — hiding/showing as the user touches the
@@ -775,6 +877,38 @@
 
     return pad;
   }
+
+  // ---------- assinatura em tela cheia ----------
+  var SIG_HEIGHT_NORMAL = 200;
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('.sig-fullscreen-btn');
+    if (!btn) return;
+    var wrap = btn.closest('.sig-wrap');
+    if (!wrap) return;
+    if (!wrap.requestFullscreen && !wrap.webkitRequestFullscreen) { showToast('Tela cheia não é suportada neste navegador.', 'error'); return; }
+    if (document.fullscreenElement === wrap || document.webkitFullscreenElement === wrap) {
+      (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    } else {
+      (wrap.requestFullscreen || wrap.webkitRequestFullscreen).call(wrap);
+    }
+  });
+
+  function onFullscreenChange() {
+    document.querySelectorAll('.sig-wrap').forEach(function (wrap) {
+      var isFs = document.fullscreenElement === wrap || document.webkitFullscreenElement === wrap;
+      wrap.classList.toggle('sig-fullscreen', isFs);
+      var canvas = wrap.querySelector('canvas');
+      var btn = wrap.querySelector('.sig-fullscreen-btn');
+      if (btn) btn.textContent = isFs ? '⤡ Sair da tela cheia' : '⛶ Tela cheia';
+      if (canvas && canvas.__pad) {
+        var h = isFs ? Math.round(window.innerHeight * 0.65) : SIG_HEIGHT_NORMAL;
+        canvas.style.height = h + 'px';
+        canvas.__pad.setHeight(h);
+      }
+    });
+  }
+  document.addEventListener('fullscreenchange', onFullscreenChange);
+  document.addEventListener('webkitfullscreenchange', onFullscreenChange);
 
   var mainSigPad = createSignaturePad($('sigCanvas'), 200);
   mainSigPad.onDraw = function () { $('sigStatus').textContent = 'Assinatura capturada.'; };
@@ -905,8 +1039,7 @@
       var btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'suggestion';
-      btn.innerHTML = '<div class="s-nome"></div><div class="s-doc"></div>';
-      btn.querySelector('.s-nome').textContent = clienteLabel(c);
+      btn.innerHTML = '<div class="s-nome">' + highlightMatch_(clienteLabel(c), q) + '</div><div class="s-doc"></div>';
       btn.querySelector('.s-doc').textContent = c.documento || '';
       btn.addEventListener('click', function () {
         selectedClienteId = c.id;
@@ -930,6 +1063,17 @@
   clienteInput.addEventListener('input', function () {
     selectedClienteId = null;
     renderSuggestions();
+  });
+
+  $('avulsoToggle').addEventListener('change', function () {
+    var avulso = this.checked;
+    $('clienteComboboxWrap').hidden = avulso;
+    $('avulsoNomeInput').hidden = !avulso;
+    selectedClienteId = null;
+    clienteInput.value = '';
+    suggestionsEl.classList.remove('show');
+    if (!avulso) $('avulsoNomeInput').value = '';
+    clearFieldError('cliente');
   });
   clienteInput.addEventListener('focus', renderSuggestions);
   document.addEventListener('click', function (e) {
@@ -983,11 +1127,13 @@
     clearErrors();
     if (!db) { showToast('Sem conexão com o banco. Tente novamente.', 'error'); return; }
     var isRota = formMode === 'rota';
+    var isAvulso = $('avulsoToggle').checked;
+    var avulsoNome = $('avulsoNomeInput').value.trim();
     var competencia = $('competenciaInput').value;
     var itens = getSelectedItens();
     var recebedor = $('recebedorInput').value.trim();
     var ok = true;
-    if (!selectedClienteId) { showFieldError('cliente'); ok = false; }
+    if (isAvulso ? !avulsoNome : !selectedClienteId) { showFieldError('cliente'); ok = false; }
     if (!competencia) { showFieldError('competencia'); ok = false; }
     if (itens.length === 0) { showFieldError('itens'); ok = false; }
     if (!isRota && !mainSigPad.hasSignature) { showFieldError('assinatura'); ok = false; }
@@ -1000,8 +1146,9 @@
     var now = new Date().toISOString();
 
     saveEntregaComAnexos({
-      clienteId: selectedClienteId,
-      clienteNome: cliente ? clienteLabel(cliente) : clienteInput.value,
+      clienteId: isAvulso ? null : selectedClienteId,
+      clienteNome: isAvulso ? avulsoNome : (cliente ? clienteLabel(cliente) : clienteInput.value),
+      avulso: isAvulso,
       competencia: competencia,
       itens: itens,
       recebedor: isRota ? '' : recebedor,
@@ -1019,6 +1166,10 @@
     }).then(function () {
       showToast(isRota ? 'Adicionado à rota — aguardando assinatura.' : 'Entrega registrada com sucesso.');
       resetForm();
+      var card = $('form-nova');
+      card.classList.remove('flash-success');
+      void card.offsetWidth;
+      card.classList.add('flash-success');
     }).catch(function (err) {
       showToast(errMsg(err, 'Não foi possível salvar.'), 'error');
     }).finally(function () {
@@ -1030,6 +1181,10 @@
   function resetForm() {
     selectedClienteId = null;
     clienteInput.value = '';
+    $('avulsoToggle').checked = false;
+    $('avulsoNomeInput').value = '';
+    $('avulsoNomeInput').hidden = true;
+    $('clienteComboboxWrap').hidden = false;
     itensGrid.querySelectorAll('input:checked').forEach(function (i) { i.checked = false; });
     $('outroInput').value = '';
     $('recebedorInput').value = '';
@@ -1049,6 +1204,7 @@
     unsubEntregasPainel = db.collection('entregas').where('competencia', '==', comp).limit(500).onSnapshot(function (snap) {
       entregasPainelCache = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
       renderPainel();
+      updateDashStrip();
     }, function (err) { showToast(errMsg(err, 'Não foi possível carregar o painel.'), 'error'); });
   }
 
@@ -1062,6 +1218,7 @@
     unsubPendentes = db.collection('entregas').where('status', '==', 'pendente').limit(500).onSnapshot(function (snap) {
       pendentesCache = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
       renderRota();
+      updateDashStrip();
     }, function (err) { showToast(errMsg(err, 'Não foi possível carregar a rota.'), 'error'); });
   }
 
@@ -1146,9 +1303,20 @@
       return true;
     });
 
+    var avulsos = entregasPainelCache.filter(function (e) { return e.avulso; });
+    if (busca) avulsos = avulsos.filter(function (e) { return (e.clienteNome || '').toLowerCase().indexOf(busca) !== -1; });
+    avulsos = avulsos.filter(function (e) {
+      var status = e.status === 'confirmada' ? 'entregue' : 'rota';
+      if (statusFiltro === 'todos' || statusFiltro === 'com_entrega') return true;
+      if (statusFiltro === 'entregue') return status === 'entregue';
+      if (statusFiltro === 'rota') return status === 'rota';
+      return false; // sem_entrega não se aplica a avulso — sempre tem uma entrega
+    });
+    avulsos.sort(function (a, b) { return new Date(b.confirmadoEm || b.criadoEm) - new Date(a.confirmadoEm || a.criadoEm); });
+
     var listEl = $('painelList');
     listEl.innerHTML = '';
-    if (linhas.length === 0) {
+    if (linhas.length === 0 && avulsos.length === 0) {
       listEl.innerHTML = '<div class="empty-state">Nenhum cliente encontrado com esse filtro.</div>';
       return;
     }
@@ -1168,6 +1336,33 @@
       row.querySelector('.er-nome').textContent = clienteLabel(c);
       row.querySelector('.er-sub').textContent = subtitle;
       row.addEventListener('click', function () { openClienteHistorico(c); });
+      listEl.appendChild(row);
+    });
+    avulsos.forEach(function (e) {
+      var isConfirmada = e.status === 'confirmada';
+      var itensStr = (e.itens || []).map(function (i) { return typeof i === 'string' ? i : i.tipo; }).join(', ');
+      var row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'entrega-row';
+      var subtitle = 'Avulso · ' + fmtDateTime(e.confirmadoEm || e.criadoEm) + (itensStr ? ' · ' + itensStr : '') + (isConfirmada ? '' : ' · aguardando assinatura');
+      var pillClass = isConfirmada ? 'entregue' : 'rota';
+      var pillLabel = isConfirmada ? 'Entregue' : 'Na rota';
+      row.innerHTML =
+        '<div><div class="er-nome"></div><div class="er-sub"></div></div>' +
+        '<span class="status-pill ' + pillClass + '">' + pillLabel + '</span>';
+      row.querySelector('.er-nome').textContent = e.clienteNome;
+      row.querySelector('.er-sub').textContent = subtitle;
+      row.addEventListener('click', function () {
+        if (isConfirmada) {
+          var clienteFake = { nome: e.clienteNome, codigoOrigem: null };
+          var root = $('modalRoot');
+          root.innerHTML = '<div class="modal-overlay" id="overlay"><div class="modal" id="modalInner"></div></div>';
+          $('overlay').addEventListener('click', function (ev) { if (ev.target.id === 'overlay') closeModal(); });
+          renderHistoricoDetail(clienteFake, [e], e);
+        } else {
+          openConfirmPendingModal(e);
+        }
+      });
       listEl.appendChild(row);
     });
   }
@@ -1315,6 +1510,7 @@
               '<canvas id="pendingSigCanvas"></canvas>' +
               '<div class="sig-row">' +
                 '<span class="sig-status" id="pendingSigStatus">Peça para assinar com o dedo ou o mouse.</span>' +
+                '<button type="button" class="link-btn sig-fullscreen-btn">⛶ Tela cheia</button>' +
                 '<button type="button" class="link-btn" id="pendingClearSig">Limpar</button>' +
               '</div>' +
             '</div>' +
@@ -1624,6 +1820,7 @@
       clientesCache = new Map(snap.docs.map(function (d) { return [d.id, Object.assign({ id: d.id }, d.data())]; }));
       renderClientesList();
       renderPainel();
+      updateDashStrip();
     }, function (err) {
       $('no-db').hidden = false;
       $('no-db').textContent = errMsg(err, 'Não foi possível conectar ao banco de dados. Verifique sua internet e recarregue a página.');
