@@ -126,6 +126,10 @@
   .brand-text { display: flex; align-items: baseline; gap: 8px; }
   .brand-name { font-family: var(--font-display); font-size: 1.35rem; font-weight: 700; color: var(--accent); letter-spacing: -.01em; }
   .brand-tag { font-size: .78rem; color: var(--ink-faint); }
+  .user-label { font-size: .78rem; font-weight: 600; color: var(--ink-soft); background: var(--surface-2);
+    padding: 4px 10px; border-radius: 999px; max-width: 90px; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; flex-shrink: 1; }
+  @media (min-width: 520px) { .user-label { max-width: 160px; } }
 
   .tabs { display: flex; gap: 4px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 3px; }
   .tab {
@@ -217,7 +221,7 @@
   .nota-del:hover { color: var(--danger); }
 
   .sig-wrap { border: 1px dashed var(--border); border-radius: var(--radius-m); background: var(--surface-2); padding: 8px; }
-  canvas#sigCanvas { display: block; width: 100%; height: 200px; touch-action: none; border-radius: var(--radius-s); background: #FFFFFF; }
+  .sig-wrap canvas { display: block; width: 100%; height: 200px; touch-action: none; border-radius: var(--radius-s); background: #FFFFFF; }
   .sig-row { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; gap: 10px; flex-wrap: wrap; }
   .sig-status { font-size: .78rem; color: var(--ink-faint); flex: 1; min-width: 120px; }
   .link-btn { border: none; background: none; color: var(--accent); font-weight: 600; font-size: .82rem; cursor: pointer; padding: 4px; flex: none; }
@@ -374,6 +378,7 @@
         <span class="brand-name">Nilma</span>
         <span class="brand-tag">protocolos sem papel</span>
       </span>
+      <span class="user-label" id="userLabel" hidden></span>
       <button type="button" class="icon-btn notas-btn" id="notasBtn" hidden title="Minhas anotações">📝<span class="tab-badge" id="notasBadge" hidden>0</span></button>
       <button type="button" class="icon-btn" id="settingsBtn" hidden title="Configurações">⚙️</button>
       <button type="button" class="link-btn logout-btn" id="logoutBtn" hidden>Sair</button>
@@ -493,7 +498,12 @@
         <button type="button" class="btn-chip accent" id="rotaAddBtn">+ Adicionar à rota</button>
       </div>
       <p class="card-hint">Documentos e valores já prontos — falta só colher a assinatura na hora da entrega.</p>
-      <input class="input" id="rotaBusca" type="text" placeholder="Buscar cliente na rota...">
+      <div class="filters">
+        <input class="input" id="rotaBusca" type="text" placeholder="Buscar cliente na rota...">
+        <select class="input" id="rotaFiltroPessoa">
+          <option value="">Todas as pessoas</option>
+        </select>
+      </div>
     </div>
     <div class="card" id="rotaListCard">
       <div id="rotaList"><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
@@ -1308,6 +1318,7 @@
   }
 
   $('rotaBusca').addEventListener('input', renderRota);
+  $('rotaFiltroPessoa').addEventListener('change', renderRota);
   $('rotaAddBtn').addEventListener('click', function () {
     document.querySelector('.tab[data-tab="nova"]').click();
     document.querySelector('#modeToggle .mode-btn[data-mode="rota"]').click();
@@ -1318,9 +1329,18 @@
     if (pendentesCache.length > 0) { badge.hidden = false; badge.textContent = pendentesCache.length; }
     else badge.hidden = true;
 
+    // combo de pessoas é reconstruído a cada render, mas preserva a escolha atual
+    var selPessoa = $('rotaFiltroPessoa');
+    var valorAtual = selPessoa.value;
+    var pessoas = Array.from(new Set(pendentesCache.map(function (e) { return e.entregadoPorNome || e.entregadoPor; }).filter(Boolean))).sort(function (a, b) { return a.localeCompare(b, 'pt-BR'); });
+    selPessoa.innerHTML = '<option value="">Todas as pessoas</option>' + pessoas.map(function (p) { return '<option value="' + escapeHtml_(p) + '">' + escapeHtml_(p) + '</option>'; }).join('');
+    selPessoa.value = pessoas.indexOf(valorAtual) !== -1 ? valorAtual : '';
+
     var busca = $('rotaBusca').value.trim().toLowerCase();
+    var filtroPessoa = selPessoa.value;
     var list = pendentesCache.slice().sort(function (a, b) { return new Date(a.criadoEm) - new Date(b.criadoEm); });
     if (busca) list = list.filter(function (e) { return (e.clienteNome || '').toLowerCase().indexOf(busca) !== -1; });
+    if (filtroPessoa) list = list.filter(function (e) { return (e.entregadoPorNome || e.entregadoPor) === filtroPessoa; });
 
     var listEl = $('rotaList');
     listEl.innerHTML = '';
@@ -1735,6 +1755,93 @@
     });
   }
 
+  // Quem colocou a entrega na rota (ou admin) pode corrigir competência e
+  // documentos/valores antes de confirmar — reaproveita os mesmos tipos e
+  // regras de "sem valor" do formulário principal.
+  function abrirEdicaoPendente(entrega) {
+    var itensPorLabel = {};
+    (entrega.itens || []).forEach(function (i) {
+      var label = typeof i === 'string' ? i : i.tipo;
+      itensPorLabel[label] = (i && i.valor != null) ? i.valor : null;
+    });
+    var outroExistente = Object.keys(itensPorLabel).find(function (label) {
+      return !DOC_TIPOS.some(function (t) { return t.label === label; });
+    });
+
+    var chipsHtml = DOC_TIPOS.map(function (t) {
+      var marcado = itensPorLabel.hasOwnProperty(t.label);
+      return '<label class="chip"><input type="checkbox" data-key="' + t.key + '" data-label="' + t.label + '"' + (marcado ? ' checked' : '') + '><span>' + t.label + '</span></label>';
+    }).join('');
+
+    $('pendingItensView').hidden = true;
+    var editEl = $('pendingItensEdit');
+    editEl.hidden = false;
+    editEl.innerHTML =
+      '<label class="field"><span>Competência</span><input class="input" id="pendingEditCompetencia" type="month"></label>' +
+      '<label class="field"><span>Documentos entregues</span><div class="chip-grid" id="pendingEditItensGrid">' + chipsHtml + '</div></label>' +
+      '<label class="field"><span>Outro documento (opcional)</span><input class="input" id="pendingEditOutro" type="text" placeholder="Ex.: Contrato social, procuração..."></label>' +
+      '<div class="field" id="pendingEditValoresField"><span>Valores</span><div class="valores-list" id="pendingEditValoresList"></div></div>' +
+      '<button type="button" class="btn btn-secondary" id="pendingSalvarEdicaoBtn">💾 Salvar alterações</button>';
+    $('pendingEditCompetencia').value = entrega.competencia || currentCompetencia();
+    if (outroExistente) $('pendingEditOutro').value = outroExistente;
+
+    var editValoresState = {};
+    Object.keys(itensPorLabel).forEach(function (label) { if (itensPorLabel[label] != null) editValoresState[label] = String(itensPorLabel[label]); });
+
+    function getEditActiveEntries() {
+      var entries = [];
+      $('pendingEditItensGrid').querySelectorAll('input:checked').forEach(function (i) {
+        var tipo = DOC_TIPOS.find(function (t) { return t.key === i.dataset.key; });
+        entries.push({ label: i.dataset.label, semValor: !!(tipo && tipo.semValor) });
+      });
+      var outro = $('pendingEditOutro').value.trim();
+      if (outro) entries.push({ label: outro, semValor: false });
+      return entries;
+    }
+
+    function renderEditValores() {
+      var entries = getEditActiveEntries().filter(function (e) { return !e.semValor; });
+      var list = $('pendingEditValoresList');
+      list.innerHTML = '';
+      $('pendingEditValoresField').hidden = entries.length === 0;
+      entries.forEach(function (e) {
+        var row = document.createElement('div');
+        row.className = 'valor-row';
+        row.innerHTML = '<span class="vl-label"></span><input class="input" inputmode="decimal" placeholder="R$ 0,00"><button type="button" class="valor-clear" title="Remover valor">✕</button>';
+        row.querySelector('.vl-label').textContent = e.label;
+        var inp = row.querySelector('input');
+        inp.value = editValoresState[e.label] || '';
+        inp.addEventListener('input', function () { editValoresState[e.label] = inp.value; });
+        row.querySelector('.valor-clear').addEventListener('click', function () { editValoresState[e.label] = ''; inp.value = ''; });
+        list.appendChild(row);
+      });
+    }
+    $('pendingEditItensGrid').addEventListener('change', renderEditValores);
+    $('pendingEditOutro').addEventListener('input', renderEditValores);
+    renderEditValores();
+
+    $('pendingSalvarEdicaoBtn').addEventListener('click', function () {
+      var novosItens = getEditActiveEntries().map(function (e) { return { tipo: e.label, valor: e.semValor ? null : parseValor(editValoresState[e.label]) }; });
+      if (novosItens.length === 0) { showToast('Selecione ao menos um documento.', 'error'); return; }
+      var btn = $('pendingSalvarEdicaoBtn');
+      btn.disabled = true;
+      btn.textContent = 'Salvando...';
+      db.doc('entregas/' + entrega.id).update({
+        competencia: $('pendingEditCompetencia').value,
+        itens: novosItens
+      }).then(function () {
+        showToast('Rota atualizada.');
+        entrega.competencia = $('pendingEditCompetencia').value;
+        entrega.itens = novosItens;
+        openConfirmPendingModal(entrega);
+      }).catch(function (err) {
+        showToast(errMsg(err, 'Não foi possível salvar.'), 'error');
+        btn.disabled = false;
+        btn.textContent = '💾 Salvar alterações';
+      });
+    });
+  }
+
   function openConfirmPendingModal(entrega) {
     var root = $('modalRoot');
     var itensHtml = entrega.itens.map(function (i) {
@@ -1746,10 +1853,14 @@
       '<div class="modal-overlay" id="overlay">' +
         '<div class="modal">' +
           '<div class="modal-head">' +
-            '<div><h2>' + escapeHtml(entrega.clienteNome) + '</h2><div class="card-hint" style="margin:2px 0 0">' + fmtCompetencia(entrega.competencia) + ' · na rota</div></div>' +
+            '<div><h2>' + escapeHtml(entrega.clienteNome) + '</h2><div class="card-hint" style="margin:2px 0 0" id="pendingCompLabel">' + fmtCompetencia(entrega.competencia) + ' · na rota</div></div>' +
             '<button class="modal-close" id="modalClose">✕</button>' +
           '</div>' +
-          '<div class="itens-list">' + itensHtml + '</div>' +
+          '<div id="pendingItensView">' +
+            '<div class="itens-list">' + itensHtml + '</div>' +
+            (podeExcluir(entrega) ? '<button type="button" class="link-btn" id="pendingEditarBtn" style="margin:6px 0 0;">✏️ Editar documentos/competência</button>' : '') +
+          '</div>' +
+          '<div id="pendingItensEdit" hidden></div>' +
           '<label class="field" style="margin-top:14px;">' +
             '<span>Nome de quem recebeu (opcional)</span>' +
             '<input class="input" id="pendingRecebedor" type="text" placeholder="Quem assinou pelo cliente">' +
@@ -1784,6 +1895,9 @@
     $('overlay').addEventListener('click', function (e) { if (e.target.id === 'overlay') closeModal(); });
     if ($('excluirPendenteBtn')) {
       $('excluirPendenteBtn').addEventListener('click', function () { excluirEntrega(entrega, closeModal); });
+    }
+    if ($('pendingEditarBtn')) {
+      $('pendingEditarBtn').addEventListener('click', function () { abrirEdicaoPendente(entrega); });
     }
 
     var pendingGeo = null;
@@ -2260,6 +2374,10 @@
     subscribeSolicitacoes();
     subscribeNotas();
     atualizarBotaoNotificacoes();
+    var userLabel = $('userLabel');
+    userLabel.textContent = currentUserNome;
+    userLabel.title = currentUserNome + (temPapel('admin') ? ' · admin' : '') + (temPapel('office_boy') ? ' · office boy' : '');
+    userLabel.hidden = false;
   }
 
   $('loginForm').addEventListener('submit', function (e) {
@@ -2294,6 +2412,7 @@
       $('logoutBtn').hidden = true;
       $('settingsBtn').hidden = true;
       $('notasBtn').hidden = true;
+      $('userLabel').hidden = true;
     }
   });
 })();
