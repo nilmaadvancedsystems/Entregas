@@ -110,7 +110,10 @@
     background: var(--surface);
     border-bottom: 1px solid var(--border);
     padding: 14px 18px;
+    transition: box-shadow .2s ease;
   }
+  /* separa a barra do conteúdo só quando a página está rolada */
+  .topbar.rolado { box-shadow: 0 4px 16px -8px rgba(0,0,0,.45); }
   .topbar-inner { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
   .brand { display: flex; align-items: center; gap: 10px; }
   .icon-btn { margin-left: auto; border: none; background: none; font-size: 1.1rem; cursor: pointer; padding: 4px 6px; line-height: 1; border-radius: 8px; position: relative; }
@@ -159,10 +162,10 @@
     box-shadow: var(--shadow); padding: 20px;
     transition: box-shadow .2s ease, border-color .2s ease;
   }
-  .card h2 { font-size: 1.05rem; margin-bottom: 4px; letter-spacing: -.01em; }
-  .card-head-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .card h2 { font-family: var(--font-display); font-size: 1.08rem; font-weight: 700; margin-bottom: 5px; letter-spacing: -.02em; }
+  .card-head-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
   .card-head-row h2 { margin-bottom: 0; }
-  .card-hint { color: var(--ink-faint); font-size: .82rem; margin-bottom: 14px; }
+  .card-hint { color: var(--ink-faint); font-size: .82rem; margin-bottom: 14px; line-height: 1.45; }
 
   .mode-toggle { display: flex; gap: 4px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-m); padding: 3px; margin-bottom: 18px; }
   .mode-btn { flex: 1; border: none; background: transparent; padding: 9px 10px; border-radius: var(--radius-s); font-weight: 600; font-size: .82rem; color: var(--ink-soft); cursor: pointer; }
@@ -173,7 +176,10 @@
   .input, input[type="text"], input[type="month"], input[type="tel"] {
     width: 100%; padding: 11px 12px; border: 1px solid var(--border); border-radius: var(--radius-s);
     background: var(--surface-2); color: var(--ink);
+    transition: border-color .15s ease, background-color .15s ease;
   }
+  .input:hover:not(:focus) { border-color: var(--ink-faint); }
+  .input::placeholder { color: var(--ink-faint); }
   textarea.input { resize: vertical; font-family: inherit; }
   .input:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
   .field-error { color: var(--danger); font-size: .78rem; margin-top: 6px; display: none; }
@@ -195,6 +201,18 @@
   .avulso-toggle { display: flex; align-items: center; gap: 8px; font-size: .82rem; font-weight: 500;
     color: var(--ink-soft); margin: 2px 0 8px; cursor: pointer; }
   .avulso-toggle input { width: 16px; height: 16px; accent-color: var(--accent); flex: none; }
+  /* o "cliente ausente" muda o significado do formulário inteiro, então
+     ganha cara de aviso em vez de parecer só mais um campo */
+  .falha-toggle {
+    border: 1px solid var(--border); background: var(--surface-2); border-radius: var(--radius-m);
+    padding: 11px 13px; margin: 0 0 16px; font-weight: 600; color: var(--ink-soft);
+    transition: border-color .15s ease, background-color .15s ease, color .15s ease;
+  }
+  .falha-toggle:hover { border-color: var(--danger); }
+  .falha-toggle:has(input:checked) {
+    border-color: var(--danger); background: var(--danger-soft); color: var(--danger);
+  }
+  .falha-toggle input { accent-color: var(--danger); }
   .suggestion .s-nome { font-weight: 600; }
   .suggestion .s-nome mark { background: var(--accent-soft); color: var(--accent); border-radius: 3px; padding: 0 1px; }
   .suggestion .s-doc { font-size: .78rem; color: var(--ink-faint); }
@@ -204,11 +222,23 @@
   .chip { position: relative; }
   .chip input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
   .chip span {
-    display: inline-block; padding: 9px 14px; border: 1px solid var(--border); border-radius: 999px;
+    display: inline-block; position: relative; padding: 9px 14px; border: 1px solid var(--border); border-radius: 999px;
     background: var(--surface-2); font-size: .86rem; font-weight: 500; cursor: pointer;
+    transition: background-color .15s ease, border-color .15s ease, color .15s ease, transform .12s ease;
   }
-  .chip input:checked + span { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  .chip span:hover { border-color: var(--accent); color: var(--accent); }
+  .chip input:checked + span {
+    background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600;
+    padding-left: 30px; box-shadow: 0 2px 8px -3px color-mix(in srgb, var(--accent) 70%, transparent);
+  }
+  /* o "✓" do chip marcado entra por cima do padding extra, sem empurrar o texto */
+  .chip input:checked + span::before {
+    content: "✓"; position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
+    font-size: .8rem; font-weight: 800;
+  }
+  .chip input:active + span { transform: scale(.96); }
   .chip input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { .chip span { transition: none; } .chip input:active + span { transform: none; } }
 
   .valores-list { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
   .valor-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
@@ -291,11 +321,24 @@
   .toast.show { opacity: 1; transform: translate(-50%, 0); }
   .toast.error { background: var(--danger); color: #fff; }
 
-  .dash-strip { display: flex; gap: 10px; margin-bottom: 16px; }
-  .dash-item { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-s);
-    padding: 10px 8px; text-align: center; display: flex; flex-direction: column; gap: 2px; }
-  .dash-num { font-family: var(--font-mono); font-size: 1.35rem; font-weight: 700; color: var(--accent); }
-  .dash-label { font-size: .7rem; color: var(--ink-faint); font-weight: 600; text-transform: uppercase; letter-spacing: .02em; }
+  .dash-strip { display: flex; gap: 10px; }
+  .dash-item {
+    flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-m);
+    padding: 14px 8px 12px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 1px;
+    cursor: pointer; position: relative; overflow: hidden;
+    transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+  }
+  .dash-item::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: var(--dash-cor); }
+  .dash-item.ok { --dash-cor: var(--success); }
+  .dash-item.rota { --dash-cor: var(--accent); }
+  .dash-item.neutro { --dash-cor: var(--accent-2); }
+  .dash-item:hover { transform: translateY(-2px); box-shadow: var(--shadow); border-color: var(--dash-cor); }
+  .dash-item:active { transform: scale(.98); }
+  .dash-ico { font-size: .9rem; line-height: 1; margin-bottom: 3px; opacity: .75; }
+  .dash-num { font-family: var(--font-display); font-size: 1.6rem; font-weight: 800; line-height: 1.05;
+    letter-spacing: -.03em; color: var(--dash-cor); }
+  .dash-label { font-size: .66rem; color: var(--ink-faint); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+  @media (prefers-reduced-motion: reduce) { .dash-item { transition: none; } .dash-item:hover, .dash-item:active { transform: none; } }
 
   .skeleton { background: linear-gradient(90deg, var(--surface-2) 25%, var(--border) 37%, var(--surface-2) 63%);
     background-size: 400% 100%; animation: skeleton-pulse 1.4s ease infinite; border-radius: var(--radius-s); }
@@ -309,23 +352,35 @@
     100% { box-shadow: 0 0 0 0 transparent; }
   }
 
-  .summary-bar { display: flex; align-items: center; gap: 14px; }
-  .summary-ring { width: 52px; height: 52px; border-radius: 50%; flex: none;
+  .summary-bar { display: flex; align-items: center; gap: 16px; }
+  .summary-ring { width: 64px; height: 64px; border-radius: 50%; flex: none;
     background: conic-gradient(var(--accent) calc(var(--pct,0) * 1%), var(--surface-2) 0);
-    display: flex; align-items: center; justify-content: center; }
-  .summary-ring::after { content: ""; width: 38px; height: 38px; border-radius: 50%; background: var(--surface); }
-  .summary-text b { font-family: var(--font-mono); }
+    display: grid; place-items: center; transition: background .4s ease; }
+  .summary-ring span { width: 48px; height: 48px; border-radius: 50%; background: var(--surface);
+    display: grid; place-items: center; font-family: var(--font-display); font-size: .82rem;
+    font-weight: 800; color: var(--ink); letter-spacing: -.02em; }
+  .summary-text { font-size: .9rem; line-height: 1.45; }
+  .summary-text b { font-family: var(--font-display); font-weight: 800; color: var(--ink); }
 
   .filters { display: flex; gap: 10px; flex-wrap: wrap; }
   .filters .input { flex: 1; min-width: 140px; }
 
   .entrega-row {
     display: flex; align-items: center; justify-content: space-between; gap: 12px;
-    padding: 12px 8px; margin: 0 -8px; border-radius: var(--radius-s); border-bottom: 1px solid var(--border);
+    padding: 12px 8px 12px 14px; margin: 0 -8px; border-radius: var(--radius-s); border-bottom: 1px solid var(--border);
     cursor: pointer; background: none; border-left: none; border-right: none; border-top: none;
-    width: calc(100% + 16px); text-align: left;
+    width: calc(100% + 16px); text-align: left; position: relative;
   }
   button.entrega-row:hover { background: var(--surface-2); }
+  /* barra fina colorida à esquerda, pra dar pra bater o olho e ver o status */
+  .entrega-row[class*="st-"]::before {
+    content: ""; position: absolute; left: 4px; top: 12px; bottom: 12px; width: 3px;
+    border-radius: 999px; background: var(--row-cor, transparent);
+  }
+  .entrega-row.st-entregue { --row-cor: var(--success); }
+  .entrega-row.st-rota { --row-cor: var(--accent-2); }
+  .entrega-row.st-falha { --row-cor: var(--danger); }
+  .entrega-row.st-pendente { --row-cor: var(--ink-faint); }
   .entrega-row:last-child { border-bottom: none; }
   .entrega-row:hover, .entrega-row:focus-visible { background: var(--surface-2); }
   .entrega-row > div:first-child, .history-row > div:first-child { min-width: 0; flex: 1; }
@@ -338,6 +393,14 @@
   .status-pill.falha { background: var(--danger-soft); color: var(--danger); }
 
   .empty-state { color: var(--ink-faint); font-size: .86rem; text-align: center; padding: 30px 12px; line-height: 1.5; }
+
+  /* O Leaflet usa z-index interno alto (panes 400, controles 800). Sem um
+     contexto de empilhamento próprio, o mapa passa por cima da barra de
+     abas (z-index 20) e dos modais. position+z-index cria esse contexto. */
+  #painelMapa {
+    height: 320px; border-radius: var(--radius-m); overflow: hidden;
+    position: relative; z-index: 0; border: 1px solid var(--border);
+  }
 
   .modal-overlay {
     position: fixed; inset: 0; background: rgba(10,16,14,.5); z-index: 60;
@@ -419,18 +482,21 @@
 
   <section id="tab-nova" class="view">
     <div class="dash-strip" id="dashStrip">
-      <div class="dash-item">
+      <button type="button" class="dash-item ok" data-goto="painel">
+        <span class="dash-ico">✓</span>
         <span class="dash-num" id="dashHoje">–</span>
         <span class="dash-label">entregues hoje</span>
-      </div>
-      <div class="dash-item">
+      </button>
+      <button type="button" class="dash-item rota" data-goto="rota">
+        <span class="dash-ico">🚚</span>
         <span class="dash-num" id="dashRota">–</span>
         <span class="dash-label">na rota</span>
-      </div>
-      <div class="dash-item">
+      </button>
+      <button type="button" class="dash-item neutro" data-goto="clientes">
+        <span class="dash-ico">👥</span>
         <span class="dash-num" id="dashClientes">–</span>
         <span class="dash-label">clientes ativos</span>
-      </div>
+      </button>
     </div>
     <form id="form-nova" class="card" novalidate>
       <h2>Registrar entrega</h2>
@@ -441,7 +507,7 @@
         <button type="button" class="mode-btn" data-mode="rota">Preparar rota</button>
       </div>
 
-      <label class="avulso-toggle" id="falhaToggleWrap">
+      <label class="avulso-toggle falha-toggle" id="falhaToggleWrap">
         <input type="checkbox" id="falhaToggle">
         ⚠️ Cliente ausente / entrega não realizada
       </label>
@@ -564,7 +630,7 @@
     </div>
     <div class="card">
       <div class="summary-bar">
-        <div class="summary-ring" id="summaryRing" style="--pct:0"></div>
+        <div class="summary-ring" id="summaryRing" style="--pct:0"><span id="summaryPct">–</span></div>
         <div class="summary-text">Carregando...</div>
       </div>
     </div>
@@ -575,7 +641,7 @@
       </div>
       <p class="card-hint">Pontos capturados nas entregas confirmadas desta competência.</p>
       <div id="painelMapaVazio" class="empty-state" hidden>Nenhuma entrega com localização capturada ainda.</div>
-      <div id="painelMapa" style="height:320px;border-radius:var(--radius-m);overflow:hidden;"></div>
+      <div id="painelMapa"></div>
     </div>
   </section>
 
@@ -754,6 +820,18 @@
     var parts = comp.split('-');
     return MESES[parseInt(parts[1], 10) - 1] + '/' + parts[0];
   }
+
+  var topbarEl = document.querySelector('.topbar');
+  function atualizarSombraTopbar() { topbarEl.classList.toggle('rolado', window.scrollY > 4); }
+  window.addEventListener('scroll', atualizarSombraTopbar, { passive: true });
+  atualizarSombraTopbar();
+
+  document.querySelectorAll('.dash-item[data-goto]').forEach(function (item) {
+    item.addEventListener('click', function () {
+      var alvo = document.querySelector('.tab[data-tab="' + item.dataset.goto + '"]');
+      if (alvo) alvo.click();
+    });
+  });
 
   function updateDashStrip() {
     var hojeStr = new Date().toDateString();
@@ -1447,7 +1525,7 @@
     list.forEach(function (e) {
       var row = document.createElement('button');
       row.type = 'button';
-      row.className = 'entrega-row';
+      row.className = 'entrega-row st-rota';
       var itensStr = (e.itens || []).map(function (i) { return typeof i === 'string' ? i : i.tipo; }).join(', ');
       var total = (e.itens || []).reduce(function (s, i) { return s + ((i && i.valor) || 0); }, 0);
       var subtitle = fmtCompetencia(e.competencia) + ' · ' + itensStr + (total > 0 ? ' · ' + fmtMoney(total) : '');
@@ -1621,10 +1699,10 @@
     }
     lista.forEach(function (s) {
       var row = document.createElement('div');
-      row.className = 'entrega-row';
       row.style.flexWrap = 'wrap';
       var subtitle = tipoSolicitacaoLabel(s.tipo) + (s.local ? ' · ' + s.local : '') + ' · pedido por ' + (s.criadoPorNome || s.criadoPor || '?') + ' · ' + fmtDateTime(s.criadoEm);
       var pillClass = s.status === 'concluida' ? 'entregue' : (s.urgente ? 'rota' : 'pendente');
+      row.className = 'entrega-row st-' + pillClass;
       var pillLabel = s.status === 'concluida' ? 'Concluída' : (s.urgente ? 'Urgente' : 'Pendente');
       row.innerHTML =
         '<div><div class="er-nome"></div><div class="er-sub"></div></div>' +
@@ -1739,6 +1817,7 @@
     }).length;
     var pct = totalAtivos ? Math.round((entreguesCount / totalAtivos) * 100) : 0;
     $('summaryRing').style.setProperty('--pct', pct);
+    $('summaryPct').textContent = pct + '%';
     document.querySelector('.summary-text').innerHTML =
       '<b class="num">' + entreguesCount + '</b> de <b class="num">' + totalAtivos + '</b> clientes já receberam em ' + fmtCompetencia($('painelCompetencia').value);
 
@@ -1782,11 +1861,11 @@
       var c = item.c, entregas = item.entregas, latest = item.latest;
       var row = document.createElement('button');
       row.type = 'button';
-      row.className = 'entrega-row';
       var subtitle = latest
         ? fmtDateTime(latest.confirmadoEm || latest.criadoEm) + (item.status === 'rota' ? ' · aguardando assinatura' : '') + (item.status === 'falha' ? ' · ' + (latest.motivoFalha || 'não entregue') : '') + (entregas.length > 1 ? ' · +' + (entregas.length - 1) + ' entrega(s) nesta competência' : '')
         : 'Sem entrega registrada nesta competência';
       var pillClass = item.status === 'entregue' ? 'entregue' : (item.status === 'rota' ? 'rota' : (item.status === 'falha' ? 'falha' : 'pendente'));
+      row.className = 'entrega-row st-' + pillClass;
       var pillLabel = item.status === 'entregue' ? 'Entregue' : (item.status === 'rota' ? 'Na rota' : (item.status === 'falha' ? 'Não entregue' : 'Sem entrega'));
       row.innerHTML =
         '<div><div class="er-nome"></div><div class="er-sub"></div></div>' +
@@ -1801,9 +1880,9 @@
       var itensStr = (e.itens || []).map(function (i) { return typeof i === 'string' ? i : i.tipo; }).join(', ');
       var row = document.createElement('button');
       row.type = 'button';
-      row.className = 'entrega-row';
       var subtitle = 'Avulso · ' + fmtDateTime(e.confirmadoEm || e.criadoEm) + (itensStr ? ' · ' + itensStr : '') + (isConfirmada ? '' : ' · aguardando assinatura');
       var pillClass = isConfirmada ? 'entregue' : 'rota';
+      row.className = 'entrega-row st-' + pillClass;
       var pillLabel = isConfirmada ? 'Entregue' : 'Na rota';
       row.innerHTML =
         '<div><div class="er-nome"></div><div class="er-sub"></div></div>' +
@@ -2062,7 +2141,7 @@
             (podeExcluir(entrega) ? '<button type="button" class="link-btn" id="pendingEditarBtn" style="margin:6px 0 0;">✏️ Editar documentos/competência</button>' : '') +
           '</div>' +
           '<div id="pendingItensEdit" hidden></div>' +
-          '<label class="avulso-toggle" style="margin-top:14px;">' +
+          '<label class="avulso-toggle falha-toggle" style="margin-top:14px;">' +
             '<input type="checkbox" id="pendingFalhaToggle">' +
             '⚠️ Cliente ausente / entrega não realizada' +
           '</label>' +
