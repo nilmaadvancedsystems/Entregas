@@ -446,14 +446,14 @@
       </label>
       <button type="submit" class="btn btn-primary">Criar acesso</button>
     </form>
-    <div class="card" id="importCard">
+    <div class="card" id="importCard" hidden>
       <div class="card-head-row">
         <h2>Base inicial</h2>
         <button type="button" class="btn-chip accent" id="importClientesBtn">Importar 315 clientes</button>
       </div>
       <p class="card-hint">Importa de uma vez a base de clientes já cadastrada. Pode clicar de novo sem medo — não duplica.</p>
     </div>
-    <form id="form-cliente" class="card" novalidate>
+    <form id="form-cliente" class="card" hidden novalidate>
       <h2>Novo cliente</h2>
       <label class="field">
         <span>Nome</span>
@@ -1515,12 +1515,14 @@
       var sub = [c.documento, c.telefone].filter(Boolean).join(' · ') || 'sem dados adicionais';
       row.innerHTML =
         '<div><div class="cr-name"></div><div class="cr-sub"></div></div>' +
-        '<div class="cr-actions"><button class="btn-chip">' + (c.ativo === false ? 'Reativar' : 'Desativar') + '</button></div>';
+        (currentUserRole === 'admin' ? '<div class="cr-actions"><button class="btn-chip">' + (c.ativo === false ? 'Reativar' : 'Desativar') + '</button></div>' : '');
       row.querySelector('.cr-name').textContent = clienteLabel(c);
       row.querySelector('.cr-sub').textContent = sub;
-      row.querySelector('.btn-chip').addEventListener('click', function () {
-        db.doc('clientes/' + c.id).update({ ativo: c.ativo === false }).catch(function (err) { showToast(errMsg(err, 'Não foi possível atualizar.'), 'error'); });
-      });
+      if (currentUserRole === 'admin') {
+        row.querySelector('.btn-chip').addEventListener('click', function () {
+          db.doc('clientes/' + c.id).update({ ativo: c.ativo === false }).catch(function (err) { showToast(errMsg(err, 'Não foi possível atualizar.'), 'error'); });
+        });
+      }
       listEl.appendChild(row);
     });
   }
@@ -1615,6 +1617,8 @@
     setupCanvas();
     captureGeo();
     $('form-equipe').hidden = currentUserRole !== 'admin';
+    $('form-cliente').hidden = currentUserRole !== 'admin';
+    $('importCard').hidden = currentUserRole !== 'admin';
 
     unsubClientes = db.collection('clientes').orderBy('nome').limit(1000).onSnapshot(function (snap) {
       clientesCache = new Map(snap.docs.map(function (d) { return [d.id, Object.assign({ id: d.id }, d.data())]; }));
