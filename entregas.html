@@ -555,7 +555,10 @@
     <div class="card">
       <div class="card-head-row">
         <h2>Pendentes</h2>
-        <button type="button" class="btn-chip" id="solVerConcluidasBtn">Ver concluídas</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button type="button" class="btn-chip" id="solNotifBtn" hidden>🔕 Ativar notificações</button>
+          <button type="button" class="btn-chip" id="solVerConcluidasBtn">Ver concluídas</button>
+        </div>
       </div>
       <div id="solicitacoesList"><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
     </div>
@@ -680,7 +683,8 @@
     { key: 'ccir', label: 'CCIR', semValor: true },
     { key: 'multa_rescisoria', label: 'Multa Rescisória' },
     { key: 'ferias', label: 'Férias' },
-    { key: 'folha_pagamento', label: 'Folha de Pagamento', semValor: true }
+    { key: 'folha_pagamento', label: 'Folha de Pagamento', semValor: true },
+    { key: 'esocial', label: 'eSocial', semValor: true }
   ];
 
   var MESES = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
@@ -1363,9 +1367,19 @@
   function subscribeSolicitacoes() {
     if (!db || !auth.currentUser) return;
     if (temPapel('admin') || temPapel('office_boy')) {
+      var primeiraCargaSol = true;
       unsubSolicitacoes = db.collection('solicitacoes').orderBy('criadoEm', 'desc').limit(300).onSnapshot(function (snap) {
         solicitacoesCache = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
         renderSolicitacoes();
+        if (!primeiraCargaSol) {
+          snap.docChanges().forEach(function (change) {
+            if (change.type === 'added') {
+              var s = Object.assign({ id: change.doc.id }, change.doc.data());
+              if (s.status !== 'concluida' && s.criadoPor !== auth.currentUser.email) notificarNovaSolicitacao(s);
+            }
+          });
+        }
+        primeiraCargaSol = false;
       }, function (err) { showToast(errMsg(err, 'Não foi possível carregar as solicitações.'), 'error'); });
       return;
     }
@@ -1390,6 +1404,38 @@
     if (tipo === 'entregar') return 'Entregar documento';
     if (tipo === 'buscar') return 'Buscar documento';
     return 'Outro';
+  }
+
+  // Notificação do navegador pro office boy/admin quando chega solicitação
+  // nova — só funciona com o app aberto (é um app estático, sem servidor
+  // pra mandar push de verdade com o app fechado).
+  function notificarNovaSolicitacao(s) {
+    try {
+      if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+      var n = new Notification('Nova solicitação — ' + tipoSolicitacaoLabel(s.tipo), {
+        body: s.descricao + (s.local ? ' · ' + s.local : '') + (s.urgente ? ' · URGENTE' : ''),
+        tag: 'sol-' + s.id
+      });
+      n.onclick = function () { window.focus(); document.querySelector('[data-tab="solicitacoes"]').click(); n.close(); };
+    } catch (e) {}
+    if (navigator.vibrate) { try { navigator.vibrate([120, 60, 120]); } catch (e) {} }
+  }
+
+  function ativarNotificacoesSolicitacoes() {
+    if (typeof Notification === 'undefined') { showToast('Este navegador não suporta notificações.', 'error'); return; }
+    if (Notification.permission === 'granted') { showToast('Notificações já estão ativadas.'); return; }
+    Notification.requestPermission().then(function (perm) {
+      showToast(perm === 'granted' ? 'Notificações ativadas.' : 'Permissão de notificação negada.', perm === 'granted' ? undefined : 'error');
+      atualizarBotaoNotificacoes();
+    });
+  }
+
+  function atualizarBotaoNotificacoes() {
+    var btn = $('solNotifBtn');
+    if (!btn) return;
+    var suportado = typeof Notification !== 'undefined';
+    btn.hidden = !(suportado && (temPapel('admin') || temPapel('office_boy')));
+    if (suportado) btn.textContent = Notification.permission === 'granted' ? '🔔 Notificações ativadas' : '🔕 Ativar notificações';
   }
 
   function renderSolicitacoes() {
@@ -1436,6 +1482,8 @@
       listEl.appendChild(row);
     });
   }
+
+  $('solNotifBtn').addEventListener('click', ativarNotificacoesSolicitacoes);
 
   $('solVerConcluidasBtn').addEventListener('click', function () {
     solVerConcluidas = !solVerConcluidas;
@@ -2211,6 +2259,7 @@
     subscribePendentes();
     subscribeSolicitacoes();
     subscribeNotas();
+    atualizarBotaoNotificacoes();
   }
 
   $('loginForm').addEventListener('submit', function (e) {
