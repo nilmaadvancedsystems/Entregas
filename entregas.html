@@ -1558,6 +1558,7 @@
   function registrarTokenFcm() {
     navigator.serviceWorker.register('firebase-messaging-sw.js').then(function (registration) {
       var messaging = firebase.messaging();
+      escutarMensagensEmPrimeiroPlano_(messaging);
       return messaging.getToken({ vapidKey: FCM_VAPID_KEY, serviceWorkerRegistration: registration });
     }).then(function (token) {
       if (!token || !auth.currentUser) return;
@@ -1572,12 +1573,36 @@
     });
   }
 
+  // Com o app ABERTO (mesmo em outra aba/minimizado), o navegador não
+  // mostra a notificação do sistema sozinho — ele entrega a mensagem só
+  // pra página, então precisamos exibir a notificação (ou pelo menos um
+  // toast) manualmente aqui.
+  var escutandoPrimeiroPlano_ = false;
+  function escutarMensagensEmPrimeiroPlano_(messaging) {
+    if (escutandoPrimeiroPlano_) return;
+    escutandoPrimeiroPlano_ = true;
+    messaging.onMessage(function (payload) {
+      var titulo = (payload.notification && payload.notification.title) || 'Nova solicitação';
+      var corpo = (payload.notification && payload.notification.body) || '';
+      showToast('🔔 ' + titulo + (corpo ? ' — ' + corpo : ''));
+      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+        try { new Notification(titulo, { body: corpo, tag: (payload.data && payload.data.tag) || 'nilma-sol' }); } catch (e) {}
+      }
+      if (navigator.vibrate) { try { navigator.vibrate([120, 60, 120]); } catch (e) {} }
+    });
+  }
+
   function atualizarBotaoNotificacoes() {
     var btn = $('solNotifBtn');
     if (!btn) return;
     var suportado = typeof Notification !== 'undefined' && 'serviceWorker' in navigator;
     btn.hidden = !(suportado && temPapel('office_boy'));
-    if (suportado) btn.textContent = Notification.permission === 'granted' ? '🔔 Notificações ativadas' : '🔕 Ativar notificações';
+    if (suportado) {
+      btn.textContent = Notification.permission === 'granted' ? '🔔 Notificações ativadas' : '🔕 Ativar notificações';
+      if (Notification.permission === 'granted' && typeof firebase.messaging === 'function') {
+        try { escutarMensagensEmPrimeiroPlano_(firebase.messaging()); } catch (e) {}
+      }
+    }
   }
 
   function renderSolicitacoes() {
