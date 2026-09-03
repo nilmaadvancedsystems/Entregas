@@ -225,8 +225,15 @@
   .nota-del { border: none; background: none; color: var(--ink-faint); cursor: pointer; font-size: .8rem; flex: none; padding: 4px; }
   .nota-del:hover { color: var(--danger); }
 
-  .sig-wrap { border: 1px dashed var(--border); border-radius: var(--radius-m); background: var(--surface-2); padding: 8px; }
+  .sig-wrap { border: 1px dashed var(--border); border-radius: var(--radius-m); background: var(--surface-2); padding: 8px; position: relative; }
   .sig-wrap canvas { display: block; width: 100%; height: 200px; touch-action: none; border-radius: var(--radius-s); background: #FFFFFF; }
+  .sig-placeholder {
+    position: absolute; left: 8px; right: 8px; top: 8px; height: 200px; display: flex;
+    align-items: center; justify-content: center; color: #B7ADA8; font-size: .88rem; font-weight: 600;
+    pointer-events: none; text-align: center; padding: 0 16px;
+  }
+  .sig-placeholder.hide { display: none; }
+  .sig-status.ok { color: var(--success); font-weight: 600; }
   .sig-row { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; gap: 10px; flex-wrap: wrap; }
   .sig-status { font-size: .78rem; color: var(--ink-faint); flex: 1; min-width: 120px; }
   .link-btn { border: none; background: none; color: var(--accent); font-weight: 600; font-size: .82rem; cursor: pointer; padding: 4px; flex: none; }
@@ -328,6 +335,7 @@
   .status-pill.entregue { background: var(--success-soft); color: var(--success); }
   .status-pill.pendente { background: var(--warning-soft); color: var(--warning); }
   .status-pill.rota { background: var(--accent-2-soft); color: var(--accent-2); }
+  .status-pill.falha { background: var(--danger-soft); color: var(--danger); }
 
   .empty-state { color: var(--ink-faint); font-size: .86rem; text-align: center; padding: 30px 12px; line-height: 1.5; }
 
@@ -367,6 +375,8 @@
   .cr-actions { display: flex; gap: 6px; flex: none; flex-shrink: 0; }
   .btn-chip { border: 1px solid var(--border); background: var(--surface-2); border-radius: 999px; padding: 6px 12px; font-size: .76rem; font-weight: 600; cursor: pointer; }
   .btn-chip.danger { color: var(--danger); }
+  .btn-chip.danger.confirmando { background: var(--danger); color: #fff; animation: confirmando-pulse 1s ease infinite; }
+  @keyframes confirmando-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .7; } }
   .btn-chip.accent { color: var(--accent); }
 
   .edit-form { display: flex; flex-direction: column; gap: 8px; width: 100%; }
@@ -431,6 +441,17 @@
         <button type="button" class="mode-btn" data-mode="rota">Preparar rota</button>
       </div>
 
+      <label class="avulso-toggle" id="falhaToggleWrap">
+        <input type="checkbox" id="falhaToggle">
+        ⚠️ Cliente ausente / entrega não realizada
+      </label>
+
+      <label class="field" id="falhaMotivoField" hidden>
+        <span>O que aconteceu</span>
+        <textarea class="input" id="falhaMotivo" rows="2" placeholder="Ex.: Estabelecimento fechado, ninguém atendeu..."></textarea>
+        <div class="field-error" id="err-falhaMotivo">Explique o que aconteceu.</div>
+      </label>
+
       <label class="field">
         <span>Cliente</span>
         <label class="avulso-toggle">
@@ -473,26 +494,28 @@
       </label>
 
       <div class="field">
-        <span>Foto (opcional)</span>
+        <span id="fotoLabel">Foto (opcional se colher assinatura)</span>
         <input type="file" accept="image/*" capture="environment" id="fotoInput" class="foto-file-input">
         <label for="fotoInput" class="btn btn-secondary foto-label">📷 Tirar foto / anexar</label>
         <div class="foto-preview-wrap" id="fotoPreviewWrap" hidden>
           <img id="fotoPreview" class="foto-preview" alt="Foto anexada">
           <button type="button" class="link-btn" id="fotoRemove">Remover foto</button>
         </div>
+        <div class="field-error" id="err-foto">Anexe uma foto — é obrigatória nesse caso.</div>
       </div>
 
       <label class="field" id="assinaturaField">
-        <span>Assinatura</span>
+        <span id="assinaturaLabel">Assinatura (opcional se anexar foto)</span>
         <div class="sig-wrap">
           <canvas id="sigCanvas"></canvas>
+          <div class="sig-placeholder" id="sigPlaceholder">✍️ Assine aqui com o dedo ou o mouse</div>
           <div class="sig-row">
-            <span class="sig-status" id="sigStatus">Peça para assinar com o dedo ou o mouse.</span>
+            <span class="sig-status" id="sigStatus">Sem assinatura ainda.</span>
             <button type="button" class="link-btn sig-fullscreen-btn">⛶ Tela cheia</button>
             <button type="button" class="link-btn" id="clearSig">Limpar</button>
           </div>
         </div>
-        <div class="field-error" id="err-assinatura">Colha a assinatura antes de confirmar.</div>
+        <div class="field-error" id="err-assinatura">Colha a assinatura ou anexe uma foto antes de confirmar.</div>
         <div class="geo-status" id="geoStatus">📍 obtendo localização...</div>
       </label>
 
@@ -534,6 +557,7 @@
         <option value="com_entrega" selected>Com entrega ou na rota</option>
         <option value="entregue">Só entregues</option>
         <option value="rota">Só na rota</option>
+        <option value="falha">Só não entregues (falha)</option>
         <option value="sem_entrega">Só sem entrega</option>
         <option value="todos">Todos os clientes</option>
       </select>
@@ -1013,15 +1037,23 @@
   });
 
   var mainSigPad = createSignaturePad($('sigCanvas'), 200);
-  mainSigPad.onDraw = function () { $('sigStatus').textContent = 'Assinatura capturada.'; };
+  mainSigPad.onDraw = function () {
+    $('sigStatus').textContent = '✓ Assinatura capturada.';
+    $('sigStatus').classList.add('ok');
+    $('sigPlaceholder').classList.add('hide');
+  };
   function setupCanvas() {
     mainSigPad.setup();
-    $('sigStatus').textContent = 'Peça para assinar com o dedo ou o mouse.';
+    $('sigStatus').textContent = 'Sem assinatura ainda.';
+    $('sigStatus').classList.remove('ok');
+    $('sigPlaceholder').classList.remove('hide');
   }
 
   $('clearSig').addEventListener('click', function () {
     mainSigPad.clear();
-    $('sigStatus').textContent = 'Peça para assinar com o dedo ou o mouse.';
+    $('sigStatus').textContent = 'Sem assinatura ainda.';
+    $('sigStatus').classList.remove('ok');
+    $('sigPlaceholder').classList.remove('hide');
   });
 
   // ---------- foto ----------
@@ -1089,14 +1121,17 @@
     itensGrid.appendChild(label);
   });
 
+  var funcionarioState = {};
+  var PEDE_FUNCIONARIO = ['multa_rescisoria'];
+
   function getActiveDocEntries() {
     var entries = [];
     itensGrid.querySelectorAll('input:checked').forEach(function (i) {
       var tipo = DOC_TIPOS.find(function (t) { return t.key === i.dataset.key; });
-      entries.push({ key: i.dataset.key, label: i.value, semValor: !!(tipo && tipo.semValor) });
+      entries.push({ key: i.dataset.key, label: i.value, semValor: !!(tipo && tipo.semValor), pedeFuncionario: PEDE_FUNCIONARIO.indexOf(i.dataset.key) !== -1 });
     });
     var outro = $('outroInput').value.trim();
-    if (outro) entries.push({ key: 'outro', label: outro, semValor: false });
+    if (outro) entries.push({ key: 'outro', label: outro, semValor: false, pedeFuncionario: false });
     return entries;
   }
 
@@ -1118,6 +1153,15 @@
       inp.addEventListener('input', function () { valoresState[e.key] = inp.value; });
       row.querySelector('.valor-clear').addEventListener('click', function () { valoresState[e.key] = ''; inp.value = ''; });
       list.appendChild(row);
+      if (e.pedeFuncionario) {
+        var fRow = document.createElement('div');
+        fRow.className = 'valor-row funcionario-row';
+        fRow.innerHTML = '<input class="input" placeholder="Nome do funcionário">';
+        var fInp = fRow.querySelector('input');
+        fInp.value = funcionarioState[e.key] || '';
+        fInp.addEventListener('input', function () { funcionarioState[e.key] = fInp.value; });
+        list.appendChild(fRow);
+      }
     });
   }
 
@@ -1126,7 +1170,9 @@
 
   function getSelectedItens() {
     return getActiveDocEntries().map(function (e) {
-      return { tipo: e.label, valor: parseValor(valoresState[e.key]) };
+      var item = { tipo: e.label, valor: e.semValor ? null : parseValor(valoresState[e.key]) };
+      if (e.pedeFuncionario) item.funcionario = (funcionarioState[e.key] || '').trim();
+      return item;
     });
   }
 
@@ -1207,7 +1253,7 @@
     el.classList.add('show');
   }
   function clearFieldError(name) { $('err-' + name).classList.remove('show'); }
-  function clearErrors() { ['cliente', 'competencia', 'itens', 'assinatura'].forEach(clearFieldError); }
+  function clearErrors() { ['cliente', 'competencia', 'itens', 'assinatura', 'foto', 'falhaMotivo'].forEach(clearFieldError); }
 
   // ---------- modo: entregar agora / preparar rota ----------
   document.querySelectorAll('#modeToggle .mode-btn').forEach(function (btn) {
@@ -1218,12 +1264,26 @@
       var isRota = formMode === 'rota';
       $('recebedorField').hidden = isRota;
       $('assinaturaField').hidden = isRota;
+      $('falhaToggleWrap').hidden = isRota;
+      if (isRota) { $('falhaToggle').checked = false; }
+      atualizarModoFalha();
       $('formHint').textContent = isRota
         ? 'Prepare os documentos e valores agora; a assinatura fica para quando entregar de fato.'
-        : 'Preencha na hora, colha a assinatura e pronto — sem protocolo de papel.';
-      $('submitBtn').textContent = isRota ? 'Adicionar à rota' : 'Confirmar entrega';
+        : 'Preencha na hora, colha a assinatura ou anexe uma foto — sem protocolo de papel.';
     });
   });
+
+  // ---------- cliente ausente / entrega não realizada ----------
+  function atualizarModoFalha() {
+    var isRota = formMode === 'rota';
+    var isFalha = !isRota && $('falhaToggle').checked;
+    $('falhaMotivoField').hidden = !isFalha;
+    $('assinaturaField').hidden = isRota || isFalha;
+    $('fotoLabel').textContent = isFalha ? 'Foto (obrigatória)' : 'Foto (opcional se colher assinatura)';
+    if (isRota) { $('submitBtn').textContent = 'Adicionar à rota'; }
+    else { $('submitBtn').textContent = isFalha ? 'Registrar entrega não realizada' : 'Confirmar entrega'; }
+  }
+  $('falhaToggle').addEventListener('change', atualizarModoFalha);
 
   // ---------- submit ----------
   $('competenciaInput').value = currentCompetencia();
@@ -1234,16 +1294,24 @@
     clearErrors();
     if (!db) { showToast('Sem conexão com o banco. Tente novamente.', 'error'); return; }
     var isRota = formMode === 'rota';
+    var isFalha = !isRota && $('falhaToggle').checked;
     var isAvulso = $('avulsoToggle').checked;
     var avulsoNome = $('avulsoNomeInput').value.trim();
     var competencia = $('competenciaInput').value;
     var itens = getSelectedItens();
     var recebedor = $('recebedorInput').value.trim();
+    var motivo = $('falhaMotivo').value.trim();
     var ok = true;
     if (isAvulso ? !avulsoNome : !selectedClienteId) { showFieldError('cliente'); ok = false; }
     if (!competencia) { showFieldError('competencia'); ok = false; }
     if (itens.length === 0) { showFieldError('itens'); ok = false; }
-    if (!isRota && !mainSigPad.hasSignature) { showFieldError('assinatura'); ok = false; }
+    if (isFalha) {
+      if (!fotoDataUrl) { showFieldError('foto'); ok = false; }
+      if (!motivo) { showFieldError('falhaMotivo'); ok = false; }
+    } else if (!isRota && !mainSigPad.hasSignature && !fotoDataUrl) {
+      showFieldError('assinatura');
+      ok = false;
+    }
     if (!ok) return;
 
     var btn = $('submitBtn');
@@ -1258,20 +1326,22 @@
       avulso: isAvulso,
       competencia: competencia,
       itens: itens,
-      recebedor: isRota ? '' : recebedor,
-      temAssinatura: !isRota,
+      recebedor: (isRota || isFalha) ? '' : recebedor,
+      temAssinatura: !isRota && !isFalha && mainSigPad.hasSignature,
       temFoto: !!fotoDataUrl,
+      falha: isFalha,
+      motivoFalha: isFalha ? motivo : '',
       geo: isRota ? null : currentGeo,
       entregadoPor: (auth.currentUser && auth.currentUser.email) || '',
       entregadoPorNome: currentUserNome || (auth.currentUser && auth.currentUser.email) || '',
-      status: isRota ? 'pendente' : 'confirmada',
+      status: isRota ? 'pendente' : (isFalha ? 'falha' : 'confirmada'),
       criadoEm: now,
       confirmadoEm: isRota ? null : now
     }, {
-      assinatura: isRota ? null : mainSigPad.dataUrl(),
+      assinatura: (isRota || isFalha) ? null : (mainSigPad.hasSignature ? mainSigPad.dataUrl() : null),
       foto: fotoDataUrl
     }).then(function () {
-      showToast(isRota ? 'Adicionado à rota — aguardando assinatura.' : 'Entrega registrada com sucesso.');
+      showToast(isRota ? 'Adicionado à rota — aguardando assinatura.' : (isFalha ? 'Entrega não realizada registrada.' : 'Entrega registrada com sucesso.'));
       resetForm();
       var card = $('form-nova');
       card.classList.remove('flash-success');
@@ -1281,7 +1351,7 @@
       showToast(errMsg(err, 'Não foi possível salvar.'), 'error');
     }).finally(function () {
       btn.disabled = false;
-      btn.textContent = isRota ? 'Adicionar à rota' : 'Confirmar entrega';
+      atualizarModoFalha();
     });
   });
 
@@ -1301,14 +1371,20 @@
       itensGrid.querySelectorAll('input:checked').forEach(function (i) { i.checked = false; });
       $('outroInput').value = '';
       valoresState = {};
+      funcionarioState = {};
       renderValores();
     }
     $('recebedorInput').value = '';
+    $('falhaToggle').checked = false;
+    $('falhaMotivo').value = '';
     mainSigPad.clear();
-    $('sigStatus').textContent = 'Peça para assinar com o dedo ou o mouse.';
+    $('sigStatus').textContent = 'Sem assinatura ainda.';
+    $('sigStatus').classList.remove('ok');
+    $('sigPlaceholder').classList.remove('hide');
     fotoDataUrl = null;
     $('fotoInput').value = '';
     $('fotoPreviewWrap').hidden = true;
+    atualizarModoFalha();
     if (manterItens) clienteInput.focus();
   }
 
@@ -1647,13 +1723,15 @@
       var latest = entregas[0];
       var isConfirmada = !!(latest && latest.status === 'confirmada');
       var isRota = !!(latest && latest.status === 'pendente');
-      var status = isConfirmada ? 'entregue' : (isRota ? 'rota' : 'sem_entrega');
+      var isFalha = !!(latest && latest.status === 'falha');
+      var status = isConfirmada ? 'entregue' : (isFalha ? 'falha' : (isRota ? 'rota' : 'sem_entrega'));
       return { c: c, entregas: entregas, latest: latest, status: status };
     }).filter(function (row) {
       if (statusFiltro === 'todos') return true;
-      if (statusFiltro === 'com_entrega') return row.status === 'entregue' || row.status === 'rota';
+      if (statusFiltro === 'com_entrega') return row.status === 'entregue' || row.status === 'rota' || row.status === 'falha';
       if (statusFiltro === 'entregue') return row.status === 'entregue';
       if (statusFiltro === 'rota') return row.status === 'rota';
+      if (statusFiltro === 'falha') return row.status === 'falha';
       if (statusFiltro === 'sem_entrega') return row.status === 'sem_entrega';
       return true;
     });
@@ -1681,10 +1759,10 @@
       row.type = 'button';
       row.className = 'entrega-row';
       var subtitle = latest
-        ? fmtDateTime(latest.confirmadoEm || latest.criadoEm) + (item.status === 'rota' ? ' · aguardando assinatura' : '') + (entregas.length > 1 ? ' · +' + (entregas.length - 1) + ' entrega(s) nesta competência' : '')
+        ? fmtDateTime(latest.confirmadoEm || latest.criadoEm) + (item.status === 'rota' ? ' · aguardando assinatura' : '') + (item.status === 'falha' ? ' · ' + (latest.motivoFalha || 'não entregue') : '') + (entregas.length > 1 ? ' · +' + (entregas.length - 1) + ' entrega(s) nesta competência' : '')
         : 'Sem entrega registrada nesta competência';
-      var pillClass = item.status === 'entregue' ? 'entregue' : (item.status === 'rota' ? 'rota' : 'pendente');
-      var pillLabel = item.status === 'entregue' ? 'Entregue' : (item.status === 'rota' ? 'Na rota' : 'Sem entrega');
+      var pillClass = item.status === 'entregue' ? 'entregue' : (item.status === 'rota' ? 'rota' : (item.status === 'falha' ? 'falha' : 'pendente'));
+      var pillLabel = item.status === 'entregue' ? 'Entregue' : (item.status === 'rota' ? 'Na rota' : (item.status === 'falha' ? 'Não entregue' : 'Sem entrega'));
       row.innerHTML =
         '<div><div class="er-nome"></div><div class="er-sub"></div></div>' +
         '<span class="status-pill ' + pillClass + '">' + pillLabel + '</span>';
@@ -1780,7 +1858,8 @@
     var itensHtml = entrega.itens.map(function (i) {
       var label = typeof i === 'string' ? i : i.tipo;
       var valorTxt = (i && i.valor != null) ? ' · ' + fmtMoney(i.valor) : '';
-      return '<span>' + escapeHtml(label + valorTxt) + '</span>';
+      var funcTxt = (i && i.funcionario) ? ' · ' + i.funcionario : '';
+      return '<span>' + escapeHtml(label + valorTxt + funcTxt) + '</span>';
     }).join('');
     var total = entrega.itens.reduce(function (s, i) { return s + ((i && i.valor) || 0); }, 0);
     var geoLink = entrega.geo ? '<a href="https://maps.google.com/?q=' + entrega.geo.lat + ',' + entrega.geo.lng + '" target="_blank" rel="noopener">ver no mapa</a>' : 'não capturada';
@@ -1802,9 +1881,12 @@
     $('modalClose').addEventListener('click', function () { renderHistoricoList(cliente, historico); });
     if ($('excluirEntregaBtn')) {
       $('excluirEntregaBtn').addEventListener('click', function () {
-        excluirEntrega(entrega, function () {
-          historico = historico.filter(function (e) { return e.id !== entrega.id; });
-          renderHistoricoList(cliente, historico);
+        var btn = this;
+        confirmarDuplo(btn, function () {
+          excluirEntrega(entrega, function () {
+            historico = historico.filter(function (e) { return e.id !== entrega.id; });
+            renderHistoricoList(cliente, historico);
+          });
         });
       });
     }
@@ -1837,9 +1919,11 @@
   // regras de "sem valor" do formulário principal.
   function abrirEdicaoPendente(entrega) {
     var itensPorLabel = {};
+    var funcionarioPorLabel = {};
     (entrega.itens || []).forEach(function (i) {
       var label = typeof i === 'string' ? i : i.tipo;
       itensPorLabel[label] = (i && i.valor != null) ? i.valor : null;
+      if (i && i.funcionario) funcionarioPorLabel[label] = i.funcionario;
     });
     var outroExistente = Object.keys(itensPorLabel).find(function (label) {
       return !DOC_TIPOS.some(function (t) { return t.label === label; });
@@ -1864,15 +1948,16 @@
 
     var editValoresState = {};
     Object.keys(itensPorLabel).forEach(function (label) { if (itensPorLabel[label] != null) editValoresState[label] = String(itensPorLabel[label]); });
+    var editFuncionarioState = Object.assign({}, funcionarioPorLabel);
 
     function getEditActiveEntries() {
       var entries = [];
       $('pendingEditItensGrid').querySelectorAll('input:checked').forEach(function (i) {
         var tipo = DOC_TIPOS.find(function (t) { return t.key === i.dataset.key; });
-        entries.push({ label: i.dataset.label, semValor: !!(tipo && tipo.semValor) });
+        entries.push({ label: i.dataset.label, semValor: !!(tipo && tipo.semValor), pedeFuncionario: PEDE_FUNCIONARIO.indexOf(i.dataset.key) !== -1 });
       });
       var outro = $('pendingEditOutro').value.trim();
-      if (outro) entries.push({ label: outro, semValor: false });
+      if (outro) entries.push({ label: outro, semValor: false, pedeFuncionario: false });
       return entries;
     }
 
@@ -1891,6 +1976,15 @@
         inp.addEventListener('input', function () { editValoresState[e.label] = inp.value; });
         row.querySelector('.valor-clear').addEventListener('click', function () { editValoresState[e.label] = ''; inp.value = ''; });
         list.appendChild(row);
+        if (e.pedeFuncionario) {
+          var fRow = document.createElement('div');
+          fRow.className = 'valor-row funcionario-row';
+          fRow.innerHTML = '<input class="input" placeholder="Nome do funcionário">';
+          var fInp = fRow.querySelector('input');
+          fInp.value = editFuncionarioState[e.label] || '';
+          fInp.addEventListener('input', function () { editFuncionarioState[e.label] = fInp.value; });
+          list.appendChild(fRow);
+        }
       });
     }
     $('pendingEditItensGrid').addEventListener('change', renderEditValores);
@@ -1898,7 +1992,11 @@
     renderEditValores();
 
     $('pendingSalvarEdicaoBtn').addEventListener('click', function () {
-      var novosItens = getEditActiveEntries().map(function (e) { return { tipo: e.label, valor: e.semValor ? null : parseValor(editValoresState[e.label]) }; });
+      var novosItens = getEditActiveEntries().map(function (e) {
+        var item = { tipo: e.label, valor: e.semValor ? null : parseValor(editValoresState[e.label]) };
+        if (e.pedeFuncionario) item.funcionario = (editFuncionarioState[e.label] || '').trim();
+        return item;
+      });
       if (novosItens.length === 0) { showToast('Selecione ao menos um documento.', 'error'); return; }
       var btn = $('pendingSalvarEdicaoBtn');
       btn.disabled = true;
@@ -1924,7 +2022,8 @@
     var itensHtml = entrega.itens.map(function (i) {
       var label = typeof i === 'string' ? i : i.tipo;
       var valorTxt = (i && i.valor != null) ? ' · ' + fmtMoney(i.valor) : '';
-      return '<span>' + escapeHtml(label + valorTxt) + '</span>';
+      var funcTxt = (i && i.funcionario) ? ' · ' + i.funcionario : '';
+      return '<span>' + escapeHtml(label + valorTxt + funcTxt) + '</span>';
     }).join('');
     root.innerHTML =
       '<div class="modal-overlay" id="overlay">' +
@@ -1971,7 +2070,9 @@
     $('modalClose').addEventListener('click', closeModal);
     $('overlay').addEventListener('click', function (e) { if (e.target.id === 'overlay') closeModal(); });
     if ($('excluirPendenteBtn')) {
-      $('excluirPendenteBtn').addEventListener('click', function () { excluirEntrega(entrega, closeModal); });
+      $('excluirPendenteBtn').addEventListener('click', function () {
+        confirmarDuplo(this, function () { excluirEntrega(entrega, closeModal); });
+      });
     }
     if ($('pendingEditarBtn')) {
       $('pendingEditarBtn').addEventListener('click', function () { abrirEdicaoPendente(entrega); });
@@ -2414,8 +2515,30 @@
     });
   });
 
+  // Confirmação dupla direto no botão (em vez do confirm() do navegador):
+  // primeiro toque avisa e arma um temporizador; só apaga de verdade se
+  // tocar de novo dentro de alguns segundos.
+  function confirmarDuplo(btn, acao) {
+    if (btn.dataset.confirmando === '1') {
+      clearTimeout(btn._confirmTimer);
+      delete btn.dataset.confirmando;
+      btn.classList.remove('confirmando');
+      btn.textContent = btn.dataset.textoOriginal;
+      acao();
+      return;
+    }
+    btn.dataset.textoOriginal = btn.textContent;
+    btn.dataset.confirmando = '1';
+    btn.classList.add('confirmando');
+    btn.textContent = '⚠️ Toque de novo pra confirmar';
+    btn._confirmTimer = setTimeout(function () {
+      delete btn.dataset.confirmando;
+      btn.classList.remove('confirmando');
+      btn.textContent = btn.dataset.textoOriginal;
+    }, 4000);
+  }
+
   function excluirEntrega(entrega, onDone) {
-    if (!confirm('Excluir esta entrega? Essa ação não pode ser desfeita.')) return;
     var ref = db.doc('entregas/' + entrega.id);
     ref.collection('anexos').doc('comprovante').delete().catch(function () {}).then(function () {
       return ref.delete();
