@@ -4,6 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Nilma Protocolos</title>
+<script>
+(function () {
+  try {
+    var t = localStorage.getItem('nilma_tema');
+    if (t === 'claro') document.documentElement.dataset.theme = 'light';
+    else if (t === 'escuro') document.documentElement.dataset.theme = 'dark';
+  } catch (e) {}
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
@@ -103,7 +112,9 @@
   }
   .topbar-inner { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
   .brand { display: flex; align-items: center; gap: 10px; }
-  .logout-btn { margin-left: auto; }
+  .icon-btn { margin-left: auto; border: none; background: none; font-size: 1.1rem; cursor: pointer; padding: 4px 6px; line-height: 1; border-radius: 8px; }
+  .icon-btn:hover { background: var(--surface-2); }
+  .logout-btn { margin-left: 4px; }
   .brand-mark { width: 34px; height: 34px; border-radius: 50%; display: block; flex: none; }
   .auth-gate { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
   .auth-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-l); box-shadow: var(--shadow); padding: 28px 24px; max-width: 360px; width: 100%; text-align: center; }
@@ -153,6 +164,7 @@
     width: 100%; padding: 11px 12px; border: 1px solid var(--border); border-radius: var(--radius-s);
     background: var(--surface-2); color: var(--ink);
   }
+  textarea.input { resize: vertical; font-family: inherit; }
   .input:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
   .field-error { color: var(--danger); font-size: .78rem; margin-top: 6px; display: none; }
   .field-error.show { display: block; }
@@ -189,9 +201,19 @@
   .chip input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
 
   .valores-list { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
-  .valor-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .valor-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
   .valor-row .vl-label { font-size: .84rem; color: var(--ink-soft); flex: 1; }
   .valor-row input { width: 130px; text-align: right; font-family: var(--font-mono); padding: 8px 10px; }
+  .valor-clear { border: none; background: var(--surface-2); color: var(--ink-faint); width: 30px; height: 30px;
+    border-radius: 50%; cursor: pointer; font-size: .8rem; flex: none; }
+  .valor-clear:hover { background: var(--danger-soft, var(--surface-2)); color: var(--danger); }
+
+  .nota-row { display: flex; align-items: center; gap: 10px; padding: 8px 2px; border-bottom: 1px solid var(--border); }
+  .nota-row .nota-texto { flex: 1; font-size: .88rem; }
+  .nota-row.feito .nota-texto { text-decoration: line-through; color: var(--ink-faint); }
+  .nota-row .nota-check { width: 18px; height: 18px; accent-color: var(--accent); flex: none; }
+  .nota-del { border: none; background: none; color: var(--ink-faint); cursor: pointer; font-size: .8rem; flex: none; padding: 4px; }
+  .nota-del:hover { color: var(--danger); }
 
   .sig-wrap { border: 1px dashed var(--border); border-radius: var(--radius-m); background: var(--surface-2); padding: 8px; }
   canvas#sigCanvas { display: block; width: 100%; height: 200px; touch-action: none; border-radius: var(--radius-s); background: #FFFFFF; }
@@ -199,11 +221,14 @@
   .sig-status { font-size: .78rem; color: var(--ink-faint); flex: 1; min-width: 120px; }
   .link-btn { border: none; background: none; color: var(--accent); font-weight: 600; font-size: .82rem; cursor: pointer; padding: 4px; flex: none; }
 
-  .sig-wrap:fullscreen, .sig-wrap:-webkit-full-screen {
-    background: var(--surface); display: flex; flex-direction: column; justify-content: center; padding: 20px;
+  .sig-wrap.sig-fullscreen {
+    position: fixed; inset: 0; z-index: 999; background: var(--surface);
+    display: flex; flex-direction: column; justify-content: center; padding: 16px;
+    border: none; border-radius: 0;
   }
-  .sig-wrap.sig-fullscreen canvas { width: 100%; }
+  .sig-wrap.sig-fullscreen canvas { width: 100%; touch-action: none; }
   .sig-wrap.sig-fullscreen .sig-row { margin-top: 14px; }
+  body.sig-fullscreen-open { overflow: hidden; }
 
   .geo-status { font-size: .78rem; color: var(--ink-faint); display: flex; align-items: center; gap: 6px; margin-top: 10px; }
 
@@ -348,12 +373,14 @@
         <span class="brand-name">Nilma</span>
         <span class="brand-tag">protocolos sem papel</span>
       </span>
+      <button type="button" class="icon-btn" id="settingsBtn" hidden title="Configurações">⚙️</button>
       <button type="button" class="link-btn logout-btn" id="logoutBtn" hidden>Sair</button>
     </div>
     <div class="tabs" role="tablist">
       <button class="tab active" data-tab="nova" role="tab">Nova entrega</button>
       <button class="tab" data-tab="rota" role="tab">Rota <span class="tab-badge" id="rotaBadge" hidden>0</span></button>
       <button class="tab" data-tab="painel" role="tab">Painel</button>
+      <button class="tab" data-tab="solicitacoes" role="tab">Solicitações <span class="tab-badge" id="solicitacoesBadge" hidden>0</span></button>
       <button class="tab" data-tab="clientes" role="tab">Clientes</button>
     </div>
   </div>
@@ -499,6 +526,39 @@
     <div class="card" id="painelList"><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
   </section>
 
+  <section id="tab-solicitacoes" class="view" hidden>
+    <form id="form-solicitacao" class="card" novalidate>
+      <h2>Nova solicitação</h2>
+      <p class="card-hint">Peça pra alguém entregar ou buscar algum documento — vira uma tarefa pro office boy.</p>
+      <label class="field">
+        <span>Tipo</span>
+        <select class="input" id="solTipo">
+          <option value="entregar">Entregar documento</option>
+          <option value="buscar">Buscar documento</option>
+          <option value="outro">Outro</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>Cliente / local (opcional)</span>
+        <input class="input" id="solLocal" type="text" placeholder="Ex.: Cartório, Prefeitura, nome do cliente...">
+      </label>
+      <label class="field">
+        <span>Descrição</span>
+        <textarea class="input" id="solDescricao" rows="3" placeholder="O que precisa ser feito" required></textarea>
+        <div class="field-error" id="err-solDescricao">Descreva o que precisa ser feito.</div>
+      </label>
+      <label class="avulso-toggle"><input type="checkbox" id="solUrgente"> Urgente</label>
+      <button type="submit" class="btn btn-primary" id="solSubmitBtn">Enviar solicitação</button>
+    </form>
+    <div class="card">
+      <div class="card-head-row">
+        <h2>Pendentes</h2>
+        <button type="button" class="btn-chip" id="solVerConcluidasBtn">Ver concluídas</button>
+      </div>
+      <div id="solicitacoesList"><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
+    </div>
+  </section>
+
   <section id="tab-clientes" class="view" hidden>
     <form id="form-equipe" class="card" hidden novalidate>
       <h2>Equipe</h2>
@@ -510,6 +570,11 @@
       <label class="field">
         <span>Senha</span>
         <input class="input" id="novoUsuarioSenha" type="password" placeholder="Mínimo 6 caracteres" required>
+      </label>
+      <label class="field">
+        <span>Papéis (além de Equipe)</span>
+        <div class="avulso-toggle"><input type="checkbox" id="novoUsuarioAdmin"> Admin</div>
+        <div class="avulso-toggle"><input type="checkbox" id="novoUsuarioOfficeBoy"> Office boy (fica com a página de Solicitações)</div>
       </label>
       <button type="submit" class="btn btn-primary">Criar acesso</button>
     </form>
@@ -610,7 +675,9 @@
     { key: 'dae', label: 'DAE' },
     { key: 'honorario', label: 'Honorário' },
     { key: 'boleto', label: 'Boleto' },
-    { key: 'ccir', label: 'CCIR' }
+    { key: 'ccir', label: 'CCIR', semValor: true },
+    { key: 'multa_rescisoria', label: 'Multa Rescisória' },
+    { key: 'ferias', label: 'Férias' }
   ];
 
   var MESES = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
@@ -742,7 +809,7 @@
     btn.addEventListener('click', function () {
       document.querySelectorAll('.tab').forEach(function (b) { b.classList.remove('active'); });
       btn.classList.add('active');
-      ['nova', 'rota', 'painel', 'clientes'].forEach(function (name) {
+      ['nova', 'rota', 'painel', 'solicitacoes', 'clientes'].forEach(function (name) {
         var el = $('tab-' + name);
         el.hidden = name !== btn.dataset.tab;
       });
@@ -878,37 +945,35 @@
     return pad;
   }
 
-  // ---------- assinatura em tela cheia ----------
+  // ---------- assinatura em tela cheia (overlay próprio, funciona em pé —
+  // não depende da Fullscreen API do navegador nem de girar o aparelho) ----------
   var SIG_HEIGHT_NORMAL = 200;
+  function sigFullscreenHeight() {
+    // reserva espaço pro cabeçalho (status + botões) abaixo do canvas
+    return Math.max(320, Math.round((window.visualViewport ? window.visualViewport.height : window.innerHeight) - 130));
+  }
+  function setSigWrapFullscreen(wrap, ligar) {
+    var canvas = wrap.querySelector('canvas');
+    var btn = wrap.querySelector('.sig-fullscreen-btn');
+    wrap.classList.toggle('sig-fullscreen', ligar);
+    document.body.classList.toggle('sig-fullscreen-open', ligar);
+    if (btn) btn.textContent = ligar ? '⤡ Sair da tela cheia' : '⛶ Tela cheia';
+    if (canvas && canvas.__pad) {
+      var h = ligar ? sigFullscreenHeight() : SIG_HEIGHT_NORMAL;
+      canvas.style.height = h + 'px';
+      canvas.__pad.setHeight(h);
+    }
+  }
   document.addEventListener('click', function (e) {
     var btn = e.target.closest('.sig-fullscreen-btn');
     if (!btn) return;
     var wrap = btn.closest('.sig-wrap');
     if (!wrap) return;
-    if (!wrap.requestFullscreen && !wrap.webkitRequestFullscreen) { showToast('Tela cheia não é suportada neste navegador.', 'error'); return; }
-    if (document.fullscreenElement === wrap || document.webkitFullscreenElement === wrap) {
-      (document.exitFullscreen || document.webkitExitFullscreen).call(document);
-    } else {
-      (wrap.requestFullscreen || wrap.webkitRequestFullscreen).call(wrap);
-    }
+    setSigWrapFullscreen(wrap, !wrap.classList.contains('sig-fullscreen'));
   });
-
-  function onFullscreenChange() {
-    document.querySelectorAll('.sig-wrap').forEach(function (wrap) {
-      var isFs = document.fullscreenElement === wrap || document.webkitFullscreenElement === wrap;
-      wrap.classList.toggle('sig-fullscreen', isFs);
-      var canvas = wrap.querySelector('canvas');
-      var btn = wrap.querySelector('.sig-fullscreen-btn');
-      if (btn) btn.textContent = isFs ? '⤡ Sair da tela cheia' : '⛶ Tela cheia';
-      if (canvas && canvas.__pad) {
-        var h = isFs ? Math.round(window.innerHeight * 0.65) : SIG_HEIGHT_NORMAL;
-        canvas.style.height = h + 'px';
-        canvas.__pad.setHeight(h);
-      }
-    });
-  }
-  document.addEventListener('fullscreenchange', onFullscreenChange);
-  document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+  window.addEventListener('resize', function () {
+    document.querySelectorAll('.sig-wrap.sig-fullscreen').forEach(function (wrap) { setSigWrapFullscreen(wrap, true); });
+  });
 
   var mainSigPad = createSignaturePad($('sigCanvas'), 200);
   mainSigPad.onDraw = function () { $('sigStatus').textContent = 'Assinatura capturada.'; };
@@ -989,27 +1054,32 @@
 
   function getActiveDocEntries() {
     var entries = [];
-    itensGrid.querySelectorAll('input:checked').forEach(function (i) { entries.push({ key: i.dataset.key, label: i.value }); });
+    itensGrid.querySelectorAll('input:checked').forEach(function (i) {
+      var tipo = DOC_TIPOS.find(function (t) { return t.key === i.dataset.key; });
+      entries.push({ key: i.dataset.key, label: i.value, semValor: !!(tipo && tipo.semValor) });
+    });
     var outro = $('outroInput').value.trim();
-    if (outro) entries.push({ key: 'outro', label: outro });
+    if (outro) entries.push({ key: 'outro', label: outro, semValor: false });
     return entries;
   }
 
   function renderValores() {
     var entries = getActiveDocEntries();
+    var comValor = entries.filter(function (e) { return !e.semValor; });
     var field = $('valoresField');
     var list = $('valoresList');
-    if (entries.length === 0) { field.hidden = true; list.innerHTML = ''; return; }
+    if (comValor.length === 0) { field.hidden = true; list.innerHTML = ''; return; }
     field.hidden = false;
     list.innerHTML = '';
-    entries.forEach(function (e) {
+    comValor.forEach(function (e) {
       var row = document.createElement('div');
       row.className = 'valor-row';
-      row.innerHTML = '<span class="vl-label"></span><input class="input" inputmode="decimal" placeholder="R$ 0,00">';
+      row.innerHTML = '<span class="vl-label"></span><input class="input" inputmode="decimal" placeholder="R$ 0,00"><button type="button" class="valor-clear" title="Remover valor">✕</button>';
       row.querySelector('.vl-label').textContent = e.label;
       var inp = row.querySelector('input');
       inp.value = valoresState[e.key] || '';
       inp.addEventListener('input', function () { valoresState[e.key] = inp.value; });
+      row.querySelector('.valor-clear').addEventListener('click', function () { valoresState[e.key] = ''; inp.value = ''; });
       list.appendChild(row);
     });
   }
@@ -1259,6 +1329,107 @@
       listEl.appendChild(row);
     });
   }
+
+  // ---------- solicitações (entregar/buscar documento p/ office boy) ----------
+  var unsubSolicitacoes = null;
+  var solicitacoesCache = [];
+  var solVerConcluidas = false;
+
+  function subscribeSolicitacoes() {
+    if (!db) return;
+    unsubSolicitacoes = db.collection('solicitacoes').orderBy('criadoEm', 'desc').limit(300).onSnapshot(function (snap) {
+      solicitacoesCache = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+      renderSolicitacoes();
+    }, function (err) { showToast(errMsg(err, 'Não foi possível carregar as solicitações.'), 'error'); });
+  }
+
+  function podeConcluirSolicitacao(sol) {
+    return temPapel('admin') || temPapel('office_boy') || (auth.currentUser && sol.criadoPor === auth.currentUser.email);
+  }
+
+  function tipoSolicitacaoLabel(tipo) {
+    if (tipo === 'entregar') return 'Entregar documento';
+    if (tipo === 'buscar') return 'Buscar documento';
+    return 'Outro';
+  }
+
+  function renderSolicitacoes() {
+    var pendentes = solicitacoesCache.filter(function (s) { return s.status !== 'concluida'; });
+    var badge = $('solicitacoesBadge');
+    if (pendentes.length > 0) { badge.hidden = false; badge.textContent = pendentes.length; }
+    else badge.hidden = true;
+
+    var lista = solVerConcluidas ? solicitacoesCache.filter(function (s) { return s.status === 'concluida'; }).slice(0, 30) : pendentes;
+    var listEl = $('solicitacoesList');
+    listEl.innerHTML = '';
+    if (lista.length === 0) {
+      listEl.innerHTML = '<div class="empty-state">' + (solVerConcluidas ? 'Nenhuma solicitação concluída ainda.' : 'Nenhuma solicitação pendente.') + '</div>';
+      return;
+    }
+    lista.forEach(function (s) {
+      var row = document.createElement('div');
+      row.className = 'entrega-row';
+      row.style.flexWrap = 'wrap';
+      var subtitle = tipoSolicitacaoLabel(s.tipo) + (s.local ? ' · ' + s.local : '') + ' · pedido por ' + (s.criadoPorNome || s.criadoPor || '?') + ' · ' + fmtDateTime(s.criadoEm);
+      var pillClass = s.status === 'concluida' ? 'entregue' : (s.urgente ? 'rota' : 'pendente');
+      var pillLabel = s.status === 'concluida' ? 'Concluída' : (s.urgente ? 'Urgente' : 'Pendente');
+      row.innerHTML =
+        '<div><div class="er-nome"></div><div class="er-sub"></div></div>' +
+        '<span class="status-pill ' + pillClass + '">' + pillLabel + '</span>';
+      row.querySelector('.er-nome').textContent = s.descricao;
+      row.querySelector('.er-sub').textContent = subtitle;
+      if (s.status !== 'concluida' && podeConcluirSolicitacao(s)) {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn-chip accent';
+        btn.style.cssText = 'margin-top:8px;width:100%;';
+        btn.textContent = '✓ Concluir';
+        btn.addEventListener('click', function (ev) {
+          ev.stopPropagation();
+          db.collection('solicitacoes').doc(s.id).update({
+            status: 'concluida', concluidoEm: new Date().toISOString(),
+            concluidoPor: (auth.currentUser && auth.currentUser.email) || '', concluidoPorNome: currentUserNome
+          }).catch(function (err) { showToast(errMsg(err, 'Não foi possível concluir.'), 'error'); });
+        });
+        row.appendChild(btn);
+      }
+      listEl.appendChild(row);
+    });
+  }
+
+  $('solVerConcluidasBtn').addEventListener('click', function () {
+    solVerConcluidas = !solVerConcluidas;
+    this.textContent = solVerConcluidas ? 'Ver pendentes' : 'Ver concluídas';
+    renderSolicitacoes();
+  });
+
+  $('form-solicitacao').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var descricao = $('solDescricao').value.trim();
+    if (!descricao) { $('err-solDescricao').style.display = 'block'; return; }
+    $('err-solDescricao').style.display = 'none';
+    var btn = $('solSubmitBtn');
+    btn.disabled = true;
+    btn.textContent = 'Enviando...';
+    db.collection('solicitacoes').add({
+      tipo: $('solTipo').value,
+      local: $('solLocal').value.trim(),
+      descricao: descricao,
+      urgente: $('solUrgente').checked,
+      status: 'pendente',
+      criadoPor: (auth.currentUser && auth.currentUser.email) || '',
+      criadoPorNome: currentUserNome,
+      criadoEm: new Date().toISOString()
+    }).then(function () {
+      showToast('Solicitação enviada.');
+      $('form-solicitacao').reset();
+    }).catch(function (err) {
+      showToast(errMsg(err, 'Não foi possível enviar.'), 'error');
+    }).finally(function () {
+      btn.disabled = false;
+      btn.textContent = 'Enviar solicitação';
+    });
+  });
 
   function renderPainel() {
     var busca = $('painelBusca').value.trim().toLowerCase();
@@ -1711,10 +1882,10 @@
       var sub = [c.documento, c.telefone].filter(Boolean).join(' · ') || 'sem dados adicionais';
       row.innerHTML =
         '<div><div class="cr-name"></div><div class="cr-sub"></div></div>' +
-        (currentUserRole === 'admin' ? '<div class="cr-actions"><button class="btn-chip">' + (c.ativo === false ? 'Reativar' : 'Desativar') + '</button></div>' : '');
+        (temPapel('admin') ? '<div class="cr-actions"><button class="btn-chip">' + (c.ativo === false ? 'Reativar' : 'Desativar') + '</button></div>' : '');
       row.querySelector('.cr-name').textContent = clienteLabel(c);
       row.querySelector('.cr-sub').textContent = sub;
-      if (currentUserRole === 'admin') {
+      if (temPapel('admin')) {
         row.querySelector('.btn-chip').addEventListener('click', function () {
           db.doc('clientes/' + c.id).update({ ativo: c.ativo === false }).catch(function (err) { showToast(errMsg(err, 'Não foi possível atualizar.'), 'error'); });
         });
@@ -1725,46 +1896,197 @@
 
   // ---------- init ----------
   var appStarted = false;
-  var currentUserRole = 'staff';
+  var currentUserRoles = ['staff'];
   var currentUserNome = '';
 
   // O primeiro e-mail que fizer login vira admin automaticamente (base
   // "usuarios" vazia); os próximos entram como equipe. Promover alguém a
   // admin depois é feito direto no Firestore (coleção "usuarios", campo
   // "role").
+  function papeisDoDoc_(data) {
+    if (Array.isArray(data.roles) && data.roles.length) return data.roles;
+    if (data.role) return [data.role];
+    return ['staff'];
+  }
+
+  function temPapel(r) { return currentUserRoles.indexOf(r) !== -1; }
+
   function ensureUsuarioDoc(user) {
     var ref = db.collection('usuarios').doc(user.uid);
     return ref.get().then(function (snap) {
       if (snap.exists) {
-        currentUserRole = snap.data().role || 'staff';
+        currentUserRoles = papeisDoDoc_(snap.data());
         currentUserNome = snap.data().nome || snap.data().email || user.email || '';
+        aplicarTema(snap.data().tema || 'auto');
         return;
       }
       return db.collection('usuarios').limit(1).get().then(function (existing) {
-        var role = existing.empty ? 'admin' : 'staff';
-        currentUserRole = role;
+        var roles = existing.empty ? ['admin'] : ['staff'];
+        currentUserRoles = roles;
         currentUserNome = user.email || '';
-        return ref.set({ email: user.email, nome: currentUserNome, role: role, criadoEm: new Date().toISOString() });
+        return ref.set({ email: user.email, nome: currentUserNome, roles: roles, criadoEm: new Date().toISOString() });
       });
-    }).catch(function () { currentUserRole = 'staff'; });
+    }).catch(function () { currentUserRoles = ['staff']; });
+  }
+
+  // ---------- configurações pessoais (tema + senha) ----------
+  function aplicarTema(tema) {
+    var root = document.documentElement;
+    if (tema === 'claro') root.dataset.theme = 'light';
+    else if (tema === 'escuro') root.dataset.theme = 'dark';
+    else delete root.dataset.theme;
+    try { localStorage.setItem('nilma_tema', tema); } catch (e) {}
+  }
+
+  function salvarTema(tema) {
+    aplicarTema(tema);
+    if (auth.currentUser) {
+      db.collection('usuarios').doc(auth.currentUser.uid).update({ tema: tema }).catch(function () {});
+    }
+  }
+
+  function abrirConfiguracoes() {
+    var root = $('modalRoot');
+    var temaAtual = document.documentElement.dataset.theme === 'light' ? 'claro' : (document.documentElement.dataset.theme === 'dark' ? 'escuro' : 'auto');
+    root.innerHTML =
+      '<div class="modal-overlay" id="overlay">' +
+        '<div class="modal" id="modalInner">' +
+          '<div class="modal-head">' +
+            '<div><h2>Configurações</h2><div class="card-hint" style="margin:2px 0 0">' + escapeHtml_(currentUserNome) + '</div></div>' +
+            '<button class="modal-close" id="modalClose">✕</button>' +
+          '</div>' +
+          '<div class="field"><span>Tema</span>' +
+            '<div class="mode-toggle" id="temaToggle" style="flex-wrap:wrap;">' +
+              '<button type="button" class="mode-btn" data-tema="claro">☀️ Claro</button>' +
+              '<button type="button" class="mode-btn" data-tema="escuro">🌙 Escuro</button>' +
+              '<button type="button" class="mode-btn" data-tema="auto">🖥️ Automático</button>' +
+            '</div>' +
+          '</div>' +
+          '<form id="form-senha" class="field" style="margin-top:18px;" novalidate>' +
+            '<span>Trocar senha</span>' +
+            '<input class="input" id="senhaAtual" type="password" placeholder="Senha atual" required style="margin-bottom:8px;">' +
+            '<input class="input" id="senhaNova" type="password" placeholder="Nova senha (mínimo 6 caracteres)" required>' +
+            '<div class="field-error" id="err-senha" style="display:block;"></div>' +
+            '<button type="submit" class="btn btn-secondary" style="margin-top:10px;">Salvar nova senha</button>' +
+          '</form>' +
+          '<div class="field" style="margin-top:18px;">' +
+            '<span>Minhas anotações</span>' +
+            '<div class="card-hint" style="margin:2px 0 8px;">Só você vê isso — pra lembrete pessoal, tipo "pegar nota fiscal de X".</div>' +
+            '<div style="display:flex;gap:8px;margin-bottom:10px;">' +
+              '<input class="input" id="notaNovoInput" type="text" placeholder="Nova anotação...">' +
+              '<button type="button" class="btn-chip accent" id="notaAddBtn" style="flex:none;">+ Adicionar</button>' +
+            '</div>' +
+            '<div id="notasList"><div class="skeleton skeleton-row"></div></div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    $('overlay').addEventListener('click', function (e) { if (e.target.id === 'overlay') closeModal(); });
+    $('modalClose').addEventListener('click', closeModal);
+    $('temaToggle').querySelectorAll('.mode-btn').forEach(function (btn) {
+      btn.classList.toggle('active', btn.dataset.tema === temaAtual);
+      btn.addEventListener('click', function () {
+        $('temaToggle').querySelectorAll('.mode-btn').forEach(function (b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+            salvarTema(btn.dataset.tema);
+      });
+    });
+    $('form-senha').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var atual = $('senhaAtual').value;
+      var nova = $('senhaNova').value;
+      var errEl = $('err-senha');
+      errEl.textContent = '';
+      if (nova.length < 6) { errEl.textContent = 'A nova senha precisa ter ao menos 6 caracteres.'; return; }
+      var btn = e.target.querySelector('button[type="submit"]');
+      btn.disabled = true;
+      btn.textContent = 'Salvando...';
+      var cred = firebase.auth.EmailAuthProvider.credential(auth.currentUser.email, atual);
+      auth.currentUser.reauthenticateWithCredential(cred)
+        .then(function () { return auth.currentUser.updatePassword(nova); })
+        .then(function () {
+          showToast('Senha alterada com sucesso.');
+          closeModal();
+        })
+        .catch(function (err) {
+          errEl.textContent = err.code === 'auth/wrong-password' ? 'Senha atual incorreta.' : errMsg(err, 'Não foi possível trocar a senha.');
+        })
+        .finally(function () {
+          btn.disabled = false;
+          btn.textContent = 'Salvar nova senha';
+        });
+    });
+
+    carregarNotas();
+    $('notaAddBtn').addEventListener('click', adicionarNota);
+    $('notaNovoInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); adicionarNota(); } });
+  }
+
+  function notasRef_() { return db.collection('usuarios').doc(auth.currentUser.uid).collection('notas'); }
+
+  function carregarNotas() {
+    var listEl = $('notasList');
+    notasRef_().orderBy('criadoEm', 'desc').get().then(function (snap) {
+      var el = $('notasList');
+      if (!el) return; // modal já foi fechado
+      var notas = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+      renderNotas(notas);
+    }).catch(function () {
+      if (listEl) listEl.innerHTML = '<div class="empty-state">Não foi possível carregar as anotações.</div>';
+    });
+  }
+
+  function renderNotas(notas) {
+    var el = $('notasList');
+    if (!el) return;
+    el.innerHTML = '';
+    if (notas.length === 0) { el.innerHTML = '<div class="empty-state">Nenhuma anotação ainda.</div>'; return; }
+    notas.forEach(function (n) {
+      var row = document.createElement('div');
+      row.className = 'nota-row' + (n.feito ? ' feito' : '');
+      row.innerHTML =
+        '<input type="checkbox" class="nota-check">' +
+        '<span class="nota-texto"></span>' +
+        '<button type="button" class="nota-del" title="Excluir">✕</button>';
+      row.querySelector('.nota-texto').textContent = n.texto;
+      row.querySelector('.nota-check').checked = !!n.feito;
+      row.querySelector('.nota-check').addEventListener('change', function (e) {
+        notasRef_().doc(n.id).update({ feito: e.target.checked }).catch(function () {});
+        row.classList.toggle('feito', e.target.checked);
+      });
+      row.querySelector('.nota-del').addEventListener('click', function () {
+        notasRef_().doc(n.id).delete().catch(function () {});
+        row.remove();
+      });
+      el.appendChild(row);
+    });
+  }
+
+  function adicionarNota() {
+    var input = $('notaNovoInput');
+    var texto = input.value.trim();
+    if (!texto) return;
+    input.value = '';
+    notasRef_().add({ texto: texto, feito: false, criadoEm: new Date().toISOString() })
+      .then(carregarNotas)
+      .catch(function (err) { showToast(errMsg(err, 'Não foi possível salvar a anotação.'), 'error'); });
   }
 
   function podeExcluir(entrega) {
-    return currentUserRole === 'admin' || (entrega.entregadoPor && auth.currentUser && entrega.entregadoPor === auth.currentUser.email);
+    return temPapel('admin') || (entrega.entregadoPor && auth.currentUser && entrega.entregadoPor === auth.currentUser.email);
   }
 
   // Cria um novo login (nome + senha) sem tirar o admin da própria sessão:
   // o Firebase troca a sessão ativa pra o usuário recém-criado se isso for
   // feito no app principal, então usamos uma instância secundária só pra
   // esse cadastro e a descartamos depois.
-  function criarContaEquipe(nome, senha) {
+  function criarContaEquipe(nome, senha, roles) {
     var email = emailFromNome(nome);
     var secondaryApp = firebase.initializeApp(firebaseConfig, 'secundario-' + Date.now());
     var secondaryAuth = secondaryApp.auth();
     var secondaryDb = secondaryApp.firestore();
     return secondaryAuth.createUserWithEmailAndPassword(email, senha).then(function (cred) {
       return secondaryDb.collection('usuarios').doc(cred.user.uid).set({
-        nome: nome, email: email, role: 'staff', criadoEm: new Date().toISOString()
+        nome: nome, email: email, roles: roles, criadoEm: new Date().toISOString()
       });
     }).then(function () {
       return secondaryAuth.signOut();
@@ -1778,13 +2100,18 @@
     var nome = $('novoUsuarioNome').value.trim();
     var senha = $('novoUsuarioSenha').value;
     if (!nome || senha.length < 6) { showToast('Preencha o nome e uma senha com 6+ caracteres.', 'error'); return; }
+    var roles = ['staff'];
+    if ($('novoUsuarioAdmin').checked) roles.push('admin');
+    if ($('novoUsuarioOfficeBoy').checked) roles.push('office_boy');
     var btn = e.target.querySelector('button[type="submit"]');
     btn.disabled = true;
     btn.textContent = 'Criando...';
-    criarContaEquipe(nome, senha).then(function () {
+    criarContaEquipe(nome, senha, roles).then(function () {
       showToast('Acesso criado para ' + nome + '.');
       $('novoUsuarioNome').value = '';
       $('novoUsuarioSenha').value = '';
+      $('novoUsuarioAdmin').checked = false;
+      $('novoUsuarioOfficeBoy').checked = false;
     }).catch(function (err) {
       var msg = (err && err.code === 'auth/email-already-in-use') ? 'Já existe um acesso com esse nome.' : errMsg(err, 'Não foi possível criar o acesso.');
       showToast(msg, 'error');
@@ -1812,9 +2139,9 @@
     appStarted = true;
     setupCanvas();
     captureGeo();
-    $('form-equipe').hidden = currentUserRole !== 'admin';
-    $('form-cliente').hidden = currentUserRole !== 'admin';
-    $('importCard').hidden = currentUserRole !== 'admin';
+    $('form-equipe').hidden = !temPapel('admin');
+    $('form-cliente').hidden = !temPapel('admin');
+    $('importCard').hidden = !temPapel('admin');
 
     unsubClientes = db.collection('clientes').orderBy('nome').limit(1000).onSnapshot(function (snap) {
       clientesCache = new Map(snap.docs.map(function (d) { return [d.id, Object.assign({ id: d.id }, d.data())]; }));
@@ -1828,6 +2155,7 @@
 
     subscribePainel($('painelCompetencia').value);
     subscribePendentes();
+    subscribeSolicitacoes();
   }
 
   $('loginForm').addEventListener('submit', function (e) {
@@ -1845,17 +2173,20 @@
   });
 
   $('logoutBtn').addEventListener('click', function () { auth.signOut(); });
+  $('settingsBtn').addEventListener('click', abrirConfiguracoes);
 
   auth.onAuthStateChanged(function (user) {
     if (user) {
       $('authGate').hidden = true;
       $('logoutBtn').hidden = false;
+      $('settingsBtn').hidden = false;
       ensureUsuarioDoc(user).then(startApp);
     } else {
       var logo = document.querySelector('.brand-mark');
       if (logo) $('authLogo').src = logo.src;
       $('authGate').hidden = false;
       $('logoutBtn').hidden = true;
+      $('settingsBtn').hidden = true;
     }
   });
 })();
