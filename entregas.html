@@ -127,21 +127,24 @@
   .brand-text { display: flex; align-items: baseline; gap: 8px; }
   .brand-name { font-family: var(--font-display); font-size: 1.35rem; font-weight: 700; color: var(--accent); letter-spacing: -.01em; }
   .brand-tag { font-size: .78rem; color: var(--ink-faint); }
-  .user-label { font-size: .78rem; font-weight: 600; color: var(--ink-soft); background: var(--surface-2);
-    padding: 4px 10px; border-radius: 999px; max-width: 90px; overflow: hidden; text-overflow: ellipsis;
+  .user-label { font-size: .76rem; font-weight: 600; color: var(--ink-soft); background: var(--surface-2);
+    padding: 4px 9px; border-radius: 999px; max-width: 100px; overflow: hidden; text-overflow: ellipsis;
     white-space: nowrap; flex-shrink: 1; }
   @media (min-width: 520px) { .user-label { max-width: 160px; } }
+  @media (max-width: 480px) { .brand-tag { display: none; } }
 
   .tabs { display: flex; gap: 4px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 3px; }
   .tab {
     flex: 1; border: none; background: transparent; padding: 8px 10px; border-radius: 999px;
     font-weight: 600; font-size: .86rem; color: var(--ink-soft); cursor: pointer;
   }
+  .tab-ico { margin-right: 4px; }
   .tab.active { background: var(--accent); color: var(--accent-ink); }
   .tab-badge { display: inline-block; min-width: 16px; padding: 0 4px; margin-left: 3px; border-radius: 999px; background: var(--accent); color: #fff; font-size: .68rem; font-weight: 700; line-height: 16px; }
   .tab.active .tab-badge { background: rgba(255,255,255,.3); }
   @media (max-width: 420px) {
     .tab { font-size: .72rem; padding: 8px 4px; }
+    .tab-ico { display: block; margin: 0 auto 2px; }
   }
   .tab:focus-visible, button:focus-visible, input:focus-visible, .chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
@@ -153,9 +156,10 @@
 
   .card {
     background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-l);
-    box-shadow: var(--shadow); padding: 18px;
+    box-shadow: var(--shadow); padding: 20px;
+    transition: box-shadow .2s ease, border-color .2s ease;
   }
-  .card h2 { font-size: 1.05rem; margin-bottom: 4px; }
+  .card h2 { font-size: 1.05rem; margin-bottom: 4px; letter-spacing: -.01em; }
   .card-head-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
   .card-head-row h2 { margin-bottom: 0; }
   .card-hint { color: var(--ink-faint); font-size: .82rem; margin-bottom: 14px; }
@@ -250,18 +254,20 @@
 
   .btn {
     border: none; border-radius: var(--radius-s); padding: 13px 18px; font-weight: 700; font-size: .92rem;
-    cursor: pointer; width: 100%; transition: transform .12s ease, opacity .15s ease;
+    cursor: pointer; width: 100%; transition: transform .15s ease, opacity .15s ease, box-shadow .15s ease;
   }
   .btn:active:not(:disabled) { transform: scale(.97); }
-  .btn-chip, .tab, .entrega-row, .client-row, .suggestion { transition: transform .12s ease, background-color .15s ease; }
+  .btn-chip, .tab, .entrega-row, .client-row, .suggestion { transition: transform .12s ease, background-color .15s ease, box-shadow .15s ease; }
   .btn-chip:active, .entrega-row:active, .client-row:active { transform: scale(.98); }
   @media (prefers-reduced-motion: reduce) {
     .btn, .btn-chip, .tab, .entrega-row, .client-row, .suggestion { transition: none; }
     .btn:active:not(:disabled), .btn-chip:active, .entrega-row:active, .client-row:active { transform: none; }
   }
-  .btn-primary { background: var(--accent); color: var(--accent-ink); }
-  .btn-primary:disabled { opacity: .6; cursor: default; }
+  .btn-primary { background: var(--accent); color: var(--accent-ink); box-shadow: 0 2px 10px -2px color-mix(in srgb, var(--accent) 55%, transparent); }
+  .btn-primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 16px -4px color-mix(in srgb, var(--accent) 60%, transparent); }
+  .btn-primary:disabled { opacity: .6; cursor: default; box-shadow: none; }
   .btn-secondary { background: var(--surface-2); border: 1px solid var(--border); color: var(--ink); }
+  @media (hover: none) { .btn-primary:hover:not(:disabled) { transform: none; } }
 
   .no-db {
     background: var(--warning-soft); border: 1px solid var(--warning); color: var(--warning);
@@ -308,9 +314,11 @@
 
   .entrega-row {
     display: flex; align-items: center; justify-content: space-between; gap: 12px;
-    padding: 12px 4px; border-bottom: 1px solid var(--border); cursor: pointer; background: none; border-left: none; border-right: none; border-top: none;
-    width: 100%; text-align: left;
+    padding: 12px 8px; margin: 0 -8px; border-radius: var(--radius-s); border-bottom: 1px solid var(--border);
+    cursor: pointer; background: none; border-left: none; border-right: none; border-top: none;
+    width: calc(100% + 16px); text-align: left;
   }
+  button.entrega-row:hover { background: var(--surface-2); }
   .entrega-row:last-child { border-bottom: none; }
   .entrega-row:hover, .entrega-row:focus-visible { background: var(--surface-2); }
   .entrega-row > div:first-child, .history-row > div:first-child { min-width: 0; flex: 1; }
@@ -321,7 +329,7 @@
   .status-pill.pendente { background: var(--warning-soft); color: var(--warning); }
   .status-pill.rota { background: var(--accent-2-soft); color: var(--accent-2); }
 
-  .empty-state { color: var(--ink-faint); font-size: .86rem; text-align: center; padding: 24px 0; }
+  .empty-state { color: var(--ink-faint); font-size: .86rem; text-align: center; padding: 30px 12px; line-height: 1.5; }
 
   .modal-overlay {
     position: fixed; inset: 0; background: rgba(10,16,14,.5); z-index: 60;
@@ -385,11 +393,11 @@
       <button type="button" class="link-btn logout-btn" id="logoutBtn" hidden>Sair</button>
     </div>
     <div class="tabs" role="tablist">
-      <button class="tab active" data-tab="nova" role="tab">Nova entrega</button>
-      <button class="tab" data-tab="rota" role="tab">Rota <span class="tab-badge" id="rotaBadge" hidden>0</span></button>
-      <button class="tab" data-tab="painel" role="tab">Painel</button>
-      <button class="tab" data-tab="solicitacoes" role="tab">Solicitações <span class="tab-badge" id="solicitacoesBadge" hidden>0</span></button>
-      <button class="tab" data-tab="clientes" role="tab">Clientes</button>
+      <button class="tab active" data-tab="nova" role="tab"><span class="tab-ico">✍️</span>Nova entrega</button>
+      <button class="tab" data-tab="rota" role="tab"><span class="tab-ico">🚚</span>Rota <span class="tab-badge" id="rotaBadge" hidden>0</span></button>
+      <button class="tab" data-tab="painel" role="tab"><span class="tab-ico">📊</span>Painel</button>
+      <button class="tab" data-tab="solicitacoes" role="tab"><span class="tab-ico">📨</span>Solicitações <span class="tab-badge" id="solicitacoesBadge" hidden>0</span></button>
+      <button class="tab" data-tab="clientes" role="tab"><span class="tab-ico">👥</span>Clientes</button>
     </div>
   </div>
 </div>
