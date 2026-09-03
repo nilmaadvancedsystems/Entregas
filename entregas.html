@@ -2037,30 +2037,41 @@
             (podeExcluir(entrega) ? '<button type="button" class="link-btn" id="pendingEditarBtn" style="margin:6px 0 0;">✏️ Editar documentos/competência</button>' : '') +
           '</div>' +
           '<div id="pendingItensEdit" hidden></div>' +
-          '<label class="field" style="margin-top:14px;">' +
+          '<label class="avulso-toggle" style="margin-top:14px;">' +
+            '<input type="checkbox" id="pendingFalhaToggle">' +
+            '⚠️ Cliente ausente / entrega não realizada' +
+          '</label>' +
+          '<label class="field" id="pendingFalhaMotivoField" hidden>' +
+            '<span>O que aconteceu</span>' +
+            '<textarea class="input" id="pendingFalhaMotivo" rows="2" placeholder="Ex.: Estabelecimento fechado, ninguém atendeu..."></textarea>' +
+            '<div class="field-error" id="err-pendingFalhaMotivo">Explique o que aconteceu.</div>' +
+          '</label>' +
+          '<label class="field" id="pendingRecebedorField">' +
             '<span>Nome de quem recebeu (opcional)</span>' +
             '<input class="input" id="pendingRecebedor" type="text" placeholder="Quem assinou pelo cliente">' +
           '</label>' +
           '<div class="field">' +
-            '<span>Foto (opcional)</span>' +
+            '<span id="pendingFotoLabel">Foto (opcional se colher assinatura)</span>' +
             '<input type="file" accept="image/*" capture="environment" id="pendingFotoInput" class="foto-file-input">' +
             '<label for="pendingFotoInput" class="btn btn-secondary foto-label">📷 Tirar foto / anexar</label>' +
             '<div class="foto-preview-wrap" id="pendingFotoPreviewWrap" hidden>' +
               '<img id="pendingFotoPreview" class="foto-preview" alt="Foto anexada">' +
               '<button type="button" class="link-btn" id="pendingFotoRemove">Remover foto</button>' +
             '</div>' +
+            '<div class="field-error" id="err-pendingFoto">Anexe uma foto — é obrigatória nesse caso.</div>' +
           '</div>' +
-          '<label class="field">' +
-            '<span>Assinatura</span>' +
+          '<label class="field" id="pendingAssinaturaField">' +
+            '<span id="pendingAssinaturaLabel">Assinatura (opcional se anexar foto)</span>' +
             '<div class="sig-wrap">' +
               '<canvas id="pendingSigCanvas"></canvas>' +
+              '<div class="sig-placeholder" id="pendingSigPlaceholder">✍️ Assine aqui com o dedo ou o mouse</div>' +
               '<div class="sig-row">' +
-                '<span class="sig-status" id="pendingSigStatus">Peça para assinar com o dedo ou o mouse.</span>' +
+                '<span class="sig-status" id="pendingSigStatus">Sem assinatura ainda.</span>' +
                 '<button type="button" class="link-btn sig-fullscreen-btn">⛶ Tela cheia</button>' +
                 '<button type="button" class="link-btn" id="pendingClearSig">Limpar</button>' +
               '</div>' +
             '</div>' +
-            '<div class="field-error show" id="pendingSigError" hidden>Colha a assinatura antes de confirmar.</div>' +
+            '<div class="field-error show" id="pendingSigError" hidden>Colha a assinatura ou anexe uma foto antes de confirmar.</div>' +
             '<div class="geo-status" id="pendingGeoStatus">📍 obtendo localização...</div>' +
           '</label>' +
           '<button type="button" class="btn btn-primary" id="pendingConfirmBtn">Confirmar entrega</button>' +
@@ -2104,38 +2115,71 @@
     });
 
     var pendingPad = createSignaturePad($('pendingSigCanvas'), 200);
-    pendingPad.onDraw = function () { $('pendingSigStatus').textContent = 'Assinatura capturada.'; };
+    pendingPad.onDraw = function () {
+      $('pendingSigStatus').textContent = '✓ Assinatura capturada.';
+      $('pendingSigStatus').classList.add('ok');
+      $('pendingSigPlaceholder').classList.add('hide');
+    };
     pendingPad.setup();
-    $('pendingClearSig').addEventListener('click', function () { pendingPad.clear(); $('pendingSigStatus').textContent = 'Peça para assinar com o dedo ou o mouse.'; });
+    $('pendingClearSig').addEventListener('click', function () {
+      pendingPad.clear();
+      $('pendingSigStatus').textContent = 'Sem assinatura ainda.';
+      $('pendingSigStatus').classList.remove('ok');
+      $('pendingSigPlaceholder').classList.remove('hide');
+    });
+
+    function atualizarModoFalhaPendente() {
+      var isFalha = $('pendingFalhaToggle').checked;
+      $('pendingFalhaMotivoField').hidden = !isFalha;
+      $('pendingAssinaturaField').hidden = isFalha;
+      $('pendingRecebedorField').hidden = isFalha;
+      $('pendingFotoLabel').textContent = isFalha ? 'Foto (obrigatória)' : 'Foto (opcional se colher assinatura)';
+      $('pendingConfirmBtn').textContent = isFalha ? 'Registrar entrega não realizada' : 'Confirmar entrega';
+    }
+    $('pendingFalhaToggle').addEventListener('change', atualizarModoFalhaPendente);
 
     $('pendingConfirmBtn').addEventListener('click', function () {
-      if (!pendingPad.hasSignature) { $('pendingSigError').hidden = false; return; }
+      var isFalha = $('pendingFalhaToggle').checked;
+      var motivo = $('pendingFalhaMotivo').value.trim();
       $('pendingSigError').hidden = true;
+      clearFieldError('pendingFoto');
+      clearFieldError('pendingFalhaMotivo');
+      if (isFalha) {
+        var ok = true;
+        if (!pendingFoto) { showFieldError('pendingFoto'); ok = false; }
+        if (!motivo) { showFieldError('pendingFalhaMotivo'); ok = false; }
+        if (!ok) return;
+      } else if (!pendingPad.hasSignature && !pendingFoto) {
+        $('pendingSigError').hidden = false;
+        return;
+      }
       var btn = $('pendingConfirmBtn');
       btn.disabled = true;
       btn.textContent = 'Salvando...';
       var entregaRef = db.doc('entregas/' + entrega.id);
       entregaRef.update({
-        recebedor: $('pendingRecebedor').value.trim(),
+        recebedor: isFalha ? '' : $('pendingRecebedor').value.trim(),
         geo: pendingGeo,
-        temAssinatura: true,
+        temAssinatura: !isFalha && pendingPad.hasSignature,
         temFoto: !!pendingFoto,
+        falha: isFalha,
+        motivoFalha: isFalha ? motivo : '',
         entregadoPor: (auth.currentUser && auth.currentUser.email) || '',
         entregadoPorNome: currentUserNome || (auth.currentUser && auth.currentUser.email) || '',
-        status: 'confirmada',
+        status: isFalha ? 'falha' : 'confirmada',
         confirmadoEm: new Date().toISOString()
       }).then(function () {
         return entregaRef.collection('anexos').doc('comprovante').set({
-          assinatura: pendingPad.dataUrl(),
+          assinatura: (!isFalha && pendingPad.hasSignature) ? pendingPad.dataUrl() : null,
           foto: pendingFoto
         }, { merge: true });
       }).then(function () {
-        showToast('Entrega confirmada.');
+        showToast(isFalha ? 'Entrega não realizada registrada.' : 'Entrega confirmada.');
         closeModal();
       }).catch(function (err) {
         showToast(errMsg(err, 'Não foi possível confirmar.'), 'error');
         btn.disabled = false;
-        btn.textContent = 'Confirmar entrega';
+        atualizarModoFalhaPendente();
       });
     });
   }
