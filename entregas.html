@@ -1386,7 +1386,7 @@
 
   function subscribeSolicitacoes() {
     if (!db || !auth.currentUser) return;
-    if (temPapel('admin') || temPapel('office_boy')) {
+    if (temPapel('office_boy')) {
       var primeiraCargaSol = true;
       unsubSolicitacoes = db.collection('solicitacoes').orderBy('criadoEm', 'desc').limit(300).onSnapshot(function (snap) {
         solicitacoesCache = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
@@ -1417,7 +1417,7 @@
   }
 
   function podeConcluirSolicitacao(sol) {
-    return temPapel('admin') || temPapel('office_boy') || (auth.currentUser && sol.criadoPor === auth.currentUser.email);
+    return temPapel('office_boy') || (auth.currentUser && sol.criadoPor === auth.currentUser.email);
   }
 
   function tipoSolicitacaoLabel(tipo) {
@@ -1454,7 +1454,7 @@
     var btn = $('solNotifBtn');
     if (!btn) return;
     var suportado = typeof Notification !== 'undefined';
-    btn.hidden = !(suportado && (temPapel('admin') || temPapel('office_boy')));
+    btn.hidden = !(suportado && temPapel('office_boy'));
     if (suportado) btn.textContent = Notification.permission === 'granted' ? '🔔 Notificações ativadas' : '🔕 Ativar notificações';
   }
 
