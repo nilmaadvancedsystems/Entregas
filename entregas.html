@@ -15,6 +15,7 @@
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
   :root {
     --bg: #F1F3F5;
@@ -536,6 +537,14 @@
       </div>
     </div>
     <div class="card" id="painelList"><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
+    <div class="card">
+      <div class="card-head-row">
+        <h2>Mapa de entregas</h2>
+      </div>
+      <p class="card-hint">Pontos capturados nas entregas confirmadas desta competência.</p>
+      <div id="painelMapaVazio" class="empty-state" hidden>Nenhuma entrega com localização capturada ainda.</div>
+      <div id="painelMapa" style="height:320px;border-radius:var(--radius-m);overflow:hidden;"></div>
+    </div>
   </section>
 
   <section id="tab-solicitacoes" class="view" hidden>
@@ -649,7 +658,9 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
   var firebaseConfig = {
     apiKey: "AIzaSyAj0V_mMPUGxoMxU35E8VmV-zLhSakGvI8",
@@ -836,6 +847,7 @@
       shown.classList.add('tab-enter');
       if (btn.dataset.tab === 'nova' && !geoRequested) captureGeo();
       if (btn.dataset.tab === 'nova') setTimeout(setupCanvas, 0);
+      if (btn.dataset.tab === 'painel' && painelMap) setTimeout(function () { painelMap.invalidateSize(); }, 50);
     });
   });
 
@@ -1441,19 +1453,45 @@
     if (navigator.vibrate) { try { navigator.vibrate([120, 60, 120]); } catch (e) {} }
   }
 
+  // Chave pública (VAPID) do Firebase Cloud Messaging — não é secreta.
+  var FCM_VAPID_KEY = 'BOtLiwaG0AQcNMVycfT1hFs65OaALnRQYX-pbyGzLRE3Vmuexx1UePgbLDRZMfrgowaev07pR-43o02aI6dMXq0';
+
   function ativarNotificacoesSolicitacoes() {
-    if (typeof Notification === 'undefined') { showToast('Este navegador não suporta notificações.', 'error'); return; }
-    if (Notification.permission === 'granted') { showToast('Notificações já estão ativadas.'); return; }
+    if (typeof Notification === 'undefined' || !('serviceWorker' in navigator) || typeof firebase.messaging !== 'function') {
+      showToast('Este navegador não suporta notificações push.', 'error');
+      return;
+    }
     Notification.requestPermission().then(function (perm) {
-      showToast(perm === 'granted' ? 'Notificações ativadas.' : 'Permissão de notificação negada.', perm === 'granted' ? undefined : 'error');
+      if (perm !== 'granted') {
+        showToast('Permissão de notificação negada.', 'error');
+        atualizarBotaoNotificacoes();
+        return;
+      }
+      registrarTokenFcm();
+    });
+  }
+
+  function registrarTokenFcm() {
+    navigator.serviceWorker.register('firebase-messaging-sw.js').then(function (registration) {
+      var messaging = firebase.messaging();
+      return messaging.getToken({ vapidKey: FCM_VAPID_KEY, serviceWorkerRegistration: registration });
+    }).then(function (token) {
+      if (!token || !auth.currentUser) return;
+      return db.collection('usuarios').doc(auth.currentUser.uid).update({
+        fcmTokens: firebase.firestore.FieldValue.arrayUnion(token)
+      });
+    }).then(function () {
+      showToast('Notificações ativadas — vão chegar mesmo com o app fechado.');
       atualizarBotaoNotificacoes();
+    }).catch(function (err) {
+      showToast('Não foi possível ativar: ' + (err && err.message ? err.message : 'erro desconhecido'), 'error');
     });
   }
 
   function atualizarBotaoNotificacoes() {
     var btn = $('solNotifBtn');
     if (!btn) return;
-    var suportado = typeof Notification !== 'undefined';
+    var suportado = typeof Notification !== 'undefined' && 'serviceWorker' in navigator;
     btn.hidden = !(suportado && temPapel('office_boy'));
     if (suportado) btn.textContent = Notification.permission === 'granted' ? '🔔 Notificações ativadas' : '🔕 Ativar notificações';
   }
@@ -1538,6 +1576,36 @@
       btn.textContent = 'Enviar solicitação';
     });
   });
+
+  // ---------- mapa de entregas (Leaflet + OpenStreetMap, sem chave de API) ----------
+  var painelMap = null;
+  var painelMarkers = [];
+  function renderPainelMapa() {
+    if (typeof L === 'undefined' || !$('painelMapa')) return;
+    var pontos = entregasPainelCache.filter(function (e) { return e.status === 'confirmada' && e.geo && typeof e.geo.lat === 'number' && typeof e.geo.lng === 'number'; });
+    if (!painelMap) {
+      painelMap = L.map('painelMapa').setView([-15.79, -47.88], 4);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        maxZoom: 19
+      }).addTo(painelMap);
+    }
+    painelMarkers.forEach(function (m) { painelMap.removeLayer(m); });
+    painelMarkers = [];
+    $('painelMapaVazio').hidden = pontos.length > 0;
+    if (pontos.length > 0) {
+      var bounds = [];
+      pontos.forEach(function (e) {
+        var m = L.marker([e.geo.lat, e.geo.lng]).addTo(painelMap);
+        m.bindPopup('<b>' + escapeHtml_(e.clienteNome || '') + '</b><br>' + escapeHtml_(fmtDateTime(e.confirmadoEm || e.criadoEm)));
+        painelMarkers.push(m);
+        bounds.push([e.geo.lat, e.geo.lng]);
+      });
+      if (bounds.length === 1) painelMap.setView(bounds[0], 15);
+      else painelMap.fitBounds(bounds, { padding: [30, 30] });
+    }
+    setTimeout(function () { if (painelMap) painelMap.invalidateSize(); }, 150);
+  }
 
   function renderPainel() {
     var busca = $('painelBusca').value.trim().toLowerCase();
@@ -1644,6 +1712,7 @@
       });
       listEl.appendChild(row);
     });
+    renderPainelMapa();
   }
 
   function openClienteHistorico(cliente) {
