@@ -1256,7 +1256,7 @@
       <div class="filters">
         <div class="filtro">
           <label for="rotaBusca">Buscar cliente</label>
-          <input class="input" id="rotaBusca" enterkeyhint="search" type="text" placeholder="Nome ou código">
+          <input class="input" id="rotaBusca" enterkeyhint="search" type="text" placeholder="Nome, código ou CNPJ">
         </div>
         <div class="filtro">
           <label for="rotaFiltroPessoa">Pessoa</label>
@@ -1294,7 +1294,7 @@
         </div>
         <div class="filtro">
           <label for="painelBusca">Buscar cliente</label>
-          <input class="input" id="painelBusca" enterkeyhint="search" type="text" placeholder="Nome ou código">
+          <input class="input" id="painelBusca" enterkeyhint="search" type="text" placeholder="Nome, código ou CNPJ">
         </div>
         <div class="filtro">
           <label for="painelStatusFiltro">Situação</label>
@@ -1750,6 +1750,16 @@
     return (c.codigoOrigem ? c.codigoOrigem + ' - ' : '') + c.nome;
   }
 
+  // Busca por nome, código ou CNPJ/CPF (com ou sem pontuação — "12345"
+  // acha "123.45.678/0001-90" do mesmo jeito que "678").
+  function clienteCombina_(c, q) {
+    if (!q) return true;
+    var soDigitos = q.replace(/\D/g, '');
+    return c.nome.toLowerCase().indexOf(q) !== -1 ||
+      (c.codigoOrigem || '').toLowerCase().indexOf(q) !== -1 ||
+      (soDigitos.length >= 3 && (c.documento || '').replace(/\D/g, '').indexOf(soDigitos) !== -1);
+  }
+
   // Escape único do app. Existiam dois: o outro montava um <div> a cada
   // chamada e não escapava aspas, o que quebraria qualquer texto usado dentro
   // de um atributo.
@@ -2086,6 +2096,13 @@
     pad.clear = function () { setup(false); };
     pad.dataUrl = function () { return canvasEl.toDataURL('image/png'); };
     pad.setHeight = function (h) { cssHeight = h; setup(true); };
+    // Restaura uma assinatura salva (rascunho) sem precisar desenhar de novo.
+    pad.carregar = function (dataUrl) {
+      if (!dataUrl) return;
+      snapshot = dataUrl;
+      redrawSnapshot();
+      if (pad.onDraw) pad.onDraw();
+    };
     canvasEl.__pad = pad;
 
     // The page can reflow after first paint (fonts loading, mobile browser
@@ -2145,6 +2162,7 @@
     $('sigStatus').innerHTML = '<i class="ph ph-check-circle" aria-hidden="true"></i> Assinatura capturada.';
     $('sigStatus').classList.add('ok');
     $('sigPlaceholder').classList.add('hide');
+    salvarRascunho_();
   };
   function setupCanvas() {
     mainSigPad.setup();
@@ -2158,6 +2176,7 @@
     $('sigStatus').textContent = 'Sem assinatura ainda.';
     $('sigStatus').classList.remove('ok');
     $('sigPlaceholder').classList.remove('hide');
+    salvarRascunho_();
   });
 
   // ---------- foto ----------
@@ -2191,12 +2210,14 @@
       fotoDataUrl = dataUrl;
       $('fotoPreview').src = dataUrl;
       $('fotoPreviewWrap').hidden = false;
+      salvarRascunho_();
     }).catch(function () { showToast('Não foi possível processar a foto.', 'error'); });
   });
   $('fotoRemove').addEventListener('click', function () {
     fotoDataUrl = null;
     $('fotoInput').value = '';
     $('fotoPreviewWrap').hidden = true;
+    salvarRascunho_();
   });
 
   // ---------- geolocation ----------
@@ -2331,7 +2352,7 @@
     suggestionsEl.innerHTML = '';
     if (!q) { suggestionsEl.classList.remove('show'); return; }
     var list = Array.from(clientesCache.values()).filter(function (c) {
-      return c.ativo !== false && (c.nome.toLowerCase().indexOf(q) !== -1 || (c.codigoOrigem || '').indexOf(q) !== -1);
+      return c.ativo !== false && clienteCombina_(c, q);
     }).slice(0, 8);
     var exact = list.some(function (c) { return c.nome.toLowerCase() === q; });
     list.forEach(function (c) {
@@ -2576,7 +2597,101 @@
     $('fotoPreviewWrap').hidden = true;
     atualizarModoFalha();
     if (manterItens) clienteInput.focus();
+    limparRascunho_();
   }
+
+  // ---------- rascunho da entrega em andamento ----------
+  // Assinatura e foto são o que mais dói perder num clique errado (aba
+  // trocada, "cancelar" sem querer, o navegador recarregando). Guarda tudo
+  // no aparelho e devolve na próxima vez que abrir "Nova entrega".
+  var RASCUNHO_KEY = 'nilma_rascunho_nova_v1';
+
+  function coletarRascunho_() {
+    return {
+      quando: Date.now(),
+      formMode: formMode,
+      selectedClienteId: selectedClienteId,
+      clienteInputValor: clienteInput.value,
+      avulso: $('avulsoToggle').checked,
+      avulsoNome: $('avulsoNomeInput').value,
+      competencia: $('competenciaInput').value,
+      zona: $('zonaSelect').value,
+      itensChecados: Array.from(itensGrid.querySelectorAll('input:checked')).map(function (i) { return i.dataset.key; }),
+      outro: $('outroInput').value,
+      valoresState: valoresState,
+      funcionarioState: funcionarioState,
+      duplicatasExtras: duplicatasExtras,
+      recebedor: $('recebedorInput').value,
+      falha: $('falhaToggle').checked,
+      falhaMotivo: $('falhaMotivo').value,
+      fotoDataUrl: fotoDataUrl,
+      assinaturaDataUrl: mainSigPad.hasSignature ? mainSigPad.dataUrl() : null
+    };
+  }
+
+  function limparRascunho_() {
+    try { localStorage.removeItem(RASCUNHO_KEY); } catch (e) {}
+  }
+
+  function salvarRascunho_() {
+    // só grava se já tem algo que doeria perder de verdade — não enche o
+    // armazenamento local com rascunho de formulário vazio
+    var temAlgoValioso = mainSigPad.hasSignature || fotoDataUrl || selectedClienteId || $('avulsoNomeInput').value.trim();
+    if (!temAlgoValioso) { limparRascunho_(); return; }
+    try { localStorage.setItem(RASCUNHO_KEY, JSON.stringify(coletarRascunho_())); } catch (e) {}
+  }
+
+  function restaurarRascunhoSeExistir_() {
+    var bruto;
+    try { bruto = localStorage.getItem(RASCUNHO_KEY); } catch (e) { return; }
+    if (!bruto) return;
+    var r;
+    try { r = JSON.parse(bruto); } catch (e) { limparRascunho_(); return; }
+    // rascunho de mais de 12h provavelmente é de outro dia — descarta
+    if (!r || (Date.now() - (r.quando || 0)) > 12 * 60 * 60 * 1000) { limparRascunho_(); return; }
+
+    if (r.formMode === 'rota') document.querySelector('#modeToggle .mode-btn[data-mode="rota"]').click();
+
+    if (r.avulso) {
+      $('avulsoToggle').checked = true;
+      $('avulsoToggle').dispatchEvent(new Event('change'));
+      $('avulsoNomeInput').value = r.avulsoNome || '';
+    } else if (r.selectedClienteId && clientesCache.has(r.selectedClienteId)) {
+      selectedClienteId = r.selectedClienteId;
+      clienteInput.value = clienteLabel(clientesCache.get(r.selectedClienteId));
+    } else if (r.clienteInputValor) {
+      clienteInput.value = r.clienteInputValor;
+    }
+
+    if (r.competencia) $('competenciaInput').value = r.competencia;
+    if (r.zona) $('zonaSelect').value = r.zona;
+    (r.itensChecados || []).forEach(function (key) {
+      var el = itensGrid.querySelector('input[data-key="' + key + '"]');
+      if (el) el.checked = true;
+    });
+    if (r.outro) $('outroInput').value = r.outro;
+    valoresState = r.valoresState || {};
+    funcionarioState = r.funcionarioState || {};
+    duplicatasExtras = r.duplicatasExtras || [];
+    renderValores();
+    if (r.recebedor) $('recebedorInput').value = r.recebedor;
+    if (r.falha) {
+      $('falhaToggle').checked = true;
+      $('falhaMotivo').value = r.falhaMotivo || '';
+    }
+    atualizarModoFalha();
+    if (r.fotoDataUrl) {
+      fotoDataUrl = r.fotoDataUrl;
+      $('fotoPreview').src = r.fotoDataUrl;
+      $('fotoPreviewWrap').hidden = false;
+    }
+    if (r.assinaturaDataUrl) mainSigPad.carregar(r.assinaturaDataUrl);
+
+    showToast('Rascunho da entrega restaurado — confira antes de confirmar.');
+  }
+
+  $('form-nova').addEventListener('input', aoParar(salvarRascunho_, 700));
+  $('form-nova').addEventListener('change', aoParar(salvarRascunho_, 700));
 
   // ---------- painel ----------
   function subscribePainel(comp) {
@@ -2913,7 +3028,7 @@
   function renderPainel() {
     var busca = $('painelBusca').value.trim().toLowerCase();
     var ativos = Array.from(clientesCache.values()).filter(function (c) { return c.ativo !== false; });
-    if (busca) ativos = ativos.filter(function (c) { return c.nome.toLowerCase().indexOf(busca) !== -1 || (c.codigoOrigem || '').indexOf(busca) !== -1; });
+    if (busca) ativos = ativos.filter(function (c) { return clienteCombina_(c, busca); });
     ativos.sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); });
 
     var byCliente = new Map();
@@ -3779,7 +3894,7 @@
     var busca = $('clientesBusca').value.trim().toLowerCase();
     var listEl = $('clientesList');
     var all = Array.from(clientesCache.values()).sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); });
-    if (busca) all = all.filter(function (c) { return c.nome.toLowerCase().indexOf(busca) !== -1 || (c.codigoOrigem || '').indexOf(busca) !== -1; });
+    if (busca) all = all.filter(function (c) { return clienteCombina_(c, busca); });
     listEl.innerHTML = '';
     if (all.length === 0) {
       listEl.innerHTML = '<div class="empty-state">Nenhum cliente encontrado.</div>';
@@ -4463,11 +4578,13 @@
     $('tabPerfil').hidden = !temPapel('admin');
     if (temPapel('admin')) subscribeUsuarios();
 
+    var primeiraCargaClientes = true;
     unsubClientes = db.collection('clientes').orderBy('nome').limit(1000).onSnapshot(function (snap) {
       clientesCache = new Map(snap.docs.map(function (d) { return [d.id, Object.assign({ id: d.id }, d.data())]; }));
       renderClientesList();
       renderPainel();
       updateDashStrip();
+      if (primeiraCargaClientes) { primeiraCargaClientes = false; restaurarRascunhoSeExistir_(); }
     }, function (err) {
       $('no-db').hidden = false;
       $('no-db').textContent = errMsg(err, 'Não foi possível conectar ao banco de dados. Verifique sua internet e recarregue a página.');
@@ -4535,7 +4652,6 @@
       start_url: base,
       scope: base.replace(/[^/]*$/, ''),
       display: 'standalone',
-      orientation: 'portrait',
       lang: 'pt-BR',
       background_color: corDoElemento_('body') || '#FFFFFF',
       theme_color: paraHex_((document.getElementById('metaThemeColor') || {}).content) || '#235347',
