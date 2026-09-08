@@ -358,7 +358,7 @@
     background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-l);
     padding: 26px 18px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px;
     cursor: pointer; transition: transform var(--dur-rapido) var(--ease), border-color var(--dur-rapido) var(--ease), box-shadow var(--dur-rapido) var(--ease);
-    font-family: inherit;
+    font-family: inherit; text-decoration: none; color: inherit;
   }
   .hub-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: var(--shadow); }
   .hub-card:active { transform: scale(.98); }
@@ -1471,11 +1471,16 @@
         <span class="hub-card-nome">Entregas</span>
         <span class="hub-card-desc">Registrar e acompanhar entregas de documentos</span>
       </button>
-      <div class="hub-card hub-card-em-breve" aria-disabled="true">
-        <span class="hub-card-ico"><i class="ph ph-hourglass" aria-hidden="true"></i></span>
-        <span class="hub-card-nome">Em breve</span>
-        <span class="hub-card-desc">Novas funções chegam aqui</span>
-      </div>
+      <a href="conciliador.html" class="hub-card">
+        <span class="hub-card-ico"><i class="ph ph-credit-card" aria-hidden="true"></i></span>
+        <span class="hub-card-nome">Conciliadorzinho</span>
+        <span class="hub-card-desc">Conciliação de cartão × notas fiscais</span>
+      </a>
+      <a href="cheque-especial.html" class="hub-card">
+        <span class="hub-card-ico"><i class="ph ph-bank" aria-hidden="true"></i></span>
+        <span class="hub-card-nome">Cheque especial</span>
+        <span class="hub-card-desc">Ajuste de lançamentos de saldo negativo</span>
+      </a>
     </div>
   </div>
 </div>
