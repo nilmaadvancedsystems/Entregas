@@ -589,9 +589,10 @@
   .valor-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
   .valor-row .vl-label { font-size: .84rem; color: var(--ink-soft); flex: 1; }
   .valor-row input { width: 130px; text-align: right; font-family: var(--font-mono); padding: 8px 10px; }
-  .valor-clear { border: none; background: var(--surface-2); color: var(--ink-faint); width: 30px; height: 30px;
+  .valor-clear, .valor-duplicar { border: none; background: var(--surface-2); color: var(--ink-faint); width: 30px; height: 30px;
     border-radius: 50%; cursor: pointer; font-size: .8rem; flex: none; }
   .valor-clear:hover { background: var(--danger-soft, var(--surface-2)); color: var(--danger); }
+  .valor-duplicar:hover { background: var(--accent-soft); color: var(--accent); }
 
   .nota-row { display: flex; align-items: flex-start; gap: 10px; padding: 10px 2px; border-bottom: 1px solid var(--border); }
   .nota-corpo { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
@@ -2202,6 +2203,11 @@
 
   var funcionarioState = {};
   var PEDE_FUNCIONARIO = ['multa_rescisoria'];
+  // Documentos repetidos (ex.: vários ICMS Rec. Antecipado na mesma
+  // entrega, cada um com um valor diferente) — cada duplicata é uma linha
+  // extra independente do checkbox, com seu próprio id.
+  var duplicatasExtras = [];
+  var duplicataSeq = 0;
 
   function getActiveDocEntries() {
     var entries = [];
@@ -2214,34 +2220,63 @@
     return entries;
   }
 
+  function criarLinhaFuncionario_(label, valorAtual, aoDigitar) {
+    var fRow = document.createElement('div');
+    fRow.className = 'valor-row funcionario-row';
+    fRow.innerHTML = '<input class="input" placeholder="Nome do funcionário">';
+    var fInp = fRow.querySelector('input');
+    fInp.setAttribute('aria-label', 'Nome do funcionário para ' + label);
+    fInp.value = valorAtual || '';
+    fInp.addEventListener('input', function () { aoDigitar(fInp.value); });
+    return fRow;
+  }
+
   function renderValores() {
     var entries = getActiveDocEntries();
     var comValor = entries.filter(function (e) { return !e.semValor; });
     var field = $('valoresField');
     var list = $('valoresList');
-    if (comValor.length === 0) { field.hidden = true; list.innerHTML = ''; return; }
+    if (comValor.length === 0 && duplicatasExtras.length === 0) { field.hidden = true; list.innerHTML = ''; return; }
     field.hidden = false;
     list.innerHTML = '';
     comValor.forEach(function (e) {
       var row = document.createElement('div');
       row.className = 'valor-row';
-      row.innerHTML = '<span class="vl-label"></span><input class="input" inputmode="decimal" placeholder="R$ 0,00"><button type="button" class="valor-clear" title="Remover valor"><i class="ph ph-x" aria-hidden="true"></i></button>';
+      row.innerHTML = '<span class="vl-label"></span><input class="input" inputmode="decimal" placeholder="R$ 0,00">' +
+        '<button type="button" class="valor-duplicar" title="Repetir este documento (outro valor)"><i class="ph ph-copy" aria-hidden="true"></i></button>' +
+        '<button type="button" class="valor-clear" title="Remover valor"><i class="ph ph-x" aria-hidden="true"></i></button>';
       row.querySelector('.vl-label').textContent = e.label;
       var inp = row.querySelector('input');
       inp.setAttribute('aria-label', 'Valor de ' + e.label);
       inp.value = valoresState[e.key] || '';
       inp.addEventListener('input', function () { valoresState[e.key] = inp.value; });
       row.querySelector('.valor-clear').addEventListener('click', function () { valoresState[e.key] = ''; inp.value = ''; });
+      row.querySelector('.valor-duplicar').addEventListener('click', function () {
+        duplicatasExtras.push({ id: 'dup' + (++duplicataSeq), label: e.label, pedeFuncionario: e.pedeFuncionario, valor: '', funcionario: '' });
+        renderValores();
+      });
       list.appendChild(row);
       if (e.pedeFuncionario) {
-        var fRow = document.createElement('div');
-        fRow.className = 'valor-row funcionario-row';
-        fRow.innerHTML = '<input class="input" placeholder="Nome do funcionário">';
-        var fInp = fRow.querySelector('input');
-        fInp.setAttribute('aria-label', 'Nome do funcionário para ' + e.label);
-        fInp.value = funcionarioState[e.key] || '';
-        fInp.addEventListener('input', function () { funcionarioState[e.key] = fInp.value; });
-        list.appendChild(fRow);
+        list.appendChild(criarLinhaFuncionario_(e.label, funcionarioState[e.key], function (v) { funcionarioState[e.key] = v; }));
+      }
+    });
+    duplicatasExtras.forEach(function (dup) {
+      var row = document.createElement('div');
+      row.className = 'valor-row';
+      row.innerHTML = '<span class="vl-label"></span><input class="input" inputmode="decimal" placeholder="R$ 0,00">' +
+        '<button type="button" class="valor-clear" title="Remover esta repetição"><i class="ph ph-x" aria-hidden="true"></i></button>';
+      row.querySelector('.vl-label').textContent = dup.label + ' (repetido)';
+      var inp = row.querySelector('input');
+      inp.setAttribute('aria-label', 'Valor de ' + dup.label + ' repetido');
+      inp.value = dup.valor || '';
+      inp.addEventListener('input', function () { dup.valor = inp.value; });
+      row.querySelector('.valor-clear').addEventListener('click', function () {
+        duplicatasExtras = duplicatasExtras.filter(function (d) { return d.id !== dup.id; });
+        renderValores();
+      });
+      list.appendChild(row);
+      if (dup.pedeFuncionario) {
+        list.appendChild(criarLinhaFuncionario_(dup.label, dup.funcionario, function (v) { dup.funcionario = v; }));
       }
     });
   }
@@ -2250,11 +2285,17 @@
   $('outroInput').addEventListener('input', renderValores);
 
   function getSelectedItens() {
-    return getActiveDocEntries().map(function (e) {
+    var itens = getActiveDocEntries().map(function (e) {
       var item = { tipo: e.label, valor: e.semValor ? null : parseValor(valoresState[e.key]) };
       if (e.pedeFuncionario) item.funcionario = (funcionarioState[e.key] || '').trim();
       return item;
     });
+    duplicatasExtras.forEach(function (dup) {
+      var item = { tipo: dup.label, valor: parseValor(dup.valor) };
+      if (dup.pedeFuncionario) item.funcionario = (dup.funcionario || '').trim();
+      itens.push(item);
+    });
+    return itens;
   }
 
   // ---------- cliente combobox ----------
@@ -2494,6 +2535,7 @@
       $('outroInput').value = '';
       valoresState = {};
       funcionarioState = {};
+      duplicatasExtras = [];
       renderValores();
     }
     $('recebedorInput').value = '';
