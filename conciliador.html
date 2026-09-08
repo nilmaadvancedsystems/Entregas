@@ -2351,38 +2351,58 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script>
 (function () {
-  var firebaseConfig = {
-    apiKey: "AIzaSyD6xg7XhX8dKTKmaYup4hRX5k9XFHEkb98",
-    authDomain: "entregas-2e5e2.firebaseapp.com",
-    projectId: "entregas-2e5e2",
-    storageBucket: "entregas-2e5e2.firebasestorage.app",
-    messagingSenderId: "1009094556836",
-    appId: "1:1009094556836:web:d3b6a9283e934db064fa31"
-  };
-  firebase.initializeApp(firebaseConfig);
-  var auth = firebase.auth();
-  var db = firebase.firestore();
-
+  function bloquear(msg) {
+    var el = document.getElementById('acessoGateMsg');
+    if (el) el.innerHTML = msg + '<br><br><a href="javascript:location.reload()" style="color:var(--accent,#8B2E32);font-weight:600;">Tentar de novo</a>';
+  }
   function liberar() {
     document.getElementById('acessoGate').hidden = true;
     document.getElementById('appRoot').hidden = false;
   }
-  function bloquear(msg) {
-    document.getElementById('acessoGateMsg').textContent = msg;
-  }
 
-  auth.onAuthStateChanged(function (user) {
-    if (!user) { location.replace('entregas.html'); return; }
-    db.collection('usuarios').doc(user.uid).get().then(function (snap) {
-      var data = snap.exists ? snap.data() : {};
-      var roles = Array.isArray(data.roles) && data.roles.length ? data.roles : (data.role ? [data.role] : ['staff']);
-      var liberado = roles.indexOf('admin') !== -1 || roles.indexOf('contabil') !== -1;
-      if (liberado) liberar();
-      else bloquear('Só admins e a equipe contábil abrem essa ferramenta. Peça a um admin pra te dar o cargo "Contábil" em Configurações → Quem tem acesso.');
-    }).catch(function () {
-      bloquear('Não foi possível verificar seu acesso. Recarregue a página.');
+  // Se a verificação travar por qualquer motivo (rede lenta, script
+  // bloqueado, etc.), depois de 10s mostra um aviso em vez de deixar a
+  // pessoa presa pra sempre em "Verificando acesso...".
+  var resolvido = false;
+  var travouTimeout = setTimeout(function () {
+    if (!resolvido) bloquear('Demorou demais pra verificar seu acesso. Confira a internet e tente de novo.');
+  }, 10000);
+  function marcarResolvido_() { resolvido = true; clearTimeout(travouTimeout); }
+
+  try {
+    var firebaseConfig = {
+      apiKey: "AIzaSyD6xg7XhX8dKTKmaYup4hRX5k9XFHEkb98",
+      authDomain: "entregas-2e5e2.firebaseapp.com",
+      projectId: "entregas-2e5e2",
+      storageBucket: "entregas-2e5e2.firebasestorage.app",
+      messagingSenderId: "1009094556836",
+      appId: "1:1009094556836:web:d3b6a9283e934db064fa31"
+    };
+    firebase.initializeApp(firebaseConfig);
+    var auth = firebase.auth();
+    var db = firebase.firestore();
+
+    auth.onAuthStateChanged(function (user) {
+      if (!user) { marcarResolvido_(); location.replace('entregas.html'); return; }
+      db.collection('usuarios').doc(user.uid).get().then(function (snap) {
+        marcarResolvido_();
+        var data = snap.exists ? snap.data() : {};
+        var roles = Array.isArray(data.roles) && data.roles.length ? data.roles : (data.role ? [data.role] : ['staff']);
+        var liberado = roles.indexOf('admin') !== -1 || roles.indexOf('contabil') !== -1;
+        if (liberado) liberar();
+        else bloquear('Só admins e a equipe contábil abrem essa ferramenta. Peça a um admin pra te dar o cargo "Contábil" em Configurações → Quem tem acesso.');
+      }).catch(function () {
+        marcarResolvido_();
+        bloquear('Não foi possível verificar seu acesso. Confira a internet e tente de novo.');
+      });
+    }, function () {
+      marcarResolvido_();
+      bloquear('Não foi possível verificar seu login. Tente de novo.');
     });
-  });
+  } catch (e) {
+    marcarResolvido_();
+    bloquear('Não foi possível carregar a verificação de acesso. Tente de novo.');
+  }
 })();
 </script>
 </body>
