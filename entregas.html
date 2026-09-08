@@ -334,6 +334,34 @@
      ser mais alto que a viewport e deixar uma barra de rolagem à mostra,
      mesmo sem nada rolável de verdade ali. Trava o documento nesse estado. */
   body:has(.auth-gate:not([hidden])) { overflow: hidden; }
+  body:has(.hub-screen:not([hidden])) { overflow: hidden; }
+
+  /* Tela intermediária entre login e a função escolhida — mesma ideia de
+     tela cheia do auth-gate, mas com um grid de cartões em vez de form. */
+  .hub-screen {
+    position: fixed; inset: 0; background: var(--bg); z-index: 90;
+    display: grid; place-items: center; padding: 24px 18px; overflow-y: auto;
+  }
+  .hub-inner { max-width: 640px; width: 100%; }
+  .hub-head { text-align: center; margin-bottom: 28px; }
+  .hub-head .brand-name { font-size: 1.1rem; display: block; margin-bottom: 6px; }
+  .hub-head h1 { font-family: var(--font-display); font-size: 1.5rem; margin: 0 0 6px; }
+  .hub-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; }
+  .hub-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-l);
+    padding: 26px 18px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px;
+    cursor: pointer; transition: transform var(--dur-rapido) var(--ease), border-color var(--dur-rapido) var(--ease), box-shadow var(--dur-rapido) var(--ease);
+    font-family: inherit;
+  }
+  .hub-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: var(--shadow); }
+  .hub-card:active { transform: scale(.98); }
+  .hub-card-ico { font-size: 1.8rem; color: var(--accent); }
+  .hub-card-nome { font-family: var(--font-display); font-weight: 700; font-size: 1.05rem; color: var(--ink); }
+  .hub-card-desc { font-size: .8rem; color: var(--ink-faint); line-height: 1.35; }
+  .hub-card-em-breve { cursor: default; opacity: .5; }
+  .hub-card-em-breve:hover { transform: none; border-color: var(--border); box-shadow: none; }
+  .hub-card-em-breve .hub-card-ico { color: var(--ink-faint); }
+  @media (prefers-reduced-motion: reduce) { .hub-card { transition: none; } .hub-card:hover, .hub-card:active { transform: none; } }
   .auth-shell {
     width: 100%; max-width: 900px; display: grid; grid-template-columns: 1fr;
     background: var(--surface); border: 1px solid var(--border);
@@ -1400,6 +1428,28 @@
 <div class="sidebar-footer">
   <button type="button" class="icon-btn notas-btn" id="notasBtn" hidden title="Minhas anotações"><i class="ph ph-note" aria-hidden="true"></i><span class="tab-badge" id="notasBadge" hidden>0</span></button>
   <button type="button" class="icon-btn" id="settingsBtn" hidden title="Configurações"><i class="ph ph-gear" aria-hidden="true"></i></button>
+</div>
+
+<div class="hub-screen" id="hubScreen" hidden>
+  <div class="hub-inner">
+    <div class="hub-head">
+      <span class="brand-name" id="hubBrandName">Nilma</span>
+      <h1>O que você quer usar?</h1>
+      <p class="card-hint">Escolha uma função pra entrar. Dá pra trocar depois em Configurações.</p>
+    </div>
+    <div class="hub-grid">
+      <button type="button" class="hub-card" id="hubEntregas">
+        <span class="hub-card-ico"><i class="ph ph-truck" aria-hidden="true"></i></span>
+        <span class="hub-card-nome">Entregas</span>
+        <span class="hub-card-desc">Registrar e acompanhar entregas de documentos</span>
+      </button>
+      <div class="hub-card hub-card-em-breve" aria-disabled="true">
+        <span class="hub-card-ico"><i class="ph ph-hourglass" aria-hidden="true"></i></span>
+        <span class="hub-card-nome">Em breve</span>
+        <span class="hub-card-desc">Novas funções chegam aqui</span>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -3902,6 +3952,9 @@
             '<button type="button" class="btn btn-secondary" id="instalarAppBtn" hidden><i class="ph ph-device-mobile" aria-hidden="true"></i> Instalar na tela inicial</button>' +
             '<div class="card-hint" style="margin:6px 0 0" id="instalarAppDica"></div>' +
           '</div>' +
+          '<div class="field"><span>Função</span>' +
+            '<button type="button" class="btn btn-secondary" id="trocarFuncaoBtn"><i class="ph ph-squares-four" aria-hidden="true"></i> Trocar de função</button>' +
+          '</div>' +
           '</div>' +
           '<div class="config-painel" id="painel-conta" hidden>' +
           '<div class="field"><span>Foto de perfil</span>' +
@@ -3930,6 +3983,7 @@
     $('overlay').addEventListener('click', function (e) { if (e.target.id === 'overlay') closeModal(); });
     $('modalClose').addEventListener('click', closeModal);
     $('modalLogoutBtn').addEventListener('click', function () { closeModal(); auth.signOut(); });
+    $('trocarFuncaoBtn').addEventListener('click', function () { mostrarHub(); });
 
     // Instalar na tela inicial: o Chrome só libera depois de guardar o evento
     // beforeinstallprompt. Quando o app já está instalado o evento não vem,
@@ -4507,13 +4561,40 @@
   $('settingsBtn').addEventListener('click', abrirConfiguracoes);
   $('notasBtn').addEventListener('click', abrirNotas);
 
+  // ---------- tela intermediária (escolher função) ----------
+  var appShellEls = [
+    document.querySelector('.topbar'),
+    document.querySelector('main'),
+    document.querySelector('.sidebar-brand'),
+    document.querySelector('.tabs'),
+    document.querySelector('.sidebar-footer')
+  ];
+
+  function mostrarHub() {
+    closeModal();
+    appShellEls.forEach(function (el) { if (el) el.hidden = true; });
+    $('hubScreen').hidden = false;
+  }
+
+  function entrarNaFuncao(nomeFuncao) {
+    $('hubScreen').hidden = true;
+    appShellEls.forEach(function (el) { if (el) el.hidden = false; });
+    if (nomeFuncao === 'entregas') startApp();
+  }
+
+  $('hubEntregas').addEventListener('click', function () { entrarNaFuncao('entregas'); });
+
   auth.onAuthStateChanged(function (user) {
     if (user) {
       $('authGate').hidden = true;
       $('settingsBtn').hidden = false;
       $('notasBtn').hidden = false;
-      ensureUsuarioDoc(user).then(startApp);
+      ensureUsuarioDoc(user).then(function () {
+        $('hubBrandName').textContent = currentUserNome || 'Nilma';
+        mostrarHub();
+      });
     } else {
+      $('hubScreen').hidden = true;
       var logo = document.querySelector('.brand-mark');
       if (logo) $('authLogo').src = logo.src;
       $('authGate').hidden = false;
