@@ -609,7 +609,7 @@
 </style>
 </head>
 <body>
-<div id="acessoGate" hidden style="position:fixed;inset:0;z-index:999;background:var(--bg,#fff);display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;font-family:'Plus Jakarta Sans',ui-sans-serif,system-ui,sans-serif;">
+<div id="acessoGate" style="position:fixed;inset:0;z-index:999;background:var(--bg,#fff);display:none;align-items:center;justify-content:center;text-align:center;padding:24px;font-family:'Plus Jakarta Sans',ui-sans-serif,system-ui,sans-serif;">
   <div style="max-width:300px;background:var(--surface,#fff);border:1px solid var(--border,#EDE6E6);border-radius:var(--radius,20px);box-shadow:var(--shadow,0 1px 2px rgba(0,0,0,.06));padding:32px 28px;">
     <p id="acessoGateMsg" style="font-weight:700;font-size:15px;line-height:1.5;margin:0 0 16px;color:var(--ink,#1A1514);">Verificando acesso…</p>
     <a href="entregas.html" style="color:var(--accent,#8B2E32);font-weight:600;font-size:14px;text-decoration:none;">&larr; Voltar ao início</a>
@@ -2359,7 +2359,7 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
     document.getElementById('appRoot').hidden = true;
     var el = document.getElementById('acessoGateMsg');
     if (el) el.innerHTML = msg + '<br><br><a href="javascript:location.reload()" style="color:var(--accent,#8B2E32);font-weight:600;">Tentar de novo</a>';
-    document.getElementById('acessoGate').hidden = false;
+    document.getElementById('acessoGate').style.display = 'flex';
   }
 
   try {
