@@ -3158,11 +3158,20 @@
     editEl.hidden = false;
     editEl.innerHTML =
       '<label class="field"><span>Competência</span><input class="input" id="pendingEditCompetencia" type="month"></label>' +
+      '<label class="field"><span>Região da rota</span>' +
+        '<select class="input" id="pendingEditZona">' +
+          '<option value="">Selecione a região</option>' +
+          '<option value="superior">Parte superior</option>' +
+          '<option value="central">Central</option>' +
+          '<option value="inferior">Parte inferior</option>' +
+        '</select>' +
+      '</label>' +
       '<label class="field"><span>Documentos entregues</span><div class="chip-grid" id="pendingEditItensGrid">' + chipsHtml + '</div></label>' +
       '<label class="field"><span>Outro documento (opcional)</span><input class="input" id="pendingEditOutro" type="text" placeholder="Ex.: Contrato social, procuração..."></label>' +
       '<div class="field" id="pendingEditValoresField"><span>Valores</span><div class="valores-list" id="pendingEditValoresList"></div></div>' +
       '<button type="button" class="btn btn-secondary" id="pendingSalvarEdicaoBtn"><i class="ph ph-floppy-disk" aria-hidden="true"></i> Salvar alterações</button>';
     $('pendingEditCompetencia').value = entrega.competencia || currentCompetencia();
+    $('pendingEditZona').value = entrega.zona || '';
     if (outroExistente) $('pendingEditOutro').value = outroExistente;
 
     var editValoresState = {};
@@ -3223,10 +3232,12 @@
       botaoOcupado_(btn);
       db.doc('entregas/' + entrega.id).update({
         competencia: $('pendingEditCompetencia').value,
+        zona: $('pendingEditZona').value,
         itens: novosItens
       }).then(function () {
         showToast('Rota atualizada.');
         entrega.competencia = $('pendingEditCompetencia').value;
+        entrega.zona = $('pendingEditZona').value;
         entrega.itens = novosItens;
         openConfirmPendingModal(entrega);
       }).catch(function (err) {
@@ -3248,7 +3259,7 @@
       '<div class="modal-overlay" id="overlay">' +
         '<div class="modal">' +
           '<div class="modal-head">' +
-            '<div><h2>' + escapeHtml_(entrega.clienteNome) + '</h2><div class="card-hint" style="margin:2px 0 0" id="pendingCompLabel">' + fmtCompetencia(entrega.competencia) + ' · na rota</div></div>' +
+            '<div><h2>' + escapeHtml_(entrega.clienteNome) + '</h2><div class="card-hint" style="margin:2px 0 0" id="pendingCompLabel">' + fmtCompetencia(entrega.competencia) + ' · na rota' + (entrega.zona ? ' · ' + ZONA_LABEL[entrega.zona] : '') + '</div></div>' +
             '<button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button>' +
           '</div>' +
           '<div id="pendingItensView">' +
