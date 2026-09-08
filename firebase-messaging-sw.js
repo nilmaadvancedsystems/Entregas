@@ -55,6 +55,13 @@ self.addEventListener('fetch', function (event) {
   var url = new URL(req.url);
   if (url.origin !== self.location.origin) return; // Firebase e CDNs seguem direto
 
+  // Conciliadorzinho e Cheque especial nunca ficam em cache — são páginas
+  // à parte que mudam com frequência e não precisam funcionar offline
+  // (diferente do entregas.html, que o office boy abre sem sinal). Deixar
+  // essas duas passarem direto pra rede evita ficar preso numa versão
+  // antiga guardada de uma correção anterior.
+  if (/\/(conciliador|cheque-especial)\.html$/.test(url.pathname)) return;
+
   // Rede primeiro: o app é um arquivo só e muda com frequência, então nunca
   // pode ficar preso numa versão velha enquanto existe internet.
   event.respondWith(
