@@ -330,6 +330,10 @@
     position: fixed; inset: 0; background: var(--bg); z-index: 100;
     display: grid; place-items: center; padding: 18px; overflow-y: auto;
   }
+  /* Com o login bloqueando a tela, o app por baixo (invisível) ainda pode
+     ser mais alto que a viewport e deixar uma barra de rolagem à mostra,
+     mesmo sem nada rolável de verdade ali. Trava o documento nesse estado. */
+  body:has(.auth-gate:not([hidden])) { overflow: hidden; }
   .auth-shell {
     width: 100%; max-width: 900px; display: grid; grid-template-columns: 1fr;
     background: var(--surface); border: 1px solid var(--border);
