@@ -859,6 +859,13 @@
      mesma % de entregas de sempre, só que ganhando o espaço do mapa em vez
      de um card à parte. */
   .map-wrap { position: relative; }
+  .map-legend {
+    position: absolute; left: 12px; top: 12px; z-index: 1;
+    background: var(--surface); border-radius: var(--radius-m); box-shadow: var(--shadow);
+    padding: 6px 10px; display: flex; gap: 12px; font-size: .76rem; font-weight: 600;
+  }
+  .map-legend span { display: flex; align-items: center; gap: 5px; }
+  .map-legend-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
   .map-floating-summary {
     position: absolute; left: 12px; right: 12px; bottom: 12px; z-index: 1;
     background: var(--surface); border-radius: var(--radius-l); box-shadow: var(--shadow);
@@ -898,6 +905,7 @@
   .client-row:last-child { border-bottom: none; }
   .client-row.inactive { opacity: .55; }
   .client-row > div:first-child { min-width: 0; flex: 1; }
+  .cr-clickable { display: flex; align-items: center; justify-content: space-between; gap: 10px; cursor: pointer; }
   .cr-actions { display: flex; gap: 6px; flex: none; flex-shrink: 0; }
   .btn-chip { border: 1px solid var(--border); background: var(--surface-2); border-radius: 999px; padding: 6px 12px; font-size: .76rem; font-weight: 600; cursor: pointer; }
   .btn-chip.danger { color: var(--danger); }
@@ -1314,10 +1322,14 @@
       <div class="card-head-row">
         <h2>Mapa de entregas</h2>
       </div>
-      <p class="card-hint">Pontos capturados nas entregas confirmadas desta competência.</p>
+      <p class="card-hint">Pontos capturados nas entregas confirmadas e nas não realizadas desta competência.</p>
       <div class="map-wrap">
         <div id="painelMapaVazio" class="empty-state" hidden>Nenhuma entrega com localização capturada ainda.</div>
         <div id="painelMapa"></div>
+        <div class="map-legend">
+          <span><i class="map-legend-dot" style="background:var(--success)"></i> Entregue</span>
+          <span><i class="map-legend-dot" style="background:var(--danger)"></i> Não entregue</span>
+        </div>
         <div class="map-floating-summary">
           <div class="summary-ring" id="summaryRing" style="--pct:0"><span id="summaryPct">–</span></div>
           <div class="summary-text"><span class="skeleton skeleton-linha"></span></div>
@@ -2347,6 +2359,13 @@
   var clienteInput = $('clienteInput');
   var suggestionsEl = $('clienteSuggestions');
 
+  // Preenche a região da rota sozinha com a última região cadastrada para
+  // o cliente, pra quem monta a rota não ter que escolher de novo pra cada
+  // empresa que já mora numa parte fixa da cidade.
+  function aplicarZonaDoCliente_(c) {
+    if (!$('zonaField').hidden && c && c.zona) $('zonaSelect').value = c.zona;
+  }
+
   function renderSuggestions() {
     var q = clienteInput.value.trim().toLowerCase();
     suggestionsEl.innerHTML = '';
@@ -2368,6 +2387,7 @@
         clienteInput.value = clienteLabel(c);
         suggestionsEl.classList.remove('show');
         clearFieldError('cliente');
+        aplicarZonaDoCliente_(c);
       });
       suggestionsEl.appendChild(btn);
     });
@@ -2550,6 +2570,10 @@
       foto: fotoDataUrl
     });
 
+    if (isRota && cliente && $('zonaSelect').value && cliente.zona !== $('zonaSelect').value) {
+      db.doc('clientes/' + cliente.id).update({ zona: $('zonaSelect').value }).catch(function () {});
+    }
+
     escritaQueNaoTrava_(gravacao).then(function (resultado) {
       showToast(avisoDeEscrita_(resultado, isRota ? 'Adicionado à rota — aguardando assinatura.' : (isFalha ? 'Entrega não realizada registrada.' : 'Entrega registrada com sucesso.')));
       resetForm();
@@ -2714,6 +2738,7 @@
     unsubPendentes = db.collection('entregas').where('status', '==', 'pendente').limit(500).onSnapshot(function (snap) {
       pendentesCache = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
       renderRota();
+      renderClientesList();
       updateDashStrip();
     }, function (err) { showToast(errMsg(err, 'Não foi possível carregar a rota.'), 'error'); });
   }
@@ -3000,7 +3025,9 @@
   var painelMarkers = [];
   function renderPainelMapa() {
     if (typeof L === 'undefined' || !$('painelMapa')) return;
-    var pontos = entregasPainelCache.filter(function (e) { return e.status === 'confirmada' && e.geo && typeof e.geo.lat === 'number' && typeof e.geo.lng === 'number'; });
+    var pontos = entregasPainelCache.filter(function (e) {
+      return (e.status === 'confirmada' || e.status === 'falha') && e.geo && typeof e.geo.lat === 'number' && typeof e.geo.lng === 'number';
+    });
     if (!painelMap) {
       painelMap = L.map('painelMapa').setView([-15.79, -47.88], 4);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -3014,8 +3041,21 @@
     if (pontos.length > 0) {
       var bounds = [];
       pontos.forEach(function (e) {
-        var m = L.marker([e.geo.lat, e.geo.lng]).addTo(painelMap);
-        m.bindPopup('<b>' + escapeHtml_(e.clienteNome || '') + '</b><br>' + escapeHtml_(fmtDateTime(e.confirmadoEm || e.criadoEm)));
+        var isFalha = e.status === 'falha';
+        var corVar = isFalha ? '--danger' : '--success';
+        var m = L.circleMarker([e.geo.lat, e.geo.lng], {
+          radius: 9,
+          color: '#fff',
+          weight: 2,
+          fillColor: getComputedStyle(document.documentElement).getPropertyValue(corVar).trim(),
+          fillOpacity: .95
+        }).addTo(painelMap);
+        var itensStr = (e.itens || []).map(function (i) { return typeof i === 'string' ? i : i.tipo; }).join(', ');
+        m.bindPopup(
+          '<b>' + escapeHtml_(e.clienteNome || '') + '</b><br>' +
+          (isFalha ? escapeHtml_(e.motivoFalha || 'Não entregue') : escapeHtml_(itensStr)) + '<br>' +
+          '<span style="opacity:.7">' + escapeHtml_(fmtDateTime(e.confirmadoEm || e.criadoEm)) + '</span>'
+        );
         painelMarkers.push(m);
         bounds.push([e.geo.lat, e.geo.lng]);
       });
@@ -3903,15 +3943,19 @@
     }
     all.forEach(function (c) {
       var row = document.createElement('div');
+      var naRota = pendentesCache.some(function (e) { return e.clienteId === c.id; });
       row.className = 'client-row' + (c.ativo === false ? ' inactive' : '');
       var sub = [c.documento, c.telefone].filter(Boolean).join(' · ') || 'sem dados adicionais';
       row.innerHTML =
-        '<div><div class="cr-name"></div><div class="cr-sub"></div></div>' +
+        '<div class="cr-clickable"><div><div class="cr-name"></div><div class="cr-sub"></div></div>' +
+        (naRota ? '<span class="status-pill rota">Na rota</span>' : '') + '</div>' +
         (temPapel('admin') ? '<div class="cr-actions"><button class="btn-chip">' + (c.ativo === false ? 'Reativar' : 'Desativar') + '</button></div>' : '');
       row.querySelector('.cr-name').textContent = clienteLabel(c);
       row.querySelector('.cr-sub').textContent = sub;
+      row.querySelector('.cr-clickable').addEventListener('click', function () { openClienteHistorico(c); });
       if (temPapel('admin')) {
-        row.querySelector('.btn-chip').addEventListener('click', function () {
+        row.querySelector('.btn-chip').addEventListener('click', function (ev) {
+          ev.stopPropagation();
           db.doc('clientes/' + c.id).update({ ativo: c.ativo === false }).catch(function (err) { showToast(errMsg(err, 'Não foi possível atualizar.'), 'error'); });
         });
       }
