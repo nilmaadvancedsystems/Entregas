@@ -1152,6 +1152,16 @@
         <button type="button" class="mode-btn" data-mode="rota">Preparar rota</button>
       </div>
 
+      <label class="field" id="zonaField" hidden>
+        <span>Região da rota</span>
+        <select class="input" id="zonaSelect">
+          <option value="">Selecione a região</option>
+          <option value="superior">Parte superior</option>
+          <option value="central">Central</option>
+          <option value="inferior">Parte inferior</option>
+        </select>
+      </label>
+
       <label class="avulso-toggle falha-toggle" id="falhaToggleWrap">
         <input type="checkbox" id="falhaToggle">
         <i class="ph ph-warning" aria-hidden="true"></i> Cliente ausente / entrega não realizada
@@ -1252,6 +1262,15 @@
           <label for="rotaFiltroPessoa">Pessoa</label>
           <select class="input" id="rotaFiltroPessoa">
             <option value="">Todas as pessoas</option>
+          </select>
+        </div>
+        <div class="filtro">
+          <label for="rotaFiltroZona">Região</label>
+          <select class="input" id="rotaFiltroZona">
+            <option value="">Todas as regiões</option>
+            <option value="superior">Parte superior</option>
+            <option value="central">Central</option>
+            <option value="inferior">Parte inferior</option>
           </select>
         </div>
       </div>
@@ -2427,7 +2446,8 @@
       $('recebedorField').hidden = isRota;
       $('assinaturaField').hidden = isRota;
       $('falhaToggleWrap').hidden = isRota;
-      if (isRota) { $('falhaToggle').checked = false; }
+      $('zonaField').hidden = !isRota;
+      if (isRota) { $('falhaToggle').checked = false; } else { $('zonaSelect').value = ''; }
       atualizarModoFalha();
       $('formHint').textContent = isRota
         ? 'Prepare os documentos e valores agora; a assinatura fica para quando entregar de fato.'
@@ -2492,6 +2512,7 @@
       temFoto: !!fotoDataUrl,
       falha: isFalha,
       motivoFalha: isFalha ? motivo : '',
+      zona: isRota ? $('zonaSelect').value : '',
       geo: isRota ? null : currentGeo,
       entregadoPor: (auth.currentUser && auth.currentUser.email) || '',
       entregadoPorNome: currentUserNome || (auth.currentUser && auth.currentUser.email) || '',
@@ -2577,8 +2598,10 @@
     }, function (err) { showToast(errMsg(err, 'Não foi possível carregar a rota.'), 'error'); });
   }
 
+  var ZONA_LABEL = { superior: 'Parte superior', central: 'Central', inferior: 'Parte inferior' };
   $('rotaBusca').addEventListener('input', aoParar(renderRota));
   $('rotaFiltroPessoa').addEventListener('change', renderRota);
+  $('rotaFiltroZona').addEventListener('change', renderRota);
   $('rotaAddBtn').addEventListener('click', function () {
     document.querySelector('.tab[data-tab="nova"]').click();
     document.querySelector('#modeToggle .mode-btn[data-mode="rota"]').click();
@@ -2597,9 +2620,11 @@
 
     var busca = $('rotaBusca').value.trim().toLowerCase();
     var filtroPessoa = selPessoa.value;
+    var filtroZona = $('rotaFiltroZona').value;
     var list = pendentesCache.slice().sort(function (a, b) { return new Date(a.criadoEm) - new Date(b.criadoEm); });
     if (busca) list = list.filter(function (e) { return (e.clienteNome || '').toLowerCase().indexOf(busca) !== -1; });
     if (filtroPessoa) list = list.filter(function (e) { return (e.entregadoPorNome || e.entregadoPor) === filtroPessoa; });
+    if (filtroZona) list = list.filter(function (e) { return e.zona === filtroZona; });
 
     var listEl = $('rotaList');
     listEl.innerHTML = '';
@@ -2613,7 +2638,7 @@
       row.className = 'entrega-row st-rota';
       var itensStr = (e.itens || []).map(function (i) { return typeof i === 'string' ? i : i.tipo; }).join(', ');
       var total = (e.itens || []).reduce(function (s, i) { return s + ((i && i.valor) || 0); }, 0);
-      var subtitle = fmtCompetencia(e.competencia) + ' · ' + itensStr + (total > 0 ? ' · ' + fmtMoney(total) : '');
+      var subtitle = fmtCompetencia(e.competencia) + ' · ' + itensStr + (total > 0 ? ' · ' + fmtMoney(total) : '') + (e.zona ? ' · ' + ZONA_LABEL[e.zona] : '');
       row.innerHTML =
         '<div><div class="er-nome"></div><div class="er-sub"></div></div>' +
         '<span class="status-pill rota">Assinar</span>';
