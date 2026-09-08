@@ -1477,11 +1477,23 @@
       <h1>O que você quer usar?</h1>
       <p class="card-hint">Escolha uma função pra entrar. Dá pra trocar depois em Configurações.</p>
     </div>
-    <div class="hub-grid">
+    <div class="hub-grid" id="hubGridPrincipal">
       <button type="button" class="hub-card" id="hubEntregas">
         <span class="hub-card-ico"><i class="ph ph-truck" aria-hidden="true"></i></span>
         <span class="hub-card-nome">Entregas</span>
         <span class="hub-card-desc">Registrar e acompanhar entregas de documentos</span>
+      </button>
+      <button type="button" class="hub-card" id="hubContabil" data-cargo="contabil" hidden>
+        <span class="hub-card-ico"><i class="ph ph-calculator" aria-hidden="true"></i></span>
+        <span class="hub-card-nome">Contábil</span>
+        <span class="hub-card-desc">Conciliadorzinho e ajuste de cheque especial</span>
+      </button>
+    </div>
+    <div class="hub-grid" id="hubGridContabil" hidden>
+      <button type="button" class="hub-card" id="hubContabilVoltar">
+        <span class="hub-card-ico"><i class="ph ph-arrow-left" aria-hidden="true"></i></span>
+        <span class="hub-card-nome">Voltar</span>
+        <span class="hub-card-desc">Escolher outra função</span>
       </button>
       <a href="conciliador.html" class="hub-card">
         <span class="hub-card-ico"><i class="ph ph-credit-card" aria-hidden="true"></i></span>
@@ -1665,6 +1677,7 @@
   var CARGOS = [
     { key: 'admin', label: 'Admin' },
     { key: 'office_boy', label: 'Office boy' },
+    { key: 'contabil', label: 'Contábil' },
     { key: 'equipe_geral', label: 'Equipe geral' }
   ];
 
@@ -4825,6 +4838,9 @@
   function mostrarHub() {
     closeModal();
     appShellEls.forEach(function (el) { if (el) el.hidden = true; });
+    $('hubGridContabil').hidden = true;
+    $('hubGridPrincipal').hidden = false;
+    $('hubContabil').hidden = !(temPapel('admin') || temPapel('contabil'));
     $('hubScreen').hidden = false;
   }
 
@@ -4835,6 +4851,14 @@
   }
 
   $('hubEntregas').addEventListener('click', function () { entrarNaFuncao('entregas'); });
+  $('hubContabil').addEventListener('click', function () {
+    $('hubGridPrincipal').hidden = true;
+    $('hubGridContabil').hidden = false;
+  });
+  $('hubContabilVoltar').addEventListener('click', function () {
+    $('hubGridContabil').hidden = true;
+    $('hubGridPrincipal').hidden = false;
+  });
 
   auth.onAuthStateChanged(function (user) {
     if (user) {

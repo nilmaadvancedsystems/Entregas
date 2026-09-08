@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
 <style>
   /* ---------------------------------- tokens ---------------------------------- */
   :root{
@@ -274,10 +274,73 @@
   .empty-state{color:var(--ink-faint);font-size:13.5px;padding:20px 4px;}
 
   .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;}
+
+  /* ------------------ aparência unificada com o app de Entregas ------------------
+     Só troca cor de marca e tipografia pros mesmos tokens do hub; os tons de
+     sucesso/erro continuam os originais da ferramenta, que já funcionam bem. */
+  :root{
+    --bg: color-mix(in srgb, #9A2B24 16%, #F1F3F5);
+    --surface: color-mix(in srgb, #9A2B24 9%, #FFFFFF);
+    --surface-2: color-mix(in srgb, #9A2B24 18%, #F6F5F5);
+    --surface-3: color-mix(in srgb, #9A2B24 24%, #F6F5F5);
+    --border: color-mix(in srgb, #9A2B24 38%, #DEDBDA);
+    --border-strong: color-mix(in srgb, #9A2B24 50%, #DEDBDA);
+    --ink: #201C1B;
+    --ink-muted: color-mix(in srgb, #9A2B24 16%, #5B5450);
+    --ink-faint: color-mix(in srgb, #9A2B24 16%, #6F6763);
+    --accent: #9A2B24;
+    --accent-strong: #7A211B;
+    --accent-soft: color-mix(in srgb, #9A2B24 22%, var(--surface));
+    --accent-ink: #FFFFFF;
+    --radius: 20px;
+    --radius-sm: 14px;
+    --shadow: 0 1px 2px rgba(32,20,18,.06), 0 6px 18px rgba(32,20,18,.08);
+    --font-display: 'Plus Jakarta Sans', -apple-system, 'Segoe UI', sans-serif;
+    --font-body: 'Plus Jakarta Sans', -apple-system, 'Segoe UI', sans-serif;
+    --font-mono: 'JetBrains Mono', SFMono-Regular, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg: color-mix(in srgb, #DE756B 16%, #1A1513);
+      --surface: color-mix(in srgb, #DE756B 9%, #241D1B);
+      --surface-2: color-mix(in srgb, #DE756B 18%, #2B2220);
+      --surface-3: color-mix(in srgb, #DE756B 24%, #2B2220);
+      --border: color-mix(in srgb, #DE756B 38%, #3D302C);
+      --border-strong: color-mix(in srgb, #DE756B 50%, #3D302C);
+      --ink: #F3EAE8;
+      --ink-muted: color-mix(in srgb, #DE756B 16%, #C7B7B3);
+      --ink-faint: color-mix(in srgb, #DE756B 16%, #A6938E);
+      --accent: #DE756B;
+      --accent-strong: #C85B51;
+      --accent-soft: color-mix(in srgb, #DE756B 22%, var(--surface));
+      --accent-ink: #26100E;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg: color-mix(in srgb, #DE756B 16%, #1A1513);
+    --surface: color-mix(in srgb, #DE756B 9%, #241D1B);
+    --surface-2: color-mix(in srgb, #DE756B 18%, #2B2220);
+    --surface-3: color-mix(in srgb, #DE756B 24%, #2B2220);
+    --border: color-mix(in srgb, #DE756B 38%, #3D302C);
+    --border-strong: color-mix(in srgb, #DE756B 50%, #3D302C);
+    --ink: #F3EAE8;
+    --ink-muted: color-mix(in srgb, #DE756B 16%, #C7B7B3);
+    --ink-faint: color-mix(in srgb, #DE756B 16%, #A6938E);
+    --accent: #DE756B;
+    --accent-strong: #C85B51;
+    --accent-soft: color-mix(in srgb, #DE756B 22%, var(--surface));
+    --accent-ink: #26100E;
+  }
 </style>
 </head>
 <body>
-<div class="app">
+<div id="acessoGate" style="position:fixed;inset:0;z-index:999;background:var(--bg,#F7F5F4);display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;font-family:'Inter',ui-sans-serif,system-ui,sans-serif;">
+  <div style="max-width:320px;">
+    <p id="acessoGateMsg" style="font-weight:700;font-size:15px;margin-bottom:14px;color:var(--ink,#1A1413);">Verificando acesso…</p>
+    <a href="entregas.html" style="color:var(--accent,#8B2E32);font-weight:600;text-decoration:none;">&larr; Voltar ao início</a>
+  </div>
+</div>
+<div class="app" id="appRoot" hidden>
   <header class="topbar">
     <div class="brand">
       <div class="brand-mark" id="brandIcon"></div>
@@ -799,6 +862,45 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
     toast('Arquivo baixado.');
   }
 
+})();
+</script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script>
+(function () {
+  var firebaseConfig = {
+    apiKey: "AIzaSyD6xg7XhX8dKTKmaYup4hRX5k9XFHEkb98",
+    authDomain: "entregas-2e5e2.firebaseapp.com",
+    projectId: "entregas-2e5e2",
+    storageBucket: "entregas-2e5e2.firebasestorage.app",
+    messagingSenderId: "1009094556836",
+    appId: "1:1009094556836:web:d3b6a9283e934db064fa31"
+  };
+  firebase.initializeApp(firebaseConfig);
+  var auth = firebase.auth();
+  var db = firebase.firestore();
+
+  function liberar() {
+    document.getElementById('acessoGate').hidden = true;
+    document.getElementById('appRoot').hidden = false;
+  }
+  function bloquear(msg) {
+    document.getElementById('acessoGateMsg').textContent = msg;
+  }
+
+  auth.onAuthStateChanged(function (user) {
+    if (!user) { location.replace('entregas.html'); return; }
+    db.collection('usuarios').doc(user.uid).get().then(function (snap) {
+      var data = snap.exists ? snap.data() : {};
+      var roles = Array.isArray(data.roles) && data.roles.length ? data.roles : (data.role ? [data.role] : ['staff']);
+      var liberado = roles.indexOf('admin') !== -1 || roles.indexOf('contabil') !== -1;
+      if (liberado) liberar();
+      else bloquear('Só admins e a equipe contábil abrem essa ferramenta. Peça a um admin pra te dar o cargo "Contábil" em Configurações → Quem tem acesso.');
+    }).catch(function () {
+      bloquear('Não foi possível verificar seu acesso. Recarregue a página.');
+    });
+  });
 })();
 </script>
 </body>
