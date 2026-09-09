@@ -1555,7 +1555,7 @@
       <button type="submit" class="btn btn-primary">Criar acesso</button>
       <div class="field" style="margin:16px 0 0;border-top:1px solid var(--border);padding-top:14px;">
         <span>Ou mande um convite</span>
-        <p class="card-hint">Gera um link válido por 24 horas onde a própria pessoa escolhe a senha dela — os cargos marcados acima já vêm aplicados.</p>
+        <p class="card-hint">Gera um link válido por 24 horas onde a própria pessoa escolhe o nome e a senha dela — só os cargos marcados acima já vêm aplicados. Não precisa preencher o nome aqui em cima pra isso.</p>
         <button type="button" class="btn btn-secondary" id="gerarConviteBtn"><i class="ph ph-link" aria-hidden="true"></i> Gerar link de convite</button>
         <div id="conviteResultado" hidden style="margin-top:10px;">
           <input class="input" id="conviteLink" type="text" readonly>
@@ -1563,6 +1563,17 @@
         </div>
       </div>
     </form>
+    <div class="card" id="integracaoCard" hidden>
+      <div class="card-head-row">
+        <h2>Endereço do serviço de contas</h2>
+      </div>
+      <p class="card-hint">Cole aqui o endereço do Apps Script publicado como aplicativo web. É ele que consegue redefinir senha e excluir acessos — coisas que o app sozinho, no navegador, não tem permissão de fazer.</p>
+      <label class="field">
+        <span>URL do aplicativo web</span>
+        <input class="input" id="contasUrlInput" type="url" placeholder="https://script.google.com/macros/s/.../exec">
+      </label>
+      <button type="button" class="btn-chip accent" id="salvarContasUrlBtn">Salvar endereço</button>
+    </div>
     <div class="card" id="competenciasCard" hidden>
       <div class="card-head-row">
         <h2>Competências fechadas</h2>
@@ -1710,11 +1721,15 @@
 <div class="auth-gate" id="conviteGate" hidden>
   <div class="auth-shell">
     <div class="auth-form">
-      <h1 class="auth-titulo">Criar seu acesso</h1>
+      <h1 class="auth-titulo" id="conviteTitulo">Criar seu acesso</h1>
       <p class="auth-sub" id="conviteSub">Verificando convite...</p>
       <div id="conviteForm" hidden>
+        <div class="field" id="conviteNomeField">
+          <label for="conviteNome">Seu nome</label>
+          <input class="input" id="conviteNome" type="text" placeholder="Como você quer ser chamado no app" autocomplete="name">
+        </div>
         <div class="field">
-          <label for="conviteSenha">Escolha sua senha</label>
+          <label for="conviteSenha" id="conviteSenhaLabel">Escolha sua senha</label>
           <div class="senha-wrap">
             <input class="input" id="conviteSenha" type="password" placeholder="Mínimo 6 caracteres" autocomplete="new-password">
           </div>
@@ -5250,6 +5265,7 @@
     $('form-equipe').hidden = !temPapel('admin');
     $('auditoriaCard').hidden = !temPapel('admin');
     $('competenciasCard').hidden = !temPapel('admin');
+    $('integracaoCard').hidden = !temPapel('admin');
   }
 
   function abrirPessoa(uid) {
@@ -5311,7 +5327,19 @@
           '<div class="dash-item neutro"><span class="dash-num">' + falhas + '</span><span class="dash-label">não entregues</span></div>' +
         '</div>' +
       '</div>' +
-      '<div class="field" style="margin-bottom:0"><span>Últimas entregas</span><div id="pessoaEntregas"></div></div>';
+      '<div class="field"><span>Últimas entregas</span><div id="pessoaEntregas"></div></div>' +
+      (euMesmo ? '' :
+        '<div class="field" style="margin-bottom:0;border-top:1px solid var(--border);padding-top:14px;">' +
+          '<span>Acesso</span>' +
+          '<div class="cr-actions" style="flex-wrap:wrap;">' +
+            '<button type="button" class="btn-chip" id="pessoaResetBtn"><i class="ph ph-key" aria-hidden="true"></i> Gerar link de nova senha</button>' +
+            '<button type="button" class="btn-chip danger" id="pessoaExcluirBtn"><i class="ph ph-trash" aria-hidden="true"></i> Excluir acesso</button>' +
+          '</div>' +
+          '<div id="pessoaResetResultado" hidden style="margin-top:10px;">' +
+            '<input class="input" id="pessoaResetLink" type="text" readonly>' +
+            '<button type="button" class="btn-chip accent" id="pessoaResetCopiarBtn" style="margin-top:8px;"><i class="ph ph-copy" aria-hidden="true"></i> Copiar link</button>' +
+          '</div>' +
+        '</div>');
 
     var av = $('pessoaAvatar');
     if (u.fotoPerfil) av.style.backgroundImage = 'url("' + u.fotoPerfil + '")';
@@ -5319,6 +5347,56 @@
     $('pessoaNome').textContent = nome;
     $('pessoaLogin').textContent = u.email || 'sem login registrado';
     $('perfilVoltar').addEventListener('click', voltarParaEquipe);
+
+    if ($('pessoaResetBtn')) {
+      $('pessoaResetBtn').addEventListener('click', function () {
+        var btn = this;
+        botaoOcupado_(btn);
+        var codigo = gerarCodigoConvite_();
+        // convite preso a essa pessoa: o link só troca a senha dela, não
+        // serve pra criar acesso novo nem mexer na conta de outro
+        db.collection('convites').doc(codigo).set({
+          tipo: 'reset',
+          uidAlvo: u.id,
+          nome: nome,
+          email: u.email || '',
+          usado: false,
+          criadoPor: (auth.currentUser && auth.currentUser.email) || '',
+          criadoPorNome: currentUserNome,
+          criadoEm: new Date().toISOString(),
+          expiraEm: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+        }).then(function () {
+          var base = location.href.split(/[?#]/)[0];
+          $('pessoaResetLink').value = base + '?convite=' + codigo;
+          $('pessoaResetResultado').hidden = false;
+          registrarAuditoria_('reset_senha_gerado', nome);
+          showToast('Link de nova senha criado — válido por 24 horas.');
+        }).catch(function (err) {
+          showToast(errMsg(err, 'Não foi possível gerar o link.'), 'error');
+        }).finally(function () { botaoLivre_(btn); });
+      });
+
+      $('pessoaResetCopiarBtn').addEventListener('click', function () {
+        copiarOuMostrar_('Link de nova senha', $('pessoaResetLink').value, 'Link copiado.');
+      });
+
+      $('pessoaExcluirBtn').addEventListener('click', function () {
+        var btn = this;
+        confirmarDuplo(btn, function () {
+          botaoOcupado_(btn);
+          auth.currentUser.getIdToken().then(function (idToken) {
+            return chamarServicoContas_({ acao: 'excluir', idToken: idToken, uidAlvo: u.id });
+          }).then(function () {
+            registrarAuditoria_('acesso_excluido', nome + ' · ' + (u.email || ''));
+            showToast('Acesso de ' + nome + ' excluído.');
+            voltarParaEquipe();
+          }).catch(function (err) {
+            showToast(err && err.message ? err.message : 'Não foi possível excluir.', 'error');
+            botaoLivre_(btn);
+          });
+        });
+      });
+    }
 
     var papeisEl = $('pessoaPapeis');
     CARGOS.forEach(function (p) {
@@ -6018,7 +6096,42 @@
       competenciasFechadas = (snap.exists && snap.data().fechadas) || [];
       renderCompetenciasFechadas_();
     }, function () {});
+    db.doc('config/integracoes').onSnapshot(function (snap) {
+      contasUrl = (snap.exists && snap.data().contasUrl) || '';
+      if ($('contasUrlInput')) $('contasUrlInput').value = contasUrl;
+    }, function () {});
   }
+
+  // ---------- serviço de contas (Apps Script) ----------
+  // Redefinir senha e excluir login exigem permissão de administrador do
+  // Firebase, que o navegador não tem. Quem faz isso é o Apps Script,
+  // publicado como aplicativo web, cujo endereço fica guardado aqui.
+  var contasUrl = '';
+
+  function chamarServicoContas_(payload) {
+    if (!contasUrl) {
+      return Promise.reject(new Error('Falta configurar o endereço do serviço de contas em Perfil.'));
+    }
+    // text/plain evita o preflight de CORS, que o Apps Script não responde
+    return fetch(contasUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload)
+    }).then(function (r) { return r.json(); }).then(function (resp) {
+      if (!resp || !resp.ok) throw new Error((resp && resp.erro) || 'O serviço de contas recusou a operação.');
+      return resp;
+    });
+  }
+
+  $('salvarContasUrlBtn').addEventListener('click', function () {
+    var url = $('contasUrlInput').value.trim();
+    var btn = this;
+    botaoOcupado_(btn);
+    db.doc('config/integracoes').set({ contasUrl: url }, { merge: true })
+      .then(function () { showToast('Endereço salvo.'); })
+      .catch(function (err) { showToast(errMsg(err, 'Não foi possível salvar.'), 'error'); })
+      .finally(function () { botaoLivre_(btn); });
+  });
 
   function renderCompetenciasFechadas_() {
     var el = $('competenciasFechadasLista');
@@ -6148,6 +6261,7 @@
     $('form-equipe').hidden = !temPapel('admin');
     $('auditoriaCard').hidden = !temPapel('admin');
     $('competenciasCard').hidden = !temPapel('admin');
+    $('integracaoCard').hidden = !temPapel('admin');
     $('form-cliente').hidden = !temPapel('admin');
     $('importCard').hidden = !temPapel('admin');
     // Perfil é a página de administração de acessos: só admin enxerga.
@@ -6418,8 +6532,6 @@
   }
 
   $('gerarConviteBtn').addEventListener('click', function () {
-    var nome = $('novoUsuarioNome').value.trim();
-    if (!nome) { showToast('Preencha o nome de quem vai receber o convite.', 'error'); return; }
     var roles = ['staff'];
     if ($('novoUsuarioAdmin').checked) roles.push('admin');
     if ($('novoUsuarioOfficeBoy').checked) roles.push('office_boy');
@@ -6430,7 +6542,7 @@
     botaoOcupado_(btn);
     var codigo = gerarCodigoConvite_();
     db.collection('convites').doc(codigo).set({
-      nome: nome,
+      tipo: 'novo',
       roles: roles,
       usado: false,
       criadoPor: (auth.currentUser && auth.currentUser.email) || '',
@@ -6441,7 +6553,7 @@
       var base = location.href.split(/[?#]/)[0];
       $('conviteLink').value = base + '?convite=' + codigo;
       $('conviteResultado').hidden = false;
-      registrarAuditoria_('convite_gerado', nome + ' · ' + roles.join(', '));
+      registrarAuditoria_('convite_gerado', 'cargos: ' + roles.join(', '));
       showToast('Link de convite criado — válido por 24 horas.');
     }).catch(function (err) {
       showToast(errMsg(err, 'Não foi possível gerar o convite.'), 'error');
@@ -6469,38 +6581,60 @@
       if (c.usado) { $('conviteSub').textContent = 'Esse convite já foi usado. Peça um link novo para o administrativo.'; return; }
       if (c.expiraEm && new Date(c.expiraEm) < new Date()) { $('conviteSub').textContent = 'Esse convite expirou (vale 24 horas). Peça um link novo.'; return; }
 
-      $('conviteSub').textContent = 'Convite para ' + c.nome + '. Escolha uma senha para entrar.';
+      var isReset = c.tipo === 'reset';
+      if (isReset) {
+        $('conviteTitulo').textContent = 'Nova senha';
+        $('conviteSub').textContent = 'Definindo uma senha nova para o acesso de ' + c.nome + '.';
+        $('conviteNomeField').hidden = true;
+        $('conviteSenhaLabel').textContent = 'Nova senha';
+        $('conviteCriarBtn').textContent = 'Salvar senha e entrar';
+      } else {
+        $('conviteSub').textContent = 'Escolha o nome que você vai usar pra entrar e uma senha.';
+        $('conviteNomeField').hidden = false;
+      }
       $('conviteForm').hidden = false;
-      $('conviteSenha').focus();
+      (isReset ? $('conviteSenha') : $('conviteNome')).focus();
 
       $('conviteCriarBtn').addEventListener('click', function () {
         var senha = $('conviteSenha').value;
+        var nomeEscolhido = isReset ? c.nome : $('conviteNome').value.trim();
         $('conviteErro').hidden = true;
-        if (senha.length < 6) {
-          $('conviteErroTexto').textContent = 'A senha precisa ter pelo menos 6 caracteres.';
-          $('conviteErro').hidden = false;
-          return;
-        }
-        var btn = this;
-        botaoOcupado_(btn);
-        auth.createUserWithEmailAndPassword(emailFromNome(c.nome), senha).then(function (cred) {
-          return db.collection('usuarios').doc(cred.user.uid).set({
-            nome: c.nome, email: cred.user.email, roles: c.roles, criadoEm: new Date().toISOString()
-          }).then(function () {
-            return db.collection('convites').doc(codigo).update({ usado: true, usadoEm: new Date().toISOString() });
-          });
-        }).then(function () {
-          // tira o ?convite= da barra de endereço pra um F5 não cair de
-          // novo nessa tela depois da conta já criada
-          history.replaceState(null, '', location.href.split(/[?#]/)[0]);
-          $('conviteGate').hidden = true;
-          showToast('Acesso criado. Bem-vindo!');
-        }).catch(function (err) {
-          var msg = (err && err.code === 'auth/email-already-in-use')
-            ? 'Já existe um acesso com esse nome. Fale com o administrativo.'
-            : errMsg(err, 'Não foi possível criar o acesso.');
+        function falhar(msg) {
           $('conviteErroTexto').textContent = msg;
           $('conviteErro').hidden = false;
+        }
+        if (!isReset && !nomeEscolhido) { falhar('Informe o seu nome.'); return; }
+        if (senha.length < 6) { falhar('A senha precisa ter pelo menos 6 caracteres.'); return; }
+
+        var btn = this;
+        botaoOcupado_(btn);
+        var email = isReset ? (c.email || emailFromNome(c.nome)) : emailFromNome(nomeEscolhido);
+
+        var operacao = isReset
+          // trocar a senha de uma conta que já existe só o serviço de
+          // contas (Apps Script) consegue fazer — o navegador não tem
+          // permissão de administrador do Firebase
+          ? chamarServicoContas_({ acao: 'resetar', codigo: codigo, senha: senha })
+              .then(function () { return auth.signInWithEmailAndPassword(email, senha); })
+          : auth.createUserWithEmailAndPassword(email, senha).then(function (cred) {
+              return db.collection('usuarios').doc(cred.user.uid).set({
+                nome: nomeEscolhido, email: cred.user.email, roles: c.roles || ['staff'], criadoEm: new Date().toISOString()
+              }).then(function () {
+                return db.collection('convites').doc(codigo).update({ usado: true, usadoEm: new Date().toISOString(), nome: nomeEscolhido });
+              });
+            });
+
+        operacao.then(function () {
+          // tira o ?convite= da barra de endereço pra um F5 não cair de
+          // novo nessa tela depois de tudo pronto
+          history.replaceState(null, '', location.href.split(/[?#]/)[0]);
+          $('conviteGate').hidden = true;
+          showToast(isReset ? 'Senha alterada. Bem-vindo de volta!' : 'Acesso criado. Bem-vindo!');
+        }).catch(function (err) {
+          var msg = (err && err.code === 'auth/email-already-in-use')
+            ? 'Já existe um acesso com esse nome. Escolha outro nome ou peça um link de nova senha ao administrativo.'
+            : (err && err.message ? err.message : 'Não foi possível concluir.');
+          falhar(msg);
           botaoLivre_(btn);
         });
       });
