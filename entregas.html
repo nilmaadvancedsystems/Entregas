@@ -1545,13 +1545,16 @@
         <span>Senha</span>
         <input class="input" id="novoUsuarioSenha" type="password" placeholder="Mínimo 6 caracteres" required>
       </label>
-      <label class="field">
+      <!-- Cada cargo é um <label> próprio: clicar no nome marca a caixinha
+           dele. Envolver todos num único <label> fazia qualquer clique aqui
+           dentro cair no primeiro checkbox da lista (Admin). -->
+      <div class="field" style="margin-bottom:16px;">
         <span>Cargos (além de Equipe)</span>
-        <div class="avulso-toggle"><input type="checkbox" id="novoUsuarioAdmin"> Admin</div>
-        <div class="avulso-toggle"><input type="checkbox" id="novoUsuarioOfficeBoy"> Office boy (fica com a página de Solicitações)</div>
-        <div class="avulso-toggle"><input type="checkbox" id="novoUsuarioContabil"> Contábil (Conciliadorzinho e Cheque especial)</div>
-        <div class="avulso-toggle"><input type="checkbox" id="novoUsuarioEquipeGeral"> Equipe geral</div>
-      </label>
+        <label class="avulso-toggle"><input type="checkbox" id="novoUsuarioAdmin"> Admin</label>
+        <label class="avulso-toggle"><input type="checkbox" id="novoUsuarioOfficeBoy"> Office boy (fica com a página de Solicitações)</label>
+        <label class="avulso-toggle"><input type="checkbox" id="novoUsuarioContabil"> Contábil (Conciliadorzinho e Cheque especial)</label>
+        <label class="avulso-toggle"><input type="checkbox" id="novoUsuarioEquipeGeral"> Equipe geral</label>
+      </div>
       <button type="submit" class="btn btn-primary">Criar acesso</button>
       <div class="field" style="margin:16px 0 0;border-top:1px solid var(--border);padding-top:14px;">
         <span>Ou mande um convite</span>
@@ -6629,7 +6632,21 @@
           // novo nessa tela depois de tudo pronto
           history.replaceState(null, '', location.href.split(/[?#]/)[0]);
           $('conviteGate').hidden = true;
-          showToast(isReset ? 'Senha alterada. Bem-vindo de volta!' : 'Acesso criado. Bem-vindo!');
+          if (isReset) {
+            showToast('Senha alterada. Bem-vindo de volta!');
+            return;
+          }
+          // Criar a conta já deixa a pessoa logada, mas aqui ela entra na
+          // tela de login de propósito: assim a primeira coisa que faz é
+          // digitar o nome e a senha que acabou de escolher — se errou ou
+          // esqueceu, descobre agora e não amanhã. O nome já vai preenchido.
+          showToast('Acesso criado. Entre com o nome e a senha que você escolheu.');
+          auth.signOut().then(function () {
+            $('loginEmail').value = nomeEscolhido;
+            $('loginSenha').value = '';
+            $('authGate').hidden = false;
+            $('loginSenha').focus();
+          });
         }).catch(function (err) {
           var msg = (err && err.code === 'auth/email-already-in-use')
             ? 'Já existe um acesso com esse nome. Escolha outro nome ou peça um link de nova senha ao administrativo.'
