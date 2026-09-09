@@ -3364,7 +3364,10 @@
     messaging.onMessage(function (payload) {
       var titulo = (payload.notification && payload.notification.title) || 'Nova solicitação';
       var corpo = (payload.notification && payload.notification.body) || '';
-      showToast('<i class="ph ph-bell" aria-hidden="true"></i> ' + titulo + (corpo ? ' — ' + corpo : ''));
+      // showToast trata a mensagem como texto puro (de propósito — o corpo
+      // pode conter algo digitado por alguém, então nada de HTML aqui,
+      // senão a marcação aparece na tela em vez de virar ícone).
+      showToast('🔔 ' + titulo + (corpo ? ' — ' + corpo : ''));
       if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
         try { new Notification(titulo, { body: corpo, tag: (payload.data && payload.data.tag) || 'nilma-sol' }); } catch (e) {}
       }
