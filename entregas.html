@@ -1093,6 +1093,7 @@
     #form-equipe > .field:last-of-type, #form-equipe > button,
     #form-solicitacao > .avulso-toggle, #solSubmitBtn { grid-column: 1 / -1; }
     #clienteField { grid-column: span 2; }
+    #honorarioPixField { grid-column: 1 / -1; }
     #form-solicitacao > .field:nth-of-type(3) { grid-column: 1 / -1; }
     #form-nova .mode-toggle { width: max-content; margin-bottom: 22px; }
     #form-nova .mode-btn { flex: none; padding: 9px 22px; white-space: nowrap; }
@@ -1232,6 +1233,13 @@
         <input class="input" id="recebedorInput" type="text" placeholder="Quem assinou pelo cliente">
       </label>
 
+      <div class="field" id="pdfField">
+        <span>Anexar PDF do documento (opcional — tenta preencher cliente, tipo e competência sozinho)</span>
+        <input type="file" accept="application/pdf" id="pdfInput" class="foto-file-input">
+        <label for="pdfInput" class="btn btn-secondary foto-label"><i class="ph ph-file-pdf" aria-hidden="true"></i> Anexar PDF do documento</label>
+        <div class="card-hint" id="pdfStatus" style="margin-top:6px;"></div>
+      </div>
+
       <div class="field" id="fotoField">
         <span id="fotoLabel">Foto (opcional se colher assinatura)</span>
         <input type="file" accept="image/*" capture="environment" id="fotoInput" class="foto-file-input">
@@ -1241,13 +1249,6 @@
           <button type="button" class="link-btn" id="fotoRemove">Remover foto</button>
         </div>
         <div class="field-error" id="err-foto">Anexe uma foto — é obrigatória nesse caso.</div>
-      </div>
-
-      <div class="field" id="pdfField">
-        <span>Anexar PDF do documento (opcional — tenta preencher cliente, tipo e competência sozinho)</span>
-        <input type="file" accept="application/pdf" id="pdfInput" class="foto-file-input">
-        <label for="pdfInput" class="btn btn-secondary foto-label"><i class="ph ph-file-pdf" aria-hidden="true"></i> Anexar PDF do documento</label>
-        <div class="card-hint" id="pdfStatus" style="margin-top:6px;"></div>
       </div>
 
       <label class="field" id="assinaturaField">
@@ -2321,6 +2322,43 @@
     return (s || '').toUpperCase().normalize('NFD').replace(new RegExp('[̀-ͯ]', 'g'), '');
   }
 
+  // Acha datas (numéricas "05/2026" ou por extenso "Maio/2026") num
+  // trecho de texto, marcando a posição de cada uma pra depois filtrar
+  // as que parecem vencimento em vez de competência.
+  var MESES_BUSCA_ = ['janeiro', 'fevereiro', 'marco', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+  function buscarDatas_(trecho, baseIdx) {
+    var candidatos = [];
+    var reNum = /\b(0[1-9]|1[0-2])\/(\d{4})\b/g, m;
+    while ((m = reNum.exec(trecho))) candidatos.push({ idx: baseIdx + m.index, mes: parseInt(m[1], 10), ano: m[2] });
+    var reNome = /\b(janeiro|fevereiro|mar[çc]o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\/(\d{4})\b/gi;
+    while ((m = reNome.exec(trecho))) {
+      var mi = MESES_BUSCA_.indexOf(m[1].toLowerCase().replace('ç', 'c'));
+      if (mi !== -1) candidatos.push({ idx: baseIdx + m.index, mes: mi + 1, ano: m[2] });
+    }
+    candidatos.sort(function (a, b) { return a.idx - b.idx; });
+    return candidatos;
+  }
+
+  function pareceVencimento_(textoBruto, idx) {
+    return /vencimento|pagar|at[ée]\s*$/i.test(textoBruto.slice(Math.max(0, idx - 30), idx));
+  }
+
+  // Guias variam muito: umas rotulam "Competência", outras "Período de
+  // Apuração", e quase todas têm também uma data de vencimento perto —
+  // procura a data logo depois do rótulo certo e descarta qualquer uma
+  // que pareça vencimento, em vez de simplesmente pegar a primeira data
+  // do documento (que costuma ser a errada).
+  function extrairCompetencia_(textoBruto) {
+    var keyword = textoBruto.match(/compet[êe]ncia|per[íi]odo de apura[çc][ãa]o/i);
+    if (keyword) {
+      var trecho = textoBruto.slice(keyword.index, keyword.index + 250);
+      var candidatos = buscarDatas_(trecho, keyword.index).filter(function (c) { return !pareceVencimento_(textoBruto, c.idx); });
+      if (candidatos.length) return candidatos[0];
+    }
+    var todos = buscarDatas_(textoBruto, 0).filter(function (c) { return !pareceVencimento_(textoBruto, c.idx); });
+    return todos[0] || null;
+  }
+
   function aplicarDadosDoPdf_(textoBruto, imagemDataUrl) {
     var texto = normalizarTexto_(textoBruto);
     var achados = [];
@@ -2339,6 +2377,16 @@
       if (digitos.length < 11) continue;
       clienteAchado = Array.from(clientesCache.values()).find(function (c) {
         return (c.documento || '').replace(/\D/g, '') === digitos;
+      });
+    }
+    // Algumas guias (ex.: FGTS Digital) só mostram a raiz do CNPJ (8
+    // dígitos, sem filial/dígito verificador) — não dá pra bater com o
+    // documento completo do cadastro. Nesses casos, procura o nome da
+    // empresa (ex.: "Razão Social") como texto dentro do PDF.
+    if (!clienteAchado) {
+      clienteAchado = Array.from(clientesCache.values()).find(function (c) {
+        var nome = normalizarTexto_(c.nome || '');
+        return nome.length >= 8 && texto.indexOf(nome) !== -1;
       });
     }
     if (clienteAchado) {
@@ -2360,14 +2408,22 @@
       achados.push('tipo de documento');
     }
 
-    var compMatch = textoBruto.match(/\b(0[1-9]|1[0-2])\/(\d{4})\b/);
-    if (compMatch) {
-      $('competenciaInput').value = compMatch[2] + '-' + compMatch[1];
+    var comp = extrairCompetencia_(textoBruto);
+    if (comp) {
+      $('competenciaInput').value = comp.ano + '-' + String(comp.mes).padStart(2, '0');
       achados.push('competência');
     }
 
     if (tipoAchado) {
-      var valorMatch = textoBruto.match(/R\$\s*([\d.,]+)/);
+      // Nem toda guia usa o símbolo "R$" (a do FGTS Digital, por exemplo,
+      // só escreve "Valor a recolher" seguido do número) — tenta algumas
+      // variações antes de desistir.
+      var valorMatch =
+        textoBruto.match(/R\$\s*([\d.,]+)/) ||
+        texto.match(/VALOR A RECOLHER\D{0,20}([\d.,]+)/) ||
+        texto.match(/TOTAL DA GUIA\D{0,20}([\d.,]+)/) ||
+        texto.match(/VALOR TOTAL\D{0,20}([\d.,]+)/) ||
+        texto.match(/VALOR DO DOCUMENTO\D{0,20}([\d.,]+)/);
       if (valorMatch) {
         valoresState[tipoAchado] = valorMatch[1];
         renderValores();
