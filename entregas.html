@@ -1299,6 +1299,13 @@
         </div>
       </div>
     </div>
+    <div class="card" id="atestadosCard" hidden>
+      <div class="card-head-row">
+        <h2><i class="ph ph-first-aid-kit" aria-hidden="true"></i> Atestados para buscar</h2>
+      </div>
+      <p class="card-hint">Pedidos de busca de atestado nas clínicas (Assegi, Preventive etc.) — marque como buscado quando pegar.</p>
+      <div id="atestadosList"></div>
+    </div>
     <div class="card" id="rotaListCard">
       <div id="rotaList"><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
     </div>
@@ -1385,14 +1392,34 @@
         <select class="input" id="solTipo">
           <option value="entregar">Entregar documento</option>
           <option value="buscar">Buscar documento</option>
+          <option value="atestado">Buscar atestado (clínica)</option>
           <option value="outro">Outro</option>
         </select>
       </label>
-      <label class="field">
+      <label class="field" id="atestadoClinicaField" hidden>
+        <span>Clínica</span>
+        <select class="input" id="atestadoClinica">
+          <option value="Assegi">Assegi</option>
+          <option value="Preventive">Preventive</option>
+          <option value="Outra">Outra clínica</option>
+        </select>
+      </label>
+      <label class="field" id="atestadoFuncionarioField" hidden>
+        <span>Funcionário</span>
+        <input class="input" id="atestadoFuncionario" type="text" placeholder="Nome do funcionário">
+        <div class="field-error" id="err-atestadoFuncionario">Informe o nome do funcionário.</div>
+      </label>
+      <label class="field" id="atestadoEmpresaField" hidden>
+        <span>Empresa cliente</span>
+        <input class="input" id="atestadoEmpresa" type="text" list="atestadoEmpresaLista" placeholder="Nome da empresa cliente">
+        <datalist id="atestadoEmpresaLista"></datalist>
+        <div class="field-error" id="err-atestadoEmpresa">Informe a empresa cliente.</div>
+      </label>
+      <label class="field" id="solLocalField">
         <span>Cliente / local (opcional)</span>
         <input class="input" id="solLocal" type="text" placeholder="Ex.: Cartório, Prefeitura, nome do cliente...">
       </label>
-      <label class="field">
+      <label class="field" id="solDescricaoField">
         <span>Descrição</span>
         <textarea class="input" id="solDescricao" rows="3" placeholder="O que precisa ser feito" required></textarea>
         <div class="field-error" id="err-solDescricao">Descreva o que precisa ser feito.</div>
@@ -3122,7 +3149,47 @@
   function tipoSolicitacaoLabel(tipo) {
     if (tipo === 'entregar') return 'Entregar documento';
     if (tipo === 'buscar') return 'Buscar documento';
+    if (tipo === 'atestado') return 'Buscar atestado';
     return 'Outro';
+  }
+
+  // Conclui uma solicitação (usado tanto na lista de Solicitações quanto
+  // no cartão de Atestados dentro da Rota — mesma ação, dois lugares).
+  function concluirSolicitacao_(id) {
+    db.collection('solicitacoes').doc(id).update({
+      status: 'concluida', concluidoEm: new Date().toISOString(),
+      concluidoPor: (auth.currentUser && auth.currentUser.email) || '', concluidoPorNome: currentUserNome
+    }).catch(function (err) { showToast(errMsg(err, 'Não foi possível concluir.'), 'error'); });
+  }
+
+  function renderAtestadosRota_() {
+    var card = $('atestadosCard');
+    var lista = solicitacoesCache.filter(function (s) { return s.tipo === 'atestado' && s.status !== 'concluida'; });
+    card.hidden = lista.length === 0;
+    if (lista.length === 0) return;
+    lista.sort(function (a, b) { return new Date(a.criadoEm) - new Date(b.criadoEm); });
+    var listEl = $('atestadosList');
+    listEl.innerHTML = '';
+    lista.forEach(function (s) {
+      var row = document.createElement('div');
+      row.style.flexWrap = 'wrap';
+      row.className = 'entrega-row st-' + (s.urgente ? 'rota' : 'pendente');
+      row.innerHTML = '<div><div class="er-nome"></div><div class="er-sub"></div></div>' +
+        '<span class="status-pill ' + (s.urgente ? 'rota' : 'pendente') + '">' + (s.urgente ? 'Urgente' : 'Pendente') + '</span>';
+      row.querySelector('.er-nome').textContent = (s.atestadoFuncionario || 'funcionário') + ' — ' + (s.atestadoEmpresa || 'empresa não informada');
+      row.querySelector('.er-sub').textContent = 'Clínica: ' + (s.atestadoClinica || '?') + ' · pedido por ' + (s.criadoPorNome || s.criadoPor || '?') + ' · ' + fmtDateTime(s.criadoEm);
+      if (podeConcluirSolicitacao(s)) {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn-chip accent';
+        btn.style.cssText = 'margin-top:8px;width:100%;';
+        btn.innerHTML = '<i class="ph ph-check" aria-hidden="true"></i> Buscado';
+        btn.addEventListener('click', function (ev) { ev.stopPropagation(); concluirSolicitacao_(s.id); });
+        row.appendChild(btn);
+      }
+      listEl.appendChild(row);
+    });
+    listaChegou_(listEl);
   }
 
   // Notificação do navegador pro office boy/admin quando chega solicitação
@@ -3239,18 +3306,13 @@
         btn.className = 'btn-chip accent';
         btn.style.cssText = 'margin-top:8px;width:100%;';
         btn.innerHTML = '<i class="ph ph-check" aria-hidden="true"></i> Concluir';
-        btn.addEventListener('click', function (ev) {
-          ev.stopPropagation();
-          db.collection('solicitacoes').doc(s.id).update({
-            status: 'concluida', concluidoEm: new Date().toISOString(),
-            concluidoPor: (auth.currentUser && auth.currentUser.email) || '', concluidoPorNome: currentUserNome
-          }).catch(function (err) { showToast(errMsg(err, 'Não foi possível concluir.'), 'error'); });
-        });
+        btn.addEventListener('click', function (ev) { ev.stopPropagation(); concluirSolicitacao_(s.id); });
         row.appendChild(btn);
       }
       listEl.appendChild(row);
     });
     listaChegou_(listEl);
+    renderAtestadosRota_();
   }
 
   $('solNotifBtn').addEventListener('click', ativarNotificacoesSolicitacoes);
@@ -3261,27 +3323,60 @@
     renderSolicitacoes();
   });
 
+  function atualizarCamposAtestado_() {
+    var isAtestado = $('solTipo').value === 'atestado';
+    $('atestadoClinicaField').hidden = !isAtestado;
+    $('atestadoFuncionarioField').hidden = !isAtestado;
+    $('atestadoEmpresaField').hidden = !isAtestado;
+    $('solLocalField').hidden = isAtestado;
+    $('solDescricaoField').hidden = isAtestado;
+    if (!isAtestado) {
+      clearFieldError('atestadoFuncionario');
+      clearFieldError('atestadoEmpresa');
+    }
+  }
+  $('solTipo').addEventListener('change', atualizarCamposAtestado_);
+
   $('form-solicitacao').addEventListener('submit', function (e) {
     e.preventDefault();
+    var isAtestado = $('solTipo').value === 'atestado';
     var descricao = $('solDescricao').value.trim();
-    if (!descricao) { $('err-solDescricao').style.display = 'block'; return; }
+    var funcionario = $('atestadoFuncionario').value.trim();
+    var empresa = $('atestadoEmpresa').value.trim();
+    var ok = true;
+    if (isAtestado) {
+      if (!funcionario) { showFieldError('atestadoFuncionario'); ok = false; }
+      if (!empresa) { showFieldError('atestadoEmpresa'); ok = false; }
+      if (!ok) return;
+    } else if (!descricao) {
+      $('err-solDescricao').style.display = 'block';
+      return;
+    }
     $('err-solDescricao').style.display = 'none';
     var btn = $('solSubmitBtn');
     botaoOcupado_(btn);
-    var gravacao = db.collection('solicitacoes').add({
+    var clinica = $('atestadoClinica').value;
+    var dados = {
       tipo: $('solTipo').value,
-      local: $('solLocal').value.trim(),
-      descricao: descricao,
+      local: isAtestado ? clinica : $('solLocal').value.trim(),
+      descricao: isAtestado ? ('Buscar atestado de ' + funcionario + ' — ' + empresa + ' (clínica ' + clinica + ')') : descricao,
       urgente: $('solUrgente').checked,
       status: 'pendente',
       criadoPor: (auth.currentUser && auth.currentUser.email) || '',
       criadoPorNome: currentUserNome,
       criadoEm: new Date().toISOString()
-    });
+    };
+    if (isAtestado) {
+      dados.atestadoClinica = clinica;
+      dados.atestadoFuncionario = funcionario;
+      dados.atestadoEmpresa = empresa;
+    }
+    var gravacao = db.collection('solicitacoes').add(dados);
 
     escritaQueNaoTrava_(gravacao).then(function (resultado) {
       showToast(avisoDeEscrita_(resultado, 'Solicitação enviada.'));
       $('form-solicitacao').reset();
+      atualizarCamposAtestado_();
     }).catch(function (err) {
       showToast(errMsg(err, 'Não foi possível enviar.'), 'error');
     }).finally(function () {
@@ -5095,6 +5190,10 @@
       renderClientesList();
       renderPainel();
       updateDashStrip();
+      $('atestadoEmpresaLista').innerHTML = Array.from(clientesCache.values())
+        .filter(function (c) { return c.ativo !== false; })
+        .sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); })
+        .map(function (c) { return '<option value="' + escapeHtml_(c.nome) + '">'; }).join('');
       if (primeiraCargaClientes) { primeiraCargaClientes = false; restaurarRascunhoSeExistir_(); atualizarAlertaSemEntrega_(); }
     }, function (err) {
       $('no-db').hidden = false;
