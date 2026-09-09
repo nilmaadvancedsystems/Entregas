@@ -841,6 +841,13 @@
   .entrega-row:last-child { border-bottom: none; }
   .entrega-row:hover, .entrega-row:focus-visible { background: var(--surface-2); }
   .entrega-row > div:first-child, .history-row > div:first-child { min-width: 0; flex: 1; }
+  .rota-item-conteudo { min-width: 0; flex: 1; }
+  .rota-drag-handle {
+    display: flex; align-items: center; padding: 0 6px; margin-left: -4px;
+    color: var(--ink-faint); cursor: grab; touch-action: none; flex: none; align-self: stretch;
+  }
+  .rota-drag-handle:active { cursor: grabbing; }
+  .rota-item.arrastando { background: var(--surface-2); box-shadow: var(--shadow); position: relative; z-index: 5; }
   .er-nome, .cr-name { font-weight: 600; overflow-wrap: break-word; word-break: break-word; }
   .er-sub, .cr-sub { font-size: .78rem; color: var(--ink-faint); margin-top: 2px; overflow-wrap: break-word; word-break: break-word; }
   .status-pill { font-size: .74rem; font-weight: 700; padding: 5px 10px; border-radius: 999px; white-space: nowrap; flex-shrink: 0; }
@@ -1692,6 +1699,7 @@
     { key: 'darf', label: 'DARF' },
     { key: 'dae', label: 'DAE' },
     { key: 'honorario', label: 'Honorário', semValor: true },
+    { key: 'notas', label: 'Notas', semValor: true },
     { key: 'boleto', label: 'Boleto' },
     { key: 'ccir', label: 'CCIR', semValor: true },
     { key: 'multa_rescisoria', label: 'Multa Rescisória' },
@@ -2624,6 +2632,15 @@
     return marcados.length === 1 && marcados[0] === 'honorario' && !$('outroInput').value.trim() && duplicatasExtras.length === 0;
   }
 
+  // Entrega só de Notas, sem nenhum outro documento: mesma dispensa do
+  // Honorário (sem exigir foto nem assinatura), mas sem opção de Pix —
+  // não é um pagamento, então não tem comprovante de transferência a
+  // pedir.
+  function isApenasNotas_() {
+    var marcados = Array.from(itensGrid.querySelectorAll('input:checked')).map(function (i) { return i.dataset.key; });
+    return marcados.length === 1 && marcados[0] === 'notas' && !$('outroInput').value.trim() && duplicatasExtras.length === 0;
+  }
+
   function atualizarCampoHonorarioPix_() {
     $('honorarioPixField').hidden = !isApenasHonorario_();
     if ($('honorarioPixField').hidden) $('honorarioPixToggle').checked = false;
@@ -2827,12 +2844,13 @@
     if (itens.length === 0) { showFieldError('itens'); ok = false; }
     var honorarioSemPix = isApenasHonorario_() && !$('honorarioPixToggle').checked;
     var honorarioComPix = isApenasHonorario_() && $('honorarioPixToggle').checked;
+    var apenasNotas = isApenasNotas_();
     if (isFalha) {
       if (!fotoDataUrl) { showFieldError('foto'); ok = false; }
       if (!motivo) { showFieldError('falhaMotivo'); ok = false; }
     } else if (honorarioComPix) {
       if (!fotoDataUrl) { showFieldError('foto'); ok = false; }
-    } else if (!isRota && !honorarioSemPix && !mainSigPad.hasSignature && !fotoDataUrl) {
+    } else if (!isRota && !honorarioSemPix && !apenasNotas && !mainSigPad.hasSignature && !fotoDataUrl) {
       showFieldError('assinatura');
       ok = false;
     }
@@ -3064,7 +3082,17 @@
     var busca = $('rotaBusca').value.trim().toLowerCase();
     var filtroPessoa = selPessoa.value;
     var filtroZona = $('rotaFiltroZona').value;
-    var list = pendentesCache.slice().sort(function (a, b) { return new Date(a.criadoEm) - new Date(b.criadoEm); });
+    // Quem já foi arrastada pra uma posição manual usa essa ordem; quem
+    // nunca foi movida entra no fim, na ordem de criação (comportamento
+    // de sempre, antes de existir o arrastar-e-soltar).
+    var list = pendentesCache.slice().sort(function (a, b) {
+      var ao = typeof a.ordemRota === 'number' ? a.ordemRota : null;
+      var bo = typeof b.ordemRota === 'number' ? b.ordemRota : null;
+      if (ao !== null && bo !== null) return ao - bo;
+      if (ao !== null) return -1;
+      if (bo !== null) return 1;
+      return new Date(a.criadoEm) - new Date(b.criadoEm);
+    });
     if (busca) list = list.filter(function (e) { return (e.clienteNome || '').toLowerCase().indexOf(busca) !== -1; });
     if (filtroPessoa) list = list.filter(function (e) { return (e.entregadoPorNome || e.entregadoPor) === filtroPessoa; });
     if (filtroZona) list = list.filter(function (e) { return e.zona === filtroZona; });
@@ -3076,21 +3104,90 @@
       return;
     }
     list.forEach(function (e) {
-      var row = document.createElement('button');
-      row.type = 'button';
-      row.className = 'entrega-row st-rota';
+      var row = document.createElement('div');
+      row.className = 'entrega-row st-rota rota-item';
+      row.dataset.id = e.id;
       var itensStr = (e.itens || []).map(function (i) { return typeof i === 'string' ? i : i.tipo; }).join(', ');
       var total = (e.itens || []).reduce(function (s, i) { return s + ((i && i.valor) || 0); }, 0);
       var subtitle = fmtCompetencia(e.competencia) + ' · ' + itensStr + (total > 0 ? ' · ' + fmtMoney(total) : '') + (e.zona ? ' · ' + ZONA_LABEL[e.zona] : '');
       row.innerHTML =
-        '<div><div class="er-nome"></div><div class="er-sub"></div></div>' +
+        '<span class="rota-drag-handle" aria-label="Arrastar para reordenar"><i class="ph ph-dots-six-vertical" aria-hidden="true"></i></span>' +
+        '<div class="rota-item-conteudo"><div class="er-nome"></div><div class="er-sub"></div></div>' +
         '<span class="status-pill rota">Assinar</span>';
       row.querySelector('.er-nome').textContent = e.clienteNome;
       row.querySelector('.er-sub').textContent = subtitle;
-      row.addEventListener('click', function () { openConfirmPendingModal(e); });
+      row.addEventListener('click', function (ev) {
+        if (ev.target.closest('.rota-drag-handle')) return;
+        openConfirmPendingModal(e);
+      });
+      habilitarDragRota_(row);
       listEl.appendChild(row);
     });
     listaChegou_(listEl);
+  }
+
+  // Arrastar pra reordenar, com Pointer Events (funciona com mouse e
+  // toque, diferente do drag-and-drop nativo do HTML5, que a maioria dos
+  // navegadores de celular não suporta). Ao soltar, grava a ordem visual
+  // atual em "ordemRota" pra sobreviver a um recarregamento da página.
+  function habilitarDragRota_(row) {
+    var handle = row.querySelector('.rota-drag-handle');
+    handle.addEventListener('pointerdown', function (ev) {
+      ev.preventDefault();
+      var listEl = $('rotaList');
+      var startY = ev.clientY;
+      row.classList.add('arrastando');
+      function onMove(ev2) {
+        row.style.transform = 'translateY(' + (ev2.clientY - startY) + 'px)';
+        var irmaos = Array.from(listEl.children).filter(function (r) { return r !== row; });
+        for (var i = 0; i < irmaos.length; i++) {
+          var meio = irmaos[i].getBoundingClientRect().top + irmaos[i].getBoundingClientRect().height / 2;
+          if (ev2.clientY < meio) {
+            if (listEl.children[i] !== row) {
+              listEl.insertBefore(row, irmaos[i]);
+              startY = ev2.clientY;
+              row.style.transform = 'translateY(0)';
+            }
+            return;
+          }
+        }
+        if (listEl.lastElementChild !== row) {
+          listEl.appendChild(row);
+          startY = ev2.clientY;
+          row.style.transform = 'translateY(0)';
+        }
+      }
+      function onUp() {
+        document.removeEventListener('pointermove', onMove);
+        document.removeEventListener('pointerup', onUp);
+        row.classList.remove('arrastando');
+        row.style.transform = '';
+        salvarNovaOrdemRota_();
+      }
+      document.addEventListener('pointermove', onMove);
+      document.addEventListener('pointerup', onUp);
+    });
+  }
+
+  function salvarNovaOrdemRota_() {
+    var ids = Array.from($('rotaList').children).map(function (r) { return r.dataset.id; }).filter(Boolean);
+    if (!ids.length) return;
+    // As regras do Firestore só deixam alterar uma entrega que é sua ou
+    // sendo admin — se a rota visível mistura entregas de outras pessoas
+    // (várias pessoas na rota ao mesmo tempo), grava só a parte permitida
+    // em vez de a gravação toda falhar por causa de uma entrega de outro.
+    var email = auth.currentUser && auth.currentUser.email;
+    var permitido = temPapel('admin') ? ids : ids.filter(function (id) {
+      var item = pendentesCache.find(function (p) { return p.id === id; });
+      return item && item.entregadoPor === email;
+    });
+    if (permitido.length !== ids.length) {
+      showToast('Só entregas atribuídas a você foram reordenadas (as de outras pessoas exigem admin).', 'error');
+    }
+    if (!permitido.length) return;
+    var batch = db.batch();
+    permitido.forEach(function (id) { batch.update(db.doc('entregas/' + id), { ordemRota: ids.indexOf(id) }); });
+    batch.commit().catch(function (err) { showToast(errMsg(err, 'Não foi possível salvar a nova ordem.'), 'error'); });
   }
 
   // ---------- solicitações (entregar/buscar documento p/ office boy) ----------
