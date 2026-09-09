@@ -3332,7 +3332,14 @@
     navigator.serviceWorker.register('firebase-messaging-sw.js').then(function (registration) {
       var messaging = firebase.messaging();
       escutarMensagensEmPrimeiroPlano_(messaging);
-      return messaging.getToken({ vapidKey: FCM_VAPID_KEY, serviceWorkerRegistration: registration });
+      // O Firebase guarda o token gerado no próprio navegador e devolve
+      // esse mesmo valor de novo se só pedir com getToken() — se esse
+      // token já morreu (ex.: depois de trocar de projeto do Firebase),
+      // clicar em "reativar" ficava sempre devolvendo o token morto.
+      // Apagando antes, força gerar um token realmente novo.
+      return messaging.deleteToken().catch(function () {}).then(function () {
+        return messaging.getToken({ vapidKey: FCM_VAPID_KEY, serviceWorkerRegistration: registration });
+      });
     }).then(function (token) {
       if (!token || !auth.currentUser) return;
       return db.collection('usuarios').doc(auth.currentUser.uid).update({
