@@ -717,6 +717,11 @@
           <span></span>
           <button class="btn btn-primary" id="brandsContinueBtn" type="button" disabled>Continuar</button>
         </div>
+        <div style="margin-top:26px;padding-top:18px;border-top:1px solid var(--border);">
+          <p class="step-eyebrow" style="margin-bottom:6px;">Histórico</p>
+          <p class="dropzone-sub" style="margin:0 0 10px;">Conciliações já concluídas por aqui.</p>
+          <div id="historicoConciliacoes"><p class="dropzone-sub" style="margin:0;">Carregando...</p></div>
+        </div>
       </section>
 
       <div id="brandStepsHost"></div>
@@ -1872,6 +1877,7 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
         if(check.ok){
           renderTotalsBreakdown();
           document.getElementById('totalsBtnRow').style.display = 'flex';
+          if (window.registrarConciliacaoNoHistorico) window.registrarConciliacaoNoHistorico(state);
         } else if(attempt === 1){
           showInlineAlert('totalsAlertHost', {
             title:'Os totais não bateram — reanalisando do zero',
@@ -2505,12 +2511,65 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
         var roles = Array.isArray(data.roles) && data.roles.length ? data.roles : (data.role ? [data.role] : ['staff']);
         var liberado = roles.indexOf('admin') !== -1 || roles.indexOf('contabil') !== -1;
         if (!liberado) bloquear('Só admins e a equipe contábil abrem essa ferramenta. Peça a um admin pra te dar o cargo "Contábil" em Configurações → Quem tem acesso.');
+        else prepararHistoricoConciliacoes(user, db);
       }).catch(function () {
         // Sem resposta do banco (offline, bloqueio de rede, etc.) — não dá
         // pra confirmar nem negar, então deixa como está em vez de travar.
       });
     });
   } catch (e) {}
+
+  // ---------- histórico de conciliações ----------
+  // Cada conciliação concluída vira um registro leve (bandeiras, período,
+  // totais e quem fez) — sem os arquivos, só o resumo, pra dar pra
+  // consultar depois o que já foi feito e por quem.
+  function prepararHistoricoConciliacoes(user, db) {
+    window.registrarConciliacaoNoHistorico = function (state) {
+      try {
+        var porBandeira = Object.keys(state.datasets || {}).map(function (code) {
+          var d = state.datasets[code] || {};
+          return { bandeira: code, linhas: (d.rows || []).length };
+        });
+        db.collection('conciliacoes').add({
+          bandeiras: state.brands || [],
+          porBandeira: porBandeira,
+          meses: state.excludedMonths ? null : null,
+          feitoPor: user.email || '',
+          feitoEm: new Date().toISOString()
+        }).then(function () { carregarHistoricoConciliacoes(db); }).catch(function () {});
+      } catch (e) {}
+    };
+    carregarHistoricoConciliacoes(db);
+  }
+
+  function carregarHistoricoConciliacoes(db) {
+    var host = document.getElementById('historicoConciliacoes');
+    if (!host) return;
+    db.collection('conciliacoes').orderBy('feitoEm', 'desc').limit(20).get().then(function (snap) {
+      if (snap.empty) {
+        host.innerHTML = '<p class="dropzone-sub" style="margin:0;">Nenhuma conciliação registrada ainda.</p>';
+        return;
+      }
+      host.innerHTML = '';
+      snap.docs.forEach(function (doc) {
+        var c = doc.data();
+        var linha = document.createElement('div');
+        linha.style.cssText = 'display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--border);font-size:13.5px;';
+        var quando = '';
+        try { quando = new Date(c.feitoEm).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }); } catch (e) { quando = c.feitoEm; }
+        var esq = document.createElement('span');
+        esq.textContent = (c.bandeiras || []).join(', ').toUpperCase() || 'sem bandeira';
+        var dir = document.createElement('span');
+        dir.style.cssText = 'color:var(--ink-faint);white-space:nowrap;';
+        dir.textContent = quando + ' · ' + (c.feitoPor || '');
+        linha.appendChild(esq);
+        linha.appendChild(dir);
+        host.appendChild(linha);
+      });
+    }).catch(function () {
+      host.innerHTML = '<p class="dropzone-sub" style="margin:0;">Não foi possível carregar o histórico.</p>';
+    });
+  }
 })();
 </script>
 </body>

@@ -849,6 +849,14 @@
     font-weight: 700; font-size: .86rem; color: var(--accent); text-transform: capitalize;
   }
   .historico-mes:first-of-type { margin-top: 8px; }
+  .repetir-aviso {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+    background: var(--accent-soft); border: 1px solid var(--border); border-radius: var(--radius-m);
+    padding: 10px 12px; font-size: .82rem; color: var(--ink-soft);
+  }
+  .valor-divergente {
+    display: block; margin-top: 4px; font-size: .74rem; color: var(--warning); font-weight: 600;
+  }
   .historico-mes-total { font-weight: 600; font-size: .74rem; color: var(--ink-faint); text-transform: none; }
   .rota-drag-handle {
     display: flex; align-items: center; padding: 0 6px; margin-left: -4px;
@@ -1267,6 +1275,13 @@
         <div class="field-error" id="err-itens">Selecione ao menos um documento.</div>
       </label>
 
+      <div class="field" id="repetirMesField" hidden>
+        <div class="repetir-aviso">
+          <span id="repetirMesTexto"></span>
+          <button type="button" class="btn-chip accent" id="repetirMesBtn"><i class="ph ph-arrow-counter-clockwise" aria-hidden="true"></i> Repetir</button>
+        </div>
+      </div>
+
       <label class="field" id="honorarioPixField" hidden>
         <span class="avulso-toggle"><input type="checkbox" id="honorarioPixToggle"> Recebido via Pix</span>
         <span class="card-hint" style="margin-top:4px;display:block;">Em dinheiro o próprio dinheiro é o comprovante — não precisa de foto nem assinatura. Via Pix, marque aqui e anexe o comprovante da transferência.</span>
@@ -1353,6 +1368,19 @@
           </select>
         </div>
       </div>
+    </div>
+    <div class="card" id="fechamentoCard">
+      <div class="card-head-row">
+        <h2><i class="ph ph-clipboard-text" aria-hidden="true"></i> Fechamento do dia</h2>
+        <button type="button" class="btn-chip" id="fechamentoCopiarBtn"><i class="ph ph-whatsapp-logo" aria-hidden="true"></i> Copiar resumo</button>
+      </div>
+      <p class="card-hint">Como está o dia até agora — dá pra conferir antes de encerrar e mandar o resumo pra quem precisa.</p>
+      <div class="dash-strip">
+        <div class="dash-item ok"><span class="dash-num" id="fechEntregues">0</span><span class="dash-label">entregues hoje</span></div>
+        <div class="dash-item neutro"><span class="dash-num" id="fechFalhas">0</span><span class="dash-label">não entregues hoje</span></div>
+        <div class="dash-item rota"><span class="dash-num" id="fechRota">0</span><span class="dash-label">ainda na rota</span></div>
+      </div>
+      <div id="fechamentoDetalhe" style="margin-top:12px;"></div>
     </div>
     <div class="card" id="atestadosCard" hidden>
       <div class="card-head-row">
@@ -1535,6 +1563,20 @@
         </div>
       </div>
     </form>
+    <div class="card" id="competenciasCard" hidden>
+      <div class="card-head-row">
+        <h2>Competências fechadas</h2>
+      </div>
+      <p class="card-hint">Marque uma competência como fechada quando ela já foi conferida. Lançar entrega numa competência fechada passa a pedir confirmação extra, pra ninguém mexer no mês errado sem querer.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
+        <label class="field" style="flex:1;min-width:160px;margin-bottom:0;">
+          <span>Competência</span>
+          <input class="input" id="competenciaFecharInput" type="month">
+        </label>
+        <button type="button" class="btn-chip accent" id="fecharCompetenciaBtn">Fechar competência</button>
+      </div>
+      <div id="competenciasFechadasLista" style="margin-top:12px;"></div>
+    </div>
     <div class="card" id="auditoriaCard" hidden>
       <div class="card-head-row">
         <h2>Auditoria</h2>
@@ -2683,7 +2725,13 @@
       inp.setAttribute('aria-label', 'Valor de ' + e.label);
       inp.value = valoresState[e.key] || '';
       inp.addEventListener('input', function () { valoresState[e.key] = inp.value; });
-      row.querySelector('.valor-clear').addEventListener('click', function () { valoresState[e.key] = ''; inp.value = ''; });
+      inp.addEventListener('blur', function () { avisarValorDivergente_(e.key, inp); });
+      row.querySelector('.valor-clear').addEventListener('click', function () {
+        valoresState[e.key] = '';
+        inp.value = '';
+        var aviso = row.querySelector('.valor-divergente');
+        if (aviso) aviso.remove();
+      });
       row.querySelector('.valor-duplicar').addEventListener('click', function () {
         duplicatasExtras.push({ id: 'dup' + (++duplicataSeq), label: e.label, pedeFuncionario: e.pedeFuncionario, valor: '', funcionario: '' });
         renderValores();
@@ -2712,6 +2760,88 @@
         list.appendChild(criarLinhaFuncionario_(dup.label, dup.funcionario, function (v) { dup.funcionario = v; }));
       }
     });
+  }
+
+  // ---------- repetir a entrega do mês passado ----------
+  // Muito cliente recebe sempre os mesmos documentos todo mês. Ao escolher
+  // o cliente, busca a última entrega dele na competência anterior e
+  // oferece repetir aquela combinação (documentos + valores), pra não ter
+  // que remarcar tudo na mão.
+  var entregaMesPassado_ = null;
+
+  function competenciaAnterior_(comp) {
+    var partes = (comp || currentCompetencia()).split('-');
+    var d = new Date(parseInt(partes[0], 10), parseInt(partes[1], 10) - 1, 1);
+    d.setMonth(d.getMonth() - 1);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  }
+
+  function oferecerRepetirMesPassado_(cliente) {
+    entregaMesPassado_ = null;
+    $('repetirMesField').hidden = true;
+    if (!db || !cliente) return;
+    var anterior = competenciaAnterior_($('competenciaInput').value);
+    db.collection('entregas')
+      .where('clienteId', '==', cliente.id)
+      .where('competencia', '==', anterior)
+      .limit(10).get()
+      .then(function (snap) {
+        var candidatas = snap.docs.map(function (d) { return d.data(); })
+          .filter(function (e) { return (e.itens || []).length; });
+        if (!candidatas.length) return;
+        entregaMesPassado_ = candidatas[candidatas.length - 1];
+        var resumo = (entregaMesPassado_.itens || []).map(function (i) { return typeof i === 'string' ? i : i.tipo; }).join(', ');
+        $('repetirMesTexto').textContent = 'Em ' + fmtCompetencia(anterior) + ' esse cliente recebeu: ' + resumo;
+        $('repetirMesField').hidden = false;
+      })
+      .catch(function () {});
+  }
+
+  $('repetirMesBtn').addEventListener('click', function () {
+    if (!entregaMesPassado_) return;
+    itensGrid.querySelectorAll('input:checked').forEach(function (i) { i.checked = false; });
+    valoresState = {};
+    funcionarioState = {};
+    duplicatasExtras = [];
+    var naoEncontrados = [];
+    (entregaMesPassado_.itens || []).forEach(function (item) {
+      var label = typeof item === 'string' ? item : item.tipo;
+      var tipo = DOC_TIPOS.filter(function (t) { return t.label === label; })[0];
+      if (!tipo) { naoEncontrados.push(label); return; }
+      var chk = itensGrid.querySelector('input[data-key="' + tipo.key + '"]');
+      if (chk) chk.checked = true;
+      if (item && item.valor != null) valoresState[tipo.key] = String(item.valor).replace('.', ',');
+      if (item && item.funcionario) funcionarioState[tipo.key] = item.funcionario;
+    });
+    if (naoEncontrados.length) $('outroInput').value = naoEncontrados.join(', ');
+    renderValores();
+    atualizarCampoHonorarioPix_();
+    salvarRascunho_();
+    showToast('Documentos e valores do mês passado copiados — confira antes de confirmar.');
+  });
+
+  // ---------- aviso de valor bem diferente do mês passado ----------
+  // Erro de digitação ou guia trocada costuma aparecer como um valor
+  // muito fora do que aquele cliente paga todo mês naquele documento.
+  function avisarValorDivergente_(chaveTipo, campoValor) {
+    var aviso = campoValor.parentElement.querySelector('.valor-divergente');
+    if (aviso) aviso.remove();
+    if (!entregaMesPassado_) return;
+    var atual = parseValor(campoValor.value);
+    if (!atual) return;
+    var anteriorItem = (entregaMesPassado_.itens || []).filter(function (i) {
+      var label = typeof i === 'string' ? i : i.tipo;
+      var tipo = DOC_TIPOS.filter(function (t) { return t.key === chaveTipo; })[0];
+      return tipo && label === tipo.label;
+    })[0];
+    var antes = anteriorItem && anteriorItem.valor;
+    if (!antes) return;
+    var variacao = Math.abs(atual - antes) / antes;
+    if (variacao < 0.3) return;
+    var span = document.createElement('span');
+    span.className = 'valor-divergente';
+    span.textContent = '⚠️ No mês passado foi ' + fmtMoney(antes) + ' — confira se está certo.';
+    campoValor.parentElement.appendChild(span);
   }
 
   // Entrega só de Honorário, sem nenhum outro documento: em dinheiro o
@@ -2787,6 +2917,7 @@
         suggestionsEl.classList.remove('show');
         clearFieldError('cliente');
         aplicarZonaDoCliente_(c);
+        oferecerRepetirMesPassado_(c);
       });
       suggestionsEl.appendChild(btn);
     });
@@ -2945,6 +3076,16 @@
       ok = false;
     }
     if (!ok) return;
+
+    // competência já conferida e fechada: pede uma confirmação a mais em
+    // vez de deixar lançar em silêncio no mês errado
+    if (competenciasFechadas.indexOf(competencia) !== -1 && !$('submitBtn').dataset.competenciaConfirmada) {
+      $('submitBtn').dataset.competenciaConfirmada = '1';
+      showToast('⚠️ ' + fmtCompetencia(competencia) + ' já está fechada. Toque em confirmar de novo se for isso mesmo.', 'error');
+      setTimeout(function () { delete $('submitBtn').dataset.competenciaConfirmada; }, 8000);
+      return;
+    }
+    delete $('submitBtn').dataset.competenciaConfirmada;
 
     var btn = $('submitBtn');
     botaoOcupado_(btn);
@@ -3147,6 +3288,7 @@
       renderRota();
       renderClientesList();
       updateDashStrip();
+      renderFechamentoDia_();
     }, function (err) { showToast(errMsg(err, 'Não foi possível carregar a rota.'), 'error'); });
   }
 
@@ -3159,6 +3301,102 @@
     document.querySelector('#modeToggle .mode-btn[data-mode="rota"]').click();
   });
   $('rotaProximidadeBtn').addEventListener('click', ordenarRotaPorProximidade_);
+
+  // ---------- fechamento do dia ----------
+  function entregasDeHoje_() {
+    var hojeStr = new Date().toDateString();
+    return entregasPainelCache.filter(function (e) {
+      if (!e.confirmadoEm) return false;
+      try { return new Date(e.confirmadoEm).toDateString() === hojeStr; } catch (err) { return false; }
+    });
+  }
+
+  function renderFechamentoDia_() {
+    if (!$('fechamentoCard')) return;
+    var doDia = entregasDeHoje_();
+    var entregues = doDia.filter(function (e) { return e.status === 'confirmada'; });
+    var falhas = doDia.filter(function (e) { return e.status === 'falha'; });
+    $('fechEntregues').textContent = entregues.length;
+    $('fechFalhas').textContent = falhas.length;
+    $('fechRota').textContent = pendentesCache.length;
+
+    var det = $('fechamentoDetalhe');
+    det.innerHTML = '';
+    function bloco(titulo, itens, classe, textoDe) {
+      if (!itens.length) return;
+      var h = document.createElement('div');
+      h.className = 'historico-mes';
+      h.innerHTML = '<span>' + titulo + '</span><span class="historico-mes-total">' + itens.length + '</span>';
+      det.appendChild(h);
+      itens.forEach(function (e) {
+        var row = document.createElement('div');
+        row.className = 'entrega-row st-' + classe;
+        row.innerHTML = '<div><div class="er-nome"></div><div class="er-sub"></div></div>';
+        row.querySelector('.er-nome').textContent = e.clienteNome || 'sem cliente';
+        row.querySelector('.er-sub').textContent = textoDe(e);
+        det.appendChild(row);
+      });
+    }
+    bloco('Entregues hoje', entregues, 'entregue', function (e) {
+      return (e.itens || []).map(function (i) { return typeof i === 'string' ? i : i.tipo; }).join(', ');
+    });
+    bloco('Não entregues hoje', falhas, 'falha', function (e) { return e.motivoFalha || 'sem motivo informado'; });
+    bloco('Ainda na rota', pendentesCache, 'rota', function (e) { return fmtCompetencia(e.competencia); });
+    if (!det.children.length) det.innerHTML = '<div class="empty-state">Nada movimentado hoje ainda.</div>';
+  }
+
+  function textoResumoDoDia_() {
+    var doDia = entregasDeHoje_();
+    var entregues = doDia.filter(function (e) { return e.status === 'confirmada'; });
+    var falhas = doDia.filter(function (e) { return e.status === 'falha'; });
+    var hoje = new Date().toLocaleDateString('pt-BR');
+    var linhas = ['*Fechamento do dia — ' + hoje + '*', ''];
+    linhas.push('✅ Entregues: ' + entregues.length);
+    entregues.forEach(function (e) { linhas.push('• ' + (e.clienteNome || 'sem cliente')); });
+    if (falhas.length) {
+      linhas.push('');
+      linhas.push('⚠️ Não entregues: ' + falhas.length);
+      falhas.forEach(function (e) { linhas.push('• ' + (e.clienteNome || 'sem cliente') + ' — ' + (e.motivoFalha || 'sem motivo')); });
+    }
+    if (pendentesCache.length) {
+      linhas.push('');
+      linhas.push('🚚 Ainda na rota: ' + pendentesCache.length);
+      pendentesCache.forEach(function (e) { linhas.push('• ' + (e.clienteNome || 'sem cliente')); });
+    }
+    return linhas.join('\n');
+  }
+
+  // Mostra o texto numa caixa pra copiar na mão — usado quando o
+  // navegador não deixa copiar sozinho (acontece em alguns celulares).
+  function mostrarTextoParaCopiar_(titulo, texto) {
+    var root = $('modalRoot');
+    root.innerHTML =
+      '<div class="modal-overlay" id="overlay"><div class="modal">' +
+        '<div class="modal-head"><div><h2>' + escapeHtml_(titulo) + '</h2>' +
+        '<div class="card-hint" style="margin:2px 0 0">Selecione tudo e copie pra mandar onde quiser.</div></div>' +
+        '<button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button></div>' +
+        '<textarea class="input" id="textoParaCopiar" rows="12" readonly></textarea>' +
+      '</div></div>';
+    $('textoParaCopiar').value = texto;
+    $('modalClose').addEventListener('click', closeModal);
+    $('overlay').addEventListener('click', function (e) { if (e.target.id === 'overlay') closeModal(); });
+    $('textoParaCopiar').focus();
+    $('textoParaCopiar').select();
+  }
+
+  function copiarOuMostrar_(titulo, texto, msgOk) {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(texto)
+        .then(function () { showToast(msgOk); })
+        .catch(function () { mostrarTextoParaCopiar_(titulo, texto); });
+    } else {
+      mostrarTextoParaCopiar_(titulo, texto);
+    }
+  }
+
+  $('fechamentoCopiarBtn').addEventListener('click', function () {
+    copiarOuMostrar_('Fechamento do dia', textoResumoDoDia_(), 'Resumo copiado — é só colar no WhatsApp.');
+  });
 
   // ---------- busca rápida (Ctrl+K) ----------
   var ABAS_BUSCA = [
@@ -3980,6 +4218,7 @@
     renderPainelMapa();
     renderGraficoDiario_();
     renderRankingEquipe_();
+    renderFechamentoDia_();
   }
 
   function renderRankingEquipe_() {
@@ -4213,8 +4452,48 @@
         '<dt>Data/hora</dt><dd>' + fmtDateTime(entrega.confirmadoEm || entrega.criadoEm) + '</dd>' +
         '<dt>Localização</dt><dd>' + geoLink + '</dd>' +
       '</dl>' +
+      '<button type="button" class="btn-chip accent" id="compartilharComprovanteBtn"><i class="ph ph-whatsapp-logo" aria-hidden="true"></i> Enviar comprovante</button> ' +
       (podeExcluir(entrega) ? '<button type="button" class="btn-chip danger" id="excluirEntregaBtn"><i class="ph ph-trash" aria-hidden="true"></i> Excluir entrega</button>' : '');
     $('modalClose').addEventListener('click', function () { renderHistoricoList(cliente, historico); });
+
+    $('compartilharComprovanteBtn').addEventListener('click', function () {
+      var itensTxt = entrega.itens.map(function (i) {
+        var label = typeof i === 'string' ? i : i.tipo;
+        return '• ' + label + ((i && i.valor != null) ? ' — ' + fmtMoney(i.valor) : '');
+      }).join('\n');
+      var texto = 'Comprovante de entrega — ' + clienteLabel(cliente) + '\n' +
+        fmtCompetencia(entrega.competencia) + '\n\n' + itensTxt +
+        (total > 0 ? '\n\nTotal: ' + fmtMoney(total) : '') +
+        '\nRecebido por: ' + (entrega.recebedor || 'não informado') +
+        '\nEntregue por: ' + (entrega.entregadoPorNome || entrega.entregadoPor || 'não informado') +
+        '\nData: ' + fmtDateTime(entrega.confirmadoEm || entrega.criadoEm);
+
+      // Se o aparelho souber compartilhar (celular), manda o texto junto
+      // com a imagem do comprovante; senão cai no WhatsApp Web com o
+      // texto, que é o que dá pra fazer por link.
+      getAnexos(entrega.id).then(function (anexos) {
+        var imagem = anexos.assinatura || anexos.foto;
+        if (navigator.share && imagem) {
+          fetch(imagem).then(function (r) { return r.blob(); }).then(function (blob) {
+            var arquivo = new File([blob], 'comprovante.jpg', { type: blob.type || 'image/jpeg' });
+            if (navigator.canShare && navigator.canShare({ files: [arquivo] })) {
+              return navigator.share({ text: texto, files: [arquivo] });
+            }
+            return navigator.share({ text: texto });
+          }).catch(function () {
+            window.open('https://wa.me/?text=' + encodeURIComponent(texto), '_blank');
+          });
+        } else if (navigator.share) {
+          navigator.share({ text: texto }).catch(function () {
+            window.open('https://wa.me/?text=' + encodeURIComponent(texto), '_blank');
+          });
+        } else {
+          window.open('https://wa.me/?text=' + encodeURIComponent(texto), '_blank');
+        }
+      }).catch(function () {
+        window.open('https://wa.me/?text=' + encodeURIComponent(texto), '_blank');
+      });
+    });
     if ($('excluirEntregaBtn')) {
       $('excluirEntregaBtn').addEventListener('click', function () {
         var btn = this;
@@ -4970,6 +5249,7 @@
     $('perfilLista').hidden = false;
     $('form-equipe').hidden = !temPapel('admin');
     $('auditoriaCard').hidden = !temPapel('admin');
+    $('competenciasCard').hidden = !temPapel('admin');
   }
 
   function abrirPessoa(uid) {
@@ -5725,6 +6005,49 @@
     });
   });
 
+  // ---------- competências fechadas ----------
+  // Guardado num documento só (config/competencias), com uma lista de
+  // competências já conferidas. Não bloqueia de vez: só faz o app pedir
+  // uma confirmação a mais antes de lançar em mês fechado.
+  var competenciasFechadas = [];
+  var unsubCompetencias = null;
+
+  function subscribeCompetenciasFechadas_() {
+    if (unsubCompetencias || !db) return;
+    unsubCompetencias = db.doc('config/competencias').onSnapshot(function (snap) {
+      competenciasFechadas = (snap.exists && snap.data().fechadas) || [];
+      renderCompetenciasFechadas_();
+    }, function () {});
+  }
+
+  function renderCompetenciasFechadas_() {
+    var el = $('competenciasFechadasLista');
+    if (!el) return;
+    if (!competenciasFechadas.length) {
+      el.innerHTML = '<div class="empty-state">Nenhuma competência fechada ainda.</div>';
+      return;
+    }
+    el.innerHTML = '';
+    competenciasFechadas.slice().sort().reverse().forEach(function (comp) {
+      var row = document.createElement('div');
+      row.className = 'client-row';
+      row.innerHTML = '<div><div class="cr-name"></div></div>' +
+        (temPapel('admin') ? '<div class="cr-actions"><button class="btn-chip">Reabrir</button></div>' : '');
+      row.querySelector('.cr-name').textContent = fmtCompetencia(comp);
+      if (temPapel('admin')) {
+        row.querySelector('.btn-chip').addEventListener('click', function () {
+          db.doc('config/competencias').set({
+            fechadas: competenciasFechadas.filter(function (c) { return c !== comp; })
+          }, { merge: true }).then(function () {
+            registrarAuditoria_('competencia_reaberta', fmtCompetencia(comp));
+            showToast('Competência reaberta.');
+          }).catch(function (err) { showToast(errMsg(err, 'Não foi possível reabrir.'), 'error'); });
+        });
+      }
+      el.appendChild(row);
+    });
+  }
+
   var AUDITORIA_LABEL = {
     funcao: 'Mudança de cargo',
     exclusao_entrega: 'Entrega excluída',
@@ -5732,6 +6055,22 @@
     cliente_desativado: 'Cliente desativado',
     cliente_reativado: 'Cliente reativado'
   };
+  $('fecharCompetenciaBtn').addEventListener('click', function () {
+    var comp = $('competenciaFecharInput').value;
+    if (!comp) { showToast('Escolha a competência.', 'error'); return; }
+    if (competenciasFechadas.indexOf(comp) !== -1) { showToast('Essa competência já está fechada.'); return; }
+    var btn = this;
+    botaoOcupado_(btn);
+    db.doc('config/competencias').set({ fechadas: competenciasFechadas.concat([comp]) }, { merge: true })
+      .then(function () {
+        registrarAuditoria_('competencia_fechada', fmtCompetencia(comp));
+        showToast('Competência ' + fmtCompetencia(comp) + ' fechada.');
+        $('competenciaFecharInput').value = '';
+      })
+      .catch(function (err) { showToast(errMsg(err, 'Não foi possível fechar.'), 'error'); })
+      .finally(function () { botaoLivre_(btn); });
+  });
+
   var auditoriaCarregada = false;
   $('auditoriaAbrirBtn').addEventListener('click', function () {
     var lista = $('auditoriaList');
@@ -5808,6 +6147,7 @@
     captureGeo();
     $('form-equipe').hidden = !temPapel('admin');
     $('auditoriaCard').hidden = !temPapel('admin');
+    $('competenciasCard').hidden = !temPapel('admin');
     $('form-cliente').hidden = !temPapel('admin');
     $('importCard').hidden = !temPapel('admin');
     // Perfil é a página de administração de acessos: só admin enxerga.
@@ -5830,6 +6170,7 @@
     subscribePendentes();
     subscribeSolicitacoes();
     subscribeNotas();
+    subscribeCompetenciasFechadas_();
     atualizarBotaoNotificacoes();
     var brandName = $('brandName');
     brandName.textContent = currentUserNome;
