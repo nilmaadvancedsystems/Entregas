@@ -932,11 +932,15 @@
   .equipe-row { gap: 12px; }
   .equipe-info { min-width: 0; flex: 1; display: block; text-align: left; }
   .equipe-abrir {
-    display: flex; align-items: center; gap: 12px; width: 100%; min-width: 0;
+    display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; width: 100%; min-width: 0;
     border: none; background: none; padding: 6px; margin: -6px; border-radius: var(--radius-s);
     cursor: pointer; text-align: left; color: inherit;
   }
-  .equipe-abrir .status-pill { margin-left: auto; }
+  /* Com muitos cargos (Admin · Office boy · Contábil · Equipe geral), o
+     texto do selo não cabe do lado do nome numa tela estreita — em vez de
+     forçar o nome a espremer letra por letra, o selo quebra pra linha de
+     baixo sozinho. */
+  .equipe-abrir .status-pill { margin-left: auto; white-space: normal; text-align: right; max-width: 100%; flex-shrink: 1; }
   .equipe-abrir:hover { background: var(--surface-2); }
   .equipe-abrir .cr-name, .equipe-abrir .cr-sub { display: block; }
 
