@@ -1320,6 +1320,7 @@
     <div class="card">
       <div class="card-head-row">
         <h2>Rota de entregas</h2>
+        <button type="button" class="btn-chip" id="rotaProximidadeBtn"><i class="ph ph-navigation-arrow" aria-hidden="true"></i> Ordenar por proximidade</button>
         <button type="button" class="btn-chip accent" id="rotaAddBtn">+ Adicionar à rota</button>
       </div>
       <p class="card-hint">Documentos e valores já prontos — falta só colher a assinatura na hora da entrega.</p>
@@ -2939,6 +2940,7 @@
     if (isRota && cliente && $('zonaSelect').value && cliente.zona !== $('zonaSelect').value) {
       db.doc('clientes/' + cliente.id).update({ zona: $('zonaSelect').value }).catch(function () {});
     }
+    if (!isRota && !isFalha && cliente) guardarLocalDoCliente_(cliente.id, currentGeo);
 
     escritaQueNaoTrava_(gravacao).then(function (resultado) {
       showToast(avisoDeEscrita_(resultado, isRota ? 'Adicionado à rota — aguardando assinatura.' : (isFalha ? 'Entrega não realizada registrada.' : 'Entrega registrada com sucesso.')));
@@ -3119,6 +3121,7 @@
     document.querySelector('.tab[data-tab="nova"]').click();
     document.querySelector('#modeToggle .mode-btn[data-mode="rota"]').click();
   });
+  $('rotaProximidadeBtn').addEventListener('click', ordenarRotaPorProximidade_);
 
   // ---------- busca rápida (Ctrl+K) ----------
   var ABAS_BUSCA = [
@@ -3343,6 +3346,80 @@
       document.addEventListener('pointermove', onMove);
       document.addEventListener('pointerup', onUp);
     });
+  }
+
+  // Guarda no cadastro do cliente a localização de onde a entrega foi
+  // confirmada. Não é o endereço oficial dele, é onde a entrega aconteceu
+  // de fato — que é justamente o que serve pra montar a rota por
+  // proximidade depois.
+  function guardarLocalDoCliente_(clienteId, geo) {
+    if (!clienteId || !geo || typeof geo.lat !== 'number') return;
+    db.doc('clientes/' + clienteId).update({ geo: geo }).catch(function () {});
+  }
+
+  function distanciaKm_(a, b) {
+    var R = 6371;
+    var dLat = (b.lat - a.lat) * Math.PI / 180;
+    var dLng = (b.lng - a.lng) * Math.PI / 180;
+    var lat1 = a.lat * Math.PI / 180, lat2 = b.lat * Math.PI / 180;
+    var h = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.sin(dLng / 2) * Math.sin(dLng / 2) * Math.cos(lat1) * Math.cos(lat2);
+    return 2 * R * Math.asin(Math.sqrt(h));
+  }
+
+  // Ordena a rota pelo caminho mais curto começando de onde a pessoa está:
+  // pega a entrega mais perto, depois a mais perto dessa, e assim por
+  // diante (vizinho mais próximo). Quem não tem localização conhecida vai
+  // pro fim da lista, na ordem em que já estava.
+  function ordenarRotaPorProximidade_() {
+    if (!navigator.geolocation) { showToast('Este aparelho não informa localização.', 'error'); return; }
+    var btn = $('rotaProximidadeBtn');
+    botaoOcupado_(btn);
+    navigator.geolocation.getCurrentPosition(function (pos) {
+      var atual = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      var linhas = Array.from($('rotaList').querySelectorAll('.rota-item'));
+      var comLocal = [], semLocal = [];
+      linhas.forEach(function (row) {
+        var entrega = pendentesCache.filter(function (p) { return p.id === row.dataset.id; })[0];
+        var cliente = entrega && entrega.clienteId ? clientesCache.get(entrega.clienteId) : null;
+        var geo = cliente && cliente.geo;
+        if (geo && typeof geo.lat === 'number') comLocal.push({ id: row.dataset.id, geo: geo });
+        else semLocal.push({ id: row.dataset.id });
+      });
+
+      if (!comLocal.length) {
+        botaoLivre_(btn);
+        showToast('Nenhum cliente da rota tem localização conhecida ainda — ela é guardada quando você confirma uma entrega no local.', 'error');
+        return;
+      }
+
+      var ordenadas = [], restantes = comLocal.slice(), referencia = atual;
+      while (restantes.length) {
+        var melhor = 0;
+        for (var i = 1; i < restantes.length; i++) {
+          if (distanciaKm_(referencia, restantes[i].geo) < distanciaKm_(referencia, restantes[melhor].geo)) melhor = i;
+        }
+        referencia = restantes[melhor].geo;
+        ordenadas.push(restantes.splice(melhor, 1)[0]);
+      }
+
+      var idsFinais = ordenadas.concat(semLocal).map(function (x) { return x.id; });
+      var email = auth.currentUser && auth.currentUser.email;
+      var permitido = temPapel('admin') ? idsFinais : idsFinais.filter(function (id) {
+        var item = pendentesCache.filter(function (p) { return p.id === id; })[0];
+        return item && item.entregadoPor === email;
+      });
+      var batch = db.batch();
+      permitido.forEach(function (id) { batch.update(db.doc('entregas/' + id), { ordemRota: idsFinais.indexOf(id) }); });
+      batch.commit().then(function () {
+        showToast('Rota reordenada da mais perto pra mais longe' + (semLocal.length ? ' (' + semLocal.length + ' sem localização foram pro fim).' : '.'));
+      }).catch(function (err) {
+        showToast(errMsg(err, 'Não foi possível salvar a nova ordem.'), 'error');
+      }).finally(function () { botaoLivre_(btn); });
+    }, function () {
+      botaoLivre_(btn);
+      showToast('Não consegui pegar sua localização agora.', 'error');
+    }, { timeout: 10000, maximumAge: 60000 });
   }
 
   function salvarNovaOrdemRota_() {
@@ -4346,6 +4423,7 @@
           status: 'confirmada',
           confirmadoEm: agora
         }).then(function () {
+          guardarLocalDoCliente_(e.clienteId, loteGeo);
           return ref.collection('anexos').doc('comprovante').set({ assinatura: assinatura, foto: loteFoto }, { merge: true });
         });
       });
@@ -4511,6 +4589,7 @@
         status: isFalha ? 'falha' : 'confirmada',
         confirmadoEm: new Date().toISOString()
       }).then(function () {
+        if (!isFalha) guardarLocalDoCliente_(entrega.clienteId, pendingGeo);
         return entregaRef.collection('anexos').doc('comprovante').set({
           assinatura: (!isFalha && pendingPad.hasSignature) ? pendingPad.dataUrl() : null,
           foto: pendingFoto
