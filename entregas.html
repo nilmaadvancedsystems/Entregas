@@ -1317,6 +1317,13 @@
         </div>
       </div>
     </div>
+    <div class="card" id="alertaSemEntregaCard" hidden>
+      <div class="card-head-row">
+        <h2><i class="ph ph-warning-circle" aria-hidden="true"></i> Sem entrega há tempo</h2>
+        <button type="button" class="btn-chip" id="verSemEntregaBtn"></button>
+      </div>
+      <p class="card-hint">Clientes ativos sem nenhuma entrega confirmada nas últimas 3 competências.</p>
+    </div>
     <div class="card" id="painelList"><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
     <div class="card">
       <div class="card-head-row">
@@ -3220,6 +3227,69 @@
     });
   }
 
+  // ---------- alerta: cliente sem entrega há tempo ----------
+  var clientesSemEntregaCache = [];
+
+  function ultimasCompetencias_(n) {
+    var out = [];
+    var d = new Date();
+    for (var i = 0; i < n; i++) {
+      out.push(d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'));
+      d.setMonth(d.getMonth() - 1);
+    }
+    return out;
+  }
+
+  // Compara com as últimas 3 competências em vez de só a atual — pra não
+  // duplicar a consulta a cada troca de filtro, guarda o resultado e só
+  // recalcula quando os clientes mudam de verdade.
+  function atualizarAlertaSemEntrega_() {
+    if (!db || !clientesCache.size) return;
+    var comps = ultimasCompetencias_(3);
+    db.collection('entregas').where('competencia', 'in', comps).limit(3000).get().then(function (snap) {
+      var comEntrega = new Set();
+      snap.docs.forEach(function (d) {
+        var e = d.data();
+        if (e.status === 'confirmada' && e.clienteId) comEntrega.add(e.clienteId);
+      });
+      clientesSemEntregaCache = Array.from(clientesCache.values())
+        .filter(function (c) { return c.ativo !== false && !comEntrega.has(c.id); })
+        .sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); });
+      var card = $('alertaSemEntregaCard');
+      if (clientesSemEntregaCache.length) {
+        card.hidden = false;
+        $('verSemEntregaBtn').textContent = clientesSemEntregaCache.length + (clientesSemEntregaCache.length === 1 ? ' cliente' : ' clientes');
+      } else {
+        card.hidden = true;
+      }
+    }).catch(function () {});
+  }
+
+  $('verSemEntregaBtn').addEventListener('click', function () {
+    var root = $('modalRoot');
+    root.innerHTML =
+      '<div class="modal-overlay" id="overlay">' +
+        '<div class="modal" id="modalInner">' +
+          '<div class="modal-head"><div><h2>Sem entrega há tempo</h2><div class="card-hint" style="margin:2px 0 0">' + clientesSemEntregaCache.length + ' cliente(s) ativo(s) sem entrega confirmada nas últimas 3 competências</div></div>' +
+            '<button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    $('overlay').addEventListener('click', function (e) { if (e.target.id === 'overlay') closeModal(); });
+    $('modalClose').addEventListener('click', closeModal);
+    var inner = $('modalInner');
+    clientesSemEntregaCache.forEach(function (c) {
+      var row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'client-row';
+      row.style.width = '100%';
+      row.innerHTML = '<div><div class="cr-name"></div></div>';
+      row.querySelector('.cr-name').textContent = clienteLabel(c);
+      row.addEventListener('click', function () { openClienteHistorico(c); });
+      inner.appendChild(row);
+    });
+  });
+
   function renderHistoricoList(cliente, historico) {
     var inner = $('modalInner');
     if (!inner) return;
@@ -4718,7 +4788,7 @@
       renderClientesList();
       renderPainel();
       updateDashStrip();
-      if (primeiraCargaClientes) { primeiraCargaClientes = false; restaurarRascunhoSeExistir_(); }
+      if (primeiraCargaClientes) { primeiraCargaClientes = false; restaurarRascunhoSeExistir_(); atualizarAlertaSemEntrega_(); }
     }, function (err) {
       $('no-db').hidden = false;
       $('no-db').textContent = errMsg(err, 'Não foi possível conectar ao banco de dados. Verifique sua internet e recarregue a página.');
