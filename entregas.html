@@ -1212,6 +1212,11 @@
         <div class="field-error" id="err-itens">Selecione ao menos um documento.</div>
       </label>
 
+      <label class="field" id="honorarioPixField" hidden>
+        <span class="avulso-toggle"><input type="checkbox" id="honorarioPixToggle"> Recebido via Pix</span>
+        <span class="card-hint" style="margin-top:4px;display:block;">Em dinheiro o próprio dinheiro é o comprovante — não precisa de foto nem assinatura. Via Pix, marque aqui e anexe o comprovante da transferência.</span>
+      </label>
+
       <label class="field" id="outroField">
         <span>Outro documento (opcional)</span>
         <input class="input" id="outroInput" type="text" placeholder="Ex.: Contrato social, procuração...">
@@ -1656,7 +1661,7 @@
     { key: 'fgts', label: 'FGTS' },
     { key: 'darf', label: 'DARF' },
     { key: 'dae', label: 'DAE' },
-    { key: 'honorario', label: 'Honorário' },
+    { key: 'honorario', label: 'Honorário', semValor: true },
     { key: 'boleto', label: 'Boleto' },
     { key: 'ccir', label: 'CCIR', semValor: true },
     { key: 'multa_rescisoria', label: 'Multa Rescisória' },
@@ -2526,7 +2531,21 @@
     });
   }
 
-  itensGrid.addEventListener('change', renderValores);
+  // Entrega só de Honorário, sem nenhum outro documento: em dinheiro o
+  // próprio dinheiro já é o comprovante, então não exige foto nem
+  // assinatura. Via Pix precisa do comprovante da transferência (foto).
+  function isApenasHonorario_() {
+    var marcados = Array.from(itensGrid.querySelectorAll('input:checked')).map(function (i) { return i.dataset.key; });
+    return marcados.length === 1 && marcados[0] === 'honorario' && !$('outroInput').value.trim() && duplicatasExtras.length === 0;
+  }
+
+  function atualizarCampoHonorarioPix_() {
+    $('honorarioPixField').hidden = !isApenasHonorario_();
+    if ($('honorarioPixField').hidden) $('honorarioPixToggle').checked = false;
+  }
+
+  itensGrid.addEventListener('change', function () { renderValores(); atualizarCampoHonorarioPix_(); });
+  $('outroInput').addEventListener('input', atualizarCampoHonorarioPix_);
   $('outroInput').addEventListener('input', renderValores);
 
   function getSelectedItens() {
@@ -2721,10 +2740,14 @@
     if (isAvulso ? !avulsoNome : !selectedClienteId) { showFieldError('cliente'); ok = false; }
     if (!competencia) { showFieldError('competencia'); ok = false; }
     if (itens.length === 0) { showFieldError('itens'); ok = false; }
+    var honorarioSemPix = isApenasHonorario_() && !$('honorarioPixToggle').checked;
+    var honorarioComPix = isApenasHonorario_() && $('honorarioPixToggle').checked;
     if (isFalha) {
       if (!fotoDataUrl) { showFieldError('foto'); ok = false; }
       if (!motivo) { showFieldError('falhaMotivo'); ok = false; }
-    } else if (!isRota && !mainSigPad.hasSignature && !fotoDataUrl) {
+    } else if (honorarioComPix) {
+      if (!fotoDataUrl) { showFieldError('foto'); ok = false; }
+    } else if (!isRota && !honorarioSemPix && !mainSigPad.hasSignature && !fotoDataUrl) {
       showFieldError('assinatura');
       ok = false;
     }
@@ -2796,6 +2819,8 @@
       funcionarioState = {};
       duplicatasExtras = [];
       renderValores();
+      $('honorarioPixToggle').checked = false;
+      $('honorarioPixField').hidden = true;
     }
     $('recebedorInput').value = '';
     $('falhaToggle').checked = false;
