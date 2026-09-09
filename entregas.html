@@ -1399,10 +1399,19 @@
         <span>Cargos (além de Equipe)</span>
         <div class="avulso-toggle"><input type="checkbox" id="novoUsuarioAdmin"> Admin</div>
         <div class="avulso-toggle"><input type="checkbox" id="novoUsuarioOfficeBoy"> Office boy (fica com a página de Solicitações)</div>
+        <div class="avulso-toggle"><input type="checkbox" id="novoUsuarioContabil"> Contábil (Conciliadorzinho e Cheque especial)</div>
         <div class="avulso-toggle"><input type="checkbox" id="novoUsuarioEquipeGeral"> Equipe geral</div>
       </label>
       <button type="submit" class="btn btn-primary">Criar acesso</button>
     </form>
+    <div class="card" id="auditoriaCard" hidden>
+      <div class="card-head-row">
+        <h2>Auditoria</h2>
+        <button type="button" class="btn-chip" id="auditoriaAbrirBtn">Ver histórico</button>
+      </div>
+      <p class="card-hint">Últimas ações sensíveis: mudança de cargo, exclusão de entrega, acesso criado, cliente ativado/desativado.</p>
+      <div id="auditoriaList" hidden></div>
+    </div>
   </section>
 
   <section id="tab-clientes" class="view" role="tabpanel" tabindex="-1" aria-labelledby="tabbtn-clientes" hidden>
@@ -3780,6 +3789,22 @@
     });
   }
 
+  // ---------- auditoria ----------
+  // Registro leve de ações sensíveis (mudar cargo, excluir entrega,
+  // criar acesso, ativar/desativar cliente) — pra reconstruir "quem fez
+  // o quê" se algo for questionado depois. Nunca trava a ação principal
+  // se a gravação falhar.
+  function registrarAuditoria_(acao, detalhe) {
+    if (!db || !auth.currentUser) return;
+    db.collection('auditoria').add({
+      acao: acao,
+      detalhe: detalhe || '',
+      feitoPor: auth.currentUser.email || '',
+      feitoPorNome: currentUserNome || auth.currentUser.email || '',
+      quando: new Date().toISOString()
+    }).catch(function () {});
+  }
+
   // Liga/desliga um papel direto na lista. "Equipe" é o piso: quem não tem
   // nenhum papel extra continua com acesso básico, então basta guardar
   // 'staff' quando os dois forem desligados.
@@ -3790,7 +3815,10 @@
     if (ativar) roles.push(papel);
     if (!roles.length) roles = ['staff'];
     db.collection('usuarios').doc(uid).update({ roles: roles })
-      .then(function () { showToast('Função atualizada.'); })
+      .then(function () {
+        showToast('Função atualizada.');
+        registrarAuditoria_('funcao', (atual.nome || atual.email || uid) + ': ' + papel + (ativar ? ' ativado' : ' desativado'));
+      })
       .catch(function (err) { showToast(errMsg(err, 'Não foi possível mudar a função.'), 'error'); });
   }
 
@@ -3839,6 +3867,7 @@
     $('perfilPessoa').hidden = true;
     $('perfilLista').hidden = false;
     $('form-equipe').hidden = !temPapel('admin');
+    $('auditoriaCard').hidden = !temPapel('admin');
   }
 
   function abrirPessoa(uid) {
@@ -3969,7 +3998,10 @@
       if (temPapel('admin')) {
         row.querySelector('.btn-chip').addEventListener('click', function (ev) {
           ev.stopPropagation();
-          db.doc('clientes/' + c.id).update({ ativo: c.ativo === false }).catch(function (err) { showToast(errMsg(err, 'Não foi possível atualizar.'), 'error'); });
+          var vaiAtivar = c.ativo === false;
+          db.doc('clientes/' + c.id).update({ ativo: vaiAtivar })
+            .then(function () { registrarAuditoria_(vaiAtivar ? 'cliente_reativado' : 'cliente_desativado', clienteLabel(c)); })
+            .catch(function (err) { showToast(errMsg(err, 'Não foi possível atualizar.'), 'error'); });
         });
       }
       listEl.appendChild(row);
@@ -4570,21 +4602,64 @@
     var roles = ['staff'];
     if ($('novoUsuarioAdmin').checked) roles.push('admin');
     if ($('novoUsuarioOfficeBoy').checked) roles.push('office_boy');
+    if ($('novoUsuarioContabil').checked) roles.push('contabil');
     if ($('novoUsuarioEquipeGeral').checked) roles.push('equipe_geral');
     var btn = e.target.querySelector('button[type="submit"]');
     botaoOcupado_(btn);
     criarContaEquipe(nome, senha, roles).then(function () {
       showToast('Acesso criado para ' + nome + '.');
+      registrarAuditoria_('acesso_criado', nome + ' · ' + roles.join(', '));
       $('novoUsuarioNome').value = '';
       $('novoUsuarioSenha').value = '';
       $('novoUsuarioAdmin').checked = false;
       $('novoUsuarioOfficeBoy').checked = false;
+      $('novoUsuarioContabil').checked = false;
       $('novoUsuarioEquipeGeral').checked = false;
     }).catch(function (err) {
       var msg = (err && err.code === 'auth/email-already-in-use') ? 'Já existe um acesso com esse nome.' : errMsg(err, 'Não foi possível criar o acesso.');
       showToast(msg, 'error');
     }).finally(function () {
       botaoLivre_(btn);
+    });
+  });
+
+  var AUDITORIA_LABEL = {
+    funcao: 'Mudança de cargo',
+    exclusao_entrega: 'Entrega excluída',
+    acesso_criado: 'Acesso criado',
+    cliente_desativado: 'Cliente desativado',
+    cliente_reativado: 'Cliente reativado'
+  };
+  var auditoriaCarregada = false;
+  $('auditoriaAbrirBtn').addEventListener('click', function () {
+    var lista = $('auditoriaList');
+    var btn = this;
+    if (auditoriaCarregada) {
+      lista.hidden = !lista.hidden;
+      btn.textContent = lista.hidden ? 'Ver histórico' : 'Esconder histórico';
+      return;
+    }
+    btn.textContent = 'Carregando...';
+    db.collection('auditoria').orderBy('quando', 'desc').limit(100).get().then(function (snap) {
+      lista.innerHTML = '';
+      if (snap.empty) {
+        lista.innerHTML = '<div class="empty-state">Nenhuma ação registrada ainda.</div>';
+      }
+      snap.docs.forEach(function (d) {
+        var a = d.data();
+        var row = document.createElement('div');
+        row.className = 'entrega-row';
+        row.innerHTML = '<div><div class="er-nome"></div><div class="er-sub"></div></div>';
+        row.querySelector('.er-nome').textContent = AUDITORIA_LABEL[a.acao] || a.acao;
+        row.querySelector('.er-sub').textContent = (a.detalhe ? a.detalhe + ' · ' : '') + (a.feitoPorNome || a.feitoPor || 'desconhecido') + ' · ' + fmtDateTime(a.quando);
+        lista.appendChild(row);
+      });
+      lista.hidden = false;
+      auditoriaCarregada = true;
+      btn.textContent = 'Esconder histórico';
+    }).catch(function (err) {
+      showToast(errMsg(err, 'Não foi possível carregar a auditoria.'), 'error');
+      btn.textContent = 'Ver histórico';
     });
   });
 
@@ -4617,6 +4692,7 @@
       return ref.delete();
     }).then(function () {
       showToast('Entrega excluída.');
+      registrarAuditoria_('exclusao_entrega', (entrega.clienteNome || 'sem cliente') + ' · ' + fmtCompetencia(entrega.competencia));
       if (onDone) onDone();
     }).catch(function (err) {
       showToast(errMsg(err, 'Não foi possível excluir.'), 'error');
@@ -4629,6 +4705,7 @@
     setupCanvas();
     captureGeo();
     $('form-equipe').hidden = !temPapel('admin');
+    $('auditoriaCard').hidden = !temPapel('admin');
     $('form-cliente').hidden = !temPapel('admin');
     $('importCard').hidden = !temPapel('admin');
     // Perfil é a página de administração de acessos: só admin enxerga.
