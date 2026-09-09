@@ -1327,6 +1327,13 @@
     <div class="card" id="painelList"><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
     <div class="card">
       <div class="card-head-row">
+        <h2>Entregas por dia</h2>
+      </div>
+      <p class="card-hint">Entregas confirmadas na competência selecionada, por dia.</p>
+      <div id="graficoDiario" style="overflow-x:auto;"></div>
+    </div>
+    <div class="card">
+      <div class="card-head-row">
         <h2>Mapa de entregas</h2>
       </div>
       <p class="card-hint">Pontos capturados nas entregas confirmadas e nas não realizadas desta competência.</p>
@@ -3204,6 +3211,41 @@
     });
     listaChegou_(listEl);
     renderPainelMapa();
+    renderGraficoDiario_();
+  }
+
+  function renderGraficoDiario_() {
+    var el = $('graficoDiario');
+    if (!el) return;
+    var porDia = {};
+    entregasPainelCache.forEach(function (e) {
+      if (e.status !== 'confirmada') return;
+      var dia = (e.confirmadoEm || e.criadoEm || '').slice(0, 10);
+      if (!dia) return;
+      porDia[dia] = (porDia[dia] || 0) + 1;
+    });
+    var dias = Object.keys(porDia).sort();
+    if (!dias.length) {
+      el.innerHTML = '<div class="empty-state">Nenhuma entrega confirmada nesta competência ainda.</div>';
+      return;
+    }
+    var max = Math.max.apply(null, dias.map(function (d) { return porDia[d]; }));
+    var barW = 26, gap = 8, h = 90, topPad = 16;
+    var largura = dias.length * (barW + gap);
+    var altura = topPad + h + 24;
+    var svg = '<svg viewBox="0 0 ' + largura + ' ' + altura + '" style="min-width:' + largura + 'px;height:' + altura + 'px;display:block;">';
+    dias.forEach(function (d, i) {
+      var val = porDia[d];
+      var barH = Math.max(4, (val / max) * h);
+      var x = i * (barW + gap);
+      var y = topPad + (h - barH);
+      var diaNum = d.slice(8, 10);
+      svg += '<rect x="' + x + '" y="' + y + '" width="' + barW + '" height="' + barH + '" rx="4" style="fill:var(--accent)"><title>' + val + ' entrega(s) em ' + d.split('-').reverse().join('/') + '</title></rect>';
+      svg += '<text x="' + (x + barW / 2) + '" y="' + (y - 4) + '" text-anchor="middle" font-size="10" style="fill:var(--ink-faint)">' + val + '</text>';
+      svg += '<text x="' + (x + barW / 2) + '" y="' + (topPad + h + 16) + '" text-anchor="middle" font-size="10" style="fill:var(--ink-faint)">' + diaNum + '</text>';
+    });
+    svg += '</svg>';
+    el.innerHTML = svg;
   }
 
   function openClienteHistorico(cliente) {
