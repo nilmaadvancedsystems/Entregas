@@ -842,6 +842,14 @@
   .entrega-row:hover, .entrega-row:focus-visible { background: var(--surface-2); }
   .entrega-row > div:first-child, .history-row > div:first-child { min-width: 0; flex: 1; }
   .rota-item-conteudo { min-width: 0; flex: 1; }
+  /* Cabeçalho de mês dentro do histórico do cliente */
+  .historico-mes {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+    margin: 16px 0 2px; padding-bottom: 4px; border-bottom: 1px solid var(--border);
+    font-weight: 700; font-size: .86rem; color: var(--accent); text-transform: capitalize;
+  }
+  .historico-mes:first-of-type { margin-top: 8px; }
+  .historico-mes-total { font-weight: 600; font-size: .74rem; color: var(--ink-faint); text-transform: none; }
   .rota-drag-handle {
     display: flex; align-items: center; padding: 0 6px; margin-left: -4px;
     color: var(--ink-faint); cursor: grab; touch-action: none; flex: none; align-self: stretch;
@@ -4122,23 +4130,51 @@
   function renderHistoricoList(cliente, historico) {
     var inner = $('modalInner');
     if (!inner) return;
+    // Agrupa por competência: um cliente com várias entregas no mesmo mês
+    // virava uma lista solta de linhas com o mesmo título repetido. Assim
+    // dá pra bater o olho e ver mês a mês o que ele recebeu.
+    var porCompetencia = [];
+    var indicePorComp = {};
+    historico.forEach(function (e, idx) {
+      var comp = e.competencia || 'sem competência';
+      if (indicePorComp[comp] === undefined) {
+        indicePorComp[comp] = porCompetencia.length;
+        porCompetencia.push({ comp: comp, entregas: [] });
+      }
+      porCompetencia[indicePorComp[comp]].entregas.push({ e: e, idx: idx });
+    });
+
     var rowsHtml = historico.length === 0
       ? '<div class="empty-state">Nenhuma entrega registrada para este cliente ainda.</div>'
-      : historico.map(function (e, idx) {
-          var itensStr = (e.itens || []).map(function (i) { return typeof i === 'string' ? i : i.tipo; }).join(', ');
-          var total = (e.itens || []).reduce(function (s, i) { return s + ((i && i.valor) || 0); }, 0);
-          var isConfirmada = e.status === 'confirmada';
-          var pillClass = isConfirmada ? 'entregue' : 'rota';
-          var pillLabel = isConfirmada ? 'Entregue' : 'Na rota';
-          return '<button type="button" class="history-row" data-idx="' + idx + '">' +
-            '<div><div class="er-nome">' + escapeHtml_(fmtCompetencia(e.competencia)) + '</div>' +
-            '<div class="er-sub">' + escapeHtml_(itensStr) + (total > 0 ? ' · ' + fmtMoney(total) : '') + '</div></div>' +
-            '<span class="status-pill ' + pillClass + '">' + pillLabel + '</span>' +
-          '</button>';
+      : porCompetencia.map(function (grupo) {
+          var totalMes = grupo.entregas.reduce(function (s, item) {
+            return s + (item.e.itens || []).reduce(function (t, i) { return t + ((i && i.valor) || 0); }, 0);
+          }, 0);
+          var cabecalho = '<div class="historico-mes">' +
+            '<span>' + escapeHtml_(grupo.comp === 'sem competência' ? grupo.comp : fmtCompetencia(grupo.comp)) + '</span>' +
+            '<span class="historico-mes-total">' + grupo.entregas.length + ' entrega(s)' + (totalMes > 0 ? ' · ' + fmtMoney(totalMes) : '') + '</span>' +
+          '</div>';
+          var linhas = grupo.entregas.map(function (item) {
+            var e = item.e;
+            var itensStr = (e.itens || []).map(function (i) { return typeof i === 'string' ? i : i.tipo; }).join(', ');
+            var total = (e.itens || []).reduce(function (s, i) { return s + ((i && i.valor) || 0); }, 0);
+            var isConfirmada = e.status === 'confirmada';
+            var isFalha = e.status === 'falha';
+            var pillClass = isConfirmada ? 'entregue' : (isFalha ? 'falha' : 'rota');
+            var pillLabel = isConfirmada ? 'Entregue' : (isFalha ? 'Não entregue' : 'Na rota');
+            return '<button type="button" class="history-row" data-idx="' + item.idx + '">' +
+              '<div><div class="er-nome">' + escapeHtml_(itensStr || 'sem documentos') + '</div>' +
+              '<div class="er-sub">' + escapeHtml_(fmtDateTime(e.confirmadoEm || e.criadoEm)) + (total > 0 ? ' · ' + fmtMoney(total) : '') + '</div></div>' +
+              '<span class="status-pill ' + pillClass + '">' + pillLabel + '</span>' +
+            '</button>';
+          }).join('');
+          return cabecalho + linhas;
         }).join('');
+
     inner.innerHTML =
       '<div class="modal-head">' +
-        '<div><h2>' + escapeHtml_(clienteLabel(cliente)) + '</h2><div class="card-hint" style="margin:2px 0 0">' + historico.length + ' entrega(s) registrada(s)</div></div>' +
+        '<div><h2>' + escapeHtml_(clienteLabel(cliente)) + '</h2><div class="card-hint" style="margin:2px 0 0">' +
+          historico.length + ' entrega(s) em ' + porCompetencia.length + ' competência(s)</div></div>' +
         '<button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button>' +
       '</div>' +
       rowsHtml;
@@ -4491,6 +4527,10 @@
             '<input type="checkbox" id="pendingFalhaToggle">' +
             '<i class="ph ph-warning" aria-hidden="true"></i> Cliente ausente / entrega não realizada' +
           '</label>' +
+          '<label class="field" id="pendingHonorarioPixField" hidden>' +
+            '<span class="avulso-toggle"><input type="checkbox" id="pendingHonorarioPixToggle"> Recebido via Pix</span>' +
+            '<span class="card-hint" style="margin-top:4px;display:block;">Em dinheiro o próprio dinheiro é o comprovante — não precisa de foto nem assinatura. Via Pix, marque aqui e anexe o comprovante.</span>' +
+          '</label>' +
           '<label class="field" id="pendingFalhaMotivoField" hidden>' +
             '<span>O que aconteceu</span>' +
             '<textarea class="input" id="pendingFalhaMotivo" rows="2" placeholder="Ex.: Estabelecimento fechado, ninguém atendeu..."></textarea>' +
@@ -4578,11 +4618,26 @@
       $('pendingSigPlaceholder').classList.remove('hide');
     });
 
+    // A mesma regra do formulário de entrega vale aqui: entrega só de
+    // Honorário em dinheiro (ou só de Notas) não exige comprovante; via
+    // Pix, exige a foto do comprovante da transferência.
+    function rotulosDaEntrega_() {
+      return (entrega.itens || []).map(function (i) { return typeof i === 'string' ? i : (i && i.tipo) || ''; });
+    }
+    function soDoTipo_(rotulo) {
+      var rotulos = rotulosDaEntrega_();
+      return rotulos.length > 0 && rotulos.every(function (r) { return r === rotulo; });
+    }
+    var soHonorario = soDoTipo_('Honorário');
+    var soNotas = soDoTipo_('Notas');
+    if (soHonorario) $('pendingHonorarioPixField').hidden = false;
+
     function atualizarModoFalhaPendente() {
       var isFalha = $('pendingFalhaToggle').checked;
       $('pendingFalhaMotivoField').hidden = !isFalha;
       $('pendingAssinaturaField').hidden = isFalha;
       $('pendingRecebedorField').hidden = isFalha;
+      $('pendingHonorarioPixField').hidden = isFalha || !soHonorario;
       $('pendingFotoLabel').textContent = isFalha ? 'Foto (obrigatória)' : 'Foto (opcional se colher assinatura)';
       $('pendingConfirmBtn').textContent = isFalha ? 'Registrar entrega não realizada' : 'Confirmar entrega';
     }
@@ -4590,6 +4645,8 @@
 
     $('pendingConfirmBtn').addEventListener('click', function () {
       var isFalha = $('pendingFalhaToggle').checked;
+      var comPix = soHonorario && $('pendingHonorarioPixToggle').checked;
+      var dispensaComprovante = !isFalha && ((soHonorario && !comPix) || soNotas);
       var motivo = $('pendingFalhaMotivo').value.trim();
       $('pendingSigError').hidden = true;
       clearFieldError('pendingFoto');
@@ -4599,7 +4656,9 @@
         if (!pendingFoto) { showFieldError('pendingFoto'); ok = false; }
         if (!motivo) { showFieldError('pendingFalhaMotivo'); ok = false; }
         if (!ok) return;
-      } else if (!pendingPad.hasSignature && !pendingFoto) {
+      } else if (comPix) {
+        if (!pendingFoto) { showFieldError('pendingFoto'); return; }
+      } else if (!dispensaComprovante && !pendingPad.hasSignature && !pendingFoto) {
         $('pendingSigError').hidden = false;
         return;
       }
