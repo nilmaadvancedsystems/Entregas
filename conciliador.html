@@ -375,6 +375,9 @@
   .modal-actions .btn{flex:1;}
   .btn-outline{background:transparent;border:1.5px solid var(--border-strong);color:var(--ink-muted);}
   .btn-outline:hover{background:var(--surface-2);color:var(--ink);}
+  .paleta-swatch{width:38px;height:38px;border-radius:50%;border:2px solid var(--border);cursor:pointer;position:relative;padding:0;}
+  .paleta-swatch.ativo{border-color:var(--ink);box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--ink);}
+  .paleta-swatch.ativo::after{content:"✓";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:15px;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.4);}
 
   /* ---------------------------------- progress + form ---------------------------------- */
   .split{display:grid;grid-template-columns:1fr 1fr;gap:36px;}
@@ -551,21 +554,19 @@
   }
 
   /* ------------------ aparência unificada com o app de Entregas ------------------
-     Só troca cor de marca e tipografia pros mesmos tokens do hub; os tons de
-     sucesso/erro continuam os originais da ferramenta, que já funcionam bem. */
+     Mesma cor de marca, tipografia e a mesma paleta de cores escolhível
+     nas três ferramentas — muda em Configurações aqui ou lá, muda em
+     todo lugar (fica salvo no cadastro da pessoa). */
   :root{
-    --bg: color-mix(in srgb, #9A2B24 16%, #F1F3F5);
-    --surface: color-mix(in srgb, #9A2B24 9%, #FFFFFF);
-    --surface-2: color-mix(in srgb, #9A2B24 18%, #F6F5F5);
-    --surface-3: color-mix(in srgb, #9A2B24 24%, #F6F5F5);
-    --border: color-mix(in srgb, #9A2B24 38%, #DEDBDA);
-    --border-strong: color-mix(in srgb, #9A2B24 50%, #DEDBDA);
+    --nilma-bg-base: #F1F3F5;
+    --nilma-surface-base: #FFFFFF;
+    --nilma-surface2-base: #F6F5F5;
+    --nilma-border-base: #DEDBDA;
+    --nilma-inkmuted-base: #5B5450;
+    --nilma-inkfaint-base: #6F6763;
     --ink: #201C1B;
-    --ink-muted: color-mix(in srgb, #9A2B24 16%, #5B5450);
-    --ink-faint: color-mix(in srgb, #9A2B24 16%, #6F6763);
     --accent: #9A2B24;
     --accent-strong: #7A211B;
-    --accent-soft: color-mix(in srgb, #9A2B24 22%, var(--surface));
     --accent-ink: #FFFFFF;
     --radius: 20px;
     --radius-sm: 14px;
@@ -573,38 +574,87 @@
     --font-display: 'Plus Jakarta Sans', -apple-system, 'Segoe UI', sans-serif;
     --font-body: 'Plus Jakarta Sans', -apple-system, 'Segoe UI', sans-serif;
     --font-mono: 'JetBrains Mono', SFMono-Regular, Consolas, monospace;
+    --bg: color-mix(in srgb, var(--accent) 16%, var(--nilma-bg-base));
+    --surface: color-mix(in srgb, var(--accent) 9%, var(--nilma-surface-base));
+    --surface-2: color-mix(in srgb, var(--accent) 18%, var(--nilma-surface2-base));
+    --surface-3: color-mix(in srgb, var(--accent) 24%, var(--nilma-surface2-base));
+    --border: color-mix(in srgb, var(--accent) 38%, var(--nilma-border-base));
+    --border-strong: color-mix(in srgb, var(--accent) 50%, var(--nilma-border-base));
+    --accent-soft: color-mix(in srgb, var(--accent) 22%, var(--surface));
+    --ink-muted: color-mix(in srgb, var(--accent) 16%, var(--nilma-inkmuted-base));
+    --ink-faint: color-mix(in srgb, var(--accent) 16%, var(--nilma-inkfaint-base));
   }
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]){
-      --bg: color-mix(in srgb, #DE756B 16%, #1A1513);
-      --surface: color-mix(in srgb, #DE756B 9%, #241D1B);
-      --surface-2: color-mix(in srgb, #DE756B 18%, #2B2220);
-      --surface-3: color-mix(in srgb, #DE756B 24%, #2B2220);
-      --border: color-mix(in srgb, #DE756B 38%, #3D302C);
-      --border-strong: color-mix(in srgb, #DE756B 50%, #3D302C);
+      --nilma-bg-base: #1A1513;
+      --nilma-surface-base: #241D1B;
+      --nilma-surface2-base: #2B2220;
+      --nilma-border-base: #3D302C;
+      --nilma-inkmuted-base: #C7B7B3;
+      --nilma-inkfaint-base: #A6938E;
       --ink: #F3EAE8;
-      --ink-muted: color-mix(in srgb, #DE756B 16%, #C7B7B3);
-      --ink-faint: color-mix(in srgb, #DE756B 16%, #A6938E);
       --accent: #DE756B;
       --accent-strong: #C85B51;
-      --accent-soft: color-mix(in srgb, #DE756B 22%, var(--surface));
       --accent-ink: #26100E;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 18px rgba(0,0,0,.35);
     }
   }
   :root[data-theme="dark"]{
-    --bg: color-mix(in srgb, #DE756B 16%, #1A1513);
-    --surface: color-mix(in srgb, #DE756B 9%, #241D1B);
-    --surface-2: color-mix(in srgb, #DE756B 18%, #2B2220);
-    --surface-3: color-mix(in srgb, #DE756B 24%, #2B2220);
-    --border: color-mix(in srgb, #DE756B 38%, #3D302C);
-    --border-strong: color-mix(in srgb, #DE756B 50%, #3D302C);
+    --nilma-bg-base: #1A1513;
+    --nilma-surface-base: #241D1B;
+    --nilma-surface2-base: #2B2220;
+    --nilma-border-base: #3D302C;
+    --nilma-inkmuted-base: #C7B7B3;
+    --nilma-inkfaint-base: #A6938E;
     --ink: #F3EAE8;
-    --ink-muted: color-mix(in srgb, #DE756B 16%, #C7B7B3);
-    --ink-faint: color-mix(in srgb, #DE756B 16%, #A6938E);
     --accent: #DE756B;
     --accent-strong: #C85B51;
-    --accent-soft: color-mix(in srgb, #DE756B 22%, var(--surface));
     --accent-ink: #26100E;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 18px rgba(0,0,0,.35);
+  }
+
+  /* Paletas de cor opcionais (mesmas 6 do app de Entregas + a padrão,
+     que aqui também é um valor explícito de data-paleta). */
+  [data-paleta="padrao"] { --accent: #9A2B24; --accent-ink: #FFFFFF; }
+  [data-paleta="verde"] { --accent: #235347; --accent-ink: #FFFFFF; }
+  [data-paleta="vermelho"] { --accent: #DF2531; --accent-ink: #FFFFFF; }
+  [data-paleta="laranja"] { --accent: #804012; --accent-ink: #FFFFFF; }
+  [data-paleta="azul"] { --accent: #1A3D63; --accent-ink: #F6FAFD; }
+  [data-paleta="ardosia"] { --accent: #57707A; --accent-ink: #FFFFFF; }
+  [data-paleta="nogueira"] { --accent: #5E4B43; --accent-ink: #FFFFFF; }
+  :root[data-theme="dark"][data-paleta="padrao"] { --accent: #DE756B; --accent-ink: #26100E; }
+  :root[data-theme="dark"][data-paleta="verde"] { --accent: #8EB69B; --accent-ink: #0B2B26; }
+  :root[data-theme="dark"][data-paleta="vermelho"] { --accent: #EF3340; --accent-ink: #2A0508; }
+  :root[data-theme="dark"][data-paleta="laranja"] { --accent: #DB9F75; --accent-ink: #3E2411; }
+  :root[data-theme="dark"][data-paleta="azul"] { --accent: #7FB3DC; --accent-ink: #0A1931; }
+  :root[data-theme="dark"][data-paleta="ardosia"] { --accent: #A8BAC4; --accent-ink: #191D23; }
+  :root[data-theme="dark"][data-paleta="nogueira"] { --accent: #C4A794; --accent-ink: #2E1F1B; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"])[data-paleta="padrao"] { --accent: #DE756B; --accent-ink: #26100E; }
+    :root:not([data-theme="light"])[data-paleta="verde"] { --accent: #8EB69B; --accent-ink: #0B2B26; }
+    :root:not([data-theme="light"])[data-paleta="vermelho"] { --accent: #EF3340; --accent-ink: #2A0508; }
+    :root:not([data-theme="light"])[data-paleta="laranja"] { --accent: #DB9F75; --accent-ink: #3E2411; }
+    :root:not([data-theme="light"])[data-paleta="azul"] { --accent: #7FB3DC; --accent-ink: #0A1931; }
+    :root:not([data-theme="light"])[data-paleta="ardosia"] { --accent: #A8BAC4; --accent-ink: #191D23; }
+    :root:not([data-theme="light"])[data-paleta="nogueira"] { --accent: #C4A794; --accent-ink: #2E1F1B; }
+  }
+  /* Uma vez escolhida uma paleta (mesmo a padrão), fundo/cartões/bordas e
+     o tom "forte" do acento passam a puxar da cor escolhida. */
+  [data-paleta] {
+    --bg: color-mix(in srgb, var(--accent) 16%, var(--nilma-bg-base));
+    --surface: color-mix(in srgb, var(--accent) 9%, var(--nilma-surface-base));
+    --surface-2: color-mix(in srgb, var(--accent) 18%, var(--nilma-surface2-base));
+    --surface-3: color-mix(in srgb, var(--accent) 24%, var(--nilma-surface2-base));
+    --border: color-mix(in srgb, var(--accent) 38%, var(--nilma-border-base));
+    --border-strong: color-mix(in srgb, var(--accent) 50%, var(--nilma-border-base));
+    --accent-soft: color-mix(in srgb, var(--accent) 22%, var(--surface));
+    --accent-strong: color-mix(in srgb, black 18%, var(--accent));
+    --ink-muted: color-mix(in srgb, var(--accent) 16%, var(--nilma-inkmuted-base));
+    --ink-faint: color-mix(in srgb, var(--accent) 16%, var(--nilma-inkfaint-base));
+  }
+  :root[data-theme="dark"][data-paleta] { --accent-strong: color-mix(in srgb, white 18%, var(--accent)); }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"])[data-paleta] { --accent-strong: color-mix(in srgb, white 18%, var(--accent)); }
   }
 </style>
 </head>
@@ -630,6 +680,7 @@
       <div class="topbar-meta is-empty" id="topbarMeta"></div>
       <a href="entregas.html" class="btn btn-ghost" style="text-decoration:none;">&larr; Início</a>
       <button class="cancel-btn" id="cancelBtn" type="button">Cancelar</button>
+      <button type="button" class="btn btn-ghost" id="configBtn" aria-label="Configurações" title="Configurações" style="padding:8px;line-height:0;"></button>
       <div class="theme-toggle" id="themeToggle" role="group" aria-label="Tema">
         <button type="button" data-theme-choice="light" aria-label="Tema claro" title="Claro"></button>
         <button type="button" data-theme-choice="dark" aria-label="Tema escuro" title="Escuro"></button>
@@ -637,6 +688,18 @@
       </div>
     </div>
   </header>
+
+  <div class="modal-overlay" id="configOverlay" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="configTitle">
+      <div class="modal-icon" id="configModalIcon"></div>
+      <h3 id="configTitle">Cor do app</h3>
+      <p>Essa cor é a mesma em Entregas, Conciliadorzinho e Cheque especial — muda aqui, muda em todo lugar.</p>
+      <div id="paletaSwatches" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:18px;"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-outline" id="configCloseBtn">Fechar</button>
+      </div>
+    </div>
+  </div>
 
   <div class="layout">
     <nav class="stepper" aria-label="Etapas da conciliação">
@@ -2362,6 +2425,64 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
     document.getElementById('acessoGate').style.display = 'flex';
   }
 
+  // ---------- cor do app (mesma preferência do Entregas) ----------
+  var PALETAS = [
+    { key: 'padrao', nome: 'Padrão', cor: '#9A2B24' },
+    { key: 'verde', nome: 'Verde', cor: '#235347' },
+    { key: 'vermelho', nome: 'Vermelho', cor: '#DF2531' },
+    { key: 'laranja', nome: 'Laranja', cor: '#804012' },
+    { key: 'azul', nome: 'Azul', cor: '#1A3D63' },
+    { key: 'ardosia', nome: 'Ardósia', cor: '#57707A' },
+    { key: 'nogueira', nome: 'Nogueira', cor: '#5E4B43' }
+  ];
+  var uidAtual = null;
+  var paletaAtual = 'padrao';
+
+  function aplicarPaleta_(p) {
+    paletaAtual = p || 'padrao';
+    document.documentElement.setAttribute('data-paleta', paletaAtual);
+    document.querySelectorAll('#paletaSwatches .paleta-swatch').forEach(function (b) {
+      b.classList.toggle('ativo', b.dataset.paleta === paletaAtual);
+    });
+  }
+
+  function renderPaletaSwatches_() {
+    var wrap = document.getElementById('paletaSwatches');
+    if (!wrap || wrap.children.length) return;
+    PALETAS.forEach(function (p) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'paleta-swatch';
+      b.style.background = p.cor;
+      b.dataset.paleta = p.key;
+      b.title = p.nome;
+      b.setAttribute('aria-label', p.nome);
+      b.addEventListener('click', function () {
+        aplicarPaleta_(p.key);
+        if (uidAtual) firebase.firestore().collection('usuarios').doc(uidAtual).update({ paleta: p.key }).catch(function () {});
+      });
+      wrap.appendChild(b);
+    });
+  }
+
+  var GEAR_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>';
+  var configBtn = document.getElementById('configBtn');
+  var configOverlay = document.getElementById('configOverlay');
+  if (configBtn) {
+    configBtn.innerHTML = GEAR_SVG;
+    configBtn.addEventListener('click', function () {
+      renderPaletaSwatches_();
+      configOverlay.hidden = false;
+    });
+  }
+  var configModalIcon = document.getElementById('configModalIcon');
+  if (configModalIcon) configModalIcon.innerHTML = GEAR_SVG;
+  if (configOverlay) {
+    configOverlay.addEventListener('click', function (e) { if (e.target === configOverlay) configOverlay.hidden = true; });
+    var fechar = document.getElementById('configCloseBtn');
+    if (fechar) fechar.addEventListener('click', function () { configOverlay.hidden = true; });
+  }
+
   try {
     var firebaseConfig = {
       apiKey: "AIzaSyD6xg7XhX8dKTKmaYup4hRX5k9XFHEkb98",
@@ -2377,8 +2498,10 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
 
     auth.onAuthStateChanged(function (user) {
       if (!user) { location.replace('entregas.html'); return; }
+      uidAtual = user.uid;
       db.collection('usuarios').doc(user.uid).get().then(function (snap) {
         var data = snap.exists ? snap.data() : {};
+        aplicarPaleta_(data.paleta || 'padrao');
         var roles = Array.isArray(data.roles) && data.roles.length ? data.roles : (data.role ? [data.role] : ['staff']);
         var liberado = roles.indexOf('admin') !== -1 || roles.indexOf('contabil') !== -1;
         if (!liberado) bloquear('Só admins e a equipe contábil abrem essa ferramenta. Peça a um admin pra te dar o cargo "Contábil" em Configurações → Quem tem acesso.');
