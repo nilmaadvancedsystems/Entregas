@@ -1517,6 +1517,15 @@
         <div class="avulso-toggle"><input type="checkbox" id="novoUsuarioEquipeGeral"> Equipe geral</div>
       </label>
       <button type="submit" class="btn btn-primary">Criar acesso</button>
+      <div class="field" style="margin:16px 0 0;border-top:1px solid var(--border);padding-top:14px;">
+        <span>Ou mande um convite</span>
+        <p class="card-hint">Gera um link válido por 24 horas onde a própria pessoa escolhe a senha dela — os cargos marcados acima já vêm aplicados.</p>
+        <button type="button" class="btn btn-secondary" id="gerarConviteBtn"><i class="ph ph-link" aria-hidden="true"></i> Gerar link de convite</button>
+        <div id="conviteResultado" hidden style="margin-top:10px;">
+          <input class="input" id="conviteLink" type="text" readonly>
+          <button type="button" class="btn-chip accent" id="copiarConviteBtn" style="margin-top:8px;"><i class="ph ph-copy" aria-hidden="true"></i> Copiar link</button>
+        </div>
+      </div>
     </form>
     <div class="card" id="auditoriaCard" hidden>
       <div class="card-head-row">
@@ -1644,6 +1653,26 @@
       <span><kbd>↑</kbd><kbd>↓</kbd> navegar</span>
       <span><kbd>Enter</kbd> abrir</span>
       <span><kbd>Esc</kbd> fechar</span>
+    </div>
+  </div>
+</div>
+
+<div class="auth-gate" id="conviteGate" hidden>
+  <div class="auth-shell">
+    <div class="auth-form">
+      <h1 class="auth-titulo">Criar seu acesso</h1>
+      <p class="auth-sub" id="conviteSub">Verificando convite...</p>
+      <div id="conviteForm" hidden>
+        <div class="field">
+          <label for="conviteSenha">Escolha sua senha</label>
+          <div class="senha-wrap">
+            <input class="input" id="conviteSenha" type="password" placeholder="Mínimo 6 caracteres" autocomplete="new-password">
+          </div>
+        </div>
+        <div class="auth-erro" id="conviteErro" hidden><i class="ph ph-warning-circle" aria-hidden="true"></i> <span id="conviteErroTexto"></span></div>
+        <button type="button" class="btn btn-primary" id="conviteCriarBtn">Criar acesso e entrar</button>
+      </div>
+      <p class="auth-rodape"><a href="entregas.html" style="color:var(--accent);">Já tenho acesso — ir para a entrada</a></p>
     </div>
   </div>
 </div>
@@ -5965,7 +5994,8 @@
       $('hubScreen').hidden = true;
       var logo = document.querySelector('.brand-mark');
       if (logo) $('authLogo').src = logo.src;
-      $('authGate').hidden = false;
+      // com a tela de convite aberta, o login não deve aparecer por cima
+      $('authGate').hidden = !$('conviteGate').hidden;
       $('settingsBtn').hidden = true;
       $('notasBtn').hidden = true;
       $('brandName').textContent = 'Nilma';
@@ -5977,6 +6007,112 @@
       if (!matchMedia('(hover: none)').matches) primeiro.focus();
     }
   });
+
+  // ---------- convite por link ----------
+  // O admin gera um link com um código secreto; quem abre esse link
+  // escolhe a própria senha e já entra com os cargos definidos no
+  // convite. O código vale 24 horas e só pode ser usado uma vez.
+  function gerarCodigoConvite_() {
+    if (window.crypto && crypto.randomUUID) return crypto.randomUUID().replace(/-/g, '');
+    return Math.random().toString(36).slice(2) + Date.now().toString(36);
+  }
+
+  $('gerarConviteBtn').addEventListener('click', function () {
+    var nome = $('novoUsuarioNome').value.trim();
+    if (!nome) { showToast('Preencha o nome de quem vai receber o convite.', 'error'); return; }
+    var roles = ['staff'];
+    if ($('novoUsuarioAdmin').checked) roles.push('admin');
+    if ($('novoUsuarioOfficeBoy').checked) roles.push('office_boy');
+    if ($('novoUsuarioContabil').checked) roles.push('contabil');
+    if ($('novoUsuarioEquipeGeral').checked) roles.push('equipe_geral');
+
+    var btn = this;
+    botaoOcupado_(btn);
+    var codigo = gerarCodigoConvite_();
+    db.collection('convites').doc(codigo).set({
+      nome: nome,
+      roles: roles,
+      usado: false,
+      criadoPor: (auth.currentUser && auth.currentUser.email) || '',
+      criadoPorNome: currentUserNome,
+      criadoEm: new Date().toISOString(),
+      expiraEm: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+    }).then(function () {
+      var base = location.href.split(/[?#]/)[0];
+      $('conviteLink').value = base + '?convite=' + codigo;
+      $('conviteResultado').hidden = false;
+      registrarAuditoria_('convite_gerado', nome + ' · ' + roles.join(', '));
+      showToast('Link de convite criado — válido por 24 horas.');
+    }).catch(function (err) {
+      showToast(errMsg(err, 'Não foi possível gerar o convite.'), 'error');
+    }).finally(function () { botaoLivre_(btn); });
+  });
+
+  $('copiarConviteBtn').addEventListener('click', function () {
+    var campo = $('conviteLink');
+    campo.select();
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(campo.value)
+        .then(function () { showToast('Link copiado.'); })
+        .catch(function () { showToast('Copie o link manualmente.', 'error'); });
+    } else {
+      showToast('Copie o link manualmente.');
+    }
+  });
+
+  function abrirTelaConvite_(codigo) {
+    $('conviteGate').hidden = false;
+    $('authGate').hidden = true;
+    db.collection('convites').doc(codigo).get().then(function (snap) {
+      if (!snap.exists) { $('conviteSub').textContent = 'Esse convite não existe. Peça um link novo para o administrativo.'; return; }
+      var c = snap.data();
+      if (c.usado) { $('conviteSub').textContent = 'Esse convite já foi usado. Peça um link novo para o administrativo.'; return; }
+      if (c.expiraEm && new Date(c.expiraEm) < new Date()) { $('conviteSub').textContent = 'Esse convite expirou (vale 24 horas). Peça um link novo.'; return; }
+
+      $('conviteSub').textContent = 'Convite para ' + c.nome + '. Escolha uma senha para entrar.';
+      $('conviteForm').hidden = false;
+      $('conviteSenha').focus();
+
+      $('conviteCriarBtn').addEventListener('click', function () {
+        var senha = $('conviteSenha').value;
+        $('conviteErro').hidden = true;
+        if (senha.length < 6) {
+          $('conviteErroTexto').textContent = 'A senha precisa ter pelo menos 6 caracteres.';
+          $('conviteErro').hidden = false;
+          return;
+        }
+        var btn = this;
+        botaoOcupado_(btn);
+        auth.createUserWithEmailAndPassword(emailFromNome(c.nome), senha).then(function (cred) {
+          return db.collection('usuarios').doc(cred.user.uid).set({
+            nome: c.nome, email: cred.user.email, roles: c.roles, criadoEm: new Date().toISOString()
+          }).then(function () {
+            return db.collection('convites').doc(codigo).update({ usado: true, usadoEm: new Date().toISOString() });
+          });
+        }).then(function () {
+          // tira o ?convite= da barra de endereço pra um F5 não cair de
+          // novo nessa tela depois da conta já criada
+          history.replaceState(null, '', location.href.split(/[?#]/)[0]);
+          $('conviteGate').hidden = true;
+          showToast('Acesso criado. Bem-vindo!');
+        }).catch(function (err) {
+          var msg = (err && err.code === 'auth/email-already-in-use')
+            ? 'Já existe um acesso com esse nome. Fale com o administrativo.'
+            : errMsg(err, 'Não foi possível criar o acesso.');
+          $('conviteErroTexto').textContent = msg;
+          $('conviteErro').hidden = false;
+          botaoLivre_(btn);
+        });
+      });
+    }).catch(function () {
+      $('conviteSub').textContent = 'Não foi possível verificar esse convite agora. Tente de novo.';
+    });
+  }
+
+  (function () {
+    var codigo = new URLSearchParams(location.search).get('convite');
+    if (codigo && db) abrirTelaConvite_(codigo);
+  })();
 })();
 </script>
 </body>
