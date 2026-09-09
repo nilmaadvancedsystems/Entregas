@@ -1411,9 +1411,11 @@
       </label>
       <label class="field" id="atestadoEmpresaField" hidden>
         <span>Empresa cliente</span>
-        <input class="input" id="atestadoEmpresa" type="text" list="atestadoEmpresaLista" placeholder="Nome da empresa cliente">
-        <datalist id="atestadoEmpresaLista"></datalist>
-        <div class="field-error" id="err-atestadoEmpresa">Informe a empresa cliente.</div>
+        <div class="combobox" id="atestadoEmpresaComboboxWrap">
+          <input class="input" id="atestadoEmpresa" type="text" placeholder="Buscar empresa cliente..." autocomplete="off" role="combobox" aria-expanded="false" aria-controls="atestadoEmpresaSuggestions" aria-autocomplete="list">
+          <div class="suggestions" id="atestadoEmpresaSuggestions" role="listbox" aria-label="Clientes encontrados"></div>
+        </div>
+        <div class="field-error" id="err-atestadoEmpresa">Selecione a empresa cliente.</div>
       </label>
       <label class="field" id="solLocalField">
         <span>Cliente / local (opcional)</span>
@@ -3337,16 +3339,54 @@
   }
   $('solTipo').addEventListener('change', atualizarCamposAtestado_);
 
+  // Combobox de empresa cliente pro pedido de atestado — mesmo estilo e
+  // busca (nome/código/CNPJ) do campo de cliente da Nova entrega, em vez
+  // de um <datalist> nativo do navegador, que ficava destoando do resto.
+  var atestadoEmpresaInput = $('atestadoEmpresa');
+  var atestadoEmpresaSuggestionsEl = $('atestadoEmpresaSuggestions');
+  var selectedAtestadoClienteId = null;
+
+  function renderAtestadoEmpresaSuggestions_() {
+    var q = atestadoEmpresaInput.value.trim().toLowerCase();
+    atestadoEmpresaSuggestionsEl.innerHTML = '';
+    if (!q) { atestadoEmpresaSuggestionsEl.classList.remove('show'); return; }
+    var list = Array.from(clientesCache.values()).filter(function (c) {
+      return c.ativo !== false && clienteCombina_(c, q);
+    }).slice(0, 8);
+    list.forEach(function (c) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'suggestion';
+      btn.setAttribute('role', 'option');
+      btn.innerHTML = '<div class="s-nome">' + highlightMatch_(clienteLabel(c), q) + '</div><div class="s-doc"></div>';
+      btn.querySelector('.s-doc').textContent = c.documento || '';
+      btn.addEventListener('click', function () {
+        selectedAtestadoClienteId = c.id;
+        atestadoEmpresaInput.value = clienteLabel(c);
+        atestadoEmpresaSuggestionsEl.classList.remove('show');
+        clearFieldError('atestadoEmpresa');
+      });
+      atestadoEmpresaSuggestionsEl.appendChild(btn);
+    });
+    atestadoEmpresaSuggestionsEl.classList.toggle('show', atestadoEmpresaSuggestionsEl.children.length > 0);
+    atestadoEmpresaInput.setAttribute('aria-expanded', String(atestadoEmpresaSuggestionsEl.children.length > 0));
+  }
+  atestadoEmpresaInput.addEventListener('input', function () { selectedAtestadoClienteId = null; renderAtestadoEmpresaSuggestions_(); });
+  atestadoEmpresaInput.addEventListener('focus', renderAtestadoEmpresaSuggestions_);
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest('#atestadoEmpresaComboboxWrap')) atestadoEmpresaSuggestionsEl.classList.remove('show');
+  });
+
   $('form-solicitacao').addEventListener('submit', function (e) {
     e.preventDefault();
     var isAtestado = $('solTipo').value === 'atestado';
     var descricao = $('solDescricao').value.trim();
     var funcionario = $('atestadoFuncionario').value.trim();
-    var empresa = $('atestadoEmpresa').value.trim();
+    var empresaCliente = selectedAtestadoClienteId ? clientesCache.get(selectedAtestadoClienteId) : null;
     var ok = true;
     if (isAtestado) {
       if (!funcionario) { showFieldError('atestadoFuncionario'); ok = false; }
-      if (!empresa) { showFieldError('atestadoEmpresa'); ok = false; }
+      if (!empresaCliente) { showFieldError('atestadoEmpresa'); ok = false; }
       if (!ok) return;
     } else if (!descricao) {
       $('err-solDescricao').style.display = 'block';
@@ -3359,7 +3399,7 @@
     var dados = {
       tipo: $('solTipo').value,
       local: isAtestado ? clinica : $('solLocal').value.trim(),
-      descricao: isAtestado ? ('Buscar atestado de ' + funcionario + ' — ' + empresa + ' (clínica ' + clinica + ')') : descricao,
+      descricao: isAtestado ? ('Buscar atestado de ' + funcionario + ' — ' + clienteLabel(empresaCliente) + ' (clínica ' + clinica + ')') : descricao,
       urgente: $('solUrgente').checked,
       status: 'pendente',
       criadoPor: (auth.currentUser && auth.currentUser.email) || '',
@@ -3369,13 +3409,15 @@
     if (isAtestado) {
       dados.atestadoClinica = clinica;
       dados.atestadoFuncionario = funcionario;
-      dados.atestadoEmpresa = empresa;
+      dados.atestadoEmpresa = clienteLabel(empresaCliente);
+      dados.atestadoEmpresaId = empresaCliente.id;
     }
     var gravacao = db.collection('solicitacoes').add(dados);
 
     escritaQueNaoTrava_(gravacao).then(function (resultado) {
       showToast(avisoDeEscrita_(resultado, 'Solicitação enviada.'));
       $('form-solicitacao').reset();
+      selectedAtestadoClienteId = null;
       atualizarCamposAtestado_();
     }).catch(function (err) {
       showToast(errMsg(err, 'Não foi possível enviar.'), 'error');
@@ -5190,10 +5232,6 @@
       renderClientesList();
       renderPainel();
       updateDashStrip();
-      $('atestadoEmpresaLista').innerHTML = Array.from(clientesCache.values())
-        .filter(function (c) { return c.ativo !== false; })
-        .sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); })
-        .map(function (c) { return '<option value="' + escapeHtml_(c.nome) + '">'; }).join('');
       if (primeiraCargaClientes) { primeiraCargaClientes = false; restaurarRascunhoSeExistir_(); atualizarAlertaSemEntrega_(); }
     }, function (err) {
       $('no-db').hidden = false;
