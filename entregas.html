@@ -739,6 +739,9 @@
       border: 1px solid #BBB !important; box-shadow: none !important;
       break-inside: avoid; page-break-inside: avoid; margin-bottom: 12px;
     }
+    /* O mapa (tiles do Leaflet) não carrega no papel e só deixa um
+       quadrado cinza; o resumo flutuante por cima também não serve. */
+    #painelMapa, .map-legend, .map-floating-summary, #painelMapaVazio { display: none !important; }
     /* endereço da página no rodapé do papel só polui */
     a[href]::after { content: none !important; }
   }
@@ -1292,6 +1295,7 @@
     <div class="card">
       <div class="card-head-row">
         <h2>Painel de entregas</h2>
+        <button type="button" class="btn-chip" id="exportPdfBtn"><i class="ph ph-file-pdf" aria-hidden="true"></i> Exportar PDF</button>
         <button type="button" class="btn-chip accent" id="exportBtn"><i class="ph ph-download-simple" aria-hidden="true"></i> Exportar planilha</button>
       </div>
       <p class="card-hint">Quem já recebeu na competência selecionada. Toque em um cliente para ver o histórico completo.</p>
@@ -3833,6 +3837,10 @@
     });
     return linhas;
   }
+
+  $('exportPdfBtn').addEventListener('click', function () {
+    window.print();
+  });
 
   $('exportBtn').addEventListener('click', function () {
     if (!entregasPainelCache.length) { showToast('Nenhuma entrega para exportar nesta competência.', 'error'); return; }
