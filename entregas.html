@@ -1738,7 +1738,7 @@
           </div>
         </div>
         <div class="auth-erro" id="conviteErro" hidden><i class="ph ph-warning-circle" aria-hidden="true"></i> <span id="conviteErroTexto"></span></div>
-        <button type="button" class="btn btn-primary" id="conviteCriarBtn">Criar acesso e entrar</button>
+        <button type="button" class="btn btn-primary" id="conviteCriarBtn">Criar meu acesso</button>
       </div>
       <p class="auth-rodape"><a href="entregas.html" style="color:var(--accent);">Já tenho acesso — ir para a entrada</a></p>
     </div>
@@ -5367,7 +5367,12 @@
           criadoPor: (auth.currentUser && auth.currentUser.email) || '',
           criadoPorNome: currentUserNome,
           criadoEm: new Date().toISOString(),
-          expiraEm: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+          expiraEm: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+          // o endereço do serviço de contas vai junto no convite: quem abre
+          // esse link está deslogado (é justamente por isso que precisa de
+          // senha nova) e não consegue ler config/integracoes, que só quem
+          // já entrou enxerga
+          contasUrl: contasUrl
         }).then(function () {
           var base = location.href.split(/[?#]/)[0];
           $('pessoaResetLink').value = base + '?convite=' + codigo;
@@ -6111,12 +6116,15 @@
   // publicado como aplicativo web, cujo endereço fica guardado aqui.
   var contasUrl = '';
 
-  function chamarServicoContas_(payload) {
-    if (!contasUrl) {
+  // urlAlternativa: usada pela tela de nova senha, onde a pessoa ainda não
+  // entrou e por isso o endereço vem do próprio convite, não do config
+  function chamarServicoContas_(payload, urlAlternativa) {
+    var url = urlAlternativa || contasUrl;
+    if (!url) {
       return Promise.reject(new Error('Falta configurar o endereço do serviço de contas em Perfil.'));
     }
     // text/plain evita o preflight de CORS, que o Apps Script não responde
-    return fetch(contasUrl, {
+    return fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify(payload)
@@ -6617,7 +6625,7 @@
           // trocar a senha de uma conta que já existe só o serviço de
           // contas (Apps Script) consegue fazer — o navegador não tem
           // permissão de administrador do Firebase
-          ? chamarServicoContas_({ acao: 'resetar', codigo: codigo, senha: senha })
+          ? chamarServicoContas_({ acao: 'resetar', codigo: codigo, senha: senha }, c.contasUrl)
               .then(function () { return auth.signInWithEmailAndPassword(email, senha); })
           : auth.createUserWithEmailAndPassword(email, senha).then(function (cred) {
               return db.collection('usuarios').doc(cred.user.uid).set({
