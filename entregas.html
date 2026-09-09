@@ -3256,6 +3256,15 @@
       listEl.innerHTML = '<div class="empty-state">Nenhuma entrega na rota. Toque em "+ Adicionar à rota" para preparar a próxima.</div>';
       return;
     }
+    // quantas entregas cada cliente tem na rota — com mais de uma, dá pra
+    // colher uma assinatura só pra todas em vez de repetir o mesmo ritual
+    var porCliente = {};
+    list.forEach(function (e) {
+      var chave = e.clienteNome || '?';
+      (porCliente[chave] = porCliente[chave] || []).push(e);
+    });
+    var loteJaOferecido = {};
+
     list.forEach(function (e) {
       var row = document.createElement('div');
       row.className = 'entrega-row st-rota rota-item';
@@ -3275,6 +3284,18 @@
       });
       habilitarDragRota_(row);
       listEl.appendChild(row);
+
+      var doCliente = porCliente[e.clienteNome || '?'];
+      if (doCliente.length > 1 && !loteJaOferecido[e.clienteNome || '?']) {
+        loteJaOferecido[e.clienteNome || '?'] = true;
+        var btnLote = document.createElement('button');
+        btnLote.type = 'button';
+        btnLote.className = 'btn-chip accent';
+        btnLote.style.cssText = 'margin:2px 0 10px 26px;';
+        btnLote.innerHTML = '<i class="ph ph-signature" aria-hidden="true"></i> Assinar as ' + doCliente.length + ' juntas';
+        btnLote.addEventListener('click', function () { openConfirmLoteModal_(e.clienteNome, doCliente); });
+        listEl.appendChild(btnLote);
+      }
     });
     listaChegou_(listEl);
   }
@@ -3292,11 +3313,13 @@
       row.classList.add('arrastando');
       function onMove(ev2) {
         row.style.transform = 'translateY(' + (ev2.clientY - startY) + 'px)';
-        var irmaos = Array.from(listEl.children).filter(function (r) { return r !== row; });
+        // só as linhas de entrega entram na conta — os botões de "assinar
+        // juntas" ficam no meio da lista, mas não são posições válidas
+        var irmaos = Array.from(listEl.querySelectorAll('.rota-item')).filter(function (r) { return r !== row; });
         for (var i = 0; i < irmaos.length; i++) {
-          var meio = irmaos[i].getBoundingClientRect().top + irmaos[i].getBoundingClientRect().height / 2;
-          if (ev2.clientY < meio) {
-            if (listEl.children[i] !== row) {
+          var caixa = irmaos[i].getBoundingClientRect();
+          if (ev2.clientY < caixa.top + caixa.height / 2) {
+            if (row.nextElementSibling !== irmaos[i]) {
               listEl.insertBefore(row, irmaos[i]);
               startY = ev2.clientY;
               row.style.transform = 'translateY(0)';
@@ -3304,7 +3327,7 @@
             return;
           }
         }
-        if (listEl.lastElementChild !== row) {
+        if (irmaos.length && row !== irmaos[irmaos.length - 1].nextElementSibling) {
           listEl.appendChild(row);
           startY = ev2.clientY;
           row.style.transform = 'translateY(0)';
@@ -3323,7 +3346,7 @@
   }
 
   function salvarNovaOrdemRota_() {
-    var ids = Array.from($('rotaList').children).map(function (r) { return r.dataset.id; }).filter(Boolean);
+    var ids = Array.from($('rotaList').querySelectorAll('.rota-item')).map(function (r) { return r.dataset.id; }).filter(Boolean);
     if (!ids.length) return;
     // As regras do Firestore só deixam alterar uma entrega que é sua ou
     // sendo admin — se a rota visível mistura entregas de outras pessoas
@@ -4194,6 +4217,144 @@
         openConfirmPendingModal(entrega);
       }).catch(function (err) {
         showToast(errMsg(err, 'Não foi possível salvar.'), 'error');
+        botaoLivre_(btn);
+      });
+    });
+  }
+
+  // Várias entregas do mesmo cliente confirmadas com UMA assinatura só —
+  // é o caso comum de chegar num escritório com 3, 4 guias de meses ou
+  // documentos diferentes e a pessoa assinar uma vez por tudo.
+  function openConfirmLoteModal_(clienteNome, entregas) {
+    var root = $('modalRoot');
+    var linhasHtml = entregas.map(function (e, i) {
+      var itensStr = (e.itens || []).map(function (it) { return typeof it === 'string' ? it : it.tipo; }).join(', ');
+      var total = (e.itens || []).reduce(function (s, it) { return s + ((it && it.valor) || 0); }, 0);
+      return '<label class="avulso-toggle" style="align-items:flex-start;">' +
+        '<input type="checkbox" class="lote-item" data-idx="' + i + '" checked>' +
+        '<span><b>' + escapeHtml_(fmtCompetencia(e.competencia)) + '</b><br>' +
+        '<span class="card-hint" style="margin:0">' + escapeHtml_(itensStr) + (total > 0 ? ' · ' + fmtMoney(total) : '') + '</span></span>' +
+        '</label>';
+    }).join('');
+
+    root.innerHTML =
+      '<div class="modal-overlay" id="overlay">' +
+        '<div class="modal">' +
+          '<div class="modal-head">' +
+            '<div><h2>' + escapeHtml_(clienteNome) + '</h2><div class="card-hint" style="margin:2px 0 0">' + entregas.length + ' entregas na rota · uma assinatura para todas</div></div>' +
+            '<button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button>' +
+          '</div>' +
+          '<div class="field"><span>Entregas incluídas</span>' + linhasHtml + '</div>' +
+          '<label class="field">' +
+            '<span>Nome de quem recebeu (opcional)</span>' +
+            '<input class="input" id="loteRecebedor" type="text" placeholder="Quem assinou pelo cliente">' +
+          '</label>' +
+          '<div class="field">' +
+            '<span>Foto (opcional se colher assinatura)</span>' +
+            '<input type="file" accept="image/*" capture="environment" id="loteFotoInput" class="foto-file-input">' +
+            '<label for="loteFotoInput" class="btn btn-secondary foto-label"><i class="ph ph-camera" aria-hidden="true"></i> Tirar foto / anexar</label>' +
+            '<div class="foto-preview-wrap" id="loteFotoPreviewWrap" hidden>' +
+              '<img id="loteFotoPreview" class="foto-preview" alt="Foto anexada">' +
+              '<button type="button" class="link-btn" id="loteFotoRemove">Remover foto</button>' +
+            '</div>' +
+          '</div>' +
+          '<label class="field">' +
+            '<span>Assinatura (opcional se anexar foto)</span>' +
+            '<div class="sig-wrap">' +
+              '<canvas id="loteSigCanvas"></canvas>' +
+              '<div class="sig-placeholder" id="loteSigPlaceholder"><i class="ph ph-pen-nib" aria-hidden="true"></i> Assine aqui com o dedo ou o mouse</div>' +
+              '<div class="sig-row">' +
+                '<span class="sig-status" id="loteSigStatus">Sem assinatura ainda.</span>' +
+                '<button type="button" class="link-btn sig-fullscreen-btn"><i class="ph ph-arrows-out" aria-hidden="true"></i> Tela cheia</button>' +
+                '<button type="button" class="link-btn" id="loteClearSig">Limpar</button>' +
+              '</div>' +
+            '</div>' +
+            '<div class="field-error show" id="loteSigError" hidden>Colha a assinatura ou anexe uma foto antes de confirmar.</div>' +
+          '</label>' +
+          '<button type="button" class="btn btn-primary" id="loteConfirmBtn">Confirmar todas</button>' +
+        '</div>' +
+      '</div>';
+
+    $('modalClose').addEventListener('click', closeModal);
+    $('overlay').addEventListener('click', function (e) { if (e.target.id === 'overlay') closeModal(); });
+
+    var loteGeo = null;
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        function (pos) { loteGeo = { lat: pos.coords.latitude, lng: pos.coords.longitude }; },
+        function () { loteGeo = null; },
+        { timeout: 8000, maximumAge: 60000 }
+      );
+    }
+
+    var loteFoto = null;
+    $('loteFotoInput').addEventListener('change', function (e) {
+      var file = e.target.files[0];
+      if (!file) return;
+      compressImage(file, 900, 0.6).then(function (dataUrl) {
+        loteFoto = dataUrl;
+        $('loteFotoPreview').src = dataUrl;
+        $('loteFotoPreviewWrap').hidden = false;
+      }).catch(function () { showToast('Não foi possível processar a foto.', 'error'); });
+    });
+    $('loteFotoRemove').addEventListener('click', function () {
+      loteFoto = null;
+      $('loteFotoInput').value = '';
+      $('loteFotoPreviewWrap').hidden = true;
+    });
+
+    var lotePad = createSignaturePad($('loteSigCanvas'), 200);
+    lotePad.onDraw = function () {
+      $('loteSigStatus').innerHTML = '<i class="ph ph-check-circle" aria-hidden="true"></i> Assinatura capturada.';
+      $('loteSigStatus').classList.add('ok');
+      $('loteSigPlaceholder').classList.add('hide');
+    };
+    lotePad.setup();
+    $('loteClearSig').addEventListener('click', function () {
+      lotePad.clear();
+      $('loteSigStatus').textContent = 'Sem assinatura ainda.';
+      $('loteSigStatus').classList.remove('ok');
+      $('loteSigPlaceholder').classList.remove('hide');
+    });
+
+    $('loteConfirmBtn').addEventListener('click', function () {
+      $('loteSigError').hidden = true;
+      var escolhidas = Array.from(document.querySelectorAll('.lote-item:checked'))
+        .map(function (c) { return entregas[parseInt(c.dataset.idx, 10)]; });
+      if (!escolhidas.length) { showToast('Escolha ao menos uma entrega.', 'error'); return; }
+      if (!lotePad.hasSignature && !loteFoto) { $('loteSigError').hidden = false; return; }
+
+      var btn = $('loteConfirmBtn');
+      botaoOcupado_(btn);
+      var assinatura = lotePad.hasSignature ? lotePad.dataUrl() : null;
+      var agora = new Date().toISOString();
+      var recebedor = $('loteRecebedor').value.trim();
+
+      // a mesma assinatura/foto vale como comprovante de cada entrega,
+      // então cada documento continua tendo seu próprio comprovante salvo
+      var gravacoes = escolhidas.map(function (e) {
+        var ref = db.doc('entregas/' + e.id);
+        return ref.update({
+          recebedor: recebedor,
+          geo: loteGeo,
+          temAssinatura: !!assinatura,
+          temFoto: !!loteFoto,
+          falha: false,
+          motivoFalha: '',
+          entregadoPor: (auth.currentUser && auth.currentUser.email) || '',
+          entregadoPorNome: currentUserNome || (auth.currentUser && auth.currentUser.email) || '',
+          status: 'confirmada',
+          confirmadoEm: agora
+        }).then(function () {
+          return ref.collection('anexos').doc('comprovante').set({ assinatura: assinatura, foto: loteFoto }, { merge: true });
+        });
+      });
+
+      escritaQueNaoTrava_(Promise.all(gravacoes)).then(function (resultado) {
+        showToast(avisoDeEscrita_(resultado, escolhidas.length + ' entregas confirmadas de uma vez.'));
+        closeModal();
+      }).catch(function (err) {
+        showToast(errMsg(err, 'Não foi possível confirmar.'), 'error');
         botaoLivre_(btn);
       });
     });
