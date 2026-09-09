@@ -1238,6 +1238,13 @@
         <div class="field-error" id="err-foto">Anexe uma foto — é obrigatória nesse caso.</div>
       </div>
 
+      <div class="field" id="pdfField">
+        <span>Anexar PDF do documento (opcional — tenta preencher cliente, tipo e competência sozinho)</span>
+        <input type="file" accept="application/pdf" id="pdfInput" class="foto-file-input">
+        <label for="pdfInput" class="btn btn-secondary foto-label"><i class="ph ph-file-pdf" aria-hidden="true"></i> Anexar PDF do documento</label>
+        <div class="card-hint" id="pdfStatus" style="margin-top:6px;"></div>
+      </div>
+
       <label class="field" id="assinaturaField">
         <span id="assinaturaLabel">Assinatura (opcional se anexar foto)</span>
         <div class="sig-wrap">
@@ -1604,6 +1611,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
   var firebaseConfig = {
     apiKey: "AIzaSyD6xg7XhX8dKTKmaYup4hRX5k9XFHEkb98",
@@ -2277,6 +2285,139 @@
     $('fotoInput').value = '';
     $('fotoPreviewWrap').hidden = true;
     salvarRascunho_();
+  });
+
+  // ---------- anexar PDF do documento (detecta cliente/tipo/competência/valor) ----------
+  if (typeof pdfjsLib !== 'undefined') {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  }
+
+  // Cada palavra-chave é procurada no texto extraído do PDF (sem acento,
+  // em caixa alta) — não é infalível (guias variam de layout), então o
+  // resultado sempre precisa ser confirmado pela pessoa antes de enviar.
+  var DETECCAO_TIPO = [
+    { key: 'das', kws: ['SIMPLES NACIONAL', 'DOCUMENTO DE ARRECADACAO DO SIMPLES'] },
+    { key: 'icms_antecipado', kws: ['ANTECIPACAO TRIBUTARIA', 'ICMS ANTECIPADO'] },
+    { key: 'icms_difal', kws: ['DIFERENCIAL DE ALIQUOTA', 'DIFAL'] },
+    { key: 'icms_st', kws: ['SUBSTITUICAO TRIBUTARIA'] },
+    { key: 'fgts', kws: ['FGTS', 'GUIA DE RECOLHIMENTO DO FGTS'] },
+    { key: 'darf', kws: ['DARF', 'DOCUMENTO DE ARRECADACAO DE RECEITAS FEDERAIS'] },
+    { key: 'dae', kws: [' DAE '] },
+    { key: 'honorario', kws: ['HONORARIO'] },
+    { key: 'ccir', kws: ['CCIR', 'CADASTRO DE IMOVEL RURAL'] },
+    { key: 'multa_rescisoria', kws: ['MULTA RESCISORIA', 'RESCISAO CONTRATUAL'] },
+    { key: 'ferias', kws: ['RECIBO DE FERIAS'] },
+    { key: 'folha_pagamento', kws: ['FOLHA DE PAGAMENTO', 'HOLERITE', 'RECIBO DE PAGAMENTO DE SALARIO'] },
+    { key: 'esocial', kws: ['ESOCIAL', 'E-SOCIAL'] },
+    { key: 'boleto', kws: ['BOLETO'] }
+  ];
+
+  function normalizarTexto_(s) {
+    return (s || '').toUpperCase().normalize('NFD').replace(new RegExp('[̀-ͯ]', 'g'), '');
+  }
+
+  function aplicarDadosDoPdf_(textoBruto, imagemDataUrl) {
+    var texto = normalizarTexto_(textoBruto);
+    var achados = [];
+
+    if (imagemDataUrl) {
+      fotoDataUrl = imagemDataUrl;
+      $('fotoPreview').src = imagemDataUrl;
+      $('fotoPreviewWrap').hidden = false;
+      achados.push('foto');
+    }
+
+    var docsEncontrados = texto.match(/\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}|\d{3}\.?\d{3}\.?\d{3}-?\d{2}/g) || [];
+    var clienteAchado = null;
+    for (var i = 0; i < docsEncontrados.length && !clienteAchado; i++) {
+      var digitos = docsEncontrados[i].replace(/\D/g, '');
+      if (digitos.length < 11) continue;
+      clienteAchado = Array.from(clientesCache.values()).find(function (c) {
+        return (c.documento || '').replace(/\D/g, '') === digitos;
+      });
+    }
+    if (clienteAchado) {
+      selectedClienteId = clienteAchado.id;
+      clienteInput.value = clienteLabel(clienteAchado);
+      clearFieldError('cliente');
+      aplicarZonaDoCliente_(clienteAchado);
+      achados.push('cliente');
+    }
+
+    var tipoAchado = null;
+    DETECCAO_TIPO.some(function (d) {
+      if (d.kws.some(function (kw) { return texto.indexOf(kw) !== -1; })) { tipoAchado = d.key; return true; }
+      return false;
+    });
+    if (tipoAchado) {
+      var chk = itensGrid.querySelector('input[data-key="' + tipoAchado + '"]');
+      if (chk && !chk.checked) { chk.checked = true; chk.dispatchEvent(new Event('change')); }
+      achados.push('tipo de documento');
+    }
+
+    var compMatch = textoBruto.match(/\b(0[1-9]|1[0-2])\/(\d{4})\b/);
+    if (compMatch) {
+      $('competenciaInput').value = compMatch[2] + '-' + compMatch[1];
+      achados.push('competência');
+    }
+
+    if (tipoAchado) {
+      var valorMatch = textoBruto.match(/R\$\s*([\d.,]+)/);
+      if (valorMatch) {
+        valoresState[tipoAchado] = valorMatch[1];
+        renderValores();
+        achados.push('valor');
+      }
+    }
+
+    salvarRascunho_();
+    $('pdfStatus').textContent = '';
+    var semImagem = achados.indexOf('foto') === -1;
+    showToast((achados.length
+      ? 'Detectado automaticamente: ' + achados.join(', ') + ' — confira antes de confirmar.'
+      : 'Não consegui identificar os dados automaticamente nesse PDF. Preencha manualmente.') +
+      (semImagem ? ' A imagem do PDF não pôde ser gerada — anexe uma foto do documento também.' : ''));
+  }
+
+  function processarPdf_(file) {
+    if (typeof pdfjsLib === 'undefined') { showToast('Biblioteca de PDF não carregou. Recarregue a página.', 'error'); return; }
+    $('pdfStatus').textContent = 'Lendo o PDF...';
+    var reader = new FileReader();
+    reader.onload = function () {
+      pdfjsLib.getDocument({ data: new Uint8Array(reader.result) }).promise.then(function (pdf) {
+        return pdf.getPage(1);
+      }).then(function (page) {
+        var textPromise = page.getTextContent().then(function (tc) {
+          return tc.items.map(function (it) { return it.str; }).join(' ');
+        });
+        var viewport = page.getViewport({ scale: 1.5 });
+        var canvas = document.createElement('canvas');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        var ctx = canvas.getContext('2d');
+        // Renderizar a página como imagem depende do navegador — se travar
+        // ou falhar por qualquer motivo, segue só com o texto em vez de
+        // deixar a pessoa presa em "Lendo o PDF..." pra sempre.
+        var imagemComLimite = Promise.race([
+          page.render({ canvasContext: ctx, viewport: viewport }).promise
+            .then(function () { return canvas.toDataURL('image/jpeg', 0.85); })
+            .catch(function () { return null; }),
+          new Promise(function (resolve) { setTimeout(function () { resolve(null); }, 12000); })
+        ]);
+        return Promise.all([textPromise, imagemComLimite]);
+      }).then(function (r) {
+        aplicarDadosDoPdf_(r[0], r[1]);
+      }).catch(function (err) {
+        $('pdfStatus').textContent = '';
+        showToast('Não foi possível ler esse PDF: ' + (err && err.message ? err.message : 'erro desconhecido'), 'error');
+      });
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  $('pdfInput').addEventListener('change', function (e) {
+    var file = e.target.files[0];
+    if (file) processarPdf_(file);
   });
 
   // ---------- geolocation ----------
