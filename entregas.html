@@ -848,6 +848,41 @@
   }
   .rota-drag-handle:active { cursor: grabbing; }
   .rota-item.arrastando { background: var(--surface-2); box-shadow: var(--shadow); position: relative; z-index: 5; }
+
+  /* Busca rápida (Ctrl+K): uma caixa só, no alto da tela, que acha
+     cliente ou aba sem tirar a mão do teclado. */
+  .busca-global {
+    position: fixed; inset: 0; z-index: 110; background: rgba(12, 9, 9, .5);
+    display: flex; align-items: flex-start; justify-content: center; padding: 12vh 16px 16px;
+  }
+  .busca-global[hidden] { display: none !important; }
+  .busca-global-caixa {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-l);
+    box-shadow: var(--shadow); width: 100%; max-width: 560px; overflow: hidden;
+  }
+  .busca-global-input {
+    border: none; border-bottom: 1px solid var(--border); border-radius: 0;
+    padding: 16px 18px; font-size: 1rem; background: var(--surface);
+  }
+  .busca-global-input:focus { outline: none; border-color: var(--border); }
+  .busca-global-lista { max-height: 50vh; overflow-y: auto; }
+  .busca-global-item {
+    width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px 18px;
+    border: none; background: none; cursor: pointer; text-align: left; color: inherit;
+  }
+  .busca-global-item.ativa, .busca-global-item:hover { background: var(--accent-soft); }
+  .busca-global-item .ph { color: var(--accent); font-size: 1.1rem; flex: none; }
+  .busca-global-item-txt { min-width: 0; flex: 1; }
+  .busca-global-item-nome { font-weight: 600; overflow-wrap: break-word; }
+  .busca-global-item-sub { font-size: .78rem; color: var(--ink-faint); }
+  .busca-global-dica {
+    display: flex; gap: 14px; padding: 9px 18px; border-top: 1px solid var(--border);
+    font-size: .72rem; color: var(--ink-faint); flex-wrap: wrap;
+  }
+  .busca-global-dica kbd {
+    font-family: var(--font-mono); font-size: .68rem; background: var(--surface-2);
+    border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; margin-right: 3px;
+  }
   .er-nome, .cr-name { font-weight: 600; overflow-wrap: break-word; word-break: break-word; }
   .er-sub, .cr-sub { font-size: .78rem; color: var(--ink-faint); margin-top: 2px; overflow-wrap: break-word; word-break: break-word; }
   .status-pill { font-size: .74rem; font-weight: 700; padding: 5px 10px; border-radius: 999px; white-space: nowrap; flex-shrink: 0; }
@@ -1598,6 +1633,19 @@
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div id="modalRoot"></div>
+
+<div class="busca-global" id="buscaGlobal" hidden>
+  <div class="busca-global-caixa" role="dialog" aria-modal="true" aria-label="Busca rápida">
+    <input class="input busca-global-input" id="buscaGlobalInput" type="text" autocomplete="off"
+           placeholder="Buscar cliente, ou digite uma aba (rota, painel, clientes...)">
+    <div class="busca-global-lista" id="buscaGlobalLista"></div>
+    <div class="busca-global-dica">
+      <span><kbd>↑</kbd><kbd>↓</kbd> navegar</span>
+      <span><kbd>Enter</kbd> abrir</span>
+      <span><kbd>Esc</kbd> fechar</span>
+    </div>
+  </div>
+</div>
 
 <div class="auth-gate" id="authGate" hidden>
   <div class="auth-shell">
@@ -3070,6 +3118,107 @@
   $('rotaAddBtn').addEventListener('click', function () {
     document.querySelector('.tab[data-tab="nova"]').click();
     document.querySelector('#modeToggle .mode-btn[data-mode="rota"]').click();
+  });
+
+  // ---------- busca rápida (Ctrl+K) ----------
+  var ABAS_BUSCA = [
+    { aba: 'nova', nome: 'Nova entrega', icone: 'ph-pen-nib' },
+    { aba: 'rota', nome: 'Rota', icone: 'ph-truck' },
+    { aba: 'painel', nome: 'Painel', icone: 'ph-chart-bar' },
+    { aba: 'solicitacoes', nome: 'Solicitações', icone: 'ph-envelope-simple' },
+    { aba: 'clientes', nome: 'Clientes', icone: 'ph-users' },
+    { aba: 'perfil', nome: 'Perfil', icone: 'ph-identification-badge' }
+  ];
+  var buscaGlobalResultados = [];
+
+  function abrirBuscaGlobal_() {
+    if ($('authGate') && !$('authGate').hidden) return;
+    if (!$('hubScreen').hidden) return;
+    $('buscaGlobal').hidden = false;
+    $('buscaGlobalInput').value = '';
+    renderBuscaGlobal_();
+    $('buscaGlobalInput').focus();
+  }
+
+  function fecharBuscaGlobal_() {
+    $('buscaGlobal').hidden = true;
+  }
+
+  function renderBuscaGlobal_() {
+    var q = $('buscaGlobalInput').value.trim().toLowerCase();
+    var lista = $('buscaGlobalLista');
+    buscaGlobalResultados = [];
+
+    ABAS_BUSCA.forEach(function (a) {
+      var btnAba = document.querySelector('.tab[data-tab="' + a.aba + '"]');
+      if (!btnAba || btnAba.hidden) return;
+      if (q && a.nome.toLowerCase().indexOf(q) === -1) return;
+      buscaGlobalResultados.push({
+        nome: a.nome, sub: 'Ir para a aba', icone: a.icone,
+        acao: function () { btnAba.click(); }
+      });
+    });
+
+    if (q) {
+      Array.from(clientesCache.values())
+        .filter(function (c) { return c.ativo !== false && clienteCombina_(c, q); })
+        .slice(0, 8)
+        .forEach(function (c) {
+          buscaGlobalResultados.push({
+            nome: clienteLabel(c), sub: c.documento || 'cliente', icone: 'ph-user',
+            acao: function () { openClienteHistorico(c); }
+          });
+        });
+    }
+
+    lista.innerHTML = '';
+    if (!buscaGlobalResultados.length) {
+      lista.innerHTML = '<div class="empty-state">Nada encontrado.</div>';
+      return;
+    }
+    buscaGlobalResultados.forEach(function (r, i) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'busca-global-item' + (i === 0 ? ' ativa' : '');
+      b.innerHTML = '<i class="ph ' + r.icone + '" aria-hidden="true"></i>' +
+        '<span class="busca-global-item-txt"><span class="busca-global-item-nome"></span>' +
+        '<span class="busca-global-item-sub"></span></span>';
+      b.querySelector('.busca-global-item-nome').textContent = r.nome;
+      b.querySelector('.busca-global-item-sub').textContent = r.sub;
+      b.addEventListener('click', function () { fecharBuscaGlobal_(); r.acao(); });
+      lista.appendChild(b);
+    });
+  }
+
+  function moverSelecaoBusca_(passo) {
+    var itens = Array.from($('buscaGlobalLista').querySelectorAll('.busca-global-item'));
+    if (!itens.length) return;
+    var atual = itens.findIndex(function (i) { return i.classList.contains('ativa'); });
+    var novo = (atual + passo + itens.length) % itens.length;
+    itens.forEach(function (i) { i.classList.remove('ativa'); });
+    itens[novo].classList.add('ativa');
+    itens[novo].scrollIntoView({ block: 'nearest' });
+  }
+
+  document.addEventListener('keydown', function (ev) {
+    if ((ev.ctrlKey || ev.metaKey) && (ev.key === 'k' || ev.key === 'K')) {
+      ev.preventDefault();
+      if ($('buscaGlobal').hidden) abrirBuscaGlobal_(); else fecharBuscaGlobal_();
+      return;
+    }
+    if ($('buscaGlobal').hidden) return;
+    if (ev.key === 'Escape') { ev.preventDefault(); fecharBuscaGlobal_(); return; }
+    if (ev.key === 'ArrowDown') { ev.preventDefault(); moverSelecaoBusca_(1); return; }
+    if (ev.key === 'ArrowUp') { ev.preventDefault(); moverSelecaoBusca_(-1); return; }
+    if (ev.key === 'Enter') {
+      ev.preventDefault();
+      var ativa = $('buscaGlobalLista').querySelector('.busca-global-item.ativa');
+      if (ativa) ativa.click();
+    }
+  });
+  $('buscaGlobalInput').addEventListener('input', renderBuscaGlobal_);
+  $('buscaGlobal').addEventListener('click', function (ev) {
+    if (ev.target === $('buscaGlobal')) fecharBuscaGlobal_();
   });
 
   function renderRota() {
