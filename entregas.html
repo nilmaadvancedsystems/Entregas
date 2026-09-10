@@ -5478,7 +5478,12 @@
     });
   }
 
-  function openConfirmPendingModal(entrega) {
+  // assinaturaInicial: {assinatura, recebedor} — vem de quando o cliente
+  // assinou no aparelho dele. Precisa entrar por parâmetro, e não ser
+  // aplicada depois de fora: a tela do QR remonta este modal, então um
+  // callback de fora escreveria no quadro da versão anterior, já jogada
+  // fora, e a assinatura sumiria na hora de confirmar.
+  function openConfirmPendingModal(entrega, assinaturaInicial) {
     var root = $('modalRoot');
     var itensHtml = entrega.itens.map(function (i) {
       var label = typeof i === 'string' ? i : i.tipo;
@@ -5582,6 +5587,16 @@
 
     var pendingPad = createSignaturePad($('pendingSigCanvas'), 200);
     var assinaturaRemota = null;
+
+    if (assinaturaInicial && assinaturaInicial.assinatura) {
+      assinaturaRemota = assinaturaInicial.assinatura;
+      pendingPad.carregar(assinaturaRemota);
+      $('pendingSigStatus').textContent = 'Assinado no celular do cliente.';
+      $('pendingSigStatus').classList.add('ok');
+      $('pendingSigPlaceholder').classList.add('hide');
+      $('pendingSigError').hidden = true;
+      if (assinaturaInicial.recebedor) $('pendingRecebedor').value = assinaturaInicial.recebedor;
+    }
     pendingPad.onDraw = function () {
       $('pendingSigStatus').innerHTML = '<i class="ph ph-check-circle" aria-hidden="true"></i> Assinatura capturada.';
       $('pendingSigStatus').classList.add('ok');
@@ -5603,17 +5618,7 @@
     // ouvindo. Quando ele assina, o traço aparece aqui na hora.
     var pararDeOuvirAssinatura = null;
     $('assinarNoCelularBtn').addEventListener('click', function () {
-      abrirAssinaturaRemota_(entrega, function (dataUrl, recebedor) {
-        // guarda o traço original: é ele que vai ser gravado, não o que o
-        // canvas conseguir redesenhar (que depende do layout ter fechado)
-        assinaturaRemota = dataUrl;
-        pendingPad.carregar(dataUrl);
-        $('pendingSigStatus').textContent = 'Assinado no celular do cliente.';
-        $('pendingSigStatus').classList.add('ok');
-        $('pendingSigPlaceholder').classList.add('hide');
-        $('pendingSigError').hidden = true;
-        if (recebedor && !$('pendingRecebedor').value.trim()) $('pendingRecebedor').value = recebedor;
-      }, function (parar) { pararDeOuvirAssinatura = parar; });
+      abrirAssinaturaRemota_(entrega, function (parar) { pararDeOuvirAssinatura = parar; });
     });
     // não deixa o ouvinte vivo depois que o modal fecha
     $('modalClose').addEventListener('click', function () { if (pararDeOuvirAssinatura) pararDeOuvirAssinatura(); });
@@ -5712,7 +5717,7 @@
     return Array.from(a).map(function (b) { return b.toString(16).padStart(2, '0'); }).join('');
   }
 
-  function abrirAssinaturaRemota_(entrega, aoAssinar, guardarParar) {
+  function abrirAssinaturaRemota_(entrega, guardarParar) {
     var token = gerarTokenAssinatura_();
     var itensResumo = (entrega.itens || []).map(function (i) {
       var label = typeof i === 'string' ? i : i.tipo;
@@ -5721,7 +5726,6 @@
     var link = location.href.split(/[?#]/)[0] + '?assinar=' + token;
 
     var root = $('modalRoot');
-    var anterior = root.innerHTML;
     root.innerHTML =
       '<div class="modal-overlay" id="overlayAssin"><div class="modal" id="modalAssin">' +
         '<div class="modal-head"><div><h2>Assinar no celular do cliente</h2>' +
@@ -5739,9 +5743,8 @@
     var parar = null;
     function voltar() {
       if (parar) { parar(); parar = null; }
-      root.innerHTML = anterior;
-      // o modal anterior perdeu os ouvintes junto com o innerHTML — reabre
-      // pra tudo voltar a funcionar em vez de ficar uma tela morta
+      // remonta a confirmação: o modal anterior perdeu os ouvintes junto
+      // com o innerHTML, e restaurar só o HTML deixaria uma tela morta
       openConfirmPendingModal(entrega);
     }
     $('assinVoltar').addEventListener('click', voltar);
@@ -5769,10 +5772,9 @@
         var d = snap.data();
         if (!d || !d.assinado || !d.assinatura) return;
         if (parar) { parar(); parar = null; }
-        root.innerHTML = anterior;
-        openConfirmPendingModal(entrega);
-        // o modal foi remontado: aplica no pad novo, não no antigo
-        setTimeout(function () { aoAssinar(d.assinatura, d.recebedor || ''); }, 60);
+        // remonta a confirmação já com a assinatura dentro, em vez de
+        // aplicá-la de fora depois — o pad é novo a cada remontagem
+        openConfirmPendingModal(entrega, { assinatura: d.assinatura, recebedor: d.recebedor || '' });
         showToast('Cliente assinou. Confira e confirme a entrega.');
       }, function () {});
       if (guardarParar) guardarParar(function () { if (parar) { parar(); parar = null; } });
