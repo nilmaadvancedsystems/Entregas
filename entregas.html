@@ -1349,6 +1349,7 @@
       <div class="card-head-row">
         <h2>Rota de entregas</h2>
         <button type="button" class="btn-chip" id="rotaProximidadeBtn"><i class="ph ph-navigation-arrow" aria-hidden="true"></i> Ordenar por proximidade</button>
+        <button type="button" class="btn-chip" id="rotaMapsBtn"><i class="ph ph-map-trifold" aria-hidden="true"></i> Abrir no Maps</button>
         <button type="button" class="btn-chip accent" id="rotaAddBtn">+ Adicionar à rota</button>
       </div>
       <p class="card-hint">Documentos e valores já prontos — falta só colher a assinatura na hora da entrega.</p>
@@ -3550,6 +3551,147 @@
     if (ev.target === $('buscaGlobal')) fecharBuscaGlobal_();
   });
 
+  // ---------- abrir a rota no Google Maps ----------
+  // O Maps aceita no máximo 9 paradas intermediárias por link (origem +
+  // 9 + destino = 11 pontos). Rota maior que isso é quebrada em trechos
+  // que se emendam: o destino de um é a origem do seguinte.
+  var rotaListaVisivel = [];
+  var MAX_PARADAS_MAPS = 10;
+
+  function paradasDaRota_() {
+    var vistos = {};
+    var paradas = [];
+    rotaListaVisivel.forEach(function (e) {
+      // várias entregas do mesmo cliente são uma parada só
+      var chave = e.clienteId || e.clienteNome;
+      if (!chave || vistos[chave]) return;
+      vistos[chave] = true;
+      var cliente = e.clienteId ? clientesCache.get(e.clienteId) : null;
+      var geo = cliente && cliente.geo;
+      paradas.push({
+        nome: e.clienteNome || (cliente && cliente.nome) || 'sem nome',
+        endereco: (cliente && cliente.endereco) || '',
+        geo: (geo && typeof geo.lat === 'number') ? geo : null
+      });
+    });
+    return paradas;
+  }
+
+  function pontoParaMaps_(p) {
+    // coordenada é sempre mais confiável que texto; endereço escrito só
+    // entra quando o cliente ainda não tem ponto no mapa
+    return p.geo ? (p.geo.lat + ',' + p.geo.lng) : (p.endereco || p.nome);
+  }
+
+  function urlDoTrecho_(pontos, origemStr) {
+    var partes = pontos.map(pontoParaMaps_);
+    var origem = origemStr || partes.shift();
+    var destino = partes.pop();
+    var url = 'https://www.google.com/maps/dir/?api=1&travelmode=driving' +
+      '&origin=' + encodeURIComponent(origem) +
+      '&destination=' + encodeURIComponent(destino);
+    if (partes.length) url += '&waypoints=' + encodeURIComponent(partes.join('|'));
+    return url;
+  }
+
+  function abrirRotaNoMaps_() {
+    var todas = paradasDaRota_();
+    var comLocal = todas.filter(function (p) { return p.geo || p.endereco; });
+    var semLocal = todas.filter(function (p) { return !p.geo && !p.endereco; });
+
+    if (!comLocal.length) {
+      showToast('Nenhuma parada da rota tem localização ainda. Confirme uma entrega no cliente ou cadastre o endereço dele.', 'error');
+      return;
+    }
+
+    // pega a posição atual pra rota começar de onde a pessoa está; se o
+    // aparelho não devolver a tempo, começa da primeira parada mesmo
+    var pedirLocal = new Promise(function (resolve) {
+      if (!navigator.geolocation) return resolve(null);
+      var respondido = false;
+      var t = setTimeout(function () { if (!respondido) { respondido = true; resolve(null); } }, 4000);
+      navigator.geolocation.getCurrentPosition(function (pos) {
+        if (respondido) return;
+        respondido = true; clearTimeout(t);
+        resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+      }, function () {
+        if (respondido) return;
+        respondido = true; clearTimeout(t);
+        resolve(null);
+      }, { enableHighAccuracy: false, timeout: 4000, maximumAge: 120000 });
+    });
+
+    pedirLocal.then(function (origemGeo) {
+      var trechos = [];
+      var restantes = comLocal.slice();
+      var origemDoTrecho = origemGeo ? (origemGeo.lat + ',' + origemGeo.lng) : null;
+      while (restantes.length) {
+        // sem origem própria, o primeiro ponto do trecho vira a origem e
+        // não conta como parada — por isso o +1 nesse caso
+        var cabem = origemDoTrecho ? MAX_PARADAS_MAPS : MAX_PARADAS_MAPS + 1;
+        var pedaco = restantes.splice(0, cabem);
+        trechos.push({ pontos: pedaco, origem: origemDoTrecho });
+        // o próximo trecho começa na última parada deste, pra emendar
+        if (restantes.length) origemDoTrecho = pontoParaMaps_(pedaco[pedaco.length - 1]);
+      }
+
+      if (trechos.length === 1 && !semLocal.length) {
+        window.open(urlDoTrecho_(trechos[0].pontos, trechos[0].origem), '_blank');
+        registrarAuditoria_('rota_maps_aberta', comLocal.length + ' parada(s)');
+        return;
+      }
+      mostrarTrechosDaRota_(trechos, semLocal, comLocal.length);
+    });
+  }
+
+  function mostrarTrechosDaRota_(trechos, semLocal, totalComLocal) {
+    var root = $('modalRoot');
+    root.innerHTML =
+      '<div class="modal-overlay" id="overlay"><div class="modal" id="modalInner">' +
+        '<div class="modal-head"><div><h2>Rota no Google Maps</h2>' +
+          '<div class="card-hint" style="margin:2px 0 0">' + totalComLocal + ' parada(s) com localização' +
+          (trechos.length > 1 ? ' · dividida em ' + trechos.length + ' trechos, porque o Maps aceita no máximo 10 paradas por link' : '') +
+          '</div></div>' +
+          '<button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button>' +
+        '</div>' +
+      '</div></div>';
+    $('overlay').addEventListener('click', function (e) { if (e.target.id === 'overlay') closeModal(); });
+    $('modalClose').addEventListener('click', closeModal);
+    var inner = $('modalInner');
+
+    trechos.forEach(function (t, i) {
+      var bloco = document.createElement('div');
+      bloco.className = 'field';
+      var nomes = t.pontos.map(function (p, j) { return (j + 1) + '. ' + p.nome; }).join('<br>');
+      bloco.innerHTML =
+        '<span>' + (trechos.length > 1 ? 'Trecho ' + (i + 1) : 'Paradas na ordem') + '</span>' +
+        '<p class="card-hint" style="margin:0 0 8px">' + nomes + '</p>';
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn-chip accent';
+      btn.innerHTML = '<i class="ph ph-map-trifold" aria-hidden="true"></i> Abrir' + (trechos.length > 1 ? ' trecho ' + (i + 1) : ' no Maps');
+      btn.addEventListener('click', function () {
+        window.open(urlDoTrecho_(t.pontos, t.origem), '_blank');
+        registrarAuditoria_('rota_maps_aberta', 'trecho ' + (i + 1) + ' · ' + t.pontos.length + ' parada(s)');
+      });
+      bloco.appendChild(btn);
+      inner.appendChild(bloco);
+    });
+
+    if (semLocal.length) {
+      var aviso = document.createElement('div');
+      aviso.className = 'field';
+      aviso.style.marginBottom = '0';
+      aviso.innerHTML = '<span>Ficaram de fora (' + semLocal.length + ')</span>' +
+        '<p class="card-hint" style="margin:0">' +
+        semLocal.map(function (p) { return escapeHtml_(p.nome); }).join('<br>') +
+        '<br><br>Esses clientes ainda não têm localização. Ela é gravada sozinha na primeira entrega confirmada, ou você pode cadastrar o endereço no cliente.</p>';
+      inner.appendChild(aviso);
+    }
+  }
+
+  $('rotaMapsBtn').addEventListener('click', abrirRotaNoMaps_);
+
   function renderRota() {
     var badge = $('rotaBadge');
     atualizarBadge_(badge, pendentesCache.length);
@@ -3578,6 +3720,9 @@
     if (busca) list = list.filter(function (e) { return (e.clienteNome || '').toLowerCase().indexOf(busca) !== -1; });
     if (filtroPessoa) list = list.filter(function (e) { return (e.entregadoPorNome || e.entregadoPor) === filtroPessoa; });
     if (filtroZona) list = list.filter(function (e) { return e.zona === filtroZona; });
+    // guarda o que está de fato na tela pra "Abrir no Maps" seguir a mesma
+    // ordem e os mesmos filtros que a pessoa está vendo
+    rotaListaVisivel = list;
 
     var listEl = $('rotaList');
     listEl.innerHTML = '';
