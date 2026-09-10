@@ -4089,45 +4089,70 @@
     });
 
     pedirLocal.then(function (origemGeo) {
-      // Rota é ferramenta de navegação: a ordem boa é a curta, não a de
-      // cadastro. Reordena aqui e mostra quanto isso economizou, deixando
-      // a pessoa levar essa ordem pra rota se quiser.
-      var kmAntes = comprimentoRota_(comLocal, origemGeo);
-      var otimizada = ordenarPorZonaEProximidade_(comLocal, origemGeo);
-      var kmDepois = comprimentoRota_(otimizada, origemGeo);
-      var economia = kmAntes - kmDepois;
-      comLocal = otimizada;
-      var imprecisas = comLocal.filter(function (p) { return !p.confiavel; });
+      // A ORDEM DA TELA MANDA. Quem arrastou as paradas na mão sabe de
+      // coisas que distância em linha reta não sabe: mão única, cliente
+      // que fecha na hora do almoço, onde o dia termina. O otimizador
+      // entra como sugestão — nunca reordenando sozinho e jogando fora o
+      // trabalho de quem montou a rota.
+      var kmDaTela = comprimentoRota_(comLocal, origemGeo);
+      var sugerida = ordenarPorZonaEProximidade_(comLocal, origemGeo);
+      var kmSugerida = comprimentoRota_(sugerida, origemGeo);
 
-      var trechos = [];
-      var restantes = comLocal.slice();
-      var origemDoTrecho = origemGeo ? (origemGeo.lat + ',' + origemGeo.lng) : null;
-      while (restantes.length) {
-        // sem origem própria, o primeiro ponto do trecho vira a origem e
-        // não conta como parada — por isso o +1 nesse caso
-        var cabem = origemDoTrecho ? MAX_PARADAS_MAPS : MAX_PARADAS_MAPS + 1;
-        var pedaco = restantes.splice(0, cabem);
-        trechos.push({ pontos: pedaco, origem: origemDoTrecho });
-        // o próximo trecho começa na última parada deste, pra emendar
-        if (restantes.length) origemDoTrecho = pontoParaMaps_(pedaco[pedaco.length - 1]);
-      }
-
-      mostrarTrechosDaRota_(trechos, semLocal, comLocal.length, {
-        km: kmDepois, economia: economia, ordem: comLocal, imprecisas: imprecisas
+      mostrarRotaNoMaps_(comLocal, semLocal, origemGeo, {
+        kmDaTela: kmDaTela, sugerida: sugerida, kmSugerida: kmSugerida
       });
+    });
+  }
+
+  function montarTrechos_(pontos, origemGeo) {
+    var trechos = [];
+    var restantes = pontos.slice();
+    var origemDoTrecho = origemGeo ? (origemGeo.lat + ',' + origemGeo.lng) : null;
+    while (restantes.length) {
+      // sem origem própria, o primeiro ponto do trecho vira a origem e
+      // não conta como parada — por isso o +1 nesse caso
+      var cabem = origemDoTrecho ? MAX_PARADAS_MAPS : MAX_PARADAS_MAPS + 1;
+      var pedaco = restantes.splice(0, cabem);
+      trechos.push({ pontos: pedaco, origem: origemDoTrecho });
+      // o próximo trecho começa na última parada deste, pra emendar
+      if (restantes.length) origemDoTrecho = pontoParaMaps_(pedaco[pedaco.length - 1]);
+    }
+    return trechos;
+  }
+
+  function mostrarRotaNoMaps_(ordemAtual, semLocal, origemGeo, alternativa) {
+    mostrarTrechosDaRota_(montarTrechos_(ordemAtual, origemGeo), semLocal, ordemAtual.length, {
+      km: comprimentoRota_(ordemAtual, origemGeo),
+      ordem: ordemAtual,
+      imprecisas: ordemAtual.filter(function (p) { return !p.confiavel; }),
+      origemGeo: origemGeo,
+      semLocal: semLocal,
+      alternativa: alternativa
     });
   }
 
   function mostrarTrechosDaRota_(trechos, semLocal, totalComLocal, resumo) {
     var root = $('modalRoot');
-    var economiaTxt = (resumo && resumo.economia > 0.3)
-      ? '<p class="card-hint" style="margin:0 0 12px">Ordem otimizada: <strong>' +
-          resumo.km.toFixed(1).replace('.', ',') + ' km</strong> em vez de ' +
-          (resumo.km + resumo.economia).toFixed(1).replace('.', ',') + ' km — ' +
-          resumo.economia.toFixed(1).replace('.', ',') + ' km a menos que a ordem da tela.</p>' +
-        '<div class="modal-acoes"><button type="button" class="btn-chip" id="aplicarOrdemBtn">' +
-          '<i class="ph ph-list-numbers" aria-hidden="true"></i> Usar esta ordem na rota</button></div>'
-      : '';
+    // A sugestão só aparece quando encurta de verdade (mais de 1 km). E
+    // aparece como oferta, com o número na mesa: linha reta não conhece
+    // mão única nem horário de fechar, então quem decide é quem roda.
+    var alt = resumo && resumo.alternativa;
+    var economia = alt ? (alt.kmDaTela - alt.kmSugerida) : 0;
+    var economiaTxt = (alt && !resumo.ehSugestao && economia > 1)
+      ? '<p class="card-hint" style="margin:0 0 8px">Esta é a sua ordem: <strong>' +
+          alt.kmDaTela.toFixed(1).replace('.', ',') + ' km</strong> em linha reta. ' +
+          'Dá pra fazer em ' + alt.kmSugerida.toFixed(1).replace('.', ',') + ' km numa ordem diferente — ' +
+          'mas a conta é em linha reta, sem saber de mão única nem de quem fecha ao meio-dia.</p>' +
+        '<div class="modal-acoes"><button type="button" class="btn-chip" id="verSugestaoBtn">' +
+          '<i class="ph ph-lightbulb" aria-hidden="true"></i> Ver a ordem sugerida</button></div>'
+      : (resumo && resumo.ehSugestao
+        ? '<p class="card-hint" style="margin:0 0 8px">Ordem sugerida: <strong>' +
+            resumo.km.toFixed(1).replace('.', ',') + ' km</strong> em linha reta. Confira se faz sentido na rua antes de usar.</p>' +
+          '<div class="modal-acoes">' +
+            '<button type="button" class="btn-chip" id="aplicarOrdemBtn"><i class="ph ph-list-numbers" aria-hidden="true"></i> Usar esta ordem na rota</button>' +
+            '<button type="button" class="btn-chip" id="voltarOrdemBtn">Voltar pra minha ordem</button>' +
+          '</div>'
+        : '');
 
     root.innerHTML =
       '<div class="modal-overlay" id="overlay"><div class="modal" id="modalInner">' +
@@ -4142,6 +4167,23 @@
     $('modalClose').addEventListener('click', closeModal);
     var inner = $('modalInner');
 
+    if ($('verSugestaoBtn')) {
+      $('verSugestaoBtn').addEventListener('click', function () {
+        mostrarTrechosDaRota_(montarTrechos_(alt.sugerida, resumo.origemGeo), semLocal, alt.sugerida.length, {
+          km: alt.kmSugerida, ordem: alt.sugerida, ehSugestao: true,
+          imprecisas: alt.sugerida.filter(function (p) { return !p.confiavel; }),
+          origemGeo: resumo.origemGeo, semLocal: semLocal,
+          alternativa: { kmDaTela: alt.kmDaTela, sugerida: resumo.ordem, kmSugerida: alt.kmDaTela }
+        });
+      });
+    }
+    if ($('voltarOrdemBtn')) {
+      $('voltarOrdemBtn').addEventListener('click', function () {
+        mostrarRotaNoMaps_(alt.sugerida, semLocal, resumo.origemGeo, {
+          kmDaTela: alt.kmDaTela, sugerida: resumo.ordem, kmSugerida: resumo.km
+        });
+      });
+    }
     if ($('aplicarOrdemBtn')) {
       $('aplicarOrdemBtn').addEventListener('click', function () {
         var btn = this;
