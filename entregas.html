@@ -2493,10 +2493,17 @@
     pad.clear = function () { setup(false); };
     pad.dataUrl = function () { return canvasEl.toDataURL('image/png'); };
     pad.setHeight = function (h) { cssHeight = h; setup(true); };
-    // Restaura uma assinatura salva (rascunho) sem precisar desenhar de novo.
+    // Restaura uma assinatura salva (rascunho, ou a que o cliente fez no
+    // celular dele) sem precisar desenhar de novo.
     pad.carregar = function (dataUrl) {
       if (!dataUrl) return;
       snapshot = dataUrl;
+      // marca aqui, e não só no onload da imagem: se o canvas ainda não
+      // tiver contexto (a tela acabou de aparecer e o layout não fechou),
+      // o desenho é adiado, mas a assinatura JÁ existe — sem isto o app
+      // dizia "assinatura registrada" e depois recusava confirmar dizendo
+      // que faltava assinatura.
+      pad.hasSignature = true;
       redrawSnapshot();
       if (pad.onDraw) pad.onDraw();
     };
@@ -5574,6 +5581,7 @@
     });
 
     var pendingPad = createSignaturePad($('pendingSigCanvas'), 200);
+    var assinaturaRemota = null;
     pendingPad.onDraw = function () {
       $('pendingSigStatus').innerHTML = '<i class="ph ph-check-circle" aria-hidden="true"></i> Assinatura capturada.';
       $('pendingSigStatus').classList.add('ok');
@@ -5582,6 +5590,9 @@
     pendingPad.setup();
     $('pendingClearSig').addEventListener('click', function () {
       pendingPad.clear();
+      // limpar apaga também a que veio do celular do cliente, senão ela
+      // seria gravada mesmo com o quadro em branco
+      assinaturaRemota = null;
       $('pendingSigStatus').textContent = 'Sem assinatura ainda.';
       $('pendingSigStatus').classList.remove('ok');
       $('pendingSigPlaceholder').classList.remove('hide');
@@ -5593,6 +5604,9 @@
     var pararDeOuvirAssinatura = null;
     $('assinarNoCelularBtn').addEventListener('click', function () {
       abrirAssinaturaRemota_(entrega, function (dataUrl, recebedor) {
+        // guarda o traço original: é ele que vai ser gravado, não o que o
+        // canvas conseguir redesenhar (que depende do layout ter fechado)
+        assinaturaRemota = dataUrl;
         pendingPad.carregar(dataUrl);
         $('pendingSigStatus').textContent = 'Assinado no celular do cliente.';
         $('pendingSigStatus').classList.add('ok');
@@ -5665,7 +5679,7 @@
       }).then(function () {
         if (!isFalha) guardarLocalDoCliente_(entrega.clienteId, pendingGeo);
         return entregaRef.collection('anexos').doc('comprovante').set({
-          assinatura: (!isFalha && pendingPad.hasSignature) ? pendingPad.dataUrl() : null,
+          assinatura: isFalha ? null : (assinaturaRemota || (pendingPad.hasSignature ? pendingPad.dataUrl() : null)),
           foto: pendingFoto
         }, { merge: true });
       });
