@@ -1615,6 +1615,14 @@
       </div>
       <p class="card-hint">Importa de uma vez a base de clientes já cadastrada. Pode clicar de novo sem medo — não duplica.</p>
     </div>
+    <div class="card" id="enderecosCard" hidden>
+      <div class="card-head-row">
+        <h2>Endereços e localização</h2>
+        <button type="button" class="btn-chip accent" id="importEnderecosBtn">Preencher endereços</button>
+      </div>
+      <p class="card-hint">Preenche endereço, bairro, CEP e o ponto no mapa de cada cliente, a partir do relatório de empresas do escritório. É o que faz a rota por proximidade e o "Abrir no Maps" funcionarem. Pode clicar de novo sem medo — só grava o que mudou.</p>
+      <div id="enderecosResumo" hidden></div>
+    </div>
     <form id="form-cliente" class="card" hidden novalidate>
       <h2>Novo cliente</h2>
       <div class="field">
@@ -3746,10 +3754,15 @@
       var itensStr = (e.itens || []).map(function (i) { return typeof i === 'string' ? i : i.tipo; }).join(', ');
       var total = (e.itens || []).reduce(function (s, i) { return s + ((i && i.valor) || 0); }, 0);
       var subtitle = fmtCompetencia(e.competencia) + ' · ' + itensStr + (total > 0 ? ' · ' + fmtMoney(total) : '') + (e.zona ? ' · ' + ZONA_LABEL[e.zona] : '');
+      // já foi lá e não deu certo: avisa a tentativa e o motivo da anterior,
+      // pra não repetir o mesmo erro (ex.: chegar de novo no horário do almoço)
+      if (e.tentativa > 1) {
+        subtitle += ' · ' + e.tentativa + 'ª tentativa' + (e.motivoTentativaAnterior ? ' (antes: ' + e.motivoTentativaAnterior + ')' : '');
+      }
       row.innerHTML =
         '<span class="rota-drag-handle" aria-label="Arrastar para reordenar"><i class="ph ph-dots-six-vertical" aria-hidden="true"></i></span>' +
         '<div class="rota-item-conteudo"><div class="er-nome"></div><div class="er-sub"></div></div>' +
-        '<span class="status-pill rota">Assinar</span>';
+        '<span class="status-pill ' + (e.tentativa > 1 ? 'falha' : 'rota') + '">' + (e.tentativa > 1 ? e.tentativa + 'ª vez' : 'Assinar') + '</span>';
       row.querySelector('.er-nome').textContent = e.clienteNome;
       row.querySelector('.er-sub').textContent = subtitle;
       row.addEventListener('click', function (ev) {
@@ -5249,10 +5262,58 @@
       escritaQueNaoTrava_(gravacao).then(function (resultado) {
         showToast(avisoDeEscrita_(resultado, isFalha ? 'Entrega não realizada registrada.' : 'Entrega confirmada.'));
         closeModal();
+        // Cliente ausente quase sempre significa "volto amanhã". Em vez de
+        // obrigar a remontar a entrega inteira do zero, oferece recriar já
+        // com tudo preenchido — e guarda que é a 2ª (ou 3ª...) tentativa.
+        if (isFalha) oferecerReagendar_(entrega, motivo);
       }).catch(function (err) {
         showToast(errMsg(err, 'Não foi possível confirmar.'), 'error');
         botaoLivre_(btn);
         atualizarModoFalhaPendente();
+      });
+    });
+  }
+
+  // ---------- tentar de novo depois de uma entrega não realizada ----------
+  function oferecerReagendar_(entrega, motivo) {
+    var tentativaAtual = entrega.tentativa || 1;
+    var root = $('modalRoot');
+    root.innerHTML =
+      '<div class="modal-overlay" id="overlay"><div class="modal" id="modalInner">' +
+        '<div class="modal-head"><div><h2>Tentar de novo?</h2>' +
+          '<div class="card-hint" style="margin:2px 0 0">' + escapeHtml_(entrega.clienteNome || 'cliente') + ' · ' + escapeHtml_(motivo || 'não entregue') + '</div>' +
+        '</div><button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button></div>' +
+        '<p class="card-hint">Volta pra rota com os mesmos documentos e valores, marcada como ' + (tentativaAtual + 1) + 'ª tentativa. A entrega de hoje continua registrada como não realizada.</p>' +
+        '<div class="modal-acoes" style="margin-top:14px">' +
+          '<button type="button" class="btn-chip accent" id="reagendarSimBtn"><i class="ph ph-arrow-counter-clockwise" aria-hidden="true"></i> Colocar de volta na rota</button>' +
+          '<button type="button" class="btn-chip" id="reagendarNaoBtn">Agora não</button>' +
+        '</div>' +
+      '</div></div>';
+    $('overlay').addEventListener('click', function (e) { if (e.target.id === 'overlay') closeModal(); });
+    $('modalClose').addEventListener('click', closeModal);
+    $('reagendarNaoBtn').addEventListener('click', closeModal);
+    $('reagendarSimBtn').addEventListener('click', function () {
+      var btn = this;
+      botaoOcupado_(btn);
+      db.collection('entregas').add({
+        clienteId: entrega.clienteId || '',
+        clienteNome: entrega.clienteNome || '',
+        competencia: entrega.competencia || '',
+        itens: entrega.itens || [],
+        zona: entrega.zona || '',
+        observacao: entrega.observacao || '',
+        status: 'pendente',
+        tentativa: tentativaAtual + 1,
+        motivoTentativaAnterior: motivo || '',
+        entregadoPor: (auth.currentUser && auth.currentUser.email) || '',
+        entregadoPorNome: currentUserNome || (auth.currentUser && auth.currentUser.email) || '',
+        criadoEm: new Date().toISOString()
+      }).then(function () {
+        showToast('De volta na rota como ' + (tentativaAtual + 1) + 'ª tentativa.');
+        closeModal();
+      }).catch(function (err) {
+        showToast(errMsg(err, 'Não foi possível recolocar na rota.'), 'error');
+        botaoLivre_(btn);
       });
     });
   }
@@ -5484,6 +5545,117 @@
     }).finally(function () {
       botaoLivre_(btn);
     });
+  }
+
+  // ---------- endereços e localização vindos do relatório do escritório ----------
+  // O relatório de empresas traz endereço completo de cada cliente; as
+  // coordenadas foram resolvidas uma vez fora do app (OpenStreetMap) e vêm
+  // prontas, com a precisão de cada uma — assim ninguém precisa esperar 476
+  // consultas de mapa rodando no navegador.
+  var PRECISAO_LABEL = {
+    rua: 'endereço exato', via: 'a rua certa', bairro: 'o bairro', cidade: 'só a cidade'
+  };
+
+  function normalizarCodigo_(c) {
+    return String(c == null ? '' : c).replace(/\D/g, '').replace(/^0+/, '');
+  }
+
+  $('importEnderecosBtn').addEventListener('click', function () {
+    var btn = this;
+    if (!window.CLIENTES_ENDERECOS || !window.CLIENTES_ENDERECOS.length) {
+      showToast('A base de endereços não carregou. Recarregue a página.', 'error');
+      return;
+    }
+    confirmarDuplo(btn, function () { importarEnderecos_(btn); });
+  });
+
+  function importarEnderecos_(btn) {
+    botaoOcupado_(btn);
+    var porCodigo = {};
+    clientesCache.forEach(function (c) {
+      var k = normalizarCodigo_(c.codigoOrigem);
+      if (k) porCodigo[k] = c;
+    });
+
+    var aGravar = [], semCorrespondencia = [], jaIguais = 0, semCoordenada = 0;
+    window.CLIENTES_ENDERECOS.forEach(function (r) {
+      var cliente = porCodigo[normalizarCodigo_(r.codigo)];
+      if (!cliente) { semCorrespondencia.push(r.nome); return; }
+
+      var dados = {};
+      if (r.endereco && cliente.endereco !== r.endereco) dados.endereco = r.endereco;
+      if (r.bairro && cliente.bairro !== r.bairro) dados.bairro = r.bairro;
+      if (r.cidade && cliente.cidade !== r.cidade) dados.cidade = r.cidade;
+      if (r.cep && cliente.cep !== r.cep) dados.cep = r.cep;
+      // telefone só entra se o cliente não tiver — o que está no app pode
+      // ter sido corrigido na mão e é mais novo que o relatório
+      if (r.telefone && !cliente.telefone) dados.telefone = r.telefone;
+
+      if (typeof r.lat === 'number' && typeof r.lng === 'number') {
+        // não sobrescreve ponto aprendido numa entrega real: aquele é onde
+        // a entrega aconteceu de fato, é melhor que o endereço do cadastro
+        var jaTemDeEntrega = cliente.geo && cliente.geo.origem !== 'endereco' && cliente.geo.origem !== 'relatorio';
+        if (!jaTemDeEntrega) {
+          dados.geo = { lat: r.lat, lng: r.lng, origem: 'relatorio', precisao: r.precisao || '' };
+        }
+      } else {
+        semCoordenada++;
+      }
+
+      if (Object.keys(dados).length) aGravar.push({ id: cliente.id, dados: dados });
+      else jaIguais++;
+    });
+
+    if (!aGravar.length) {
+      botaoLivre_(btn);
+      mostrarResumoEnderecos_(0, jaIguais, semCorrespondencia, semCoordenada);
+      return;
+    }
+
+    // Firestore aceita no máximo 500 operações por lote
+    var lotes = [];
+    for (var i = 0; i < aGravar.length; i += 400) lotes.push(aGravar.slice(i, i + 400));
+
+    var feitos = 0;
+    function proximo(i) {
+      if (i >= lotes.length) {
+        botaoLivre_(btn);
+        registrarAuditoria_('enderecos_importados', feitos + ' cliente(s)');
+        mostrarResumoEnderecos_(feitos, jaIguais, semCorrespondencia, semCoordenada);
+        return;
+      }
+      var batch = db.batch();
+      lotes[i].forEach(function (item) { batch.update(db.doc('clientes/' + item.id), item.dados); });
+      batch.commit().then(function () {
+        feitos += lotes[i].length;
+        $('enderecosResumo').hidden = false;
+        $('enderecosResumo').innerHTML = '<p class="card-hint">Gravando... ' + feitos + ' de ' + aGravar.length + '</p>';
+        proximo(i + 1);
+      }).catch(function (err) {
+        botaoLivre_(btn);
+        showToast(errMsg(err, 'Falha ao gravar os endereços.'), 'error');
+      });
+    }
+    proximo(0);
+  }
+
+  function mostrarResumoEnderecos_(atualizados, jaIguais, semCorrespondencia, semCoordenada) {
+    var el = $('enderecosResumo');
+    el.hidden = false;
+    var linhas = [
+      '<strong>' + atualizados + '</strong> cliente(s) atualizados',
+      jaIguais + ' já estavam em dia'
+    ];
+    if (semCoordenada) linhas.push(semCoordenada + ' sem ponto no mapa (endereço não localizado)');
+    if (semCorrespondencia.length) {
+      linhas.push(semCorrespondencia.length + ' empresa(s) do relatório sem cliente correspondente no app');
+    }
+    el.innerHTML = '<p class="card-hint" style="margin:12px 0 0">' + linhas.join('<br>') + '</p>' +
+      (semCorrespondencia.length
+        ? '<details style="margin-top:10px;"><summary class="card-hint" style="cursor:pointer">Ver quais ficaram de fora</summary>' +
+          '<p class="card-hint" style="margin:8px 0 0">' + semCorrespondencia.map(escapeHtml_).join('<br>') + '</p></details>'
+        : '');
+    showToast(atualizados ? atualizados + ' cliente(s) atualizados.' : 'Nenhuma mudança — já estava tudo em dia.');
   }
 
   $('exportClientesBtn').addEventListener('click', function () {
@@ -5793,7 +5965,13 @@
       var row = document.createElement('div');
       var naRota = pendentesCache.some(function (e) { return e.clienteId === c.id; });
       row.className = 'client-row' + (c.ativo === false ? ' inactive' : '');
-      var sub = [c.documento, c.telefone].filter(Boolean).join(' · ') || 'sem dados adicionais';
+      // endereço na frente: é o dado que se usa pra ir até lá. Quando o
+      // ponto no mapa é só aproximado, o aviso evita confiar demais na rota.
+      var localizacao = '';
+      if (c.geo && c.geo.precisao && PRECISAO_LABEL[c.geo.precisao] && c.geo.precisao !== 'rua') {
+        localizacao = ' · no mapa: ' + PRECISAO_LABEL[c.geo.precisao];
+      }
+      var sub = (c.endereco ? c.endereco + localizacao : [c.documento, c.telefone].filter(Boolean).join(' · ')) || 'sem dados adicionais';
       row.innerHTML =
         '<div class="cr-clickable"><div><div class="cr-name"></div><div class="cr-sub"></div></div>' +
         (naRota ? '<span class="status-pill rota">Na rota</span>' : '') + '</div>' +
@@ -6613,6 +6791,7 @@
     $('integracaoCard').hidden = !temPapel('admin');
     $('form-cliente').hidden = !temPapel('admin');
     $('importCard').hidden = !temPapel('admin');
+    $('enderecosCard').hidden = !temPapel('admin') || !(window.CLIENTES_ENDERECOS && window.CLIENTES_ENDERECOS.length);
     // Perfil é a página de administração de acessos: só admin enxerga.
     $('tabPerfil').hidden = !temPapel('admin');
     if (temPapel('admin')) subscribeUsuarios();
