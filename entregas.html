@@ -3295,6 +3295,7 @@
       motivoFalha: isFalha ? motivo : '',
       zona: isRota ? $('zonaSelect').value : '',
       geo: isRota ? null : currentGeo,
+      localDivergente: !isRota && !isFalha && avaliarLocalDaEntrega_(selectedClienteId, currentGeo).divergente,
       entregadoPor: (auth.currentUser && auth.currentUser.email) || '',
       entregadoPorNome: currentUserNome || (auth.currentUser && auth.currentUser.email) || '',
       status: isRota ? 'pendente' : (isFalha ? 'falha' : 'confirmada'),
@@ -3308,10 +3309,12 @@
     if (isRota && cliente && $('zonaSelect').value && cliente.zona !== $('zonaSelect').value) {
       db.doc('clientes/' + cliente.id).update({ zona: $('zonaSelect').value }).catch(function () {});
     }
-    if (!isRota && !isFalha && cliente) guardarLocalDoCliente_(cliente.id, currentGeo);
+    var avaliacaoLocal = null;
+    if (!isRota && !isFalha && cliente) avaliacaoLocal = guardarLocalDoCliente_(cliente.id, currentGeo);
 
     escritaQueNaoTrava_(gravacao).then(function (resultado) {
       showToast(avisoDeEscrita_(resultado, isRota ? 'Adicionado à rota — aguardando assinatura.' : (isFalha ? 'Entrega não realizada registrada.' : 'Entrega registrada com sucesso.')));
+      if (avaliacaoLocal) avisarLocalDivergente_(avaliacaoLocal, cliente && cliente.nome);
       resetForm();
       var card = $('form-nova');
       card.classList.remove('flash-success');
@@ -3532,7 +3535,11 @@
       });
     }
     bloco('Entregues hoje', entregues, 'entregue', function (e) {
-      return (e.itens || []).map(function (i) { return typeof i === 'string' ? i : i.tipo; }).join(', ');
+      var docs = (e.itens || []).map(function (i) { return typeof i === 'string' ? i : i.tipo; }).join(', ');
+      // marcas que o admin precisa ver no fim do dia sem abrir uma por uma
+      if (e.semComprovante) docs += ' · sem comprovante';
+      else if (e.localDivergente) docs += ' · registrada fora do local';
+      return docs;
     });
     bloco('Não entregues hoje', falhas, 'falha', function (e) { return e.motivoFalha || 'sem motivo informado'; });
     bloco('Ainda na rota', pendentesCache, 'rota', function (e) { return fmtCompetencia(e.competencia); });
@@ -4392,9 +4399,39 @@
   // confirmada. Não é o endereço oficial dele, é onde a entrega aconteceu
   // de fato — que é justamente o que serve pra montar a rota por
   // proximidade depois.
+  // Confirmar a entrega grava no cliente o lugar onde ela aconteceu. Isso
+  // é ótimo quando a confirmação é feita na porta do cliente — e péssimo
+  // quando é feita depois, já de volta no escritório: o cliente "mudava"
+  // pro escritório e a rota dele passava a sair errada, em silêncio, pra
+  // sempre. Por isso o ponto só é aprendido quando faz sentido.
+  var RAIO_CONFIRMACAO_KM = 0.3;
+
+  function avaliarLocalDaEntrega_(clienteId, geo) {
+    var vazio = { aprender: false, divergente: false, distancia: null };
+    if (!clienteId || !geo || typeof geo.lat !== 'number') return vazio;
+    var cliente = clientesCache.get(clienteId);
+    var atual = cliente && cliente.geo;
+    var temPontoBom = atual && typeof atual.lat === 'number' && atual.precisao !== 'cidade';
+    // sem ponto confiável ainda: qualquer confirmação de verdade já é
+    // melhor do que nada (é assim que a base aprende)
+    if (!temPontoBom) return { aprender: true, divergente: false, distancia: null };
+    var d = distanciaKm_(atual, geo);
+    if (d <= RAIO_CONFIRMACAO_KM) return { aprender: true, divergente: false, distancia: d };
+    return { aprender: false, divergente: true, distancia: d };
+  }
+
   function guardarLocalDoCliente_(clienteId, geo) {
-    if (!clienteId || !geo || typeof geo.lat !== 'number') return;
-    db.doc('clientes/' + clienteId).update({ geo: geo }).catch(function () {});
+    var avaliacao = avaliarLocalDaEntrega_(clienteId, geo);
+    if (!avaliacao.aprender) return avaliacao;
+    var dados = { geo: { lat: geo.lat, lng: geo.lng, origem: 'entrega', precisao: 'rua' } };
+    db.doc('clientes/' + clienteId).update(dados).catch(function () {});
+    return avaliacao;
+  }
+
+  function avisarLocalDivergente_(avaliacao, clienteNome) {
+    if (!avaliacao || !avaliacao.divergente) return;
+    showToast('Você estava a ' + Math.round(avaliacao.distancia * 1000) + ' m de ' +
+      (clienteNome || 'onde o cliente fica') + '. A entrega foi registrada, mas o local do cliente não foi alterado.');
   }
 
   // Descobre a zona de um ponto olhando o cliente mais próximo que já tem
@@ -5490,6 +5527,15 @@
         '<button class="modal-close" id="modalClose" title="Voltar ao histórico"><i class="ph ph-x" aria-hidden="true"></i></button>' +
       '</div>' +
       '<div class="itens-list">' + itensHtml + '</div>' +
+      (entrega.semComprovante
+        ? '<p class="card-hint" style="margin:10px 0 0"><strong>Sem comprovante.</strong> ' +
+          escapeHtml_(entrega.motivoSemComprovante || 'motivo não informado') + '</p>'
+        : '') +
+      (entrega.localDivergente
+        ? '<p class="card-hint" style="margin:6px 0 0">Confirmada a ' +
+          (entrega.distanciaDoClienteKm ? Math.round(entrega.distanciaDoClienteKm * 1000) + ' m' : 'certa distância') +
+          ' de onde o cliente fica — provavelmente registrada depois, fora do local.</p>'
+        : '') +
       '<div id="anexosSlot"><div class="skeleton skeleton-anexo"></div></div>' +
       '<dl>' +
         (total > 0 ? '<dt>Total</dt><dd class="num">' + fmtMoney(total) + '</dd>' : '') +
@@ -5805,6 +5851,9 @@
       var agora = new Date().toISOString();
       var recebedor = $('loteRecebedor').value.trim();
 
+      // é tudo do mesmo cliente, então a avaliação de local vale pra todas
+      var avaliacaoLote = avaliarLocalDaEntrega_(escolhidas[0] && escolhidas[0].clienteId, loteGeo);
+
       // a mesma assinatura/foto vale como comprovante de cada entrega,
       // então cada documento continua tendo seu próprio comprovante salvo
       var gravacoes = escolhidas.map(function (e) {
@@ -5814,6 +5863,8 @@
           geo: loteGeo,
           temAssinatura: !!assinatura,
           temFoto: !!loteFoto,
+          localDivergente: avaliacaoLote.divergente,
+          distanciaDoClienteKm: avaliacaoLote.distancia,
           falha: false,
           motivoFalha: '',
           entregadoPor: (auth.currentUser && auth.currentUser.email) || '',
@@ -5828,6 +5879,7 @@
 
       escritaQueNaoTrava_(Promise.all(gravacoes)).then(function (resultado) {
         showToast(avisoDeEscrita_(resultado, escolhidas.length + ' entregas confirmadas de uma vez.'));
+        avisarLocalDivergente_(avaliacaoLote, clienteNome);
         closeModal();
       }).catch(function (err) {
         showToast(errMsg(err, 'Não foi possível confirmar.'), 'error');
@@ -5877,6 +5929,16 @@
           '<label class="field" id="pendingRecebedorField">' +
             '<span>Nome de quem recebeu (opcional)</span>' +
             '<input class="input" id="pendingRecebedor" type="text" placeholder="Quem assinou pelo cliente">' +
+          '</label>' +
+          '<label class="avulso-toggle" id="pendingSemComprovanteWrap" style="margin-bottom:14px;">' +
+            '<input type="checkbox" id="pendingSemComprovanteToggle">' +
+            '<i class="ph ph-note-pencil" aria-hidden="true"></i> Entreguei, mas não tenho assinatura nem foto' +
+          '</label>' +
+          '<label class="field" id="pendingSemComprovanteField" hidden>' +
+            '<span>Por que não tem comprovante</span>' +
+            '<textarea class="input" id="pendingSemComprovanteMotivo" rows="2" placeholder="Ex.: esqueci de registrar na hora, celular sem bateria, deixei na portaria..."></textarea>' +
+            '<span class="card-hint" style="margin-top:4px;display:block;">A entrega fica registrada e marcada como <strong>sem comprovante</strong> — assim ninguém vai procurar uma assinatura que não existe.</span>' +
+            '<div class="field-error" id="err-pendingSemComprovanteMotivo">Explique o que aconteceu.</div>' +
           '</label>' +
           '<div class="field">' +
             '<span id="pendingFotoLabel">Foto (opcional se colher assinatura)</span>' +
@@ -5997,28 +6059,39 @@
 
     function atualizarModoFalhaPendente() {
       var isFalha = $('pendingFalhaToggle').checked;
+      var semComprovante = $('pendingSemComprovanteToggle').checked;
       $('pendingFalhaMotivoField').hidden = !isFalha;
-      $('pendingAssinaturaField').hidden = isFalha;
+      $('pendingAssinaturaField').hidden = isFalha || semComprovante;
       $('pendingRecebedorField').hidden = isFalha;
+      $('pendingSemComprovanteWrap').hidden = isFalha;
+      $('pendingSemComprovanteField').hidden = isFalha || !semComprovante;
       $('pendingHonorarioPixField').hidden = isFalha || !soHonorario;
       $('pendingFotoLabel').textContent = isFalha ? 'Foto (obrigatória)' : 'Foto (opcional se colher assinatura)';
       $('pendingConfirmBtn').textContent = isFalha ? 'Registrar entrega não realizada' : 'Confirmar entrega';
     }
     $('pendingFalhaToggle').addEventListener('change', atualizarModoFalhaPendente);
+    $('pendingSemComprovanteToggle').addEventListener('change', atualizarModoFalhaPendente);
 
     $('pendingConfirmBtn').addEventListener('click', function () {
       var isFalha = $('pendingFalhaToggle').checked;
+      var semComprovante = !isFalha && $('pendingSemComprovanteToggle').checked;
+      var motivoSemComprovante = $('pendingSemComprovanteMotivo').value.trim();
       var comPix = soHonorario && $('pendingHonorarioPixToggle').checked;
       var dispensaComprovante = !isFalha && ((soHonorario && !comPix) || soNotas);
       var motivo = $('pendingFalhaMotivo').value.trim();
       $('pendingSigError').hidden = true;
       clearFieldError('pendingFoto');
       clearFieldError('pendingFalhaMotivo');
+      clearFieldError('pendingSemComprovanteMotivo');
       if (isFalha) {
         var ok = true;
         if (!pendingFoto) { showFieldError('pendingFoto'); ok = false; }
         if (!motivo) { showFieldError('pendingFalhaMotivo'); ok = false; }
         if (!ok) return;
+      } else if (semComprovante) {
+        // sem assinatura e sem foto é aceitável, mas nunca em silêncio:
+        // exige dizer o porquê, e a entrega fica marcada com isso
+        if (!motivoSemComprovante) { showFieldError('pendingSemComprovanteMotivo'); return; }
       } else if (comPix) {
         if (!pendingFoto) { showFieldError('pendingFoto'); return; }
       } else if (!dispensaComprovante && !pendingPad.hasSignature && !pendingFoto) {
@@ -6028,11 +6101,19 @@
       var btn = $('pendingConfirmBtn');
       botaoOcupado_(btn);
       var entregaRef = db.doc('entregas/' + entrega.id);
+      // avalia ANTES de gravar: se a pessoa está longe do cliente, o ponto
+      // do cliente não pode ser alterado (senão o cliente "muda" pro lugar
+      // onde a confirmação foi feita, e a rota dele passa a sair errada)
+      var avaliacao = avaliarLocalDaEntrega_(entrega.clienteId, pendingGeo);
       var gravacao = entregaRef.update({
         recebedor: isFalha ? '' : $('pendingRecebedor').value.trim(),
         geo: pendingGeo,
-        temAssinatura: !isFalha && pendingPad.hasSignature,
-        temFoto: !!pendingFoto,
+        temAssinatura: !isFalha && !semComprovante && pendingPad.hasSignature,
+        temFoto: !isFalha && semComprovante ? false : !!pendingFoto,
+        semComprovante: semComprovante,
+        motivoSemComprovante: semComprovante ? motivoSemComprovante : '',
+        localDivergente: !isFalha && avaliacao.divergente,
+        distanciaDoClienteKm: avaliacao.distancia,
         falha: isFalha,
         motivoFalha: isFalha ? motivo : '',
         entregadoPor: (auth.currentUser && auth.currentUser.email) || '',
@@ -6042,13 +6123,15 @@
       }).then(function () {
         if (!isFalha) guardarLocalDoCliente_(entrega.clienteId, pendingGeo);
         return entregaRef.collection('anexos').doc('comprovante').set({
-          assinatura: isFalha ? null : (assinaturaRemota || (pendingPad.hasSignature ? pendingPad.dataUrl() : null)),
-          foto: pendingFoto
+          assinatura: (isFalha || semComprovante) ? null : (assinaturaRemota || (pendingPad.hasSignature ? pendingPad.dataUrl() : null)),
+          foto: semComprovante ? null : pendingFoto
         }, { merge: true });
       });
 
       escritaQueNaoTrava_(gravacao).then(function (resultado) {
-        showToast(avisoDeEscrita_(resultado, isFalha ? 'Entrega não realizada registrada.' : 'Entrega confirmada.'));
+        showToast(avisoDeEscrita_(resultado, isFalha ? 'Entrega não realizada registrada.'
+          : (semComprovante ? 'Entrega registrada sem comprovante.' : 'Entrega confirmada.')));
+        if (!isFalha) avisarLocalDivergente_(avaliacao, entrega.clienteNome);
         closeModal();
         // Cliente ausente quase sempre significa "volto amanhã". Em vez de
         // obrigar a remontar a entrega inteira do zero, oferece recriar já
