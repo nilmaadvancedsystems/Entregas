@@ -4356,17 +4356,32 @@
   // zona definida. As zonas daqui (superior/central/inferior) são divisões
   // que vocês fizeram na mão, não existem num mapa — então a única fonte
   // honesta de qual é qual são os próprios clientes já classificados.
+  // O limite antigo era 15 km, o que numa cidade de dois quilômetros de
+  // ponta a ponta significava "qualquer cliente serve" — e assim uma loja
+  // do centro herdou a zona de um vizinho da parte de cima. Agora só
+  // arrisca quando a vizinhança concorda: os três classificados mais
+  // próximos, todos dentro de 1,2 km, e a maioria deles na mesma zona.
+  // Sem isso, deixa em branco — zona errada bagunça a rota mais do que
+  // zona vazia, que pelo menos aparece pra pessoa preencher.
   function zonaDoPontoMaisProximo_(geo) {
-    var melhor = null, menorDist = Infinity;
+    var candidatos = [];
     clientesCache.forEach(function (c) {
       if (!c.zona || !c.geo || typeof c.geo.lat !== 'number') return;
-      var d = distanciaKm_(geo, c.geo);
-      if (d < menorDist) { menorDist = d; melhor = c; }
+      // ponto que é só o centro da cidade não localiza ninguém
+      if (c.geo.precisao === 'cidade') return;
+      candidatos.push({ zona: c.zona, nome: c.nome, dist: distanciaKm_(geo, c.geo) });
     });
-    // acima de 15 km o "vizinho" já não diz nada — melhor deixar em branco
-    // do que chutar uma zona errada e bagunçar a rota
-    if (!melhor || menorDist > 15) return null;
-    return { zona: melhor.zona, referencia: melhor.nome, distancia: menorDist };
+    candidatos.sort(function (a, b) { return a.dist - b.dist; });
+    var perto = candidatos.filter(function (c) { return c.dist <= 1.2; }).slice(0, 3);
+    if (perto.length < 2) return null;
+
+    var votos = {};
+    perto.forEach(function (c) { votos[c.zona] = (votos[c.zona] || 0) + 1; });
+    var vencedora = Object.keys(votos).sort(function (a, b) { return votos[b] - votos[a]; })[0];
+    if (votos[vencedora] <= perto.length / 2) return null; // empate: não chuta
+
+    var referencia = perto.filter(function (c) { return c.zona === vencedora; })[0];
+    return { zona: vencedora, referencia: referencia.nome, distancia: referencia.dist };
   }
 
   // Transforma o endereço escrito em ponto no mapa (Nominatim/OpenStreetMap,
@@ -5180,6 +5195,110 @@
     });
   });
 
+  // ---------- corrigir onde o cliente fica ----------
+  // Endereço do cadastro erra bastante no interior: fazenda sem número,
+  // negócio que funciona na loja de um parente, rua que o mapa não
+  // conhece. Quem faz a rota sabe onde é — aqui ele diz, de dois jeitos
+  // que não exigem digitar coordenada: "é aqui onde estou" e "é no mesmo
+  // lugar de outro cliente".
+  function abrirCorrigirLocal_(cliente, aoFechar) {
+    var root = $('modalRoot');
+    var opcoesZona = ['', 'superior', 'central', 'inferior'].map(function (z) {
+      var rotulo = z ? ZONA_LABEL[z] : 'Sem região definida';
+      return '<option value="' + z + '"' + (cliente.zona === z ? ' selected' : '') + '>' + rotulo + '</option>';
+    }).join('');
+
+    root.innerHTML =
+      '<div class="modal-overlay" id="overlay"><div class="modal" id="modalInner">' +
+        '<div class="modal-head"><div><h2>Corrigir localização</h2>' +
+          '<div class="card-hint" style="margin:2px 0 0">' + escapeHtml_(clienteLabel(cliente)) + '</div>' +
+        '</div><button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button></div>' +
+        '<div class="field"><span>Onde fica</span>' +
+          '<button type="button" class="btn btn-secondary" id="usarPosicaoBtn" style="width:100%;margin-bottom:8px;">' +
+            '<i class="ph ph-crosshair" aria-hidden="true"></i> Estou no local agora</button>' +
+          '<input class="input" id="mesmoLocalBusca" type="text" placeholder="Ou: mesmo local de outro cliente — busque pelo nome" autocomplete="off">' +
+          '<div id="mesmoLocalLista"></div>' +
+        '</div>' +
+        '<label class="field"><span>Região da rota</span>' +
+          '<select class="input" id="corrigirZonaSelect">' + opcoesZona + '</select>' +
+        '</label>' +
+        '<p class="card-hint" id="corrigirStatus" style="margin:0 0 12px"></p>' +
+        '<button type="button" class="btn btn-primary" id="corrigirSalvarBtn">Salvar</button>' +
+      '</div></div>';
+
+    function fechar() { closeModal(); if (aoFechar) aoFechar(); }
+    $('overlay').addEventListener('click', function (e) { if (e.target.id === 'overlay') fechar(); });
+    $('modalClose').addEventListener('click', fechar);
+
+    var novoGeo = null;
+
+    $('usarPosicaoBtn').addEventListener('click', function () {
+      var btn = this;
+      if (!navigator.geolocation) { $('corrigirStatus').textContent = 'Este aparelho não informa localização.'; return; }
+      botaoOcupado_(btn);
+      navigator.geolocation.getCurrentPosition(function (pos) {
+        novoGeo = { lat: pos.coords.latitude, lng: pos.coords.longitude, origem: 'manual', precisao: 'rua' };
+        $('corrigirStatus').textContent = 'Vai usar a sua posição atual.';
+        botaoLivre_(btn, 'Posição capturada');
+      }, function () {
+        $('corrigirStatus').textContent = 'Não consegui pegar sua localização agora.';
+        botaoLivre_(btn);
+      }, { enableHighAccuracy: true, timeout: 10000 });
+    });
+
+    $('mesmoLocalBusca').addEventListener('input', aoParar(function () {
+      var q = $('mesmoLocalBusca').value.trim().toLowerCase();
+      var lista = $('mesmoLocalLista');
+      lista.innerHTML = '';
+      if (q.length < 2) return;
+      Array.from(clientesCache.values())
+        .filter(function (c) {
+          // só faz sentido copiar de quem tem ponto que valha alguma coisa
+          return c.id !== cliente.id && c.geo && typeof c.geo.lat === 'number' &&
+            c.geo.precisao !== 'cidade' && clienteCombina_(c, q);
+        })
+        .slice(0, 6)
+        .forEach(function (c) {
+          var b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'client-row';
+          b.style.width = '100%';
+          b.innerHTML = '<div><div class="cr-name"></div><div class="cr-sub"></div></div>';
+          b.querySelector('.cr-name').textContent = clienteLabel(c);
+          b.querySelector('.cr-sub').textContent = c.endereco || 'sem endereço escrito';
+          b.addEventListener('click', function () {
+            novoGeo = { lat: c.geo.lat, lng: c.geo.lng, origem: 'manual', precisao: 'rua',
+                        referencia: 'mesmo local de ' + c.nome };
+            if (c.zona) $('corrigirZonaSelect').value = c.zona;
+            $('corrigirStatus').textContent = 'Vai usar o mesmo local de ' + clienteLabel(c) + '.';
+            lista.innerHTML = '';
+            $('mesmoLocalBusca').value = clienteLabel(c);
+          });
+          lista.appendChild(b);
+        });
+    }));
+
+    $('corrigirSalvarBtn').addEventListener('click', function () {
+      var btn = this;
+      var zona = $('corrigirZonaSelect').value;
+      var dados = {};
+      if (novoGeo) dados.geo = novoGeo;
+      if (zona !== (cliente.zona || '')) dados.zona = zona;
+      if (!Object.keys(dados).length) { fechar(); return; }
+      botaoOcupado_(btn);
+      // as regras deixam qualquer pessoa da equipe ajustar geo e zona —
+      // é quem está na rua que sabe onde o cliente fica de verdade
+      db.doc('clientes/' + cliente.id).update(dados).then(function () {
+        registrarAuditoria_('local_corrigido', clienteLabel(cliente) + (novoGeo && novoGeo.referencia ? ' · ' + novoGeo.referencia : ''));
+        showToast('Localização atualizada.');
+        fechar();
+      }).catch(function (err) {
+        showToast(errMsg(err, 'Não foi possível salvar.'), 'error');
+        botaoLivre_(btn);
+      });
+    });
+  }
+
   function renderHistoricoList(cliente, historico) {
     var inner = $('modalInner');
     if (!inner) return;
@@ -5224,14 +5343,20 @@
           return cabecalho + linhas;
         }).join('');
 
-    var acoesHtml = historico.length
-      ? '<div class="modal-acoes">' +
-          '<button type="button" class="btn-chip" id="exportarHistoricoBtn"><i class="ph ph-download-simple" aria-hidden="true"></i> Exportar histórico</button>' +
-          (whatsAppNumero_(cliente.telefone)
-            ? '<button type="button" class="btn-chip" id="falarClienteBtn"><i class="ph ph-whatsapp-logo" aria-hidden="true"></i> Falar no WhatsApp</button>'
-            : '') +
-        '</div>'
+    var precisaoAtual = cliente.geo && cliente.geo.precisao;
+    var avisoLocal = (!cliente.geo || precisaoAtual === 'cidade')
+      ? '<p class="card-hint" style="margin:0 0 10px">' +
+          (cliente.geo ? 'A localização deste cliente é só o centro da cidade — o endereço não foi encontrado no mapa.' : 'Este cliente ainda não tem localização.') +
+          ' Isso atrapalha a ordem da rota.</p>'
       : '';
+
+    var acoesHtml = '<div class="modal-acoes">' +
+        (historico.length ? '<button type="button" class="btn-chip" id="exportarHistoricoBtn"><i class="ph ph-download-simple" aria-hidden="true"></i> Exportar histórico</button>' : '') +
+        (whatsAppNumero_(cliente.telefone)
+          ? '<button type="button" class="btn-chip" id="falarClienteBtn"><i class="ph ph-whatsapp-logo" aria-hidden="true"></i> Falar no WhatsApp</button>'
+          : '') +
+        '<button type="button" class="btn-chip" id="corrigirLocalBtn"><i class="ph ph-map-pin-line" aria-hidden="true"></i> Corrigir localização</button>' +
+      '</div>' + avisoLocal;
 
     inner.innerHTML =
       '<div class="modal-head">' +
@@ -5260,6 +5385,9 @@
         window.open(whatsAppUrl_('Olá! Aqui é da Nilma Contabilidade.', cliente.telefone), '_blank');
       });
     }
+    $('corrigirLocalBtn').addEventListener('click', function () {
+      abrirCorrigirLocal_(cliente, function () { renderHistoricoList(cliente, historico); });
+    });
 
     inner.querySelectorAll('.history-row').forEach(function (row) {
       row.addEventListener('click', function () {
