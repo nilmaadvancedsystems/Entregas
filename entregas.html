@@ -1778,6 +1778,35 @@
   </div>
 </div>
 
+<div class="auth-gate" id="assinaturaGate" hidden>
+  <div class="auth-shell">
+    <div class="auth-form">
+      <h1 class="auth-titulo">Assinar recebimento</h1>
+      <p class="auth-sub" id="assinaturaSub">Abrindo...</p>
+      <div id="assinaturaConteudo" hidden>
+        <div class="itens-list" id="assinaturaItens"></div>
+        <label class="field">
+          <span>Seu nome</span>
+          <input class="input" id="assinaturaNome" type="text" placeholder="Quem está recebendo" autocomplete="name">
+        </label>
+        <label class="field">
+          <span>Assinatura</span>
+          <div class="sig-wrap">
+            <canvas id="assinaturaCanvas"></canvas>
+            <div class="sig-placeholder" id="assinaturaPlaceholder"><i class="ph ph-pen-nib" aria-hidden="true"></i> Assine aqui com o dedo</div>
+            <div class="sig-row">
+              <span class="sig-status" id="assinaturaStatus">Sem assinatura ainda.</span>
+              <button type="button" class="link-btn" id="assinaturaLimpar">Limpar</button>
+            </div>
+          </div>
+        </label>
+        <div class="auth-erro" id="assinaturaErro" hidden><i class="ph ph-warning-circle" aria-hidden="true"></i> <span id="assinaturaErroTexto"></span></div>
+        <button type="button" class="btn btn-primary" id="assinaturaEnviarBtn">Confirmar recebimento</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="auth-gate" id="conviteGate" hidden>
   <div class="auth-shell">
     <div class="auth-form">
@@ -1861,6 +1890,7 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
   var firebaseConfig = {
     apiKey: "AIzaSyD6xg7XhX8dKTKmaYup4hRX5k9XFHEkb98",
@@ -5390,6 +5420,7 @@
                 '<button type="button" class="link-btn" id="pendingClearSig">Limpar</button>' +
               '</div>' +
             '</div>' +
+            '<button type="button" class="link-btn" id="assinarNoCelularBtn" style="margin:8px 0 0;"><i class="ph ph-device-mobile" aria-hidden="true"></i> Assinar no celular do cliente</button>' +
             '<div class="field-error show" id="pendingSigError" hidden>Colha a assinatura ou anexe uma foto antes de confirmar.</div>' +
             '<div class="geo-status" id="pendingGeoStatus"><i class="ph ph-map-pin" aria-hidden="true"></i> obtendo localização...</div>' +
           '</label>' +
@@ -5446,6 +5477,23 @@
       $('pendingSigStatus').classList.remove('ok');
       $('pendingSigPlaceholder').classList.remove('hide');
     });
+
+    // Assinatura no aparelho do próprio cliente: gera um link de uso único
+    // e curta duração, mostra o QR pra ele apontar a câmera, e fica
+    // ouvindo. Quando ele assina, o traço aparece aqui na hora.
+    var pararDeOuvirAssinatura = null;
+    $('assinarNoCelularBtn').addEventListener('click', function () {
+      abrirAssinaturaRemota_(entrega, function (dataUrl, recebedor) {
+        pendingPad.carregar(dataUrl);
+        $('pendingSigStatus').textContent = 'Assinado no celular do cliente.';
+        $('pendingSigStatus').classList.add('ok');
+        $('pendingSigPlaceholder').classList.add('hide');
+        $('pendingSigError').hidden = true;
+        if (recebedor && !$('pendingRecebedor').value.trim()) $('pendingRecebedor').value = recebedor;
+      }, function (parar) { pararDeOuvirAssinatura = parar; });
+    });
+    // não deixa o ouvinte vivo depois que o modal fecha
+    $('modalClose').addEventListener('click', function () { if (pararDeOuvirAssinatura) pararDeOuvirAssinatura(); });
 
     // A mesma regra do formulário de entrega vale aqui: entrega só de
     // Honorário em dinheiro (ou só de Notas) não exige comprovante; via
@@ -5525,6 +5573,97 @@
         botaoLivre_(btn);
         atualizarModoFalhaPendente();
       });
+    });
+  }
+
+  // ---------- assinatura no aparelho do próprio cliente ----------
+  // O cliente aponta a câmera pro QR, abre uma tela enxuta com o que está
+  // recebendo, assina e pronto — sem precisar pegar o celular do office
+  // boy. O link É o segredo: vale uma vez só e expira em 2 horas, que é a
+  // mesma confiança de entregar o aparelho na mão dele por um minuto.
+  var MINUTOS_ASSINATURA = 120;
+
+  function gerarTokenAssinatura_() {
+    var a = new Uint8Array(16);
+    crypto.getRandomValues(a);
+    return Array.from(a).map(function (b) { return b.toString(16).padStart(2, '0'); }).join('');
+  }
+
+  function abrirAssinaturaRemota_(entrega, aoAssinar, guardarParar) {
+    var token = gerarTokenAssinatura_();
+    var itensResumo = (entrega.itens || []).map(function (i) {
+      var label = typeof i === 'string' ? i : i.tipo;
+      return label + ((i && i.valor != null) ? ' — ' + fmtMoney(i.valor) : '');
+    });
+    var link = location.href.split(/[?#]/)[0] + '?assinar=' + token;
+
+    var root = $('modalRoot');
+    var anterior = root.innerHTML;
+    root.innerHTML =
+      '<div class="modal-overlay" id="overlayAssin"><div class="modal" id="modalAssin">' +
+        '<div class="modal-head"><div><h2>Assinar no celular do cliente</h2>' +
+          '<div class="card-hint" style="margin:2px 0 0">' + escapeHtml_(entrega.clienteNome || '') + '</div>' +
+        '</div><button class="modal-close" id="assinVoltar" title="Voltar"><i class="ph ph-x" aria-hidden="true"></i></button></div>' +
+        '<p class="card-hint" id="assinStatus">Preparando o link...</p>' +
+        '<div id="assinQr" style="display:flex;justify-content:center;margin:14px 0;"></div>' +
+        '<div class="modal-acoes">' +
+          '<button type="button" class="btn-chip" id="assinCopiarBtn"><i class="ph ph-copy" aria-hidden="true"></i> Copiar link</button>' +
+          '<button type="button" class="btn-chip" id="assinWhatsBtn"><i class="ph ph-whatsapp-logo" aria-hidden="true"></i> Mandar no WhatsApp</button>' +
+        '</div>' +
+        '<p class="card-hint">O cliente aponta a câmera pro código. O link vale uma vez só e expira em 2 horas.</p>' +
+      '</div></div>';
+
+    var parar = null;
+    function voltar() {
+      if (parar) { parar(); parar = null; }
+      root.innerHTML = anterior;
+      // o modal anterior perdeu os ouvintes junto com o innerHTML — reabre
+      // pra tudo voltar a funcionar em vez de ficar uma tela morta
+      openConfirmPendingModal(entrega);
+    }
+    $('assinVoltar').addEventListener('click', voltar);
+    $('overlayAssin').addEventListener('click', function (e) { if (e.target.id === 'overlayAssin') voltar(); });
+
+    db.collection('assinaturas').doc(token).set({
+      entregaId: entrega.id,
+      clienteNome: entrega.clienteNome || '',
+      competencia: entrega.competencia || '',
+      itens: itensResumo,
+      assinado: false,
+      criadoPor: (auth.currentUser && auth.currentUser.email) || '',
+      criadoPorNome: currentUserNome || '',
+      criadoEm: new Date().toISOString(),
+      expiraEm: new Date(Date.now() + MINUTOS_ASSINATURA * 60000).toISOString()
+    }).then(function () {
+      $('assinStatus').textContent = 'Esperando o cliente assinar...';
+      if (typeof QRCode !== 'undefined') {
+        new QRCode($('assinQr'), { text: link, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.M });
+      } else {
+        $('assinQr').innerHTML = '<p class="card-hint" style="word-break:break-all">' + escapeHtml_(link) + '</p>';
+      }
+
+      parar = db.collection('assinaturas').doc(token).onSnapshot(function (snap) {
+        var d = snap.data();
+        if (!d || !d.assinado || !d.assinatura) return;
+        if (parar) { parar(); parar = null; }
+        root.innerHTML = anterior;
+        openConfirmPendingModal(entrega);
+        // o modal foi remontado: aplica no pad novo, não no antigo
+        setTimeout(function () { aoAssinar(d.assinatura, d.recebedor || ''); }, 60);
+        showToast('Cliente assinou. Confira e confirme a entrega.');
+      }, function () {});
+      if (guardarParar) guardarParar(function () { if (parar) { parar(); parar = null; } });
+    }).catch(function (err) {
+      $('assinStatus').textContent = errMsg(err, 'Não foi possível preparar o link.');
+    });
+
+    $('assinCopiarBtn').addEventListener('click', function () {
+      copiarOuMostrar_('Link para o cliente assinar', link, 'Link copiado.');
+    });
+    $('assinWhatsBtn').addEventListener('click', function () {
+      var cliente = entrega.clienteId ? clientesCache.get(entrega.clienteId) : null;
+      var texto = 'Assine o recebimento dos documentos aqui (o link vale 2 horas): ' + link;
+      window.open(whatsAppUrl_(texto, cliente && cliente.telefone), '_blank');
     });
   }
 
@@ -7296,8 +7435,9 @@
       $('hubScreen').hidden = true;
       var logo = document.querySelector('.brand-mark');
       if (logo) $('authLogo').src = logo.src;
-      // com a tela de convite aberta, o login não deve aparecer por cima
-      $('authGate').hidden = !$('conviteGate').hidden;
+      // com a tela de convite (ou a do cliente assinando) aberta, o login
+      // não deve aparecer por cima
+      $('authGate').hidden = !$('conviteGate').hidden || !$('assinaturaGate').hidden;
       $('settingsBtn').hidden = true;
       $('notasBtn').hidden = true;
       $('brandName').textContent = 'Nilma';
@@ -7445,8 +7585,77 @@
     });
   }
 
+  // ---------- tela do cliente assinando no próprio aparelho ----------
+  // Não pede login: quem tem o link é o cliente que está com o office boy
+  // na frente. A tela mostra só o que ele está recebendo e o campo de
+  // assinar — nada do resto do app.
+  function abrirTelaAssinatura_(token) {
+    $('assinaturaGate').hidden = false;
+    $('authGate').hidden = true;
+    var ref = db.collection('assinaturas').doc(token);
+
+    ref.get().then(function (snap) {
+      if (!snap.exists) { $('assinaturaSub').textContent = 'Este link não existe mais. Peça um novo a quem está entregando.'; return; }
+      var d = snap.data();
+      if (d.assinado) { $('assinaturaSub').textContent = 'Este recebimento já foi assinado. Obrigado!'; return; }
+      if (d.expiraEm && new Date(d.expiraEm) < new Date()) {
+        $('assinaturaSub').textContent = 'Este link expirou. Peça um novo a quem está entregando.';
+        return;
+      }
+
+      $('assinaturaSub').textContent = 'Nilma Contabilidade · ' + (d.clienteNome || '') +
+        (d.competencia ? ' · ' + fmtCompetencia(d.competencia) : '');
+      $('assinaturaItens').innerHTML = (d.itens || [])
+        .map(function (t) { return '<span>' + escapeHtml_(t) + '</span>'; }).join('') ||
+        '<span>documentos</span>';
+      $('assinaturaConteudo').hidden = false;
+
+      var pad = createSignaturePad($('assinaturaCanvas'), 200);
+      pad.onDraw = function () {
+        $('assinaturaStatus').textContent = 'Assinatura registrada.';
+        $('assinaturaStatus').classList.add('ok');
+        $('assinaturaPlaceholder').classList.add('hide');
+      };
+      $('assinaturaLimpar').addEventListener('click', function () {
+        pad.clear();
+        $('assinaturaStatus').textContent = 'Sem assinatura ainda.';
+        $('assinaturaStatus').classList.remove('ok');
+        $('assinaturaPlaceholder').classList.remove('hide');
+      });
+
+      $('assinaturaEnviarBtn').addEventListener('click', function () {
+        var btn = this;
+        if (!pad.hasSignature) {
+          $('assinaturaErroTexto').textContent = 'Assine no quadro acima antes de confirmar.';
+          $('assinaturaErro').hidden = false;
+          return;
+        }
+        $('assinaturaErro').hidden = true;
+        botaoOcupado_(btn);
+        ref.update({
+          assinatura: pad.dataUrl(),
+          recebedor: $('assinaturaNome').value.trim(),
+          assinado: true,
+          assinadoEm: new Date().toISOString()
+        }).then(function () {
+          $('assinaturaConteudo').hidden = true;
+          $('assinaturaSub').textContent = 'Pronto! Recebimento assinado. Pode devolver o aparelho.';
+        }).catch(function (err) {
+          $('assinaturaErroTexto').textContent = errMsg(err, 'Não foi possível enviar a assinatura.');
+          $('assinaturaErro').hidden = false;
+          botaoLivre_(btn);
+        });
+      });
+    }).catch(function () {
+      $('assinaturaSub').textContent = 'Não foi possível abrir este link agora. Tente de novo.';
+    });
+  }
+
   (function () {
-    var codigo = new URLSearchParams(location.search).get('convite');
+    var params = new URLSearchParams(location.search);
+    var assinar = params.get('assinar');
+    if (assinar && db) { abrirTelaAssinatura_(assinar); return; }
+    var codigo = params.get('convite');
     if (codigo && db) abrirTelaConvite_(codigo);
   })();
 })();
