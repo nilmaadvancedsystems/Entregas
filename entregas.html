@@ -1667,10 +1667,14 @@
       </div>
       <label class="field">
         <span>Nome</span>
-        <input class="input" id="novoClienteNome" type="text" placeholder="Razão social ou nome" required>
+        <input class="input" id="novoClienteNome" type="text" placeholder="Razão social ou nome (sem o código na frente)" required>
       </label>
       <div class="edit-form" style="margin-bottom:16px;">
         <div class="row2">
+          <div>
+            <label class="sub-rotulo" for="novoClienteCodigo">Código do escritório</label>
+            <input class="input" id="novoClienteCodigo" type="text" inputmode="numeric" placeholder="Ex.: 388">
+          </div>
           <div>
             <label class="sub-rotulo" for="novoClienteFantasia">Nome fantasia (opcional)</label>
             <input class="input" id="novoClienteFantasia" type="text" placeholder="Como é conhecido">
@@ -6468,8 +6472,18 @@
     var nome = $('novoClienteNome').value.trim();
     if (!nome) return;
     var endereco = $('novoClienteEndereco').value.trim();
+    // "388 - FULANO LTDA" digitado no nome quebra a busca por código e a
+    // importação de endereços, que casam pelo campo próprio. Separa aqui
+    // em vez de deixar o problema entrar na base.
+    var codigo = $('novoClienteCodigo').value.replace(/\D/g, '');
+    var noNome = nome.match(/^\s*(\d{1,5})\s*[-–—]\s*(.+)$/);
+    if (noNome) {
+      if (!codigo) codigo = noNome[1];
+      nome = noNome[2].trim();
+    }
     db.collection('clientes').add({
       nome: nome,
+      codigoOrigem: codigo,
       nomeFantasia: $('novoClienteFantasia').value.trim(),
       documento: $('novoClienteDoc').value.trim(),
       telefone: $('novoClienteTel').value.trim(),
@@ -6477,7 +6491,7 @@
       ativo: true,
       criadoEm: new Date().toISOString()
     }).then(function (ref) {
-      ['novoClienteNome', 'novoClienteFantasia', 'novoClienteDoc', 'novoClienteTel', 'novoClienteEndereco']
+      ['novoClienteNome', 'novoClienteCodigo', 'novoClienteFantasia', 'novoClienteDoc', 'novoClienteTel', 'novoClienteEndereco']
         .forEach(function (id) { $(id).value = ''; });
       $('cnpjStatus').textContent = '';
       showToast('Cliente cadastrado.');
@@ -6546,12 +6560,34 @@
       if (k) porCodigo[k] = c;
     });
 
+    // Cliente cadastrado como "388 - FULANO LTDA" fica sem código no campo
+    // próprio e não casaria com o relatório. Se o número na frente do nome
+    // aponta pra uma empresa de mesmo nome no relatório, é seguro assumir
+    // que é ela — o código é preenchido junto com o endereço.
+    var codigosRecuperados = [], codigoRecuperado = {};
+    clientesCache.forEach(function (c) {
+      if (normalizarCodigo_(c.codigoOrigem)) return;
+      var m = String(c.nome || '').match(/^\s*(\d{1,5})\s*[-–—]\s*(.+)$/);
+      if (!m) return;
+      var doRelatorio = window.CLIENTES_ENDERECOS.filter(function (r) {
+        return normalizarCodigo_(r.codigo) === normalizarCodigo_(m[1]);
+      })[0];
+      if (!doRelatorio) return;
+      // só aceita quando o nome bate — sem isso seria chute em cima de um
+      // número que pode ter sido digitado por engano
+      if (normalizarTexto_(doRelatorio.nome) !== normalizarTexto_(m[2])) return;
+      porCodigo[normalizarCodigo_(m[1])] = c;
+      codigoRecuperado[c.id] = normalizarCodigo_(m[1]);
+      codigosRecuperados.push(c.nome);
+    });
+
     var aGravar = [], semCorrespondencia = [], jaIguais = 0, semCoordenada = 0;
     window.CLIENTES_ENDERECOS.forEach(function (r) {
       var cliente = porCodigo[normalizarCodigo_(r.codigo)];
       if (!cliente) { semCorrespondencia.push(r.nome); return; }
 
       var dados = {};
+      if (codigoRecuperado[cliente.id]) dados.codigoOrigem = codigoRecuperado[cliente.id];
       if (r.endereco && cliente.endereco !== r.endereco) dados.endereco = r.endereco;
       if (r.bairro && cliente.bairro !== r.bairro) dados.bairro = r.bairro;
       if (r.cidade && cliente.cidade !== r.cidade) dados.cidade = r.cidade;
@@ -6577,7 +6613,7 @@
 
     if (!aGravar.length) {
       botaoLivre_(btn);
-      mostrarResumoEnderecos_(0, jaIguais, semCorrespondencia, semCoordenada);
+      mostrarResumoEnderecos_(0, jaIguais, semCorrespondencia, semCoordenada, codigosRecuperados);
       return;
     }
 
@@ -6590,7 +6626,7 @@
       if (i >= lotes.length) {
         botaoLivre_(btn);
         registrarAuditoria_('enderecos_importados', feitos + ' cliente(s)');
-        mostrarResumoEnderecos_(feitos, jaIguais, semCorrespondencia, semCoordenada);
+        mostrarResumoEnderecos_(feitos, jaIguais, semCorrespondencia, semCoordenada, codigosRecuperados);
         return;
       }
       var batch = db.batch();
@@ -6608,13 +6644,17 @@
     proximo(0);
   }
 
-  function mostrarResumoEnderecos_(atualizados, jaIguais, semCorrespondencia, semCoordenada) {
+  function mostrarResumoEnderecos_(atualizados, jaIguais, semCorrespondencia, semCoordenada, codigosRecuperados) {
     var el = $('enderecosResumo');
     el.hidden = false;
     var linhas = [
       '<strong>' + atualizados + '</strong> cliente(s) atualizados',
       jaIguais + ' já estavam em dia'
     ];
+    if (codigosRecuperados && codigosRecuperados.length) {
+      linhas.push(codigosRecuperados.length + ' com o código dentro do nome tiveram o código preenchido: ' +
+        codigosRecuperados.map(escapeHtml_).join(', '));
+    }
     if (semCoordenada) linhas.push(semCoordenada + ' sem ponto no mapa (endereço não localizado)');
     if (semCorrespondencia.length) {
       linhas.push(semCorrespondencia.length + ' empresa(s) do relatório sem cliente correspondente no app');
