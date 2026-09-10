@@ -5379,25 +5379,48 @@
     }
     botaoOcupado_(btn);
     status.textContent = 'Consultando a Receita...';
-    fetch('https://brasilapi.com.br/api/v1/cnpj/v1/' + digitos)
-      .then(function (r) {
-        if (r.status === 404) throw new Error('CNPJ não encontrado na Receita.');
-        if (!r.ok) throw new Error('A consulta não respondeu agora. Tente de novo.');
-        return r.json();
-      })
+    // Dois servidores com a mesma resposta: se o primeiro estiver fora do ar
+    // ou de castigo por excesso de consultas, cai no segundo em vez de
+    // simplesmente falhar.
+    var fontes = [
+      'https://brasilapi.com.br/api/cnpj/v1/' + digitos,
+      'https://minhareceita.org/' + digitos
+    ];
+    function tentar(i) {
+      return fetch(fontes[i]).then(function (r) {
+        if (r.ok) return r.json();
+        // 404 aqui é resposta de verdade: esse CNPJ não existe na base
+        if (r.status === 404 && i === fontes.length - 1) throw new Error('CNPJ não encontrado na Receita.');
+        if (i < fontes.length - 1) return tentar(i + 1);
+        throw new Error('A consulta não respondeu agora. Tente de novo.');
+      }, function () {
+        if (i < fontes.length - 1) return tentar(i + 1);
+        throw new Error('Sem conexão com o serviço de consulta.');
+      });
+    }
+    tentar(0)
       .then(function (d) {
-        if (d.razao_social) $('novoClienteNome').value = d.razao_social;
-        if (d.nome_fantasia) $('novoClienteFantasia').value = d.nome_fantasia;
+        var preenchidos = [];
+        if (d.razao_social) { $('novoClienteNome').value = d.razao_social; preenchidos.push('nome'); }
+        if (d.nome_fantasia) { $('novoClienteFantasia').value = d.nome_fantasia; preenchidos.push('fantasia'); }
         if (d.ddd_telefone_1 && !$('novoClienteTel').value.trim()) {
           $('novoClienteTel').value = d.ddd_telefone_1;
+          preenchidos.push('telefone');
         }
         var endereco = [
           [d.logradouro, d.numero].filter(Boolean).join(', '),
           d.bairro, d.municipio, d.uf
         ].filter(Boolean).join(' - ');
-        if (endereco) $('novoClienteEndereco').value = endereco;
-        var baixado = d.descricao_situacao_cadastral || '';
-        status.textContent = 'Dados preenchidos.' + (baixado && baixado.toUpperCase() !== 'ATIVA' ? ' Atenção: situação na Receita é "' + baixado + '".' : '');
+        if (endereco) { $('novoClienteEndereco').value = endereco; preenchidos.push('endereço'); }
+
+        // Muita empresa pequena tem cadastro incompleto na Receita — melhor
+        // dizer o que veio e o que não veio do que fingir que preencheu tudo.
+        var baixado = (d.descricao_situacao_cadastral || '').toUpperCase();
+        var msg = preenchidos.length
+          ? 'Preenchido da Receita: ' + preenchidos.join(', ') + '.'
+          : 'A Receita respondeu, mas sem dados para preencher. Digite na mão.';
+        if (baixado && baixado !== 'ATIVA') msg += ' Atenção: situação cadastral "' + baixado + '".';
+        status.textContent = msg;
       })
       .catch(function (err) {
         status.textContent = err.message || 'Não foi possível consultar agora.';
