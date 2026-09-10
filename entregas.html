@@ -1274,6 +1274,12 @@
         <div class="field-error" id="err-competencia">Informe a competência.</div>
       </label>
 
+      <label class="field" id="vencimentoField">
+        <span>Vencimento (opcional)</span>
+        <input class="input" id="vencimentoInput" type="date">
+        <span class="card-hint" style="margin-top:4px;display:block;">Vem preenchido sozinho quando você anexa o PDF da guia. Serve pro aviso de documento vencendo.</span>
+      </label>
+
       <label class="field" id="itensField">
         <span>Documentos entregues</span>
         <div class="chip-grid" id="itensGrid"></div>
@@ -1374,6 +1380,13 @@
           </select>
         </div>
       </div>
+    </div>
+    <div class="card" id="vencimentosCard" hidden>
+      <div class="card-head-row">
+        <h2><i class="ph ph-clock-countdown" aria-hidden="true"></i> Vencendo</h2>
+      </div>
+      <p class="card-hint">Guias que estão na rota e vencem nos próximos dias — entregar essas primeiro.</p>
+      <div id="vencimentosList"></div>
     </div>
     <div class="card" id="fechamentoCard">
       <div class="card-head-row">
@@ -2588,6 +2601,24 @@
     return todos[0] || null;
   }
 
+  // A data de vencimento vem impressa na guia. Ler ela é muito melhor do
+  // que deduzir por regra de tributo: prazo muda por estado, por
+  // enquadramento e por feriado, e uma data errada aqui seria pior que
+  // nenhuma. Só aceita o que está escrito perto de um rótulo de vencimento.
+  function extrairVencimento_(textoBruto) {
+    var re = /\b(0?[1-9]|[12]\d|3[01])\/(0?[1-9]|1[0-2])\/(\d{4})\b/g;
+    var m, melhor = null;
+    while ((m = re.exec(textoBruto))) {
+      var antes = textoBruto.slice(Math.max(0, m.index - 40), m.index);
+      if (!/vencimento|pagar at[ée]|data limite|validade|vence em/i.test(antes)) continue;
+      var dia = parseInt(m[1], 10), mes = parseInt(m[2], 10), ano = parseInt(m[3], 10);
+      var iso = ano + '-' + String(mes).padStart(2, '0') + '-' + String(dia).padStart(2, '0');
+      // guia costuma repetir a data; a primeira já serve
+      if (!melhor) melhor = iso;
+    }
+    return melhor;
+  }
+
   function aplicarDadosDoPdf_(textoBruto, imagemDataUrl) {
     var texto = normalizarTexto_(textoBruto);
     var achados = [];
@@ -2641,6 +2672,12 @@
     if (comp) {
       $('competenciaInput').value = comp.ano + '-' + String(comp.mes).padStart(2, '0');
       achados.push('competência');
+    }
+
+    var venc = extrairVencimento_(textoBruto);
+    if (venc) {
+      $('vencimentoInput').value = venc;
+      achados.push('vencimento');
     }
 
     if (tipoAchado) {
@@ -3157,6 +3194,7 @@
       clienteNome: isAvulso ? avulsoNome : (cliente ? clienteLabel(cliente) : clienteInput.value),
       avulso: isAvulso,
       competencia: competencia,
+      vencimento: $('vencimentoInput').value || '',
       itens: itens,
       recebedor: (isRota || isFalha) ? '' : recebedor,
       temAssinatura: !isRota && !isFalha && mainSigPad.hasSignature,
@@ -3218,6 +3256,7 @@
       $('honorarioPixField').hidden = true;
     }
     $('recebedorInput').value = '';
+    $('vencimentoInput').value = '';
     $('falhaToggle').checked = false;
     $('falhaMotivo').value = '';
     mainSigPad.clear();
@@ -3247,6 +3286,7 @@
       avulso: $('avulsoToggle').checked,
       avulsoNome: $('avulsoNomeInput').value,
       competencia: $('competenciaInput').value,
+      vencimento: $('vencimentoInput').value,
       zona: $('zonaSelect').value,
       itensChecados: Array.from(itensGrid.querySelectorAll('input:checked')).map(function (i) { return i.dataset.key; }),
       outro: $('outroInput').value,
@@ -3296,6 +3336,7 @@
     }
 
     if (r.competencia) $('competenciaInput').value = r.competencia;
+    if (r.vencimento) $('vencimentoInput').value = r.vencimento;
     if (r.zona) $('zonaSelect').value = r.zona;
     (r.itensChecados || []).forEach(function (key) {
       var el = itensGrid.querySelector('input[data-key="' + key + '"]');
@@ -3349,6 +3390,7 @@
       renderClientesList();
       updateDashStrip();
       renderFechamentoDia_();
+      renderVencimentos_();
     }, function (err) { showToast(errMsg(err, 'Não foi possível carregar a rota.'), 'error'); });
   }
 
@@ -3558,6 +3600,51 @@
   $('buscaGlobal').addEventListener('click', function (ev) {
     if (ev.target === $('buscaGlobal')) fecharBuscaGlobal_();
   });
+
+  // ---------- avisos de vencimento ----------
+  // Só usa a data que veio impressa na guia (lida do PDF) ou digitada à
+  // mão. Não deduz prazo por tipo de tributo: prazo muda por estado, por
+  // enquadramento e por feriado, e errar isso seria pior que não avisar.
+  function diasAte_(iso) {
+    if (!iso) return null;
+    var hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    var alvo = new Date(iso + 'T00:00:00');
+    if (isNaN(alvo)) return null;
+    return Math.round((alvo - hoje) / 86400000);
+  }
+
+  function textoPrazo_(dias) {
+    if (dias < 0) return 'venceu há ' + Math.abs(dias) + (Math.abs(dias) === 1 ? ' dia' : ' dias');
+    if (dias === 0) return 'vence hoje';
+    if (dias === 1) return 'vence amanhã';
+    return 'vence em ' + dias + ' dias';
+  }
+
+  function renderVencimentos_() {
+    var card = $('vencimentosCard');
+    var lista = pendentesCache
+      .map(function (e) { return { e: e, dias: diasAte_(e.vencimento) }; })
+      .filter(function (x) { return x.dias !== null && x.dias <= 7; })
+      .sort(function (a, b) { return a.dias - b.dias; });
+
+    if (!lista.length) { card.hidden = true; return; }
+    card.hidden = false;
+    var el = $('vencimentosList');
+    el.innerHTML = '';
+    lista.forEach(function (x) {
+      var vencido = x.dias < 0, hoje = x.dias === 0;
+      var row = document.createElement('div');
+      row.className = 'entrega-row st-' + (vencido ? 'falha' : (hoje ? 'rota' : 'rota'));
+      var itensStr = (x.e.itens || []).map(function (i) { return typeof i === 'string' ? i : i.tipo; }).join(', ');
+      row.innerHTML = '<div><div class="er-nome"></div><div class="er-sub"></div></div>' +
+        '<span class="status-pill ' + (vencido ? 'falha' : 'rota') + '"></span>';
+      row.querySelector('.er-nome').textContent = x.e.clienteNome || 'sem cliente';
+      row.querySelector('.er-sub').textContent = itensStr + ' · ' + fmtCompetencia(x.e.competencia);
+      row.querySelector('.status-pill').textContent = textoPrazo_(x.dias);
+      row.addEventListener('click', function () { openConfirmPendingModal(x.e); });
+      el.appendChild(row);
+    });
+  }
 
   // ---------- abrir a rota no Google Maps ----------
   // O Maps aceita no máximo 9 paradas intermediárias por link (origem +
