@@ -3906,28 +3906,148 @@
   var MAX_PARADAS_MAPS = 10;
 
   function paradasDaRota_() {
-    var vistos = {};
+    var porChave = {};
     var paradas = [];
     rotaListaVisivel.forEach(function (e) {
       // várias entregas do mesmo cliente são uma parada só
       var chave = e.clienteId || e.clienteNome;
-      if (!chave || vistos[chave]) return;
-      vistos[chave] = true;
+      if (!chave) return;
+      if (porChave[chave]) { porChave[chave].entregaIds.push(e.id); return; }
       var cliente = e.clienteId ? clientesCache.get(e.clienteId) : null;
       var geo = cliente && cliente.geo;
-      paradas.push({
+      var temGeo = !!(geo && typeof geo.lat === 'number');
+      // "cidade" quer dizer que o endereço não foi achado e o ponto é o
+      // centro do município — típico de ZONA RURAL. Serve pra desenhar no
+      // mapa, mas NÃO serve pra ordenar: todos esses caem no mesmo lugar e
+      // fariam a rota passar pelo centro toda hora.
+      var pontoConfiavel = temGeo && geo.precisao !== 'cidade';
+      var parada = {
         nome: e.clienteNome || (cliente && cliente.nome) || 'sem nome',
         endereco: (cliente && cliente.endereco) || '',
-        geo: (geo && typeof geo.lat === 'number') ? geo : null
-      });
+        geo: temGeo ? geo : null,
+        confiavel: pontoConfiavel,
+        zona: (e.zona || (cliente && cliente.zona) || ''),
+        entregaIds: [e.id]
+      };
+      porChave[chave] = parada;
+      paradas.push(parada);
     });
     return paradas;
   }
 
+  // ---------- melhor ordem de visita ----------
+  // Duas etapas: primeiro "sempre o mais perto do último" (guloso), que é
+  // rápido mas deixa cruzamentos; depois 2-opt, que desfaz esses
+  // cruzamentos invertendo trechos enquanto isso encurtar o caminho. Com
+  // duas dúzias de paradas isso roda num piscar de olhos e costuma tirar
+  // vários quilômetros do resultado do guloso sozinho.
+  function comprimentoRota_(pontos, origem) {
+    var total = 0, anterior = origem || null;
+    for (var i = 0; i < pontos.length; i++) {
+      if (anterior) total += distanciaKm_(anterior, pontos[i].geo);
+      anterior = pontos[i].geo;
+    }
+    return total;
+  }
+
+  // Ordena respeitando primeiro a REGIÃO que vocês classificaram na mão
+  // (superior/central/inferior). Essa divisão é conhecimento de quem roda
+  // a rota; a coordenada sozinha não sabe, por exemplo, que uma fazenda
+  // com endereço impreciso pertence à parte de cima da cidade.
+  // Dentro de cada região, aí sim manda a distância.
+  function ordenarPorZonaEProximidade_(itens, origem) {
+    var grupos = {}, ordemGrupos = [];
+    itens.forEach(function (p) {
+      var z = p.zona || '_sem_zona';
+      if (!grupos[z]) { grupos[z] = []; ordemGrupos.push(z); }
+      grupos[z].push(p);
+    });
+
+    // uma região só (ou nenhuma classificada): não há o que agrupar
+    if (ordemGrupos.length < 2) return melhorOrdem_(itens, origem);
+
+    // visita as regiões na ordem de quem está mais perto de onde a pessoa
+    // está agora, medindo pelo ponto confiável mais próximo de cada uma
+    var referencia = origem;
+    var restantes = ordemGrupos.slice(), sequencia = [];
+    while (restantes.length) {
+      var melhor = 0, melhorDist = Infinity;
+      restantes.forEach(function (z, i) {
+        grupos[z].forEach(function (p) {
+          if (!p.confiavel || !referencia) return;
+          var d = distanciaKm_(referencia, p.geo);
+          if (d < melhorDist) { melhorDist = d; melhor = i; }
+        });
+      });
+      var escolhida = restantes.splice(melhor, 1)[0];
+      var doGrupo = melhorOrdem_(grupos[escolhida], referencia);
+      sequencia = sequencia.concat(doGrupo);
+      // próxima região é medida a partir da última parada desta
+      for (var i = doGrupo.length - 1; i >= 0; i--) {
+        if (doGrupo[i].confiavel) { referencia = doGrupo[i].geo; break; }
+      }
+    }
+    return sequencia;
+  }
+
+  function melhorOrdem_(itens, origem) {
+    if (itens.length < 3) return itens.slice();
+
+    // Endereço impreciso não entra na conta de distância: vai pro fim do
+    // grupo, porque não dá pra saber onde encaixar sem inventar.
+    var imprecisos = itens.filter(function (p) { return !p.confiavel; });
+    itens = itens.filter(function (p) { return p.confiavel; });
+    if (itens.length < 3) return itens.concat(imprecisos);
+
+    var restantes = itens.slice(), ordem = [], referencia = origem || itens[0].geo;
+    while (restantes.length) {
+      var melhor = 0;
+      for (var i = 1; i < restantes.length; i++) {
+        if (distanciaKm_(referencia, restantes[i].geo) < distanciaKm_(referencia, restantes[melhor].geo)) melhor = i;
+      }
+      referencia = restantes[melhor].geo;
+      ordem.push(restantes.splice(melhor, 1)[0]);
+    }
+
+    var atual = comprimentoRota_(ordem, origem);
+    var melhorou = true, voltas = 0;
+    while (melhorou && voltas < 30) {
+      melhorou = false; voltas++;
+      for (var a = 0; a < ordem.length - 1; a++) {
+        for (var b = a + 1; b < ordem.length; b++) {
+          var tentativa = ordem.slice(0, a)
+            .concat(ordem.slice(a, b + 1).reverse(), ordem.slice(b + 1));
+          var novo = comprimentoRota_(tentativa, origem);
+          if (novo < atual - 0.0001) { ordem = tentativa; atual = novo; melhorou = true; }
+        }
+      }
+    }
+    ordem = ordem.concat(imprecisos);
+    return ordem;
+  }
+
+  // Grava a ordem escolhida nas entregas. Só mexe no que a pessoa pode
+  // editar: quem não é admin só reordena as próprias entregas.
+  function salvarOrdemIds_(idsFinais) {
+    var email = auth.currentUser && auth.currentUser.email;
+    var permitido = temPapel('admin') ? idsFinais : idsFinais.filter(function (id) {
+      var item = pendentesCache.filter(function (p) { return p.id === id; })[0];
+      return item && item.entregadoPor === email;
+    });
+    var batch = db.batch();
+    permitido.forEach(function (id) { batch.update(db.doc('entregas/' + id), { ordemRota: idsFinais.indexOf(id) }); });
+    return batch.commit();
+  }
+
   function pontoParaMaps_(p) {
-    // coordenada é sempre mais confiável que texto; endereço escrito só
-    // entra quando o cliente ainda não tem ponto no mapa
-    return p.geo ? (p.geo.lat + ',' + p.geo.lng) : (p.endereco || p.nome);
+    // Coordenada boa ganha do texto. Mas quando ela é só o centro da
+    // cidade (endereço que o OpenStreetMap não achou), mandar o endereço
+    // escrito é melhor: o Google tem cobertura muito melhor no interior e
+    // ainda pode achar a rua certa — a coordenada, essa, com certeza está
+    // no lugar errado.
+    if (p.confiavel && p.geo) return p.geo.lat + ',' + p.geo.lng;
+    if (p.endereco) return p.endereco;
+    return p.geo ? (p.geo.lat + ',' + p.geo.lng) : p.nome;
   }
 
   function urlDoTrecho_(pontos, origemStr) {
@@ -3969,6 +4089,16 @@
     });
 
     pedirLocal.then(function (origemGeo) {
+      // Rota é ferramenta de navegação: a ordem boa é a curta, não a de
+      // cadastro. Reordena aqui e mostra quanto isso economizou, deixando
+      // a pessoa levar essa ordem pra rota se quiser.
+      var kmAntes = comprimentoRota_(comLocal, origemGeo);
+      var otimizada = ordenarPorZonaEProximidade_(comLocal, origemGeo);
+      var kmDepois = comprimentoRota_(otimizada, origemGeo);
+      var economia = kmAntes - kmDepois;
+      comLocal = otimizada;
+      var imprecisas = comLocal.filter(function (p) { return !p.confiavel; });
+
       var trechos = [];
       var restantes = comLocal.slice();
       var origemDoTrecho = origemGeo ? (origemGeo.lat + ',' + origemGeo.lng) : null;
@@ -3982,17 +4112,23 @@
         if (restantes.length) origemDoTrecho = pontoParaMaps_(pedaco[pedaco.length - 1]);
       }
 
-      if (trechos.length === 1 && !semLocal.length) {
-        window.open(urlDoTrecho_(trechos[0].pontos, trechos[0].origem), '_blank');
-        registrarAuditoria_('rota_maps_aberta', comLocal.length + ' parada(s)');
-        return;
-      }
-      mostrarTrechosDaRota_(trechos, semLocal, comLocal.length);
+      mostrarTrechosDaRota_(trechos, semLocal, comLocal.length, {
+        km: kmDepois, economia: economia, ordem: comLocal, imprecisas: imprecisas
+      });
     });
   }
 
-  function mostrarTrechosDaRota_(trechos, semLocal, totalComLocal) {
+  function mostrarTrechosDaRota_(trechos, semLocal, totalComLocal, resumo) {
     var root = $('modalRoot');
+    var economiaTxt = (resumo && resumo.economia > 0.3)
+      ? '<p class="card-hint" style="margin:0 0 12px">Ordem otimizada: <strong>' +
+          resumo.km.toFixed(1).replace('.', ',') + ' km</strong> em vez de ' +
+          (resumo.km + resumo.economia).toFixed(1).replace('.', ',') + ' km — ' +
+          resumo.economia.toFixed(1).replace('.', ',') + ' km a menos que a ordem da tela.</p>' +
+        '<div class="modal-acoes"><button type="button" class="btn-chip" id="aplicarOrdemBtn">' +
+          '<i class="ph ph-list-numbers" aria-hidden="true"></i> Usar esta ordem na rota</button></div>'
+      : '';
+
     root.innerHTML =
       '<div class="modal-overlay" id="overlay"><div class="modal" id="modalInner">' +
         '<div class="modal-head"><div><h2>Rota no Google Maps</h2>' +
@@ -4000,16 +4136,39 @@
           (trechos.length > 1 ? ' · dividida em ' + trechos.length + ' trechos, porque o Maps aceita no máximo 10 paradas por link' : '') +
           '</div></div>' +
           '<button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button>' +
-        '</div>' +
+        '</div>' + economiaTxt +
       '</div></div>';
     $('overlay').addEventListener('click', function (e) { if (e.target.id === 'overlay') closeModal(); });
     $('modalClose').addEventListener('click', closeModal);
     var inner = $('modalInner');
 
+    if ($('aplicarOrdemBtn')) {
+      $('aplicarOrdemBtn').addEventListener('click', function () {
+        var btn = this;
+        botaoOcupado_(btn);
+        // uma parada pode ter várias entregas do mesmo cliente: elas ficam
+        // juntas, na sequência, dentro da posição daquela parada
+        var ids = [];
+        resumo.ordem.forEach(function (p) { ids = ids.concat(p.entregaIds || []); });
+        semLocal.forEach(function (p) { ids = ids.concat(p.entregaIds || []); });
+        salvarOrdemIds_(ids).then(function () {
+          showToast('Ordem aplicada na rota.');
+          botaoLivre_(btn, 'Ordem aplicada');
+        }).catch(function (err) {
+          showToast(errMsg(err, 'Não foi possível salvar a ordem.'), 'error');
+          botaoLivre_(btn);
+        });
+      });
+    }
+
     trechos.forEach(function (t, i) {
       var bloco = document.createElement('div');
       bloco.className = 'field';
-      var nomes = t.pontos.map(function (p, j) { return (j + 1) + '. ' + p.nome; }).join('<br>');
+      var nomes = t.pontos.map(function (p, j) {
+        var marca = p.confiavel ? '' : ' <em>(endereço impreciso)</em>';
+        var regiao = p.zona && ZONA_LABEL[p.zona] ? ' · ' + ZONA_LABEL[p.zona] : '';
+        return (j + 1) + '. ' + escapeHtml_(p.nome) + regiao + marca;
+      }).join('<br>');
       bloco.innerHTML =
         '<span>' + (trechos.length > 1 ? 'Trecho ' + (i + 1) : 'Paradas na ordem') + '</span>' +
         '<p class="card-hint" style="margin:0 0 8px">' + nomes + '</p>';
@@ -4024,6 +4183,16 @@
       bloco.appendChild(btn);
       inner.appendChild(bloco);
     });
+
+    if (resumo && resumo.imprecisas && resumo.imprecisas.length) {
+      var nota = document.createElement('div');
+      nota.className = 'field';
+      nota.innerHTML = '<span>Endereço impreciso (' + resumo.imprecisas.length + ')</span>' +
+        '<p class="card-hint" style="margin:0">' +
+        resumo.imprecisas.map(function (p) { return escapeHtml_(p.nome); }).join('<br>') +
+        '<br><br>O endereço desses não foi encontrado no mapa (quase sempre "ZONA RURAL"), então eles entram no fim do grupo e vão pro Maps pelo endereço escrito, não por coordenada — o Google costuma achar melhor que o mapa aberto.</p>';
+      inner.appendChild(nota);
+    }
 
     if (semLocal.length) {
       var aviso = document.createElement('div');
@@ -4253,15 +4422,12 @@
     botaoOcupado_(btn);
     navigator.geolocation.getCurrentPosition(function (pos) {
       var atual = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      var linhas = Array.from($('rotaList').querySelectorAll('.rota-item'));
-      var comLocal = [], semLocal = [];
-      linhas.forEach(function (row) {
-        var entrega = pendentesCache.filter(function (p) { return p.id === row.dataset.id; })[0];
-        var cliente = entrega && entrega.clienteId ? clientesCache.get(entrega.clienteId) : null;
-        var geo = cliente && cliente.geo;
-        if (geo && typeof geo.lat === 'number') comLocal.push({ id: row.dataset.id, geo: geo });
-        else semLocal.push({ id: row.dataset.id });
-      });
+      // usa exatamente a mesma lógica do "Abrir no Maps" (região primeiro,
+      // depois distância, endereço impreciso no fim), pra não existirem
+      // dois critérios de ordem diferentes dentro do mesmo app
+      var paradas = paradasDaRota_();
+      var comLocal = paradas.filter(function (p) { return p.geo; });
+      var semLocal = paradas.filter(function (p) { return !p.geo; });
 
       if (!comLocal.length) {
         botaoLivre_(btn);
@@ -4269,26 +4435,12 @@
         return;
       }
 
-      var ordenadas = [], restantes = comLocal.slice(), referencia = atual;
-      while (restantes.length) {
-        var melhor = 0;
-        for (var i = 1; i < restantes.length; i++) {
-          if (distanciaKm_(referencia, restantes[i].geo) < distanciaKm_(referencia, restantes[melhor].geo)) melhor = i;
-        }
-        referencia = restantes[melhor].geo;
-        ordenadas.push(restantes.splice(melhor, 1)[0]);
-      }
+      var ordenadas = ordenarPorZonaEProximidade_(comLocal, atual);
+      var idsFinais = [];
+      ordenadas.concat(semLocal).forEach(function (p) { idsFinais = idsFinais.concat(p.entregaIds || []); });
 
-      var idsFinais = ordenadas.concat(semLocal).map(function (x) { return x.id; });
-      var email = auth.currentUser && auth.currentUser.email;
-      var permitido = temPapel('admin') ? idsFinais : idsFinais.filter(function (id) {
-        var item = pendentesCache.filter(function (p) { return p.id === id; })[0];
-        return item && item.entregadoPor === email;
-      });
-      var batch = db.batch();
-      permitido.forEach(function (id) { batch.update(db.doc('entregas/' + id), { ordemRota: idsFinais.indexOf(id) }); });
-      batch.commit().then(function () {
-        showToast('Rota reordenada da mais perto pra mais longe' + (semLocal.length ? ' (' + semLocal.length + ' sem localização foram pro fim).' : '.'));
+      salvarOrdemIds_(idsFinais).then(function () {
+        showToast('Rota reordenada por região e proximidade' + (semLocal.length ? ' (' + semLocal.length + ' sem localização foram pro fim).' : '.'));
       }).catch(function (err) {
         showToast(errMsg(err, 'Não foi possível salvar a nova ordem.'), 'error');
       }).finally(function () { botaoLivre_(btn); });
