@@ -1375,6 +1375,7 @@
         <button type="button" class="btn-chip accent" id="rotaAddBtn">+ Adicionar à rota</button>
       </div>
       <p class="card-hint">Documentos e valores já prontos — falta só colher a assinatura na hora da entrega.</p>
+      <p class="card-hint" id="rotaPrevisao" hidden></p>
       <div class="filters">
         <div class="filtro">
           <label for="rotaBusca">Buscar cliente</label>
@@ -3649,6 +3650,57 @@
     if (ev.target === $('buscaGlobal')) fecharBuscaGlobal_();
   });
 
+  // ---------- quanto tempo costuma levar cada parada ----------
+  // Mede o próprio histórico em vez de chutar: pega o intervalo entre
+  // entregas confirmadas em sequência, no mesmo dia e pela mesma pessoa.
+  // Usa a mediana, não a média — um almoço no meio da rota estraga a
+  // média e não mexe na mediana. Intervalos absurdos ficam de fora:
+  // acima de 90min é volta ao escritório, abaixo de 1min é o mesmo
+  // cliente sendo confirmado em lote.
+  function minutosPorParada_() {
+    var porPessoaDia = {};
+    entregasPainelCache.forEach(function (e) {
+      if (e.status !== 'confirmada' || !e.confirmadoEm) return;
+      var t = new Date(e.confirmadoEm);
+      if (isNaN(t)) return;
+      var chave = (e.entregadoPor || '?') + '|' + t.toDateString();
+      (porPessoaDia[chave] = porPessoaDia[chave] || []).push(t.getTime());
+    });
+
+    var intervalos = [];
+    Object.keys(porPessoaDia).forEach(function (k) {
+      var tempos = porPessoaDia[k].sort(function (a, b) { return a - b; });
+      for (var i = 1; i < tempos.length; i++) {
+        var min = (tempos[i] - tempos[i - 1]) / 60000;
+        if (min >= 1 && min <= 90) intervalos.push(min);
+      }
+    });
+    // menos de 5 amostras não diz nada — melhor não mostrar estimativa
+    if (intervalos.length < 5) return null;
+    intervalos.sort(function (a, b) { return a - b; });
+    var meio = Math.floor(intervalos.length / 2);
+    var mediana = intervalos.length % 2
+      ? intervalos[meio]
+      : (intervalos[meio - 1] + intervalos[meio]) / 2;
+    return { minutos: Math.round(mediana), amostras: intervalos.length };
+  }
+
+  function fmtHoraCurta_(date) {
+    return String(date.getHours()).padStart(2, '0') + ':' + String(date.getMinutes()).padStart(2, '0');
+  }
+
+  function renderPrevisaoRota_(quantasParadas) {
+    var el = $('rotaPrevisao');
+    if (!el) return;
+    var ritmo = minutosPorParada_();
+    if (!ritmo || !quantasParadas) { el.hidden = true; return; }
+    var fim = new Date(Date.now() + ritmo.minutos * quantasParadas * 60000);
+    el.hidden = false;
+    el.textContent = 'No seu ritmo (≈ ' + ritmo.minutos + ' min por parada, medido em ' +
+      ritmo.amostras + ' entregas), essas ' + quantasParadas +
+      ' paradas terminam por volta das ' + fmtHoraCurta_(fim) + '.';
+  }
+
   // ---------- mural de recados ----------
   // Avisos curtos que hoje se perdem no grupo do WhatsApp. Ficam onde a
   // pessoa já está olhando (a aba Rota) e somem sozinhos depois de 30
@@ -3959,8 +4011,11 @@
     listEl.innerHTML = '';
     if (list.length === 0) {
       listEl.innerHTML = '<div class="empty-state">Nenhuma entrega na rota. Toque em "+ Adicionar à rota" para preparar a próxima.</div>';
+      renderPrevisaoRota_(0);
       return;
     }
+    // paradas, não entregas: o mesmo cliente com 3 guias é uma parada só
+    renderPrevisaoRota_(new Set(list.map(function (e) { return e.clienteId || e.clienteNome; })).size);
     // quantas entregas cada cliente tem na rota — com mais de uma, dá pra
     // colher uma assinatura só pra todas em vez de repetir o mesmo ritual
     var porCliente = {};
