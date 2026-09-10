@@ -4193,7 +4193,7 @@
         var ids = [];
         resumo.ordem.forEach(function (p) { ids = ids.concat(p.entregaIds || []); });
         semLocal.forEach(function (p) { ids = ids.concat(p.entregaIds || []); });
-        salvarOrdemIds_(ids).then(function () {
+        salvarOrdemVisivel_(ids).then(function () {
           showToast('Ordem aplicada na rota.');
           botaoLivre_(btn, 'Ordem aplicada');
         }).catch(function (err) {
@@ -4270,9 +4270,12 @@
     var list = pendentesCache.slice().sort(function (a, b) {
       var ao = typeof a.ordemRota === 'number' ? a.ordemRota : null;
       var bo = typeof b.ordemRota === 'number' ? b.ordemRota : null;
-      if (ao !== null && bo !== null) return ao - bo;
-      if (ao !== null) return -1;
-      if (bo !== null) return 1;
+      // empate na posição (dado antigo, de quando reordenar com filtro
+      // ligado numerava só o visível) cai na data de criação, pra a lista
+      // pelo menos não trocar de ordem sozinha a cada carregamento
+      if (ao !== null && bo !== null && ao !== bo) return ao - bo;
+      if (ao !== null && bo === null) return -1;
+      if (ao === null && bo !== null) return 1;
       return new Date(a.criadoEm) - new Date(b.criadoEm);
     });
     if (busca) list = list.filter(function (e) { return (e.clienteNome || '').toLowerCase().indexOf(busca) !== -1; });
@@ -4496,7 +4499,7 @@
       var idsFinais = [];
       ordenadas.concat(semLocal).forEach(function (p) { idsFinais = idsFinais.concat(p.entregaIds || []); });
 
-      salvarOrdemIds_(idsFinais).then(function () {
+      salvarOrdemVisivel_(idsFinais).then(function () {
         showToast('Rota reordenada por região e proximidade' + (semLocal.length ? ' (' + semLocal.length + ' sem localização foram pro fim).' : '.'));
       }).catch(function (err) {
         showToast(errMsg(err, 'Não foi possível salvar a nova ordem.'), 'error');
@@ -4507,25 +4510,55 @@
     }, { timeout: 10000, maximumAge: 60000 });
   }
 
+  // A ordem que vale é sempre a da ROTA INTEIRA, mesmo quando a tela está
+  // filtrada. Numerar só o que está visível de 0 em diante fazia as
+  // posições colidirem com as das entregas escondidas pelo filtro — e a
+  // rota saía embaralhada depois, sem ninguém entender por quê.
+  function ordemCompletaDaRota_() {
+    return pendentesCache.slice().sort(function (a, b) {
+      var ao = typeof a.ordemRota === 'number' ? a.ordemRota : null;
+      var bo = typeof b.ordemRota === 'number' ? b.ordemRota : null;
+      if (ao !== null && bo !== null && ao !== bo) return ao - bo;
+      if (ao !== null && bo === null) return -1;
+      if (ao === null && bo !== null) return 1;
+      return new Date(a.criadoEm) - new Date(b.criadoEm);
+    }).map(function (e) { return e.id; });
+  }
+
+  // Encaixa a nova ordem das linhas visíveis nas posições que elas já
+  // ocupavam dentro da rota completa, sem mexer em quem está escondido.
+  function salvarOrdemVisivel_(idsVisiveis) {
+    var completa = ordemCompletaDaRota_();
+    var visivel = {};
+    idsVisiveis.forEach(function (id) { visivel[id] = true; });
+    var fila = idsVisiveis.slice();
+    var finais = completa.map(function (id) { return visivel[id] ? fila.shift() : id; });
+    // qualquer visível que ainda não estivesse na rota completa entra no fim
+    fila.forEach(function (id) { finais.push(id); });
+    return salvarOrdemIds_(finais);
+  }
+
   function salvarNovaOrdemRota_() {
     var ids = Array.from($('rotaList').querySelectorAll('.rota-item')).map(function (r) { return r.dataset.id; }).filter(Boolean);
     if (!ids.length) return;
     // As regras do Firestore só deixam alterar uma entrega que é sua ou
-    // sendo admin — se a rota visível mistura entregas de outras pessoas
-    // (várias pessoas na rota ao mesmo tempo), grava só a parte permitida
-    // em vez de a gravação toda falhar por causa de uma entrega de outro.
+    // sendo admin — se a rota mistura entregas de outras pessoas (várias
+    // pessoas na rota ao mesmo tempo), grava só a parte permitida em vez
+    // de a gravação toda falhar por causa de uma entrega de outro.
     var email = auth.currentUser && auth.currentUser.email;
-    var permitido = temPapel('admin') ? ids : ids.filter(function (id) {
-      var item = pendentesCache.find(function (p) { return p.id === id; });
-      return item && item.entregadoPor === email;
-    });
-    if (permitido.length !== ids.length) {
-      showToast('Só entregas atribuídas a você foram reordenadas (as de outras pessoas exigem admin).', 'error');
+    if (!temPapel('admin')) {
+      var minhas = ids.filter(function (id) {
+        var item = pendentesCache.find(function (p) { return p.id === id; });
+        return item && item.entregadoPor === email;
+      });
+      if (minhas.length !== ids.length) {
+        showToast('Só entregas atribuídas a você foram reordenadas (as de outras pessoas exigem admin).', 'error');
+      }
+      if (!minhas.length) return;
     }
-    if (!permitido.length) return;
-    var batch = db.batch();
-    permitido.forEach(function (id) { batch.update(db.doc('entregas/' + id), { ordemRota: ids.indexOf(id) }); });
-    batch.commit().catch(function (err) { showToast(errMsg(err, 'Não foi possível salvar a nova ordem.'), 'error'); });
+    salvarOrdemVisivel_(ids).catch(function (err) {
+      showToast(errMsg(err, 'Não foi possível salvar a nova ordem.'), 'error');
+    });
   }
 
   // ---------- solicitações (entregar/buscar documento p/ office boy) ----------
