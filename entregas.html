@@ -2042,8 +2042,21 @@
   atualizarSombraTopbar();
 
   // ---------- conexão ----------
+  // A faixa aparece sem sinal, e também COM sinal enquanto sobrar coisa
+  // pra subir: é a única forma de a pessoa saber se já pode fechar o app
+  // sem perder a entrega que acabou de registrar.
   function atualizarStatusConexao() {
-    $('offline-banner').hidden = navigator.onLine;
+    var banner = $('offline-banner');
+    if (!banner) return;
+    var offline = !navigator.onLine;
+    banner.hidden = !offline && escritasPendentes === 0;
+    if (banner.hidden) return;
+    var fila = escritasPendentes
+      ? ' <strong>' + escritasPendentes + '</strong> ' + (escritasPendentes === 1 ? 'registro esperando' : 'registros esperando') + ' pra subir.'
+      : '';
+    banner.innerHTML = offline
+      ? '<i class="ph ph-wifi-slash" aria-hidden="true"></i> Sem conexão. O que você fizer agora fica guardado neste aparelho e sincroniza sozinho quando a internet voltar.' + fila
+      : '<i class="ph ph-arrows-clockwise" aria-hidden="true"></i> Sincronizando.' + fila + ' Pode continuar usando normalmente.';
   }
   window.addEventListener('online', function () {
     atualizarStatusConexao();
@@ -2221,7 +2234,15 @@
   // girando pra sempre, com o formulário travado, mesmo com a entrega já
   // salva. Aqui a gente segue em frente depois de um tempinho e avisa que vai
   // subir depois.
+  // Quantas gravações ainda não foram confirmadas pelo servidor. Serve pro
+  // aviso dizer "3 entregas esperando" em vez de um "sem conexão" genérico
+  // — sem isso a pessoa não tem como saber se pode fechar o app.
+  var escritasPendentes = 0;
+
   function escritaQueNaoTrava_(promessa) {
+    escritasPendentes++;
+    // sempre que o servidor confirmar (agora ou daqui a uma hora), desconta
+    promessa.then(baixarPendente_, baixarPendente_);
     return new Promise(function (resolve, reject) {
       var respondeu = false;
       var relogio = setTimeout(function () {
@@ -2237,6 +2258,11 @@
         respondeu = true; clearTimeout(relogio); reject(e);
       });
     });
+  }
+
+  function baixarPendente_() {
+    escritasPendentes = Math.max(0, escritasPendentes - 1);
+    atualizarStatusConexao();
   }
 
   function avisoDeEscrita_(resultado, mensagemPronta) {
