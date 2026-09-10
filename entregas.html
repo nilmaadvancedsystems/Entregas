@@ -2232,11 +2232,17 @@
     };
   }
 
+  var relogioToast = null;
   function showToast(msg, kind) {
     var t = $('toast');
     t.textContent = msg;
     t.className = 'toast show' + (kind === 'error' ? ' error' : '');
-    setTimeout(function () { t.className = 'toast'; }, 2600);
+    // 2,6s dava pra "Entrega confirmada" e sumia no meio de um aviso
+    // comprido. O tempo agora acompanha o tamanho do texto, com teto pra
+    // não ficar entulhando a tela.
+    clearTimeout(relogioToast);
+    var duracao = Math.min(9000, Math.max(2600, String(msg).length * 55));
+    relogioToast = setTimeout(function () { t.className = 'toast'; }, duracao);
   }
 
   // O Firestore grava no aparelho na hora, mas só resolve a promessa quando o
@@ -4430,8 +4436,12 @@
 
   function avisarLocalDivergente_(avaliacao, clienteNome) {
     if (!avaliacao || !avaliacao.divergente) return;
-    showToast('Você estava a ' + Math.round(avaliacao.distancia * 1000) + ' m de ' +
-      (clienteNome || 'onde o cliente fica') + '. A entrega foi registrada, mas o local do cliente não foi alterado.');
+    // Se o cadastro é que está errado (e não a confirmação feita longe),
+    // o caminho é "Corrigir localização" na ficha do cliente — dizer isso
+    // aqui evita a pessoa achar que não tem como arrumar.
+    showToast('Você estava a ' + Math.round(avaliacao.distancia * 1000) + ' m de onde ' +
+      (clienteNome || 'o cliente') + ' está cadastrado. A entrega foi registrada e o local do cliente NÃO foi alterado. ' +
+      'Se o cadastro é que está errado, use "Corrigir localização" na ficha dele.');
   }
 
   // Descobre a zona de um ponto olhando o cliente mais próximo que já tem
