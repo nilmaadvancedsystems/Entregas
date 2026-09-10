@@ -2042,6 +2042,13 @@
   atualizarSombraTopbar();
 
   // ---------- conexão ----------
+  // Quantas gravações ainda não foram confirmadas pelo servidor. Declarado
+  // AQUI, e não junto de escritaQueNaoTrava_ mais abaixo: a primeira
+  // chamada de atualizarStatusConexao() acontece nesta altura do arquivo, e
+  // com a declaração lá embaixo o valor ainda era undefined — o que fazia a
+  // faixa "Sincronizando" aparecer na carga sem nada pendente.
+  var escritasPendentes = 0;
+
   // A faixa aparece sem sinal, e também COM sinal enquanto sobrar coisa
   // pra subir: é a única forma de a pessoa saber se já pode fechar o app
   // sem perder a entrega que acabou de registrar.
@@ -3715,16 +3722,37 @@
     return String(date.getHours()).padStart(2, '0') + ':' + String(date.getMinutes()).padStart(2, '0');
   }
 
+  function fmtDuracao_(minutos) {
+    var h = Math.floor(minutos / 60), m = Math.round(minutos % 60);
+    if (!h) return m + ' min';
+    return h + 'h' + (m ? String(m).padStart(2, '0') : '');
+  }
+
   function renderPrevisaoRota_(quantasParadas) {
     var el = $('rotaPrevisao');
     if (!el) return;
     var ritmo = minutosPorParada_();
     if (!ritmo || !quantasParadas) { el.hidden = true; return; }
-    var fim = new Date(Date.now() + ritmo.minutos * quantasParadas * 60000);
+
+    var duracao = ritmo.minutos * quantasParadas;
+    var texto = 'No seu ritmo (≈ ' + ritmo.minutos + ' min por parada, medido em ' +
+      ritmo.amostras + ' entregas), essas ' + quantasParadas + ' paradas levam ~' +
+      fmtDuracao_(duracao) + ' depois que você sair.';
+
+    // Só dá pra dizer a que horas termina se a rota JÁ começou — a rota
+    // costuma ser montada 1 a 2 horas antes de sair, e contar a partir de
+    // "agora" nesse momento daria um horário errado.
+    var jaComecou = entregasPainelCache.some(function (e) {
+      if (e.status !== 'confirmada' || !e.confirmadoEm) return false;
+      var t = new Date(e.confirmadoEm);
+      return !isNaN(t) && t.toDateString() === new Date().toDateString();
+    });
+    if (jaComecou) {
+      texto += ' Terminando por volta das ' + fmtHoraCurta_(new Date(Date.now() + duracao * 60000)) + '.';
+    }
+
     el.hidden = false;
-    el.textContent = 'No seu ritmo (≈ ' + ritmo.minutos + ' min por parada, medido em ' +
-      ritmo.amostras + ' entregas), essas ' + quantasParadas +
-      ' paradas terminam por volta das ' + fmtHoraCurta_(fim) + '.';
+    el.textContent = texto;
   }
 
   // ---------- mural de recados ----------
