@@ -512,6 +512,10 @@
      rótulos do resto do app. :not([class]) protege os spans internos. */
   .field > span:first-child:not([class]) { display: block; font-size: .8rem; font-weight: 600; color: var(--ink-soft); margin-bottom: 6px; }
   label.field > span { display: block; font-size: .8rem; font-weight: 600; color: var(--ink-soft); margin-bottom: 6px; }
+  /* campo + botão lado a lado; no celular o botão desce e ocupa a linha */
+  .linha-busca-cnpj { display: flex; gap: 8px; align-items: stretch; flex-wrap: wrap; }
+  .linha-busca-cnpj .input { flex: 1 1 180px; }
+  .linha-busca-cnpj .btn { flex: 0 0 auto; padding-top: 0; padding-bottom: 0; }
   .input, input[type="text"], input[type="month"], input[type="tel"] {
     width: 100%; padding: 11px 12px; border: 1px solid var(--border); border-radius: var(--radius-s);
     background: var(--surface-2); color: var(--ink);
@@ -953,6 +957,7 @@
   @media (prefers-reduced-motion: reduce) { .modal-overlay, .modal { animation: none; } }
   @media (min-width: 640px) { .modal { border-radius: var(--radius-l); } }
   .modal-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 14px; }
+  .modal-acoes { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; }
   .modal-head > div:first-child { min-width: 0; flex: 1; overflow-wrap: break-word; word-break: break-word; }
   .modal-close { border: none; background: var(--surface-2); border-radius: 50%; width: 32px; height: 32px; cursor: pointer; font-size: 1rem; flex: none; }
   .modal .itens-list { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
@@ -1611,6 +1616,14 @@
     </div>
     <form id="form-cliente" class="card" hidden novalidate>
       <h2>Novo cliente</h2>
+      <div class="field">
+        <span>CNPJ (opcional — preenche o resto sozinho)</span>
+        <div class="linha-busca-cnpj">
+          <input class="input" id="novoClienteDoc" type="text" inputmode="numeric" placeholder="00.000.000/0000-00">
+          <button type="button" class="btn btn-secondary" id="buscarCnpjBtn"><i class="ph ph-magnifying-glass" aria-hidden="true"></i> Buscar</button>
+        </div>
+        <p class="card-hint" id="cnpjStatus" style="margin:6px 0 0"></p>
+      </div>
       <label class="field">
         <span>Nome</span>
         <input class="input" id="novoClienteNome" type="text" placeholder="Razão social ou nome" required>
@@ -1618,8 +1631,8 @@
       <div class="edit-form" style="margin-bottom:16px;">
         <div class="row2">
           <div>
-            <label class="sub-rotulo" for="novoClienteDoc">CNPJ ou CPF (opcional)</label>
-            <input class="input" id="novoClienteDoc" type="text" inputmode="numeric" placeholder="00.000.000/0000-00">
+            <label class="sub-rotulo" for="novoClienteFantasia">Nome fantasia (opcional)</label>
+            <input class="input" id="novoClienteFantasia" type="text" placeholder="Como é conhecido">
           </div>
           <div>
             <label class="sub-rotulo" for="novoClienteTel">Telefone (opcional)</label>
@@ -1627,6 +1640,10 @@
           </div>
         </div>
       </div>
+      <label class="field">
+        <span>Endereço (opcional)</span>
+        <input class="input" id="novoClienteEndereco" type="text" placeholder="Rua, número, bairro, cidade">
+      </label>
       <button type="submit" class="btn btn-primary">Adicionar cliente</button>
     </form>
     <div class="card">
@@ -2018,6 +2035,22 @@
     return c.nome.toLowerCase().indexOf(q) !== -1 ||
       (c.codigoOrigem || '').toLowerCase().indexOf(q) !== -1 ||
       (soDigitos.length >= 3 && (c.documento || '').replace(/\D/g, '').indexOf(soDigitos) !== -1);
+  }
+
+  // Telefone do cliente no formato que o WhatsApp entende: só dígitos, com
+  // o 55 do Brasil na frente. Devolve '' quando o número não dá pé (curto
+  // demais, ou fixo antigo de 7 dígitos) — aí o link abre sem destinatário
+  // e a pessoa escolhe o contato na mão, que é o comportamento antigo.
+  function whatsAppNumero_(tel) {
+    var d = String(tel || '').replace(/\D/g, '');
+    if (d.indexOf('55') === 0 && (d.length === 12 || d.length === 13)) return d;
+    if (d.length === 10 || d.length === 11) return '55' + d;
+    return '';
+  }
+
+  function whatsAppUrl_(texto, telefone) {
+    var num = whatsAppNumero_(telefone);
+    return 'https://wa.me/' + num + '?text=' + encodeURIComponent(texto);
   }
 
   // Escape único do app. Existiam dois: o outro montava um <div> a cada
@@ -3650,6 +3683,56 @@
     db.doc('clientes/' + clienteId).update({ geo: geo }).catch(function () {});
   }
 
+  // Descobre a zona de um ponto olhando o cliente mais próximo que já tem
+  // zona definida. As zonas daqui (superior/central/inferior) são divisões
+  // que vocês fizeram na mão, não existem num mapa — então a única fonte
+  // honesta de qual é qual são os próprios clientes já classificados.
+  function zonaDoPontoMaisProximo_(geo) {
+    var melhor = null, menorDist = Infinity;
+    clientesCache.forEach(function (c) {
+      if (!c.zona || !c.geo || typeof c.geo.lat !== 'number') return;
+      var d = distanciaKm_(geo, c.geo);
+      if (d < menorDist) { menorDist = d; melhor = c; }
+    });
+    // acima de 15 km o "vizinho" já não diz nada — melhor deixar em branco
+    // do que chutar uma zona errada e bagunçar a rota
+    if (!melhor || menorDist > 15) return null;
+    return { zona: melhor.zona, referencia: melhor.nome, distancia: menorDist };
+  }
+
+  // Transforma o endereço escrito em ponto no mapa (Nominatim/OpenStreetMap,
+  // sem chave de API). Serve pra rota por proximidade e pra já sugerir a
+  // zona no cadastro, em vez de só descobrir isso na primeira entrega.
+  function geocodificarCliente_(clienteId, endereco, nomeCliente) {
+    if (!clienteId || !endereco) return Promise.resolve(null);
+    var q = encodeURIComponent(endereco + ', Brasil');
+    return fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=br&q=' + q, {
+      headers: { 'Accept': 'application/json' }
+    })
+      .then(function (r) { return r.ok ? r.json() : []; })
+      .then(function (lista) {
+        if (!lista || !lista.length) {
+          showToast('Cliente salvo, mas não achei o endereço no mapa. Dá pra ajustar depois.', 'error');
+          return null;
+        }
+        var geo = { lat: parseFloat(lista[0].lat), lng: parseFloat(lista[0].lon), origem: 'endereco' };
+        var dados = { geo: geo };
+        var palpite = zonaDoPontoMaisProximo_(geo);
+        if (palpite) dados.zona = palpite.zona;
+        return db.doc('clientes/' + clienteId).update(dados).then(function () {
+          showToast(palpite
+            ? 'Endereço localizado. Zona sugerida: ' + (ZONA_LABEL[palpite.zona] || palpite.zona) + ' (igual a ' + palpite.referencia + ').'
+            : 'Endereço localizado no mapa.');
+          registrarAuditoria_('cliente_geocodificado', (nomeCliente || '') + ' · ' + endereco);
+          return geo;
+        });
+      })
+      .catch(function () {
+        showToast('Cliente salvo. A localização do endereço não pôde ser consultada agora.', 'error');
+        return null;
+      });
+  }
+
   function distanciaKm_(a, b) {
     var R = 6371;
     var dLat = (b.lat - a.lat) * Math.PI / 180;
@@ -4428,14 +4511,43 @@
           return cabecalho + linhas;
         }).join('');
 
+    var acoesHtml = historico.length
+      ? '<div class="modal-acoes">' +
+          '<button type="button" class="btn-chip" id="exportarHistoricoBtn"><i class="ph ph-download-simple" aria-hidden="true"></i> Exportar histórico</button>' +
+          (whatsAppNumero_(cliente.telefone)
+            ? '<button type="button" class="btn-chip" id="falarClienteBtn"><i class="ph ph-whatsapp-logo" aria-hidden="true"></i> Falar no WhatsApp</button>'
+            : '') +
+        '</div>'
+      : '';
+
     inner.innerHTML =
       '<div class="modal-head">' +
         '<div><h2>' + escapeHtml_(clienteLabel(cliente)) + '</h2><div class="card-hint" style="margin:2px 0 0">' +
           historico.length + ' entrega(s) em ' + porCompetencia.length + ' competência(s)</div></div>' +
         '<button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button>' +
       '</div>' +
+      acoesHtml +
       rowsHtml;
     $('modalClose').addEventListener('click', closeModal);
+
+    if ($('exportarHistoricoBtn')) {
+      $('exportarHistoricoBtn').addEventListener('click', function () {
+        if (typeof XLSX === 'undefined') { showToast('Biblioteca de planilha não carregou. Recarregue a página.', 'error'); return; }
+        var ws = XLSX.utils.aoa_to_sheet(buildLinhas(historico));
+        ws['!cols'] = [{ wch: 30 }, { wch: 12 }, { wch: 40 }, { wch: 12 }, { wch: 22 }, { wch: 18 }, { wch: 20 }];
+        var wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Entregas');
+        var arquivo = 'entregas-' + (cliente.codigoOrigem || cliente.nome).toString().replace(/[^\w-]+/g, '-').toLowerCase() + '.xlsx';
+        XLSX.writeFile(wb, arquivo);
+        showToast('Planilha do cliente baixada.');
+      });
+    }
+    if ($('falarClienteBtn')) {
+      $('falarClienteBtn').addEventListener('click', function () {
+        window.open(whatsAppUrl_('Olá! Aqui é da Nilma Contabilidade.', cliente.telefone), '_blank');
+      });
+    }
+
     inner.querySelectorAll('.history-row').forEach(function (row) {
       row.addEventListener('click', function () {
         var e = historico[parseInt(row.dataset.idx, 10)];
@@ -4486,6 +4598,12 @@
         '\nEntregue por: ' + (entrega.entregadoPorNome || entrega.entregadoPor || 'não informado') +
         '\nData: ' + fmtDateTime(entrega.confirmadoEm || entrega.criadoEm);
 
+      // Quando o cliente tem telefone cadastrado, o link já abre a conversa
+      // com ele; sem telefone, abre o WhatsApp pedindo pra escolher o
+      // contato — que era o único jeito antes.
+      var url = whatsAppUrl_(texto, cliente.telefone);
+      registrarAuditoria_('comprovante_enviado', clienteLabel(cliente) + ' · ' + fmtCompetencia(entrega.competencia));
+
       // Se o aparelho souber compartilhar (celular), manda o texto junto
       // com a imagem do comprovante; senão cai no WhatsApp Web com o
       // texto, que é o que dá pra fazer por link.
@@ -4498,19 +4616,13 @@
               return navigator.share({ text: texto, files: [arquivo] });
             }
             return navigator.share({ text: texto });
-          }).catch(function () {
-            window.open('https://wa.me/?text=' + encodeURIComponent(texto), '_blank');
-          });
+          }).catch(function () { window.open(url, '_blank'); });
         } else if (navigator.share) {
-          navigator.share({ text: texto }).catch(function () {
-            window.open('https://wa.me/?text=' + encodeURIComponent(texto), '_blank');
-          });
+          navigator.share({ text: texto }).catch(function () { window.open(url, '_blank'); });
         } else {
-          window.open('https://wa.me/?text=' + encodeURIComponent(texto), '_blank');
+          window.open(url, '_blank');
         }
-      }).catch(function () {
-        window.open('https://wa.me/?text=' + encodeURIComponent(texto), '_blank');
-      });
+      }).catch(function () { window.open(url, '_blank'); });
     });
     if ($('excluirEntregaBtn')) {
       $('excluirEntregaBtn').addEventListener('click', function () {
@@ -4537,10 +4649,18 @@
           '<button type="button" class="link-btn" data-anexo="foto"><i class="ph ph-download-simple" aria-hidden="true"></i> Salvar foto</button>';
       }
       slot.innerHTML = html || '<p class="card-hint">Sem comprovante anexado.</p>';
+
+      // Assinatura e foto são dado de cliente: fica registrado quem abriu e
+      // quem baixou, pra ter resposta se um dia alguém questionar o uso.
+      if (anexos.assinatura || anexos.foto) {
+        registrarAuditoria_('comprovante_aberto', clienteLabel(cliente) + ' · ' + fmtCompetencia(entrega.competencia));
+      }
+
       slot.querySelectorAll('[data-anexo]').forEach(function (btn) {
         btn.addEventListener('click', function () {
           var tipo = btn.dataset.anexo;
           var ext = tipo === 'assinatura' ? 'png' : 'jpg';
+          registrarAuditoria_('comprovante_baixado', clienteLabel(cliente) + ' · ' + fmtCompetencia(entrega.competencia) + ' · ' + tipo);
           downloadDataUrl(anexos[tipo], 'entrega-' + entrega.id + '-' + tipo + '.' + ext);
         });
       });
@@ -5101,21 +5221,71 @@
   });
 
   // ---------- clientes tab ----------
+  // Puxa razão social, fantasia, telefone e endereço da Receita Federal só
+  // com o CNPJ (via BrasilAPI, que é pública e não pede chave). Evita
+  // digitar tudo de novo e, principalmente, evita erro de digitação em
+  // nome/endereço — que depois atrapalha a busca e a rota.
+  function buscarCnpj_(btn) {
+    var digitos = $('novoClienteDoc').value.replace(/\D/g, '');
+    var status = $('cnpjStatus');
+    if (digitos.length !== 14) {
+      status.textContent = 'Digite o CNPJ completo (14 números) para buscar.';
+      return;
+    }
+    botaoOcupado_(btn);
+    status.textContent = 'Consultando a Receita...';
+    fetch('https://brasilapi.com.br/api/v1/cnpj/v1/' + digitos)
+      .then(function (r) {
+        if (r.status === 404) throw new Error('CNPJ não encontrado na Receita.');
+        if (!r.ok) throw new Error('A consulta não respondeu agora. Tente de novo.');
+        return r.json();
+      })
+      .then(function (d) {
+        if (d.razao_social) $('novoClienteNome').value = d.razao_social;
+        if (d.nome_fantasia) $('novoClienteFantasia').value = d.nome_fantasia;
+        if (d.ddd_telefone_1 && !$('novoClienteTel').value.trim()) {
+          $('novoClienteTel').value = d.ddd_telefone_1;
+        }
+        var endereco = [
+          [d.logradouro, d.numero].filter(Boolean).join(', '),
+          d.bairro, d.municipio, d.uf
+        ].filter(Boolean).join(' - ');
+        if (endereco) $('novoClienteEndereco').value = endereco;
+        var baixado = d.descricao_situacao_cadastral || '';
+        status.textContent = 'Dados preenchidos.' + (baixado && baixado.toUpperCase() !== 'ATIVA' ? ' Atenção: situação na Receita é "' + baixado + '".' : '');
+      })
+      .catch(function (err) {
+        status.textContent = err.message || 'Não foi possível consultar agora.';
+      })
+      .finally(function () { botaoLivre_(btn); });
+  }
+
+  $('buscarCnpjBtn').addEventListener('click', function () { buscarCnpj_(this); });
+  $('novoClienteDoc').addEventListener('keydown', function (ev) {
+    if (ev.key === 'Enter') { ev.preventDefault(); buscarCnpj_($('buscarCnpjBtn')); }
+  });
+
   $('form-cliente').addEventListener('submit', function (e) {
     e.preventDefault();
     var nome = $('novoClienteNome').value.trim();
     if (!nome) return;
+    var endereco = $('novoClienteEndereco').value.trim();
     db.collection('clientes').add({
       nome: nome,
+      nomeFantasia: $('novoClienteFantasia').value.trim(),
       documento: $('novoClienteDoc').value.trim(),
       telefone: $('novoClienteTel').value.trim(),
+      endereco: endereco,
       ativo: true,
       criadoEm: new Date().toISOString()
-    }).then(function () {
-      $('novoClienteNome').value = '';
-      $('novoClienteDoc').value = '';
-      $('novoClienteTel').value = '';
+    }).then(function (ref) {
+      ['novoClienteNome', 'novoClienteFantasia', 'novoClienteDoc', 'novoClienteTel', 'novoClienteEndereco']
+        .forEach(function (id) { $(id).value = ''; });
+      $('cnpjStatus').textContent = '';
       showToast('Cliente cadastrado.');
+      // com endereço em mãos dá pra descobrir a zona e o ponto no mapa já
+      // no cadastro, em vez de esperar a primeira entrega confirmada
+      if (endereco) geocodificarCliente_(ref.id, endereco, nome);
     }).catch(function (err) { showToast(errMsg(err, 'Não foi possível cadastrar.'), 'error'); });
   });
 
