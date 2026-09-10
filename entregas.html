@@ -1355,6 +1355,18 @@
   </section>
 
   <section id="tab-rota" class="view" role="tabpanel" tabindex="-1" aria-labelledby="tabbtn-rota" hidden>
+    <div class="card" id="recadosCard">
+      <div class="card-head-row">
+        <h2><i class="ph ph-push-pin" aria-hidden="true"></i> Recados</h2>
+        <button type="button" class="btn-chip accent" id="recadoNovoBtn">+ Novo recado</button>
+      </div>
+      <p class="card-hint">Avisos rápidos da equipe: cliente que mudou de endereço, portão que só abre de tarde, quem está de férias.</p>
+      <div class="linha-busca-cnpj" id="recadoForm" hidden style="margin-top:12px;">
+        <input class="input" id="recadoTexto" type="text" maxlength="280" placeholder="Ex.: Drogaria Antonino fecha das 12h às 14h" enterkeyhint="send">
+        <button type="button" class="btn btn-secondary" id="recadoSalvarBtn">Publicar</button>
+      </div>
+      <div id="recadosList" style="margin-top:12px;"></div>
+    </div>
     <div class="card">
       <div class="card-head-row">
         <h2>Rota de entregas</h2>
@@ -3605,6 +3617,94 @@
   $('buscaGlobalInput').addEventListener('input', renderBuscaGlobal_);
   $('buscaGlobal').addEventListener('click', function (ev) {
     if (ev.target === $('buscaGlobal')) fecharBuscaGlobal_();
+  });
+
+  // ---------- mural de recados ----------
+  // Avisos curtos que hoje se perdem no grupo do WhatsApp. Ficam onde a
+  // pessoa já está olhando (a aba Rota) e somem sozinhos depois de 30
+  // dias — recado velho vira ruído e ninguém se lembra de apagar.
+  var unsubRecados = null;
+  var recadosCache = [];
+  var DIAS_RECADO = 30;
+
+  function subscribeRecados() {
+    if (!db || unsubRecados) return;
+    unsubRecados = db.collection('recados').orderBy('criadoEm', 'desc').limit(50)
+      .onSnapshot(function (snap) {
+        recadosCache = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+        renderRecados_();
+      }, function () {});
+  }
+
+  function renderRecados_() {
+    var el = $('recadosList');
+    if (!el) return;
+    var limite = Date.now() - DIAS_RECADO * 86400000;
+    var vivos = recadosCache.filter(function (r) {
+      var t = new Date(r.criadoEm).getTime();
+      return isNaN(t) || t >= limite;
+    });
+    el.innerHTML = '';
+    if (!vivos.length) {
+      el.innerHTML = '<div class="empty-state">Nenhum recado. Use pra avisar a equipe de algo do dia a dia.</div>';
+      return;
+    }
+    var meuEmail = (auth.currentUser && auth.currentUser.email) || '';
+    vivos.forEach(function (r) {
+      var row = document.createElement('div');
+      row.className = 'entrega-row';
+      row.innerHTML = '<div style="flex:1"><div class="er-nome"></div><div class="er-sub"></div></div>';
+      row.querySelector('.er-nome').textContent = r.texto || '';
+      row.querySelector('.er-sub').textContent = (r.criadoPorNome || r.criadoPor || '?') + ' · ' + fmtDateTime(r.criadoEm);
+      if (temPapel('admin') || r.criadoPor === meuEmail) {
+        var apagar = document.createElement('button');
+        apagar.type = 'button';
+        apagar.className = 'btn-chip danger';
+        apagar.innerHTML = '<i class="ph ph-trash" aria-hidden="true"></i>';
+        apagar.title = 'Apagar recado';
+        apagar.addEventListener('click', function (ev) {
+          ev.stopPropagation();
+          confirmarDuplo(apagar, function () {
+            db.doc('recados/' + r.id).delete().catch(function (err) {
+              showToast(errMsg(err, 'Não foi possível apagar.'), 'error');
+            });
+          });
+        });
+        row.appendChild(apagar);
+      }
+      el.appendChild(row);
+    });
+    listaChegou_(el);
+  }
+
+  $('recadoNovoBtn').addEventListener('click', function () {
+    var form = $('recadoForm');
+    form.hidden = !form.hidden;
+    if (!form.hidden) $('recadoTexto').focus();
+  });
+
+  function publicarRecado_() {
+    var texto = $('recadoTexto').value.trim();
+    if (!texto) { $('recadoTexto').focus(); return; }
+    var btn = $('recadoSalvarBtn');
+    botaoOcupado_(btn);
+    db.collection('recados').add({
+      texto: texto,
+      criadoPor: (auth.currentUser && auth.currentUser.email) || '',
+      criadoPorNome: currentUserNome || '',
+      criadoEm: new Date().toISOString()
+    }).then(function () {
+      $('recadoTexto').value = '';
+      $('recadoForm').hidden = true;
+      showToast('Recado publicado.');
+    }).catch(function (err) {
+      showToast(errMsg(err, 'Não foi possível publicar.'), 'error');
+    }).finally(function () { botaoLivre_(btn); });
+  }
+
+  $('recadoSalvarBtn').addEventListener('click', publicarRecado_);
+  $('recadoTexto').addEventListener('keydown', function (ev) {
+    if (ev.key === 'Enter') { ev.preventDefault(); publicarRecado_(); }
   });
 
   // ---------- avisos de vencimento ----------
@@ -6970,6 +7070,7 @@
     subscribePainel($('painelCompetencia').value);
     subscribePendentes();
     subscribeSolicitacoes();
+    subscribeRecados();
     subscribeNotas();
     subscribeCompetenciasFechadas_();
     atualizarBotaoNotificacoes();
