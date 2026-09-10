@@ -958,6 +958,10 @@
   @media (min-width: 640px) { .modal { border-radius: var(--radius-l); } }
   .modal-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 14px; }
   .modal-acoes { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; }
+  .meta-barra { height: 6px; border-radius: 999px; background: var(--surface-2); overflow: hidden; margin-top: 6px; }
+  .meta-barra > span { display: block; height: 100%; background: var(--accent); border-radius: 999px;
+    transition: width var(--dur-calmo, .4s) var(--ease, ease); }
+  .meta-barra.batida > span { background: var(--success); }
   .modal-head > div:first-child { min-width: 0; flex: 1; overflow-wrap: break-word; word-break: break-word; }
   .modal-close { border: none; background: var(--surface-2); border-radius: 50%; width: 32px; height: 32px; cursor: pointer; font-size: 1rem; flex: none; }
   .modal .itens-list { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
@@ -1461,8 +1465,10 @@
     <div class="card">
       <div class="card-head-row">
         <h2>Ranking da equipe</h2>
+        <button type="button" class="btn-chip" id="definirMetaBtn" hidden><i class="ph ph-target" aria-hidden="true"></i> Meta do mês</button>
       </div>
       <p class="card-hint">Quem mais confirmou entregas nesta competência.</p>
+      <div id="metaResumo" hidden></div>
       <div id="rankingEquipe"></div>
     </div>
     <div class="card">
@@ -4587,12 +4593,73 @@
     lista.forEach(function (item, i) {
       var row = document.createElement('div');
       row.className = 'entrega-row';
-      row.innerHTML = '<div><div class="er-nome"></div></div><span class="status-pill entregue"></span>';
+      row.innerHTML = '<div style="flex:1"><div class="er-nome"></div><div class="meta-barra" hidden><span></span></div></div><span class="status-pill entregue"></span>';
       row.querySelector('.er-nome').textContent = (i + 1) + '. ' + item.nome;
       row.querySelector('.status-pill').textContent = item.total + (item.total === 1 ? ' entrega' : ' entregas');
+      if (metaPorPessoa > 0) {
+        var barra = row.querySelector('.meta-barra');
+        barra.hidden = false;
+        var pct = Math.min(100, Math.round(item.total / metaPorPessoa * 100));
+        barra.querySelector('span').style.width = pct + '%';
+        if (item.total >= metaPorPessoa) barra.classList.add('batida');
+        barra.title = item.total + ' de ' + metaPorPessoa + ' (' + pct + '%)';
+      }
       el.appendChild(row);
     });
+    renderMetaResumo_(lista);
   }
+
+  // ---------- meta do mês ----------
+  // Uma meta só, por pessoa, guardada em config. O total da equipe é
+  // derivado dela — não é um número separado que possa contradizer.
+  var metaPorPessoa = 0;
+
+  function renderMetaResumo_(lista) {
+    var el = $('metaResumo');
+    if (!el) return;
+    if (!metaPorPessoa) { el.hidden = true; return; }
+    var total = lista.reduce(function (s, i) { return s + i.total; }, 0);
+    var alvo = metaPorPessoa * lista.length;
+    var pct = alvo ? Math.min(100, Math.round(total / alvo * 100)) : 0;
+    var faltam = Math.max(0, alvo - total);
+    el.hidden = false;
+    el.innerHTML =
+      '<p class="card-hint" style="margin:0 0 6px">Meta: <strong>' + metaPorPessoa + '</strong> por pessoa · ' +
+        total + ' de ' + alvo + ' (' + pct + '%)' +
+        (faltam ? ' · faltam ' + faltam : ' · meta da equipe batida') + '</p>' +
+      '<div class="meta-barra' + (faltam ? '' : ' batida') + '"><span style="width:' + pct + '%"></span></div>';
+  }
+
+  $('definirMetaBtn').addEventListener('click', function () {
+    var root = $('modalRoot');
+    root.innerHTML =
+      '<div class="modal-overlay" id="overlay"><div class="modal" id="modalInner">' +
+        '<div class="modal-head"><div><h2>Meta do mês</h2>' +
+          '<div class="card-hint" style="margin:2px 0 0">Quantas entregas confirmadas cada pessoa deve fazer por competência</div>' +
+        '</div><button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button></div>' +
+        '<label class="field"><span>Entregas por pessoa</span>' +
+          '<input class="input" id="metaValorInput" type="number" min="0" step="1" value="' + (metaPorPessoa || '') + '" placeholder="ex.: 40">' +
+          '<span class="card-hint" style="margin-top:4px;display:block;">Deixe vazio ou zero para não mostrar meta nenhuma.</span>' +
+        '</label>' +
+        '<button type="button" class="btn btn-primary" id="metaSalvarBtn">Salvar meta</button>' +
+      '</div></div>';
+    $('overlay').addEventListener('click', function (e) { if (e.target.id === 'overlay') closeModal(); });
+    $('modalClose').addEventListener('click', closeModal);
+    $('metaValorInput').focus();
+    $('metaSalvarBtn').addEventListener('click', function () {
+      var btn = this;
+      var valor = parseInt($('metaValorInput').value, 10) || 0;
+      botaoOcupado_(btn);
+      db.doc('config/metas').set({ porPessoa: valor }, { merge: true }).then(function () {
+        registrarAuditoria_('meta_definida', valor ? valor + ' entregas por pessoa' : 'meta removida');
+        showToast(valor ? 'Meta salva: ' + valor + ' por pessoa.' : 'Meta removida.');
+        closeModal();
+      }).catch(function (err) {
+        showToast(errMsg(err, 'Não foi possível salvar a meta.'), 'error');
+        botaoLivre_(btn);
+      });
+    });
+  });
 
   function renderGraficoDiario_() {
     var el = $('graficoDiario');
@@ -6711,6 +6778,10 @@
       contasUrl = (snap.exists && snap.data().contasUrl) || '';
       if ($('contasUrlInput')) $('contasUrlInput').value = contasUrl;
     }, function () {});
+    db.doc('config/metas').onSnapshot(function (snap) {
+      metaPorPessoa = (snap.exists && snap.data().porPessoa) || 0;
+      renderRankingEquipe_();
+    }, function () {});
   }
 
   // ---------- serviço de contas (Apps Script) ----------
@@ -6878,6 +6949,7 @@
     $('integracaoCard').hidden = !temPapel('admin');
     $('form-cliente').hidden = !temPapel('admin');
     $('importCard').hidden = !temPapel('admin');
+    $('definirMetaBtn').hidden = !temPapel('admin');
     $('enderecosCard').hidden = !temPapel('admin') || !(window.CLIENTES_ENDERECOS && window.CLIENTES_ENDERECOS.length);
     // Perfil é a página de administração de acessos: só admin enxerga.
     $('tabPerfil').hidden = !temPapel('admin');
