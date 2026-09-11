@@ -2850,20 +2850,48 @@
   });
 
   // ---------- geolocation ----------
+  // Sem enableHighAccuracy o navegador costuma devolver localização por
+  // rede/torre — rápida, mas pode errar por CENTENAS de metros, sobretudo
+  // dentro de prédio. Era exatamente essa a origem do "confirmei no local
+  // exato e ele disse que tinha diferença de muitos metros": a comparação
+  // era contra uma posição imprecisa, não contra o GPS de verdade.
+  //
+  // Pede alta precisão primeiro; se não vier a tempo, tenta de novo sem
+  // exigir (ainda é melhor que nada) — mas guarda a margem de erro
+  // (accuracy) junto, pra quem for comparar duas posições saber o quanto
+  // pode confiar nelas.
+  function capturarPosicaoAtual_(aoTerminar) {
+    if (!navigator.geolocation) { aoTerminar(null); return; }
+    function comAlta() {
+      navigator.geolocation.getCurrentPosition(
+        function (pos) {
+          aoTerminar({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy });
+        },
+        function () { comBaixa(); },
+        { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+      );
+    }
+    function comBaixa() {
+      navigator.geolocation.getCurrentPosition(
+        function (pos) {
+          aoTerminar({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy });
+        },
+        function () { aoTerminar(null); },
+        { enableHighAccuracy: false, timeout: 6000, maximumAge: 60000 }
+      );
+    }
+    comAlta();
+  }
+
   function captureGeo() {
     geoRequested = true;
     if (!navigator.geolocation) { currentGeo = null; $('geoStatus').innerHTML = '<i class="ph ph-map-pin" aria-hidden="true"></i> localização não suportada neste dispositivo'; return; }
-    navigator.geolocation.getCurrentPosition(
-      function (pos) {
-        currentGeo = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        $('geoStatus').innerHTML = '<i class="ph ph-map-pin" aria-hidden="true"></i> localização capturada';
-      },
-      function () {
-        currentGeo = null;
-        $('geoStatus').innerHTML = '<i class="ph ph-map-pin" aria-hidden="true"></i> localização indisponível (entrega segue normalmente)';
-      },
-      { timeout: 8000, maximumAge: 60000 }
-    );
+    capturarPosicaoAtual_(function (geo) {
+      currentGeo = geo;
+      $('geoStatus').innerHTML = geo
+        ? '<i class="ph ph-map-pin" aria-hidden="true"></i> localização capturada' + (geo.accuracy ? ' (precisão de ' + Math.round(geo.accuracy) + ' m)' : '')
+        : '<i class="ph ph-map-pin" aria-hidden="true"></i> localização indisponível (entrega segue normalmente)';
+    });
   }
 
   // ---------- itens chips + valores ----------
@@ -4415,10 +4443,24 @@
   // pro escritório e a rota dele passava a sair errada, em silêncio, pra
   // sempre. Por isso o ponto só é aprendido quando faz sentido.
   var RAIO_CONFIRMACAO_KM = 0.3;
+  // Acima disso o GPS não está dizendo nada confiável (fixo por rede/torre,
+  // comum sem sinal de satélite) — não vale nem pra aprender, nem pra
+  // acusar divergência. 1 km de margem de erro é sinal de que a leitura em
+  // si é ruim, não de que a pessoa está longe do cliente.
+  var ACCURACY_INUTIL_KM = 1.0;
 
   function avaliarLocalDaEntrega_(clienteId, geo) {
     var vazio = { aprender: false, divergente: false, distancia: null };
     if (!clienteId || !geo || typeof geo.lat !== 'number') return vazio;
+
+    // margem de erro do próprio GPS: comparar dois pontos como se fossem
+    // exatos é o que causava aviso de "diferença de muitos metros" com a
+    // pessoa parada na porta — o raio de tolerância cresce junto com a
+    // imprecisão da leitura, em vez de ficar fixo em 300 m.
+    var accKm = typeof geo.accuracy === 'number' ? geo.accuracy / 1000 : 0;
+    if (accKm > ACCURACY_INUTIL_KM) return vazio;
+    var raioEfetivo = Math.min(ACCURACY_INUTIL_KM, Math.max(RAIO_CONFIRMACAO_KM, accKm * 1.5));
+
     var cliente = clientesCache.get(clienteId);
     var atual = cliente && cliente.geo;
     var temPontoBom = atual && typeof atual.lat === 'number' && atual.precisao !== 'cidade';
@@ -4426,14 +4468,14 @@
     // melhor do que nada (é assim que a base aprende)
     if (!temPontoBom) return { aprender: true, divergente: false, distancia: null };
     var d = distanciaKm_(atual, geo);
-    if (d <= RAIO_CONFIRMACAO_KM) return { aprender: true, divergente: false, distancia: d };
+    if (d <= raioEfetivo) return { aprender: true, divergente: false, distancia: d };
     return { aprender: false, divergente: true, distancia: d };
   }
 
   function guardarLocalDoCliente_(clienteId, geo) {
     var avaliacao = avaliarLocalDaEntrega_(clienteId, geo);
     if (!avaliacao.aprender) return avaliacao;
-    var dados = { geo: { lat: geo.lat, lng: geo.lng, origem: 'entrega', precisao: 'rua' } };
+    var dados = { geo: { lat: geo.lat, lng: geo.lng, origem: 'entrega', precisao: 'rua', accuracy: geo.accuracy } };
     db.doc('clientes/' + clienteId).update(dados).catch(function () {});
     return avaliacao;
   }
@@ -5814,13 +5856,7 @@
     $('overlay').addEventListener('click', function (e) { if (e.target.id === 'overlay') closeModal(); });
 
     var loteGeo = null;
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        function (pos) { loteGeo = { lat: pos.coords.latitude, lng: pos.coords.longitude }; },
-        function () { loteGeo = null; },
-        { timeout: 8000, maximumAge: 60000 }
-      );
-    }
+    capturarPosicaoAtual_(function (geo) { loteGeo = geo; });
 
     var loteFoto = null;
     $('loteFotoInput').addEventListener('change', function (e) {
@@ -5995,13 +6031,15 @@
     }
 
     var pendingGeo = null;
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        function (pos) { pendingGeo = { lat: pos.coords.latitude, lng: pos.coords.longitude }; var s = $('pendingGeoStatus'); if (s) s.innerHTML = '<i class="ph ph-map-pin" aria-hidden="true"></i> localização capturada'; },
-        function () { var s = $('pendingGeoStatus'); if (s) s.innerHTML = '<i class="ph ph-map-pin" aria-hidden="true"></i> localização indisponível (entrega segue normalmente)'; },
-        { timeout: 8000, maximumAge: 60000 }
-      );
-    }
+    capturarPosicaoAtual_(function (geo) {
+      pendingGeo = geo;
+      var s = $('pendingGeoStatus');
+      if (s) {
+        s.innerHTML = geo
+          ? '<i class="ph ph-map-pin" aria-hidden="true"></i> localização capturada' + (geo.accuracy ? ' (precisão de ' + Math.round(geo.accuracy) + ' m)' : '')
+          : '<i class="ph ph-map-pin" aria-hidden="true"></i> localização indisponível (entrega segue normalmente)';
+      }
+    });
 
     var pendingFoto = null;
     $('pendingFotoInput').addEventListener('change', function (e) {
