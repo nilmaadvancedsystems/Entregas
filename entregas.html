@@ -3954,11 +3954,23 @@
     var porChave = {};
     var paradas = [];
     rotaListaVisivel.forEach(function (e) {
-      // várias entregas do mesmo cliente são uma parada só
-      var chave = e.clienteId || e.clienteNome;
-      if (!chave) return;
-      if (porChave[chave]) { porChave[chave].entregaIds.push(e.id); return; }
       var cliente = e.clienteId ? clientesCache.get(e.clienteId) : null;
+      // Duas empresas aglutinadas (razões sociais diferentes, mesmo
+      // endereço físico) usam a mesma chave — grupoLocal — e viram UMA
+      // parada só, mesmo sendo cadastros separados. Sem aglutinação, cada
+      // cliente é a própria chave, como sempre foi.
+      var chave = cliente ? (cliente.grupoLocal || cliente.id) : (e.clienteId || e.clienteNome);
+      if (!chave) return;
+      var nomeCliente = e.clienteNome || (cliente && cliente.nome) || 'sem nome';
+      if (porChave[chave]) {
+        var existente = porChave[chave];
+        existente.entregaIds.push(e.id);
+        if (existente.nomes.indexOf(nomeCliente) === -1) {
+          existente.nomes.push(nomeCliente);
+          existente.nome = existente.nomes.join(' + ');
+        }
+        return;
+      }
       var geo = cliente && cliente.geo;
       var temGeo = !!(geo && typeof geo.lat === 'number');
       // "cidade" quer dizer que o endereço não foi achado e o ponto é o
@@ -3967,7 +3979,8 @@
       // fariam a rota passar pelo centro toda hora.
       var pontoConfiavel = temGeo && geo.precisao !== 'cidade';
       var parada = {
-        nome: e.clienteNome || (cliente && cliente.nome) || 'sem nome',
+        nome: nomeCliente,
+        nomes: [nomeCliente],
         endereco: (cliente && cliente.endereco) || '',
         geo: temGeo ? geo : null,
         confiavel: pontoConfiavel,
@@ -5467,6 +5480,126 @@
     });
   }
 
+  // ---------- aglutinar empresas ----------
+  // É comum um terreno/loja ter mais de um CNPJ cadastrado (ex.: FITO
+  // 292 e FITO 309) — dois clientes de verdade pra contabilidade, mas
+  // uma parada só na rua. "grupoLocal" é o id do cliente que serve de
+  // referência: quem tem esse campo aponta pra ele; quem não tem (e é
+  // apontado por outros) é a própria referência. Ler a chave sempre como
+  // "grupoLocal || id" deixa a cadeia funcionar em qualquer tamanho.
+  function grupoLocalDe_(cliente) {
+    return (cliente && cliente.grupoLocal) || null;
+  }
+
+  function abrirAglutinar_(cliente, aoFechar) {
+    var root = $('modalRoot');
+    var grupoAtual = grupoLocalDe_(cliente);
+    var ancoraAtual = grupoAtual ? clientesCache.get(grupoAtual) : null;
+    var seguidores = Array.from(clientesCache.values()).filter(function (x) {
+      return x.id !== cliente.id && x.grupoLocal === cliente.id;
+    });
+
+    var statusHtml = '';
+    if (ancoraAtual) {
+      statusHtml = '<p class="card-hint" style="margin:0 0 12px"><strong>Aglutinado com:</strong> ' + escapeHtml_(clienteLabel(ancoraAtual)) + '</p>' +
+        '<div class="modal-acoes" style="margin-bottom:16px;"><button type="button" class="btn-chip danger" id="desfazerAglutinarBtn"><i class="ph ph-link-break" aria-hidden="true"></i> Desfazer aglutinação</button></div>';
+    } else if (seguidores.length) {
+      statusHtml = '<p class="card-hint" style="margin:0 0 12px"><strong>É a referência de:</strong> ' +
+        seguidores.map(function (x) { return escapeHtml_(clienteLabel(x)); }).join(', ') +
+        '. Para desfazer, abra a ficha de um deles.</p>';
+    }
+
+    root.innerHTML =
+      '<div class="modal-overlay" id="overlay"><div class="modal" id="modalInner">' +
+        '<div class="modal-head"><div><h2>Aglutinar com outra empresa</h2>' +
+          '<div class="card-hint" style="margin:2px 0 0">' + escapeHtml_(clienteLabel(cliente)) + '</div>' +
+        '</div><button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button></div>' +
+        '<p class="card-hint" style="margin:0 0 12px">Use quando duas empresas cadastradas separadamente ficam no mesmo endereço físico — por exemplo, dois CNPJs no mesmo terreno. Elas passam a valer como UMA parada só na rota, sem deixar de ser cadastros distintos pra tudo o mais (documentos, competências, histórico).</p>' +
+        statusHtml +
+        '<div class="field"><span>' + (ancoraAtual ? 'Trocar para outra empresa' : 'Buscar a outra empresa') + '</span>' +
+          '<input class="input" id="aglutinarBusca" type="text" placeholder="Nome, código ou CNPJ" autocomplete="off">' +
+          '<div id="aglutinarLista"></div>' +
+        '</div>' +
+        '<p class="card-hint" id="aglutinarStatus" style="margin:0"></p>' +
+      '</div></div>';
+
+    function fechar() { closeModal(); if (aoFechar) aoFechar(); }
+    $('overlay').addEventListener('click', function (e) { if (e.target.id === 'overlay') fechar(); });
+    $('modalClose').addEventListener('click', fechar);
+
+    if ($('desfazerAglutinarBtn')) {
+      $('desfazerAglutinarBtn').addEventListener('click', function () {
+        var btn = this;
+        botaoOcupado_(btn);
+        db.doc('clientes/' + cliente.id).update({ grupoLocal: firebase.firestore.FieldValue.delete() }).then(function () {
+          registrarAuditoria_('aglutinacao_desfeita', clienteLabel(cliente));
+          showToast('Aglutinação desfeita — ' + clienteLabel(cliente) + ' volta a ser parada própria.');
+          fechar();
+        }).catch(function (err) {
+          showToast(errMsg(err, 'Não foi possível desfazer.'), 'error');
+          botaoLivre_(btn);
+        });
+      });
+    }
+
+    $('aglutinarBusca').addEventListener('input', aoParar(function () {
+      var q = $('aglutinarBusca').value.trim().toLowerCase();
+      var lista = $('aglutinarLista');
+      lista.innerHTML = '';
+      if (q.length < 2) return;
+      Array.from(clientesCache.values())
+        .filter(function (c) { return c.id !== cliente.id && clienteCombina_(c, q); })
+        .slice(0, 6)
+        .forEach(function (c) {
+          var b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'client-row';
+          b.style.width = '100%';
+          b.innerHTML = '<div><div class="cr-name"></div><div class="cr-sub"></div></div>';
+          b.querySelector('.cr-name').textContent = clienteLabel(c);
+          b.querySelector('.cr-sub').textContent = c.endereco || 'sem endereço escrito';
+          b.addEventListener('click', function () {
+            var btn = this;
+            var novoGrupo = grupoLocalDe_(c) || c.id;
+            if (novoGrupo === cliente.id) {
+              $('aglutinarStatus').textContent = 'Essas duas já estão aglutinadas.';
+              return;
+            }
+            botaoOcupado_(btn);
+            var ancora = clientesCache.get(novoGrupo) || c;
+            var geoAncora = (ancora.geo && typeof ancora.geo.lat === 'number') ? ancora.geo : null;
+
+            // se esta empresa já era referência de outras, elas precisam
+            // seguir pro mesmo grupo novo — senão ficam órfãs, apontando
+            // pra uma referência que deixou de servir de referência
+            var dependentes = Array.from(clientesCache.values()).filter(function (x) {
+              return x.id !== cliente.id && x.grupoLocal === cliente.id;
+            });
+
+            var batch = db.batch();
+            var dadosCliente = { grupoLocal: novoGrupo };
+            if (geoAncora) dadosCliente.geo = geoAncora;
+            batch.update(db.doc('clientes/' + cliente.id), dadosCliente);
+            dependentes.forEach(function (dep) {
+              var dadosDep = { grupoLocal: novoGrupo };
+              if (geoAncora) dadosDep.geo = geoAncora;
+              batch.update(db.doc('clientes/' + dep.id), dadosDep);
+            });
+
+            batch.commit().then(function () {
+              registrarAuditoria_('aglutinado', clienteLabel(cliente) + ' + ' + clienteLabel(c));
+              showToast('Aglutinado com ' + clienteLabel(c) + '. Agora contam como uma parada só na rota.');
+              fechar();
+            }).catch(function (err) {
+              showToast(errMsg(err, 'Não foi possível aglutinar.'), 'error');
+              botaoLivre_(btn);
+            });
+          });
+          lista.appendChild(b);
+        });
+    }));
+  }
+
   function renderHistoricoList(cliente, historico) {
     var inner = $('modalInner');
     if (!inner) return;
@@ -5524,6 +5657,7 @@
           ? '<button type="button" class="btn-chip" id="falarClienteBtn"><i class="ph ph-whatsapp-logo" aria-hidden="true"></i> Falar no WhatsApp</button>'
           : '') +
         '<button type="button" class="btn-chip" id="corrigirLocalBtn"><i class="ph ph-map-pin-line" aria-hidden="true"></i> Corrigir localização</button>' +
+        '<button type="button" class="btn-chip" id="aglutinarBtn"><i class="ph ph-link-simple" aria-hidden="true"></i> Aglutinar com outra empresa</button>' +
       '</div>' + avisoLocal;
 
     inner.innerHTML =
@@ -5555,6 +5689,9 @@
     }
     $('corrigirLocalBtn').addEventListener('click', function () {
       abrirCorrigirLocal_(cliente, function () { renderHistoricoList(cliente, historico); });
+    });
+    $('aglutinarBtn').addEventListener('click', function () {
+      abrirAglutinar_(cliente, function () { renderHistoricoList(cliente, historico); });
     });
 
     inner.querySelectorAll('.history-row').forEach(function (row) {
@@ -7017,6 +7154,10 @@
       var localizacao = '';
       if (c.geo && c.geo.precisao && PRECISAO_LABEL[c.geo.precisao] && c.geo.precisao !== 'rua') {
         localizacao = ' · no mapa: ' + PRECISAO_LABEL[c.geo.precisao];
+      }
+      if (c.grupoLocal) {
+        var ancoraLista = clientesCache.get(c.grupoLocal);
+        localizacao += ' · aglutinado com ' + (ancoraLista ? clienteLabel(ancoraLista) : 'outra empresa');
       }
       var sub = (c.endereco ? c.endereco + localizacao : [c.documento, c.telefone].filter(Boolean).join(' · ')) || 'sem dados adicionais';
       row.innerHTML =
