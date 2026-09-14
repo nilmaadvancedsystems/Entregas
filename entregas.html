@@ -1725,13 +1725,6 @@
       <p class="card-hint">Pedidos de busca de atestado nas clínicas (Assegi, Preventive etc.) — marque como buscado quando pegar.</p>
       <div id="atestadosList"></div>
     </div>
-    <div class="card" id="honorariosCobrarCard" hidden>
-      <div class="card-head-row">
-        <h2><i class="ph ph-hand-coins" aria-hidden="true"></i> Honorário pra cobrar</h2>
-      </div>
-      <p class="card-hint">Clientes que pagam em dinheiro, Pix ou boleto e estão na janela de cobrança desta semana.</p>
-      <div id="honorariosCobrarList"></div>
-    </div>
   </section>
 
   <section id="tab-painel" class="view" role="tabpanel" tabindex="-1" aria-labelledby="tabbtn-painel" hidden>
@@ -1943,6 +1936,25 @@
     </div>
   </section>
 
+  <section id="tab-honorarios" class="view" role="tabpanel" tabindex="-1" aria-labelledby="tabHonorarios" hidden>
+    <div class="card">
+      <div class="card-head-row">
+        <h2><i class="ph ph-hand-coins" aria-hidden="true"></i> Honorários</h2>
+        <button type="button" class="btn-chip accent" id="importHonorariosBtn"><i class="ph ph-upload-simple" aria-hidden="true"></i> Preencher de arquivo</button>
+      </div>
+      <p class="card-hint">Quem paga em dinheiro, Pix ou boleto — alguém do escritório precisa ir até o cliente. "Recebido" é lido da própria entrega confirmada nesta competência (Honorário ou Notas); não é um controle separado.</p>
+      <div class="filters">
+        <div class="filtro">
+          <label for="honorariosCompetencia">Competência</label>
+          <input class="input" id="honorariosCompetencia" type="month">
+        </div>
+      </div>
+      <p class="card-hint" id="honorariosResumoTab" style="margin-top:8px;"></p>
+      <div id="honorariosResumo" hidden></div>
+      <div id="honorariosTabList" style="margin-top:8px;"></div>
+    </div>
+  </section>
+
   <section id="tab-clientes" class="view" role="tabpanel" tabindex="-1" aria-labelledby="tabbtn-clientes" hidden>
     <div class="card" id="importCard" hidden>
       <div class="card-head-row">
@@ -1958,14 +1970,6 @@
       </div>
       <p class="card-hint">Preenche endereço, bairro, CEP e o ponto no mapa de cada cliente, a partir do relatório de empresas do escritório. Use o arquivo <code>enderecos.json</code> que veio junto com o sistema. É o que faz a rota por proximidade e o "Abrir no Maps" funcionarem. Pode clicar de novo sem medo — só grava o que mudou.</p>
       <div id="enderecosResumo" hidden></div>
-    </div>
-    <div class="card" id="honorariosCard" hidden>
-      <div class="card-head-row">
-        <h2><i class="ph ph-hand-coins" aria-hidden="true"></i> Honorários</h2>
-        <button type="button" class="btn-chip accent" id="importHonorariosBtn"><i class="ph ph-upload-simple" aria-hidden="true"></i> Preencher de arquivo</button>
-      </div>
-      <p class="card-hint">Ponto de referência e forma de cobrança de cada cliente, a partir da planilha do escritório. Use o arquivo <code>honorarios.json</code>. Casa pelo nome — quando o nome do arquivo é abreviado (ex.: "XTREME" por "XTREME ACADEMIA..."), só aceita se achar exatamente UM cliente com esse começo de nome; senão, deixa pra você conferir na mão. Pode clicar de novo sem medo — só grava o que mudou.</p>
-      <div id="honorariosResumo" hidden></div>
     </div>
     <div class="card" id="qualidadeRotaCard" hidden>
       <div class="card-head-row">
@@ -2043,6 +2047,7 @@
   <button class="tab" data-tab="rota" role="tab" id="tabbtn-rota" aria-controls="tab-rota" aria-selected="false" tabindex="-1"><span class="tab-ico"><i class="ph ph-truck" aria-hidden="true"></i></span><span class="tab-label">Rota</span><span class="tab-badge" id="rotaBadge" hidden>0</span></button>
   <button class="tab" data-tab="painel" role="tab" id="tabbtn-painel" aria-controls="tab-painel" aria-selected="false" tabindex="-1"><span class="tab-ico"><i class="ph ph-chart-bar" aria-hidden="true"></i></span><span class="tab-label">Painel</span></button>
   <button class="tab" data-tab="solicitacoes" role="tab" id="tabbtn-solicitacoes" aria-controls="tab-solicitacoes" aria-selected="false" tabindex="-1"><span class="tab-ico"><i class="ph ph-envelope-simple" aria-hidden="true"></i></span><span class="tab-label">Solicitações</span><span class="tab-badge" id="solicitacoesBadge" hidden>0</span></button>
+  <button class="tab" data-tab="honorarios" role="tab" id="tabHonorarios" aria-controls="tab-honorarios" aria-selected="false" tabindex="-1" hidden><span class="tab-ico"><i class="ph ph-hand-coins" aria-hidden="true"></i></span><span class="tab-label">Honorários</span><span class="tab-badge" id="honorariosBadge" hidden>0</span></button>
   <button class="tab" data-tab="clientes" role="tab" id="tabbtn-clientes" aria-controls="tab-clientes" aria-selected="false" tabindex="-1"><span class="tab-ico"><i class="ph ph-users" aria-hidden="true"></i></span><span class="tab-label">Clientes</span></button>
   <button class="tab" data-tab="perfil" role="tab" id="tabPerfil" aria-controls="tab-perfil" aria-selected="false" tabindex="-1" hidden><span class="tab-ico"><i class="ph ph-identification-badge" aria-hidden="true"></i></span><span class="tab-label">Perfil</span></button>
 </nav>
@@ -2797,11 +2802,11 @@
     // longa (quase a rota inteira, numa semana de muita guia vencendo
     // junto) — no celular, isso empurrava Recados e Atestados pra muito
     // longe da vista. Os dois cartões curtos e de ação vêm primeiro.
-    'tab-rota': ['recadosCard', 'atestadosCard', 'honorariosCobrarCard', 'fechamentoCard', 'vencimentosCard'],
+    'tab-rota': ['recadosCard', 'atestadosCard', 'fechamentoCard', 'vencimentosCard'],
     'tab-painel': ['alertaSemEntregaCard', 'graficoCard', 'rankingCard'],
     'tab-solicitacoes': ['pendentesCard'],
     'tab-perfil': ['integracaoCard', 'competenciasCard', 'auditoriaCard'],
-    'tab-clientes': ['importCard', 'enderecosCard', 'honorariosCard', 'qualidadeRotaCard']
+    'tab-clientes': ['importCard', 'enderecosCard', 'qualidadeRotaCard']
   };
   Object.keys(contextoPorAba_).forEach(function (idAba) {
     var aba = document.getElementById(idAba);
@@ -3763,6 +3768,7 @@
   // ---------- submit ----------
   $('competenciaInput').value = currentCompetencia();
   $('painelCompetencia').value = currentCompetencia();
+  $('honorariosCompetencia').value = currentCompetencia();
 
   $('form-nova').addEventListener('submit', function (e) {
     e.preventDefault();
@@ -3999,6 +4005,7 @@
     unsubEntregasPainel = db.collection('entregas').where('competencia', '==', comp).limit(500).onSnapshot(function (snap) {
       entregasPainelCache = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
       renderPainel();
+      renderHonorariosTab_();
       updateDashStrip();
     }, function (err) { showToast(errMsg(err, 'Não foi possível carregar o painel.'), 'error'); });
   }
@@ -4006,6 +4013,14 @@
   $('painelCompetencia').addEventListener('change', function () { subscribePainel(this.value); });
   $('painelBusca').addEventListener('input', aoParar(renderPainel));
   $('painelStatusFiltro').addEventListener('change', renderPainel);
+
+  // A aba Honorários usa a mesma competência/cache do Painel — trocar o mês
+  // aqui também busca de novo (mesma função), só evita duas assinaturas
+  // vivas fazendo a mesma pergunta ao banco.
+  $('honorariosCompetencia').addEventListener('change', function () {
+    $('painelCompetencia').value = this.value;
+    subscribePainel(this.value);
+  });
 
   // ---------- rota (pendentes, todas as competências) ----------
   function subscribePendentes() {
@@ -4478,46 +4493,81 @@
     return diaDoMes >= ini || diaDoMes <= fim; // janela que atravessa a virada do mês (ex.: 28 a 03)
   }
 
-  var LIMITE_HONORARIOS_VISIVEL_ = 8;
-  var mostrarTodosHonorarios_ = false;
+  // "Recebido" é quem já tem uma entrega CONFIRMADA de Honorário ou Notas
+  // nesta competência — o mesmo registro que a rota normal já gera, só
+  // consultado de outro ângulo. Não existe um controle paralelo pra
+  // "honorário pago": é a mesma entrega de sempre.
+  function statusHonorarioNaCompetencia_(clienteId, comp) {
+    return entregasPainelCache.some(function (e) {
+      if (e.clienteId !== clienteId || e.competencia !== comp || e.status !== 'confirmada') return false;
+      return (e.itens || []).some(function (i) {
+        var tipo = typeof i === 'string' ? i : i.tipo;
+        return tipo === 'Honorário' || tipo === 'Notas';
+      });
+    });
+  }
 
-  function renderHonorariosCobrar_() {
-    var card = $('honorariosCobrarCard');
-    if (!card) return;
+  // Leva pra Nova entrega já com o cliente escolhido — economiza buscar de
+  // novo o mesmo cliente que a pessoa já estava vendo aqui.
+  function irRegistrarHonorario_(cliente) {
+    document.querySelector('[data-tab="nova"]').click();
+    selectedClienteId = cliente.id;
+    clienteInput.value = clienteLabel(cliente);
+    clearFieldError('cliente');
+    aplicarZonaDoCliente_(cliente);
+    var chk = itensGrid.querySelector('input[data-key="honorario"]');
+    if (chk && !chk.checked) { chk.checked = true; chk.dispatchEvent(new Event('change')); }
+  }
+
+  function renderHonorariosTab_() {
+    if (!$('tab-honorarios')) return;
+    var comp = $('honorariosCompetencia').value || currentCompetencia();
     var hoje = new Date().getDate();
-    var lista = Array.from(clientesCache.values())
-      .filter(function (c) {
-        return c.ativo !== false && honorarioPrecisaVisita_(c.honorarioForma) && honorarioNoIntervaloHoje_(c.honorarioDia, hoje);
-      })
-      .sort(function (a, b) { return (a.nome || '').localeCompare(b.nome || '', 'pt-BR'); });
 
-    if (!lista.length) { card.hidden = true; return; }
-    card.hidden = false;
-    var el = $('honorariosCobrarList');
+    var linhas = Array.from(clientesCache.values())
+      .filter(function (c) { return c.ativo !== false && honorarioPrecisaVisita_(c.honorarioForma); })
+      .map(function (c) {
+        return { c: c, recebido: statusHonorarioNaCompetencia_(c.id, comp), naJanela: honorarioNoIntervaloHoje_(c.honorarioDia, hoje) };
+      })
+      .sort(function (a, b) {
+        if (a.recebido !== b.recebido) return a.recebido ? 1 : -1;
+        if (a.naJanela !== b.naJanela) return a.naJanela ? -1 : 1;
+        return (a.c.nome || '').localeCompare(b.c.nome || '', 'pt-BR');
+      });
+
+    var pendentes = linhas.filter(function (x) { return !x.recebido; }).length;
+    $('honorariosResumoTab').textContent = linhas.length
+      ? pendentes + ' de ' + linhas.length + ' ainda não pagaram em ' + fmtCompetencia(comp)
+      : '';
+    atualizarBadge_($('honorariosBadge'), pendentes);
+
+    var el = $('honorariosTabList');
     el.innerHTML = '';
-    var visiveis = mostrarTodosHonorarios_ ? lista : lista.slice(0, LIMITE_HONORARIOS_VISIVEL_);
-    visiveis.forEach(function (c) {
-      var row = document.createElement('button');
-      row.type = 'button';
+    if (!linhas.length) {
+      el.innerHTML = '<div class="empty-state">Nenhum cliente de cobrança por visita ainda — importe a planilha no botão acima.</div>';
+      return;
+    }
+    linhas.forEach(function (x) {
+      var c = x.c;
+      var row = document.createElement('div');
       row.className = 'client-row';
-      row.style.width = '100%';
-      row.innerHTML = '<div><div class="cr-name"></div><div class="cr-sub"></div></div>' +
-        '<span class="status-pill rota"></span>';
+      var pillClasse = x.recebido ? 'entregue' : (x.naJanela ? 'rota' : 'pendente');
+      var pillTexto = x.recebido ? 'Recebido' : (x.naJanela ? 'Nesta janela' : 'Pendente');
+      row.innerHTML =
+        '<div class="cr-clickable"><div><div class="cr-name"></div><div class="cr-sub"></div></div>' +
+        '<span class="status-pill ' + pillClasse + '">' + pillTexto + '</span></div>' +
+        (!x.recebido ? '<div class="cr-actions"><button type="button" class="btn-chip">Registrar</button></div>' : '');
       row.querySelector('.cr-name').textContent = clienteLabel(c);
-      row.querySelector('.cr-sub').textContent = [c.honorarioForma, c.pontoReferencia].filter(Boolean).join(' · ');
-      row.querySelector('.status-pill').textContent = 'dia ' + c.honorarioDia;
-      row.addEventListener('click', function () { openClienteHistorico(c); });
+      row.querySelector('.cr-sub').textContent = [c.honorarioForma, c.honorarioDia ? 'dia ' + c.honorarioDia : '', c.pontoReferencia].filter(Boolean).join(' · ');
+      row.querySelector('.cr-clickable').addEventListener('click', function () { openClienteHistorico(c); });
+      if (!x.recebido) {
+        row.querySelector('.btn-chip').addEventListener('click', function (ev) {
+          ev.stopPropagation();
+          irRegistrarHonorario_(c);
+        });
+      }
       el.appendChild(row);
     });
-    if (lista.length > LIMITE_HONORARIOS_VISIVEL_) {
-      var btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'btn-chip';
-      btn.style.width = '100%';
-      btn.textContent = mostrarTodosHonorarios_ ? 'Mostrar menos' : ('Mostrar mais ' + (lista.length - visiveis.length));
-      btn.addEventListener('click', function () { mostrarTodosHonorarios_ = !mostrarTodosHonorarios_; renderHonorariosCobrar_(); });
-      el.appendChild(btn);
-    }
   }
 
   // ---------- abrir a rota no Google Maps ----------
@@ -8258,6 +8308,7 @@
             '<select class="input" id="abaInicialSelect">' +
               [['nova', 'Nova entrega'], ['rota', 'Rota'], ['painel', 'Painel'],
                ['solicitacoes', 'Solicitações'], ['clientes', 'Clientes']]
+                .concat((temPapel('admin') || temPapel('office_boy')) ? [['honorarios', 'Honorários']] : [])
                 .concat(temPapel('admin') ? [['perfil', 'Perfil']] : [])
                 .map(function (o) { return '<option value="' + o[0] + '">' + o[1] + '</option>'; }).join('') +
             '</select>' +
@@ -8833,8 +8884,11 @@
     $('importCard').hidden = !temPapel('admin');
     $('definirMetaBtn').hidden = !temPapel('admin');
     $('enderecosCard').hidden = !temPapel('admin');
-    $('honorariosCard').hidden = !temPapel('admin');
     $('qualidadeRotaCard').hidden = !temPapel('admin');
+    // Honorários: admin e office boy acompanham quem já pagou e quem
+    // falta; só admin importa a planilha (troca dado de todo mundo).
+    $('tabHonorarios').hidden = !(temPapel('admin') || temPapel('office_boy'));
+    $('importHonorariosBtn').hidden = !temPapel('admin');
     // Perfil é a página de administração de acessos: só admin enxerga.
     $('tabPerfil').hidden = !temPapel('admin');
     if (temPapel('admin')) subscribeUsuarios();
@@ -8844,7 +8898,7 @@
       clientesCache = new Map(snap.docs.map(function (d) { return [d.id, Object.assign({ id: d.id }, d.data())]; }));
       renderClientesList();
       renderQualidadeRota_();
-      renderHonorariosCobrar_();
+      renderHonorariosTab_();
       renderPainel();
       updateDashStrip();
       if (primeiraCargaClientes) { primeiraCargaClientes = false; restaurarRascunhoSeExistir_(); atualizarAlertaSemEntrega_(); }
