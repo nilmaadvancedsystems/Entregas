@@ -1,0 +1,273 @@
+rules_version = '2';
+
+// ============================================================================
+// Nilma Protocolos — regras de segurança do Firestore
+//
+// Por que este arquivo existe: até agora as regras viviam só no console do
+// Firebase. Ninguém tinha cópia, ninguém sabia o que estava valendo, e uma
+// alteração acidental no console não deixava rastro. Sem isso versionado, o
+// comprador está comprando um cadeado sem saber se ele está trancado.
+//
+// REGRA DE OURO DESTE ARQUIVO: o navegador não decide nada que importe.
+// O app esconde botão de admin pra quem não é admin — mas esconder botão não é
+// segurança. Qualquer pessoa logada abre o console do navegador e chama o SDK
+// direto. O que vale é o que está aqui.
+//
+// Publicar:   firebase deploy --only firestore:rules
+// Testar:     firebase emulators:start --only firestore
+// ============================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- quem é quem ----------
+
+    function logado() {
+      return request.auth != null;
+    }
+
+    function meuDoc() {
+      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data;
+    }
+
+    function meusPapeis() {
+      return logado() && exists(/databases/$(database)/documents/usuarios/$(request.auth.uid))
+        ? meuDoc().get('roles', [])
+        : [];
+    }
+
+    function temPapel(papel) {
+      return papel in meusPapeis();
+    }
+
+    function ehAdmin() {
+      return temPapel('admin');
+    }
+
+    // Campos que o dono do documento NÃO pode mexer em si mesmo.
+    function naoMexeuEm(campos) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(campos);
+    }
+
+    function so(campos) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(campos);
+    }
+
+    // ---------- usuários ----------
+    // O ponto mais perigoso do sistema inteiro. O campo `roles` é o que separa
+    // quem pode apagar a base de clientes de quem não pode. O app escreve esse
+    // campo a partir do navegador em quatro lugares; sem estas regras, qualquer
+    // funcionário se promove a admin com uma linha no console:
+    //
+    //     db.collection('usuarios').doc(auth.currentUser.uid)
+    //       .update({ roles: ['admin'] })
+    //
+    match /usuarios/{uid} {
+      // Todo mundo do escritório enxerga a equipe: o app monta o filtro
+      // "Pessoa" da rota e mostra quem entregou cada documento. É um app
+      // interno de uma empresa só — a lista de colegas não é segredo.
+      allow get, list: if logado();
+
+      // Criar o próprio cadastro. NUNCA com papel escolhido pelo navegador:
+      // ou entra como 'staff', ou entra com exatamente os papéis que constam
+      // num convite válido, não usado e não vencido, cujo código a pessoa
+      // apresenta. O convite é a autorização; o navegador não inventa papel.
+      allow create: if logado()
+        && request.auth.uid == uid
+        && request.resource.data.roles is list
+        && (
+          request.resource.data.roles == ['staff']
+          || (
+            request.resource.data.get('codigoConvite', '') != ''
+            && exists(/databases/$(database)/documents/convites/$(request.resource.data.codigoConvite))
+            && conviteValido(request.resource.data.codigoConvite)
+            && request.resource.data.roles ==
+               get(/databases/$(database)/documents/convites/$(request.resource.data.codigoConvite)).data.roles
+          )
+        );
+
+      // O dono mexe nas próprias preferências — tema, paleta, nome, foto,
+      // token de notificação. Em `roles`, não: nem no próprio, nem no dos
+      // outros. Só admin muda papel.
+      allow update: if logado() && (
+        (request.auth.uid == uid && naoMexeuEm(['roles', 'email', 'criadoEm']))
+        || ehAdmin()
+      );
+
+      // Apagar acesso é ato de administração, e some com o histórico de quem
+      // entregou o quê. Fica com o admin.
+      allow delete: if ehAdmin();
+
+      // Anotações pessoais: só o dono vê, ponto. Nem o admin.
+      match /notas/{nota} {
+        allow read, write: if logado() && request.auth.uid == uid;
+      }
+    }
+
+    function conviteValido(codigo) {
+      let c = get(/databases/$(database)/documents/convites/$(codigo)).data;
+      return c.get('usado', false) == false
+        && c.get('expiraEm', '') > string(request.time);
+    }
+
+    // ---------- convites ----------
+    // O código É a senha. Quem tem o link entra.
+    //
+    // Por isso `get` é liberado (a pessoa convidada ainda não tem login e
+    // precisa ler o próprio convite) mas `list` é proibido: sem isso, qualquer
+    // um baixa a coleção inteira e fica com todos os códigos em aberto —
+    // inclusive os de redefinição de senha, que o serviço de contas aceita
+    // como única autorização pra trocar a senha de uma conta existente.
+    // Liberar `list` aqui é entregar o escritório.
+    match /convites/{codigo} {
+      allow get: if true;
+      allow list: if ehAdmin();
+      // Dois formatos de convite: "novo" (cria acesso, carrega os papéis que
+      // a pessoa vai ter) e "reset" (troca senha de uma conta que já existe,
+      // preso a um uidAlvo — não carrega papéis nenhum). Exigir `roles` nos
+      // dois faria o botão "Gerar link de nova senha" ser recusado sempre.
+      allow create: if ehAdmin()
+        && request.resource.data.usado == false
+        && request.resource.data.expiraEm is string
+        && (
+          (request.resource.data.tipo == 'novo' && request.resource.data.roles is list)
+          || (request.resource.data.tipo == 'reset' && request.resource.data.uidAlvo is string)
+        );
+      // Quem aceita o convite só pode carimbá-lo como usado. Não pode mudar
+      // os papéis que ele concede, nem reabrir um convite já queimado.
+      allow update: if (logado() && so(['usado', 'usadoEm', 'nome']) && request.resource.data.usado == true)
+        || ehAdmin();
+      allow delete: if ehAdmin();
+    }
+
+    // ---------- clientes ----------
+    // Cadastrar e apagar cliente é ato de administração (a UI só mostra esses
+    // botões pra admin). Corrigir geo/zona/grupoLocal, não: quem está na rua
+    // é quem sabe onde o cliente fica de verdade e qual empresa aglutina com
+    // qual — por isso qualquer pessoa logada pode ajustar só esses três
+    // campos, sem abrir a porta pra reescrever CNPJ, telefone ou nome.
+    match /clientes/{id} {
+      allow read: if logado();
+      allow create, delete: if ehAdmin();
+      allow update: if ehAdmin() || (logado() && so(['geo', 'zona', 'grupoLocal']));
+    }
+
+    // ---------- entregas ----------
+    // O registro de entrega é o produto. Depois de criado, ele é prova.
+    match /entregas/{id} {
+      allow read: if logado();
+
+      allow create: if logado()
+        && request.resource.data.criadoEm is string
+        && request.resource.data.status in ['pendente', 'confirmada', 'falha'];
+
+      // Quem registrou pode corrigir; admin corrige qualquer uma. O que
+      // ninguém reescreve é a autoria e a data de criação — é isso que faz o
+      // registro valer como prova numa discussão com o cliente.
+      allow update: if logado()
+        && (resource.data.get('entregadoPor', '') == request.auth.token.email || ehAdmin())
+        && naoMexeuEm(['criadoEm', 'entregadoPor']);
+
+      allow delete: if ehAdmin();
+
+      match /anexos/{anexo} {
+        allow read: if logado();
+        allow create: if logado();
+        allow update, delete: if ehAdmin();
+      }
+    }
+
+    // ---------- recados e solicitações ----------
+    match /recados/{id} {
+      allow read: if logado();
+      allow create: if logado() && request.resource.data.texto is string
+        && request.resource.data.texto.size() > 0
+        && request.resource.data.texto.size() <= 500;
+      allow update: if ehAdmin();
+      allow delete: if logado()
+        && (resource.data.get('criadoPor', '') == request.auth.token.email || ehAdmin());
+    }
+
+    // Cada pessoa só lê/mexe no que ela mesma criou ou concluiu. Office boy e
+    // admin veem tudo, porque precisam da fila inteira pra atender os pedidos
+    // de todo mundo. "create" confere que quem está criando é o próprio
+    // criadoPor — sem isso, alguém podia gravar uma solicitação em nome de
+    // outra pessoa e o "read" acima passaria a mostrar aquele documento pra
+    // essa outra pessoa por engano.
+    match /solicitacoes/{id} {
+      allow read: if logado() &&
+        (ehAdmin() || temPapel('office_boy') ||
+         resource.data.get('criadoPor', '') == request.auth.token.email ||
+         resource.data.get('concluidoPor', '') == request.auth.token.email);
+      allow create: if logado() &&
+        request.resource.data.criadoPor == request.auth.token.email;
+      allow update: if logado() &&
+        (ehAdmin() || temPapel('office_boy') || resource.data.get('criadoPor', '') == request.auth.token.email);
+      allow delete: if ehAdmin();
+    }
+
+    // ---------- assinaturas do cliente (SEM LOGIN) ----------
+    // Única porta aberta pra fora. O cliente do escritório escaneia um QR na
+    // calçada e assina no próprio celular — ele não tem conta e não vai criar
+    // uma. O token aleatório na URL é a credencial.
+    //
+    // O app já checava a validade no navegador, mas checagem no navegador não
+    // vale nada: quem chama o SDK direto ignora a tela. A expiração e o
+    // "assina uma vez só" passam a valer aqui.
+    match /assinaturas/{token} {
+      // Sem `list`: com ele, qualquer pessoa varre a coleção e lê nome de
+      // cliente, competência e documentos de todo mundo, sem login.
+      allow get: if true;
+      allow list: if logado();
+
+      allow create: if logado()
+        && request.resource.data.assinado == false
+        && request.resource.data.expiraEm is string;
+
+      // O cliente só faz uma coisa: assinar, uma vez, antes de vencer.
+      allow update: if resource.data.assinado == false
+        && resource.data.expiraEm > string(request.time)
+        && request.resource.data.assinado == true
+        && so(['assinado', 'assinadoEm', 'assinatura', 'recebedor']);
+
+      allow delete: if ehAdmin();
+    }
+
+    // ---------- auditoria ----------
+    // Trilha de quem fez o quê. Só cresce: ninguém edita, ninguém apaga —
+    // nem o admin. Uma trilha que o admin consegue limpar não é trilha.
+    match /auditoria/{id} {
+      allow read: if ehAdmin();
+      allow create: if logado()
+        && request.resource.data.quando is string
+        && request.resource.data.acao is string;
+      allow update, delete: if false;
+    }
+
+    // ---------- configuração ----------
+    // Guarda, entre outras coisas, a URL do serviço de contas (Apps Script),
+    // que tem poder de administrador sobre as contas. Leitura fica com quem
+    // está logado porque o app precisa da URL; escrita, só admin.
+    match /config/{doc} {
+      allow read: if logado();
+      allow write: if ehAdmin();
+    }
+
+    // ---------- conciliações (Contábil: conciliador.html, cheque-especial.html) ----------
+    // Essas duas ferramentas não vieram no mesmo pacote — se este arquivo
+    // fosse publicado sem esta seção, a aba Contábil inteira parava de
+    // funcionar pra admin e contábil, porque a regra "porta fechada" no
+    // final nega tudo que não tem match próprio.
+    match /conciliacoes/{id} {
+      allow read, create: if temPapel('admin') || temPapel('contabil');
+      allow update, delete: if ehAdmin();
+    }
+
+    // ---------- porta fechada ----------
+    // Coleção nova que apareça sem regra própria nasce trancada, em vez de
+    // nascer aberta.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
