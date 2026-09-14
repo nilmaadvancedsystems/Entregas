@@ -1950,6 +1950,20 @@
       <p class="card-hint">Preenche endereço, bairro, CEP e o ponto no mapa de cada cliente, a partir do relatório de empresas do escritório. Use o arquivo <code>enderecos.json</code> que veio junto com o sistema. É o que faz a rota por proximidade e o "Abrir no Maps" funcionarem. Pode clicar de novo sem medo — só grava o que mudou.</p>
       <div id="enderecosResumo" hidden></div>
     </div>
+    <div class="card" id="qualidadeRotaCard" hidden>
+      <div class="card-head-row">
+        <h2><i class="ph ph-map-trifold" aria-hidden="true"></i> Qualidade da rota</h2>
+      </div>
+      <p class="card-hint">Cliente sem região definida entra no grupo errado quando a rota é ordenada; endereço impreciso manda pro Maps o centro da cidade em vez do lugar certo. Os que estão na rota agora vêm primeiro — são os que valem a pena corrigir hoje.</p>
+      <div class="field" style="margin-bottom:var(--esp-5);">
+        <span>Sem região <span id="qualidadeSemZonaContador" class="card-hint"></span></span>
+        <div id="qualidadeSemZonaList"></div>
+      </div>
+      <div class="field" style="margin-bottom:0;">
+        <span>Endereço impreciso <span id="qualidadeEnderecoContador" class="card-hint"></span></span>
+        <div id="qualidadeEnderecoList"></div>
+      </div>
+    </div>
     <form id="form-cliente" class="card" hidden novalidate>
       <h2><i class="ph ph-user-circle-plus" aria-hidden="true"></i> Novo cliente</h2>
       <div class="field">
@@ -2770,7 +2784,7 @@
     'tab-painel': ['alertaSemEntregaCard', 'graficoCard', 'rankingCard'],
     'tab-solicitacoes': ['pendentesCard'],
     'tab-perfil': ['integracaoCard', 'competenciasCard', 'auditoriaCard'],
-    'tab-clientes': ['importCard', 'enderecosCard']
+    'tab-clientes': ['importCard', 'enderecosCard', 'qualidadeRotaCard']
   };
   Object.keys(contextoPorAba_).forEach(function (idAba) {
     var aba = document.getElementById(idAba);
@@ -3967,6 +3981,7 @@
       pendentesCache = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
       renderRota();
       renderClientesList();
+      renderQualidadeRota_();
       updateDashStrip();
       renderFechamentoDia_();
       renderVencimentos_();
@@ -7694,6 +7709,80 @@
     listaChegou_(listEl);
   }
 
+  // ---------- qualidade da rota (sem região / endereço impreciso) ----------
+  // Duas listas que já eram possíveis de montar na cabeça olhando cliente
+  // por cliente, mas ninguém ia fazer isso pra 300 clientes. Prioriza quem
+  // está na rota AGORA — corrigir o endereço de um cliente que não recebe
+  // nada esse mês não muda a rota de hoje.
+  var LIMITE_QUALIDADE_VISIVEL_ = 8;
+  var mostrarTodosSemZona_ = false;
+  var mostrarTodosEnderecoImpreciso_ = false;
+
+  function linhaQualidade_(c, emRotaSet) {
+    var row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'client-row';
+    row.style.width = '100%';
+    var naRota = emRotaSet.has(c.id);
+    row.innerHTML = '<div><div class="cr-name"></div><div class="cr-sub"></div></div>' +
+      (naRota ? '<span class="status-pill rota">Na rota</span>' : '');
+    row.querySelector('.cr-name').textContent = clienteLabel(c);
+    row.querySelector('.cr-sub').textContent = c.endereco || 'sem endereço cadastrado';
+    // vai direto pro corretor — é exatamente o que essas duas listas pedem,
+    // sem passar pelo histórico do cliente no meio do caminho
+    row.addEventListener('click', function () { abrirCorrigirLocal_(c, renderQualidadeRota_); });
+    return row;
+  }
+
+  function renderListaQualidade_(container, contadorEl, lista, mostrarTodos, aoAlternar, rotuloVazio) {
+    var emRotaSet = new Set(pendentesCache.map(function (e) { return e.clienteId; }));
+    container.innerHTML = '';
+    if (!lista.length) {
+      container.innerHTML = '<p class="card-hint" style="margin:0">' + rotuloVazio + '</p>';
+      contadorEl.textContent = '';
+      return;
+    }
+    contadorEl.textContent = '(' + lista.length + ')';
+    var visiveis = mostrarTodos ? lista : lista.slice(0, LIMITE_QUALIDADE_VISIVEL_);
+    visiveis.forEach(function (c) { container.appendChild(linhaQualidade_(c, emRotaSet)); });
+    if (lista.length > LIMITE_QUALIDADE_VISIVEL_) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn-chip';
+      btn.style.width = '100%';
+      btn.textContent = mostrarTodos ? 'Mostrar menos' : ('Mostrar mais ' + (lista.length - visiveis.length));
+      btn.addEventListener('click', aoAlternar);
+      container.appendChild(btn);
+    }
+  }
+
+  function renderQualidadeRota_() {
+    if (!$('qualidadeRotaCard')) return;
+    var emRotaSet = new Set(pendentesCache.map(function (e) { return e.clienteId; }));
+    function porPrioridadeENome_(a, b) {
+      var pa = emRotaSet.has(a.id) ? 0 : 1, pb = emRotaSet.has(b.id) ? 0 : 1;
+      if (pa !== pb) return pa - pb;
+      return (a.nome || '').localeCompare(b.nome || '', 'pt-BR');
+    }
+
+    var ativos = Array.from(clientesCache.values()).filter(function (c) { return c.ativo !== false; });
+
+    // aglutinado usa a localização e a lógica de zona de quem ele segue —
+    // corrigir aqui seria corrigir o cliente errado
+    var semZona = ativos.filter(function (c) { return !c.zona && !c.grupoLocal; }).sort(porPrioridadeENome_);
+    var enderecoImpreciso = ativos.filter(function (c) {
+      if (c.grupoLocal) return false;
+      return !c.geo || typeof c.geo.lat !== 'number' || c.geo.precisao === 'cidade';
+    }).sort(porPrioridadeENome_);
+
+    renderListaQualidade_($('qualidadeSemZonaList'), $('qualidadeSemZonaContador'), semZona,
+      mostrarTodosSemZona_, function () { mostrarTodosSemZona_ = !mostrarTodosSemZona_; renderQualidadeRota_(); },
+      'Todo cliente ativo já tem região definida.');
+    renderListaQualidade_($('qualidadeEnderecoList'), $('qualidadeEnderecoContador'), enderecoImpreciso,
+      mostrarTodosEnderecoImpreciso_, function () { mostrarTodosEnderecoImpreciso_ = !mostrarTodosEnderecoImpreciso_; renderQualidadeRota_(); },
+      'Todo cliente ativo tem um ponto confiável no mapa.');
+  }
+
   // ---------- init ----------
   var appStarted = false;
   var currentUserRoles = ['staff'];
@@ -8506,6 +8595,7 @@
     $('importCard').hidden = !temPapel('admin');
     $('definirMetaBtn').hidden = !temPapel('admin');
     $('enderecosCard').hidden = !temPapel('admin');
+    $('qualidadeRotaCard').hidden = !temPapel('admin');
     // Perfil é a página de administração de acessos: só admin enxerga.
     $('tabPerfil').hidden = !temPapel('admin');
     if (temPapel('admin')) subscribeUsuarios();
@@ -8514,6 +8604,7 @@
     unsubClientes = db.collection('clientes').orderBy('nome').limit(1000).onSnapshot(function (snap) {
       clientesCache = new Map(snap.docs.map(function (d) { return [d.id, Object.assign({ id: d.id }, d.data())]; }));
       renderClientesList();
+      renderQualidadeRota_();
       renderPainel();
       updateDashStrip();
       if (primeiraCargaClientes) { primeiraCargaClientes = false; restaurarRascunhoSeExistir_(); atualizarAlertaSemEntrega_(); }
