@@ -1,0 +1,9 @@
+# A base de clientes do escritório (CPF, CNPJ, telefone, endereço, GPS)
+# nunca entra neste repositório. Ela é importada uma vez, pelo admin, pelos
+# botões Clientes → Base inicial / Endereços e localização — veja INSTALACAO.md.
+dados-do-escritorio/
+clientes.json
+enderecos.json
+
+# arquivos de teste/preview que às vezes ficam soltos na pasta
+_preview-*.html

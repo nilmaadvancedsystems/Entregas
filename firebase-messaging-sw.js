@@ -28,10 +28,11 @@ messaging.onBackgroundMessage(function (payload) {
 // sem sinal (o office boy entra em prédio sem rede o tempo todo) e deixar o
 // app instalável na tela inicial, que o Chrome só libera com um service
 // worker que trate fetch.
+//
 // Trocar esse nome força o navegador a jogar fora qualquer página antiga
 // guardada em cache (ex.: uma cópia de conciliador.html/cheque-especial.html
 // de antes de uma correção) na próxima vez que o service worker atualizar.
-var CACHE = 'nilma-app-v2';
+var CACHE = 'nilma-app-v3';
 
 self.addEventListener('install', function (event) {
   // assume o controle já na primeira visita, sem esperar recarregar
