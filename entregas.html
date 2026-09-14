@@ -1942,11 +1942,11 @@
         <h2><i class="ph ph-hand-coins" aria-hidden="true"></i> Honorários</h2>
         <button type="button" class="btn-chip accent" id="importHonorariosBtn"><i class="ph ph-upload-simple" aria-hidden="true"></i> Preencher de arquivo</button>
       </div>
-      <p class="card-hint">Quem paga em dinheiro, Pix ou boleto — alguém do escritório precisa ir até o cliente. "Recebido" é lido da própria entrega confirmada nesta competência (Honorário ou Notas); não é um controle separado.</p>
+      <p class="card-hint">Quem paga em dinheiro, Pix ou boleto — alguém do escritório precisa ir até o cliente. "Recebido" é lido da própria entrega confirmada NESSE MÊS (pela data real da entrega, não pela competência escrita no documento); não é um controle separado.</p>
       <div class="filters">
         <div class="filtro">
-          <label for="honorariosCompetencia">Competência</label>
-          <input class="input" id="honorariosCompetencia" type="month">
+          <label for="honorariosMes">Mês da entrega</label>
+          <input class="input" id="honorariosMes" type="month">
         </div>
       </div>
       <p class="card-hint" id="honorariosResumoTab" style="margin-top:8px;"></p>
@@ -3771,7 +3771,7 @@
   // ---------- submit ----------
   $('competenciaInput').value = currentCompetencia();
   $('painelCompetencia').value = currentCompetencia();
-  $('honorariosCompetencia').value = currentCompetencia();
+  $('honorariosMes').value = currentCompetencia();
 
   $('form-nova').addEventListener('submit', function (e) {
     e.preventDefault();
@@ -4008,7 +4008,6 @@
     unsubEntregasPainel = db.collection('entregas').where('competencia', '==', comp).limit(500).onSnapshot(function (snap) {
       entregasPainelCache = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
       renderPainel();
-      renderHonorariosTab_();
       updateDashStrip();
     }, function (err) { showToast(errMsg(err, 'Não foi possível carregar o painel.'), 'error'); });
   }
@@ -4017,13 +4016,10 @@
   $('painelBusca').addEventListener('input', aoParar(renderPainel));
   $('painelStatusFiltro').addEventListener('change', renderPainel);
 
-  // A aba Honorários usa a mesma competência/cache do Painel — trocar o mês
-  // aqui também busca de novo (mesma função), só evita duas assinaturas
-  // vivas fazendo a mesma pergunta ao banco.
-  $('honorariosCompetencia').addEventListener('change', function () {
-    $('painelCompetencia').value = this.value;
-    subscribePainel(this.value);
-  });
+  // Mês da entrega em Honorários é independente da competência do Painel
+  // de propósito: aqui o que importa é quando a visita aconteceu de
+  // verdade (confirmadoEm), não o período que o documento entregue cobre.
+  $('honorariosMes').addEventListener('change', function () { subscribeHonorariosMes_(this.value); });
 
   // ---------- rota (pendentes, todas as competências) ----------
   function subscribePendentes() {
@@ -4500,14 +4496,60 @@
   // nesta competência — o mesmo registro que a rota normal já gera, só
   // consultado de outro ângulo. Não existe um controle paralelo pra
   // "honorário pago": é a mesma entrega de sempre.
-  function statusHonorarioNaCompetencia_(clienteId, comp) {
-    return entregasPainelCache.some(function (e) {
-      if (e.clienteId !== clienteId || e.competencia !== comp || e.status !== 'confirmada') return false;
+  // Quem paga por boleto não recebe um documento chamado "Honorário" — a
+  // entrega que resolve a cobrança dele é mesmo um "Boleto" (a guia que a
+  // pessoa leva). Sem isso, todo cliente com forma "Boleto" ficava
+  // PARA SEMPRE como pendente, mesmo já tendo recebido — a entrega existia,
+  // só não era do tipo que a função sabia procurar.
+  function tiposQueContamComoHonorario_(forma) {
+    var tipos = ['Honorário', 'Notas'];
+    if ((forma || '').toLowerCase().indexOf('boleto') !== -1) tipos.push('Boleto');
+    return tipos;
+  }
+
+  // Olha o MÊS em que a entrega de fato aconteceu (confirmadoEm), não a
+  // competência que ficou marcada no documento — pedido explícito: quem
+  // entrega o boleto de setembro em setembro conta pra setembro, esteja a
+  // competência escrita do jeito que estiver. entregasHonorariosMesCache
+  // já vem filtrada só pra esse mês (ver subscribeHonorariosMes_).
+  function statusHonorarioNoMes_(cliente) {
+    var tipos = tiposQueContamComoHonorario_(cliente.honorarioForma);
+    return entregasHonorariosMesCache.some(function (e) {
+      if (e.clienteId !== cliente.id || e.status !== 'confirmada') return false;
       return (e.itens || []).some(function (i) {
         var tipo = typeof i === 'string' ? i : i.tipo;
-        return tipo === 'Honorário' || tipo === 'Notas';
+        return tipos.indexOf(tipo) !== -1;
       });
     });
+  }
+
+  // ---------- honorários: entregas do mês (por confirmadoEm, não competência) ----------
+  var entregasHonorariosMesCache = [];
+  var unsubHonorariosMes = null;
+
+  function limitesDoMes_(mesAno) {
+    var partes = String(mesAno).split('-');
+    var ano = parseInt(partes[0], 10), mes = parseInt(partes[1], 10);
+    var inicio = new Date(ano, mes - 1, 1, 0, 0, 0, 0);
+    var fim = new Date(ano, mes, 1, 0, 0, 0, 0); // primeiro dia do mês seguinte
+    return { inicio: inicio.toISOString(), fim: fim.toISOString() };
+  }
+
+  function subscribeHonorariosMes_(mesAno) {
+    if (unsubHonorariosMes) unsubHonorariosMes();
+    if (!db) return;
+    var lim = limitesDoMes_(mesAno);
+    // confirmadoEm é ISO 8601 (new Date().toISOString()) — ordena como
+    // texto igual a como ordena como data, então a faixa funciona direto
+    // sem precisar converter nada no servidor.
+    unsubHonorariosMes = db.collection('entregas')
+      .where('confirmadoEm', '>=', lim.inicio)
+      .where('confirmadoEm', '<', lim.fim)
+      .limit(1000)
+      .onSnapshot(function (snap) {
+        entregasHonorariosMesCache = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+        renderHonorariosTab_();
+      }, function (err) { showToast(errMsg(err, 'Não foi possível carregar os honorários do mês.'), 'error'); });
   }
 
   // Leva pra Nova entrega já com o cliente escolhido — economiza buscar de
@@ -4518,19 +4560,23 @@
     clienteInput.value = clienteLabel(cliente);
     clearFieldError('cliente');
     aplicarZonaDoCliente_(cliente);
-    var chk = itensGrid.querySelector('input[data-key="honorario"]');
+    // Boleto vira o documento "Boleto", não "Honorário" — é o que a pessoa
+    // de fato entrega. Os outros jeitos de pagar (dinheiro, Pix) usam
+    // "Honorário" mesmo, que é o tipo pensado pra isso.
+    var chaveDoc = (cliente.honorarioForma || '').toLowerCase().indexOf('boleto') !== -1 ? 'boleto' : 'honorario';
+    var chk = itensGrid.querySelector('input[data-key="' + chaveDoc + '"]');
     if (chk && !chk.checked) { chk.checked = true; chk.dispatchEvent(new Event('change')); }
   }
 
   function renderHonorariosTab_() {
     if (!$('tab-honorarios')) return;
-    var comp = $('honorariosCompetencia').value || currentCompetencia();
+    var mesAno = $('honorariosMes').value || currentCompetencia();
     var hoje = new Date().getDate();
 
     var linhas = Array.from(clientesCache.values())
       .filter(function (c) { return c.ativo !== false && honorarioPrecisaVisita_(c.honorarioForma); })
       .map(function (c) {
-        return { c: c, recebido: statusHonorarioNaCompetencia_(c.id, comp), naJanela: honorarioNoIntervaloHoje_(c.honorarioDia, hoje) };
+        return { c: c, recebido: statusHonorarioNoMes_(c), naJanela: honorarioNoIntervaloHoje_(c.honorarioDia, hoje) };
       })
       .sort(function (a, b) {
         if (a.recebido !== b.recebido) return a.recebido ? 1 : -1;
@@ -4540,7 +4586,7 @@
 
     var pendentes = linhas.filter(function (x) { return !x.recebido; }).length;
     $('honorariosResumoTab').textContent = linhas.length
-      ? pendentes + ' de ' + linhas.length + ' ainda não pagaram em ' + fmtCompetencia(comp)
+      ? pendentes + ' de ' + linhas.length + ' ainda não entregues em ' + fmtCompetencia(mesAno)
       : '';
     atualizarBadge_($('honorariosBadge'), pendentes);
 
@@ -7443,8 +7489,12 @@
 
   $('importEnderecosBtn').addEventListener('click', function () {
     var btn = this;
-    lerJsonEscolhido_(null, function (lista) {
-      confirmarDuplo(btn, function () { importarEnderecos_(btn, lista); });
+    // Confirma PRIMEIRO, escolhe o arquivo DEPOIS — na ordem contrária, o
+    // segundo toque (que devia confirmar) cai de volta neste mesmo
+    // listener e abre o seletor de arquivo de novo em vez de confirmar,
+    // e a importação nunca sai do lugar.
+    confirmarDuplo(btn, function () {
+      lerJsonEscolhido_(null, function (lista) { importarEnderecos_(btn, lista); });
     });
   });
 
@@ -7582,8 +7632,8 @@
 
   $('importHonorariosBtn').addEventListener('click', function () {
     var btn = this;
-    lerJsonEscolhido_(null, function (lista) {
-      confirmarDuplo(btn, function () { importarHonorarios_(btn, lista); });
+    confirmarDuplo(btn, function () {
+      lerJsonEscolhido_(null, function (lista) { importarHonorarios_(btn, lista); });
     });
   });
 
@@ -8911,6 +8961,7 @@
     });
 
     subscribePainel($('painelCompetencia').value);
+    subscribeHonorariosMes_($('honorariosMes').value);
     subscribePendentes();
     subscribeSolicitacoes();
     subscribeRecados();
