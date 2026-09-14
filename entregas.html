@@ -1992,11 +1992,16 @@
             <option value="pendente">Pendente</option>
             <option value="janela">Nesta janela</option>
             <option value="recebido">Recebido</option>
+            <option value="naoaplicavel">Não se aplica</option>
           </select>
         </div>
         <div class="filtro">
           <label for="honorariosFiltroForma">Forma de pagamento</label>
           <select class="input" id="honorariosFiltroForma"><option value="">Todas</option></select>
+        </div>
+        <div class="filtro">
+          <label for="honorariosFiltroDia">Dia do mês</label>
+          <input class="input" id="honorariosFiltroDia" type="number" min="1" max="31" placeholder="Ex.: 20 (vazio = hoje)">
         </div>
       </div>
       <p class="card-hint" id="honorariosResumoTab" style="margin-top:8px;"></p>
@@ -4074,7 +4079,10 @@
   // Mês da entrega em Honorários é independente da competência do Painel
   // de propósito: aqui o que importa é quando a visita aconteceu de
   // verdade (confirmadoEm), não o período que o documento entregue cobre.
-  $('honorariosMes').addEventListener('change', function () { subscribeHonorariosMes_(this.value); });
+  $('honorariosMes').addEventListener('change', function () {
+    subscribeHonorariosMes_(this.value);
+    subscribeHonorarioNaoAplicavel_(this.value);
+  });
 
   // ---------- rota (pendentes, todas as competências) ----------
   function subscribePendentes() {
@@ -4607,6 +4615,113 @@
       }, function (err) { showToast(errMsg(err, 'Não foi possível carregar os honorários do mês.'), 'error'); });
   }
 
+  // ---------- honorários: "não se aplica este mês" ----------
+  // Nem todo cliente tem honorário/boleto todo mês (bimestral, sazonal, ou
+  // simplesmente não deve nada esse mês). Marcar isso é reversível e não
+  // toca no cadastro do cliente nem finge que uma entrega aconteceu — é só
+  // uma anotação de "não conta como pendente este mês".
+  var honorarioNaoAplicavelCache = [];
+  var unsubHonorarioNaoAplicavel = null;
+
+  function subscribeHonorarioNaoAplicavel_(mesAno) {
+    if (unsubHonorarioNaoAplicavel) unsubHonorarioNaoAplicavel();
+    if (!db) return;
+    unsubHonorarioNaoAplicavel = db.collection('honorarioNaoAplicavel').where('mesAno', '==', mesAno).limit(500)
+      .onSnapshot(function (snap) {
+        honorarioNaoAplicavelCache = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+        renderHonorariosTab_();
+      }, function (err) {
+        // sem a regra publicada a coleção é negada; a aba segue funcionando, só sem as exceções
+        if (err && err.code === 'permission-denied') { console.warn('honorarioNaoAplicavel: regra ainda não publicada'); return; }
+        showToast(errMsg(err, 'Não foi possível carregar as exceções do mês.'), 'error');
+      });
+  }
+
+  function marcarHonorarioNaoAplicavel_(cliente, mesAno) {
+    // id fixo por cliente+mês: toque duplo não cria duas exceções (o "Desfazer" só apagaria uma)
+    db.doc('honorarioNaoAplicavel/' + cliente.id + '_' + mesAno).set({
+      clienteId: cliente.id, mesAno: mesAno,
+      criadoPor: (auth.currentUser && auth.currentUser.email) || '',
+      criadoPorNome: currentUserNome || '',
+      criadoEm: new Date().toISOString()
+    }).then(function () {
+      registrarAuditoria_('honorario_nao_aplicavel', clienteLabel(cliente) + ' · ' + fmtCompetencia(mesAno));
+      showToast(clienteLabel(cliente) + ' não entra mais como pendente em ' + fmtCompetencia(mesAno) + '.');
+    }).catch(function (err) { showToast(errMsg(err, 'Não foi possível marcar.'), 'error'); });
+  }
+
+  function desfazerHonorarioNaoAplicavel_(excecaoId, cliente, mesAno) {
+    db.doc('honorarioNaoAplicavel/' + excecaoId).delete().then(function () {
+      showToast(clienteLabel(cliente) + ' volta a valer em ' + fmtCompetencia(mesAno) + '.');
+    }).catch(function (err) { showToast(errMsg(err, 'Não foi possível desfazer.'), 'error'); });
+  }
+
+  // ---------- honorários: editar / remover dados do cliente ----------
+  // Corrige forma, dia ou ponto de referência sem precisar reimportar a
+  // planilha inteira por causa de UM cliente que mudou (ex.: passou a
+  // pagar por Pix em vez de boleto). "Remover da lista" tira o cliente
+  // de Honorários pra sempre — pro caso do import ter trazido alguém que
+  // não deveria estar lá.
+  function abrirEditarHonorarioCliente_(cliente) {
+    var root = $('modalRoot');
+    root.innerHTML =
+      '<div class="modal-overlay" id="overlay"><div class="modal" id="modalInner">' +
+        '<div class="modal-head"><div><h2>Editar honorário</h2>' +
+          '<div class="card-hint" style="margin:2px 0 0">' + escapeHtml_(clienteLabel(cliente)) + '</div>' +
+        '</div><button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button></div>' +
+        '<label class="field"><span>Forma de pagamento</span>' +
+          '<input class="input" id="editHonorarioForma" type="text" placeholder="Ex.: Boleto, Dinheiro/Pix" value="' + escapeHtml_(cliente.honorarioForma || '') + '"></label>' +
+        '<label class="field"><span>Dia do mês</span>' +
+          '<input class="input" id="editHonorarioDia" type="text" placeholder="Ex.: 01 a 05" value="' + escapeHtml_(cliente.honorarioDia || '') + '"></label>' +
+        '<label class="field"><span>Ponto de referência</span>' +
+          '<input class="input" id="editHonorarioRef" type="text" placeholder="Ex.: Perto do mercado X" value="' + escapeHtml_(cliente.pontoReferencia || '') + '"></label>' +
+        '<button type="button" class="btn btn-primary" id="editHonorarioSalvarBtn">Salvar</button>' +
+        '<button type="button" class="btn-chip danger" id="editHonorarioRemoverBtn" style="margin-top:10px;width:100%;"><i class="ph ph-trash" aria-hidden="true"></i> Remover da lista de honorários</button>' +
+      '</div></div>';
+
+    function fechar() { closeModal(); }
+    $('overlay').addEventListener('click', function (e) { if (e.target.id === 'overlay') fechar(); });
+    $('modalClose').addEventListener('click', fechar);
+
+    $('editHonorarioSalvarBtn').addEventListener('click', function () {
+      var btn = this;
+      botaoOcupado_(btn);
+      db.doc('clientes/' + cliente.id).update({
+        honorarioForma: $('editHonorarioForma').value.trim(),
+        honorarioDia: $('editHonorarioDia').value.trim(),
+        pontoReferencia: $('editHonorarioRef').value.trim()
+      }).then(function () {
+        registrarAuditoria_('honorario_editado', clienteLabel(cliente));
+        showToast('Dados atualizados.');
+        fechar();
+      }).catch(function (err) {
+        showToast(errMsg(err, 'Não foi possível salvar.'), 'error');
+        botaoLivre_(btn);
+      });
+    });
+
+    $('editHonorarioRemoverBtn').addEventListener('click', function () {
+      var btn = this;
+      confirmarDuplo(btn, function () {
+        botaoOcupado_(btn);
+        // Só limpa a forma e o dia — é só isso que decide se o cliente
+        // aparece em Honorários. Ponto de referência continua útil pra
+        // achar o endereço em qualquer entrega, então fica.
+        db.doc('clientes/' + cliente.id).update({
+          honorarioForma: firebase.firestore.FieldValue.delete(),
+          honorarioDia: firebase.firestore.FieldValue.delete()
+        }).then(function () {
+          registrarAuditoria_('honorario_removido_da_lista', clienteLabel(cliente));
+          showToast(clienteLabel(cliente) + ' saiu da lista de Honorários.');
+          fechar();
+        }).catch(function (err) {
+          showToast(errMsg(err, 'Não foi possível remover.'), 'error');
+          botaoLivre_(btn);
+        });
+      });
+    });
+  }
+
   // Leva pra Nova entrega já com o cliente escolhido — economiza buscar de
   // novo o mesmo cliente que a pessoa já estava vendo aqui.
   function irRegistrarHonorario_(cliente) {
@@ -4624,6 +4739,7 @@
   }
 
   function honorarioStatusChave_(x) {
+    if (x.naoAplicavel) return 'naoaplicavel';
     return x.recebido ? 'recebido' : (x.naJanela ? 'janela' : 'pendente');
   }
 
@@ -4644,32 +4760,50 @@
   function renderHonorariosTab_() {
     if (!$('tab-honorarios')) return;
     var mesAno = $('honorariosMes').value || currentCompetencia();
-    var hoje = new Date().getDate();
     var busca = $('honorariosBusca').value.trim().toLowerCase();
     var filtroStatus = $('honorariosFiltroStatus').value;
     var filtroForma = $('honorariosFiltroForma').value;
+    var filtroDiaTexto = $('honorariosFiltroDia').value.trim();
+    var filtroDia = filtroDiaTexto ? parseInt(filtroDiaTexto, 10) : null;
+    // sem filtro de dia, "nesta janela" usa o dia de hoje; com filtro, usa o
+    // dia escolhido — pra poder olhar pra frente ("quem eu preciso visitar
+    // por volta do dia 20"), não só pro que está valendo agora
+    var diaReferencia = filtroDia || new Date().getDate();
+
+    var excecoesPorCliente = {};
+    honorarioNaoAplicavelCache.forEach(function (ex) { excecoesPorCliente[ex.clienteId] = ex; });
 
     var clientesHonorario = Array.from(clientesCache.values())
       .filter(function (c) { return c.ativo !== false && honorarioPrecisaVisita_(c.honorarioForma); });
     atualizarFormasHonorario_(clientesHonorario);
 
     var todasLinhas = clientesHonorario.map(function (c) {
-      return { c: c, recebido: statusHonorarioNoMes_(c), naJanela: honorarioNoIntervaloHoje_(c.honorarioDia, hoje) };
+      var excecao = excecoesPorCliente[c.id];
+      return {
+        c: c, excecao: excecao, naoAplicavel: !!excecao,
+        recebido: statusHonorarioNoMes_(c),
+        naJanela: honorarioNoIntervaloHoje_(c.honorarioDia, diaReferencia)
+      };
     });
 
     var linhas = todasLinhas
       .filter(function (x) { return !busca || clienteCombina_(x.c, busca); })
       .filter(function (x) { return !filtroStatus || honorarioStatusChave_(x) === filtroStatus; })
       .filter(function (x) { return !filtroForma || x.c.honorarioForma === filtroForma; })
+      .filter(function (x) { return !filtroDia || x.naoAplicavel || honorarioNoIntervaloHoje_(x.c.honorarioDia, filtroDia); })
       .sort(function (a, b) {
+        if (a.naoAplicavel !== b.naoAplicavel) return a.naoAplicavel ? 1 : -1;
         if (a.recebido !== b.recebido) return a.recebido ? 1 : -1;
         if (a.naJanela !== b.naJanela) return a.naJanela ? -1 : 1;
         return (a.c.nome || '').localeCompare(b.c.nome || '', 'pt-BR');
       });
 
-    var totalPendentesReal = todasLinhas.filter(function (x) { return !x.recebido; }).length;
-    $('honorariosResumoTab').textContent = todasLinhas.length
-      ? totalPendentesReal + ' de ' + todasLinhas.length + ' ainda não entregues em ' + fmtCompetencia(mesAno) +
+    // "não se aplica" sai da conta de pendente/total — não é obrigação
+    // esse mês, não devia pesar no resumo nem no selo da aba.
+    var linhasQueValem = todasLinhas.filter(function (x) { return !x.naoAplicavel; });
+    var totalPendentesReal = linhasQueValem.filter(function (x) { return !x.recebido; }).length;
+    $('honorariosResumoTab').textContent = linhasQueValem.length
+      ? totalPendentesReal + ' de ' + linhasQueValem.length + ' ainda não entregues em ' + fmtCompetencia(mesAno) +
         (linhas.length !== todasLinhas.length ? ' · mostrando ' + linhas.length + ' com o filtro atual' : '')
       : '';
     atualizarBadge_($('honorariosBadge'), totalPendentesReal);
@@ -4684,11 +4818,11 @@
       el.innerHTML = '<div class="empty-state">Nenhum cliente bate com esse filtro.</div>';
       return;
     }
+    var rotulosStatus = { recebido: 'entregue', janela: 'rota', pendente: 'pendente', naoaplicavel: 'neutro' };
+    var textosStatus = { recebido: 'Recebido', janela: 'Nesta janela', pendente: 'Pendente', naoaplicavel: 'Não se aplica' };
     linhas.forEach(function (x) {
       var c = x.c;
       var chaveStatus = honorarioStatusChave_(x);
-      var pillClasse = x.recebido ? 'entregue' : (x.naJanela ? 'rota' : 'pendente');
-      var pillTexto = x.recebido ? 'Recebido' : (x.naJanela ? 'Nesta janela' : 'Pendente');
       var row = document.createElement('div');
       row.className = 'honorario-linha';
       row.innerHTML =
@@ -4696,7 +4830,7 @@
         '<div><span class="honorario-col-rotulo">Forma:</span><span class="honorario-col-sub"></span></div>' +
         '<div><span class="honorario-col-rotulo">Dia:</span><span class="honorario-col-sub"></span></div>' +
         '<div><span class="honorario-col-rotulo">Ref.:</span><span class="honorario-col-sub"></span></div>' +
-        '<div class="honorario-col-status"><span class="status-pill ' + pillClasse + '">' + pillTexto + '</span></div>' +
+        '<div class="honorario-col-status"><span class="status-pill ' + rotulosStatus[chaveStatus] + '">' + textosStatus[chaveStatus] + '</span></div>' +
         '<div class="honorario-acoes"></div>';
       row.querySelector('.honorario-col-nome').textContent = clienteLabel(c);
       var subs = row.querySelectorAll('.honorario-col-sub');
@@ -4706,8 +4840,17 @@
       row.querySelector('.honorario-col-nome').addEventListener('click', function () { openClienteHistorico(c); });
       row.querySelector('.honorario-col-nome').style.cursor = 'pointer';
 
-      if (chaveStatus !== 'recebido') {
-        var acoes = row.querySelector('.honorario-acoes');
+      var acoes = row.querySelector('.honorario-acoes');
+
+      if (chaveStatus === 'naoaplicavel') {
+        var btnDesfazer = document.createElement('button');
+        btnDesfazer.type = 'button';
+        btnDesfazer.className = 'btn-chip';
+        btnDesfazer.textContent = 'Desfazer';
+        btnDesfazer.title = 'Volta a contar como pendente este mês';
+        btnDesfazer.addEventListener('click', function () { desfazerHonorarioNaoAplicavel_(x.excecao.id, c, mesAno); });
+        acoes.appendChild(btnDesfazer);
+      } else if (chaveStatus !== 'recebido') {
         var btnRegistrar = document.createElement('button');
         btnRegistrar.type = 'button';
         btnRegistrar.className = 'btn-chip';
@@ -4723,7 +4866,25 @@
         btnSemComprovante.title = 'Marcar como entregue sem comprovante — pra entregas antigas, de antes do app';
         btnSemComprovante.addEventListener('click', function () { abrirMarcarHonorarioSemComprovante_(c, mesAno); });
         acoes.appendChild(btnSemComprovante);
+
+        var btnNaoAplica = document.createElement('button');
+        btnNaoAplica.type = 'button';
+        btnNaoAplica.className = 'btn-chip';
+        btnNaoAplica.textContent = 'Não se aplica';
+        btnNaoAplica.title = 'Esse cliente não deve honorário este mês (bimestral, sazonal etc.)';
+        btnNaoAplica.addEventListener('click', function () { marcarHonorarioNaoAplicavel_(c, mesAno); });
+        acoes.appendChild(btnNaoAplica);
       }
+
+      var btnEditar = document.createElement('button');
+      btnEditar.type = 'button';
+      btnEditar.className = 'link-btn';
+      btnEditar.style.cssText = 'font-size:var(--t-xs);padding:4px;';
+      btnEditar.textContent = 'Editar';
+      btnEditar.title = 'Corrigir forma, dia ou ponto de referência — ou remover esse cliente da lista de honorários';
+      btnEditar.addEventListener('click', function (ev) { ev.stopPropagation(); abrirEditarHonorarioCliente_(c); });
+      acoes.appendChild(btnEditar);
+
       el.appendChild(row);
     });
   }
@@ -4798,18 +4959,26 @@
   $('honorariosBusca').addEventListener('input', aoParar(renderHonorariosTab_));
   $('honorariosFiltroStatus').addEventListener('change', renderHonorariosTab_);
   $('honorariosFiltroForma').addEventListener('change', renderHonorariosTab_);
+  $('honorariosFiltroDia').addEventListener('input', aoParar(renderHonorariosTab_));
 
   $('exportHonorariosBtn').addEventListener('click', function () {
     if (typeof XLSX === 'undefined') { showToast('Biblioteca de planilha não carregou. Recarregue a página.', 'error'); return; }
     var mesAno = $('honorariosMes').value || currentCompetencia();
     var hoje = new Date().getDate();
+    var excecoesPorCliente = {};
+    honorarioNaoAplicavelCache.forEach(function (ex) { excecoesPorCliente[ex.clienteId] = true; });
     var linhas = [['Cliente', 'Código', 'Forma de pagamento', 'Dia', 'Ponto de referência', 'Situação']];
     Array.from(clientesCache.values())
       .filter(function (c) { return c.ativo !== false && honorarioPrecisaVisita_(c.honorarioForma); })
-      .map(function (c) { return { c: c, recebido: statusHonorarioNoMes_(c), naJanela: honorarioNoIntervaloHoje_(c.honorarioDia, hoje) }; })
+      .map(function (c) {
+        return {
+          c: c, naoAplicavel: !!excecoesPorCliente[c.id],
+          recebido: statusHonorarioNoMes_(c), naJanela: honorarioNoIntervaloHoje_(c.honorarioDia, hoje)
+        };
+      })
       .sort(function (a, b) { return (a.c.nome || '').localeCompare(b.c.nome || '', 'pt-BR'); })
       .forEach(function (x) {
-        var situacao = x.recebido ? 'Recebido' : (x.naJanela ? 'Nesta janela' : 'Pendente');
+        var situacao = x.naoAplicavel ? 'Não se aplica' : (x.recebido ? 'Recebido' : (x.naJanela ? 'Nesta janela' : 'Pendente'));
         linhas.push([x.c.nome || '', x.c.codigoOrigem || '', x.c.honorarioForma || '', x.c.honorarioDia || '', x.c.pontoReferencia || '', situacao]);
       });
     if (linhas.length === 1) { showToast('Nenhum cliente pra exportar.', 'error'); return; }
@@ -9163,7 +9332,10 @@
     });
 
     subscribePainel($('painelCompetencia').value);
-    subscribeHonorariosMes_($('honorariosMes').value);
+    if (temPapel('admin') || temPapel('office_boy')) {
+      subscribeHonorariosMes_($('honorariosMes').value);
+      subscribeHonorarioNaoAplicavel_($('honorariosMes').value);
+    }
     subscribePendentes();
     subscribeSolicitacoes();
     subscribeRecados();

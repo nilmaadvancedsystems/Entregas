@@ -142,14 +142,16 @@ service cloud.firestore {
 
     // ---------- clientes ----------
     // Cadastrar e apagar cliente é ato de administração (a UI só mostra esses
-    // botões pra admin). Corrigir geo/zona/grupoLocal, não: quem está na rua
-    // é quem sabe onde o cliente fica de verdade e qual empresa aglutina com
-    // qual — por isso qualquer pessoa logada pode ajustar só esses três
-    // campos, sem abrir a porta pra reescrever CNPJ, telefone ou nome.
+    // botões pra admin). Corrigir geo/zona/grupoLocal/dados de honorário,
+    // não: quem está na rua é quem sabe onde o cliente fica de verdade, qual
+    // empresa aglutina com qual, e como aquele cliente paga o honorário —
+    // por isso qualquer pessoa logada pode ajustar esses campos, sem abrir a
+    // porta pra reescrever CNPJ, telefone ou nome.
     match /clientes/{id} {
       allow read: if logado();
       allow create, delete: if ehAdmin();
-      allow update: if ehAdmin() || (logado() && so(['geo', 'zona', 'grupoLocal']));
+      allow update: if ehAdmin() ||
+        (logado() && so(['geo', 'zona', 'grupoLocal', 'honorarioForma', 'honorarioDia', 'pontoReferencia']));
     }
 
     // ---------- entregas ----------
@@ -251,6 +253,22 @@ service cloud.firestore {
     match /config/{doc} {
       allow read: if logado();
       allow write: if ehAdmin();
+    }
+
+    // ---------- honorários: exceção do mês ----------
+    // Nem todo cliente tem honorário/boleto TODO mês (alguns são
+    // bimestrais, sazonais, ou simplesmente não devem nada naquele mês).
+    // Marcar "não se aplica" aqui é reversível e não toca no cadastro do
+    // cliente nem finge que uma entrega aconteceu — é só uma anotação de
+    // "não conta como pendente este mês". Qualquer pessoa da equipe marca
+    // e desmarca; não é ato de administração.
+    match /honorarioNaoAplicavel/{id} {
+      allow read: if logado();
+      allow create: if logado()
+        && request.resource.data.clienteId is string
+        && request.resource.data.mesAno is string;
+      allow update: if false;
+      allow delete: if logado();
     }
 
     // ---------- conciliações (Contábil: conciliador.html, cheque-especial.html) ----------
