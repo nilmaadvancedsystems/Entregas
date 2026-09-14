@@ -2753,9 +2753,12 @@
       marcarIconeAba_();
       var lbl = btn.querySelector('.tab-label');
       if (lbl && $('pageTitle')) $('pageTitle').textContent = lbl.textContent;
-      ['nova', 'rota', 'painel', 'solicitacoes', 'clientes', 'perfil'].forEach(function (name) {
+      ['nova', 'rota', 'painel', 'solicitacoes', 'clientes', 'honorarios', 'perfil'].forEach(function (name) {
         var el = $('tab-' + name);
-        el.hidden = name !== btn.dataset.tab || (name === 'perfil' && !temPapel('admin'));
+        var papelPermite = name === 'perfil' ? temPapel('admin')
+          : name === 'honorarios' ? (temPapel('admin') || temPapel('office_boy'))
+          : true;
+        el.hidden = name !== btn.dataset.tab || !papelPermite;
       });
       var shown = $('tab-' + btn.dataset.tab);
       shown.classList.remove('tab-enter');
