@@ -4819,14 +4819,22 @@
       renderPrevisaoRota_(0);
       return;
     }
-    // paradas, não entregas: o mesmo cliente com 3 guias é uma parada só
-    renderPrevisaoRota_(new Set(list.map(function (e) { return e.clienteId || e.clienteNome; })).size);
-    // quantas entregas cada cliente tem na rota — com mais de uma, dá pra
-    // colher uma assinatura só pra todas em vez de repetir o mesmo ritual
-    var porCliente = {};
+    // paradas, não entregas: o mesmo cliente com 3 guias é uma parada só,
+    // e duas empresas aglutinadas (mesmo endereço físico) também contam
+    // como uma parada só — por isso a chave usa grupoLocal quando existe.
+    function chaveDaParada_(e) {
+      var cliente = e.clienteId ? clientesCache.get(e.clienteId) : null;
+      return (cliente && cliente.grupoLocal) || e.clienteId || e.clienteNome || '?';
+    }
+    renderPrevisaoRota_(new Set(list.map(chaveDaParada_)).size);
+    // quantas entregas cada parada tem na rota — com mais de uma, dá pra
+    // colher uma assinatura só pra todas em vez de repetir o mesmo ritual.
+    // Vale tanto pro mesmo cliente com várias guias quanto pra duas
+    // empresas aglutinadas, cada uma com a sua.
+    var porParada = {};
     list.forEach(function (e) {
-      var chave = e.clienteNome || '?';
-      (porCliente[chave] = porCliente[chave] || []).push(e);
+      var chave = chaveDaParada_(e);
+      (porParada[chave] = porParada[chave] || []).push(e);
     });
     var loteJaOferecido = {};
 
@@ -4855,15 +4863,23 @@
       habilitarDragRota_(row);
       listEl.appendChild(row);
 
-      var doCliente = porCliente[e.clienteNome || '?'];
-      if (doCliente.length > 1 && !loteJaOferecido[e.clienteNome || '?']) {
-        loteJaOferecido[e.clienteNome || '?'] = true;
+      var chaveParada = chaveDaParada_(e);
+      var doParada = porParada[chaveParada];
+      if (doParada.length > 1 && !loteJaOferecido[chaveParada]) {
+        loteJaOferecido[chaveParada] = true;
+        // aglutinado: os nomes podem ser de empresas diferentes — mostra
+        // todos, tanto no botão quanto no título do modal, pra ficar claro
+        // o que está sendo assinado junto mesmo se as linhas não estiverem
+        // lado a lado na lista
+        var nomesDaParada = Array.from(new Set(doParada.map(function (x) { return x.clienteNome || '?'; })));
+        var tituloParada = nomesDaParada.join(' + ');
         var btnLote = document.createElement('button');
         btnLote.type = 'button';
         btnLote.className = 'btn-chip accent';
         btnLote.style.cssText = 'margin:2px 0 10px 26px;';
-        btnLote.innerHTML = '<i class="ph ph-signature" aria-hidden="true"></i> Assinar as ' + doCliente.length + ' juntas';
-        btnLote.addEventListener('click', function () { openConfirmLoteModal_(e.clienteNome, doCliente); });
+        btnLote.innerHTML = '<i class="ph ph-signature" aria-hidden="true"></i> Assinar as ' + doParada.length + ' juntas' +
+          (nomesDaParada.length > 1 ? ' (' + escapeHtml_(tituloParada) + ')' : '');
+        btnLote.addEventListener('click', function () { openConfirmLoteModal_(tituloParada, doParada); });
         listEl.appendChild(btnLote);
       }
     });
@@ -6505,11 +6521,17 @@
       var agora = new Date().toISOString();
       var recebedor = $('loteRecebedor').value.trim();
 
-      // é tudo do mesmo cliente, então a avaliação de local vale pra todas
+      // Quando são duas empresas aglutinadas em vez do mesmo cliente
+      // repetido, cada uma tem seu próprio clienteId — mas aglutinar já
+      // copia a localização de uma pra outra, então checar a divergência
+      // pela primeira da lista vale pra todas do lote.
       var avaliacaoLote = avaliarLocalDaEntrega_(escolhidas[0] && escolhidas[0].clienteId, loteGeo);
 
       // a mesma assinatura/foto vale como comprovante de cada entrega,
-      // então cada documento continua tendo seu próprio comprovante salvo
+      // então cada documento continua tendo seu próprio comprovante salvo.
+      // guardarLocalDoCliente_ é chamado com o clienteId de CADA entrega
+      // (não um só pra todas), pra aprender o local certo mesmo quando o
+      // lote mistura duas empresas aglutinadas.
       var gravacoes = escolhidas.map(function (e) {
         var ref = db.doc('entregas/' + e.id);
         return ref.update({
