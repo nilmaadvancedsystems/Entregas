@@ -1581,7 +1581,7 @@
       <label class="field" id="vencimentoField">
         <span>Vencimento (opcional)</span>
         <input class="input" id="vencimentoInput" type="date">
-        <span class="card-hint" style="margin-top:4px;display:block;">Vem preenchido sozinho quando você anexa o PDF da guia. Serve pro aviso de documento vencendo.</span>
+        <span class="card-hint" style="margin-top:4px;display:block;">Vem preenchido sozinho pra DAS, FGTS, DARF e eSocial (ou lido do PDF, se você anexar a guia) — feriado não entra na conta, só confira. Serve pro aviso de documento vencendo.</span>
       </label>
 
       <label class="field" id="itensField">
@@ -1748,12 +1748,12 @@
         <div class="filtro">
           <label for="painelStatusFiltro">Situação</label>
           <select class="input" id="painelStatusFiltro">
-            <option value="com_entrega" selected>Com entrega ou na rota</option>
-            <option value="entregue">Só entregues</option>
-            <option value="rota">Só na rota</option>
-            <option value="falha">Só não entregues (falha)</option>
-            <option value="sem_entrega">Só sem entrega</option>
-            <option value="todos">Todos os clientes</option>
+            <option value="com_entrega" selected>Com movimento</option>
+            <option value="entregue">Entregues</option>
+            <option value="rota">Na rota</option>
+            <option value="falha">Não entregues</option>
+            <option value="sem_entrega">Sem entrega</option>
+            <option value="todos">Todos</option>
           </select>
         </div>
       </div>
@@ -2249,6 +2249,7 @@
     { key: 'multa_rescisoria', label: 'Multa Rescisória' },
     { key: 'ferias', label: 'Férias' },
     { key: 'folha_pagamento', label: 'Folha de Pagamento', semValor: true },
+    { key: 'prolabore', label: 'Prólabore', semValor: true },
     { key: 'esocial', label: 'eSocial', semValor: true }
   ];
 
@@ -3032,6 +3033,7 @@
     { key: 'multa_rescisoria', kws: ['MULTA RESCISORIA', 'RESCISAO CONTRATUAL'] },
     { key: 'ferias', kws: ['RECIBO DE FERIAS'] },
     { key: 'folha_pagamento', kws: ['FOLHA DE PAGAMENTO', 'HOLERITE', 'RECIBO DE PAGAMENTO DE SALARIO'] },
+    { key: 'prolabore', kws: ['PROLABORE', 'PRO-LABORE', 'PRO LABORE'] },
     { key: 'esocial', kws: ['ESOCIAL', 'E-SOCIAL'] },
     { key: 'boleto', kws: ['BOLETO'] }
   ];
@@ -3095,6 +3097,65 @@
     return melhor;
   }
 
+  // Vencimento automático por tipo de documento, calculado a partir da
+  // competência (dia 20 do mês seguinte, regra confirmada com o
+  // escritório — não é a mesma para todos). Cada guia tem seu próprio
+  // jeito de lidar com fim de semana:
+  //   FGTS, DARF, eSocial: antecipa pro dia útil ANTERIOR
+  //   DAS: posterga pro dia útil SEGUINTE
+  // Feriado não entra na conta, só sábado/domingo — por isso o campo
+  // continua editável e o rótulo avisa "confira antes de confirmar".
+  var VENCIMENTO_AUTOMATICO_ = {
+    das: { dia: 20, ajuste: 'posterga' },
+    fgts: { dia: 20, ajuste: 'antecipa' },
+    darf: { dia: 20, ajuste: 'antecipa' },
+    esocial: { dia: 20, ajuste: 'antecipa' }
+  };
+
+  function ajustarDiaUtil_(data, ajuste) {
+    var d = new Date(data.getTime());
+    var passo = ajuste === 'antecipa' ? -1 : 1;
+    while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + passo);
+    return d;
+  }
+
+  function calcularVencimentoAutomatico_(competenciaAnoMes, tipoKey) {
+    var regra = VENCIMENTO_AUTOMATICO_[tipoKey];
+    if (!regra || !competenciaAnoMes) return null;
+    var partes = competenciaAnoMes.split('-');
+    var ano = parseInt(partes[0], 10), mes = parseInt(partes[1], 10);
+    if (!ano || !mes) return null;
+    // vencimento cai no mês seguinte ao da competência
+    mes += 1;
+    if (mes > 12) { mes = 1; ano += 1; }
+    var data = ajustarDiaUtil_(new Date(ano, mes - 1, regra.dia), regra.ajuste);
+    return data.getFullYear() + '-' + String(data.getMonth() + 1).padStart(2, '0') + '-' + String(data.getDate()).padStart(2, '0');
+  }
+
+  // Só preenche sozinho quando é claro qual data usar, e só por cima do
+  // que a própria função já preencheu antes — nunca por cima de uma data
+  // extraída de PDF ou digitada na mão. Ambiguidade (dois tipos com
+  // regras diferentes marcados juntos) deixa o campo em branco em vez de
+  // arriscar a data errada.
+  var ultimoVencimentoAuto_ = null;
+
+  function atualizarVencimentoAutomatico_() {
+    var campo = $('vencimentoInput');
+    if (!campo) return;
+    if (campo.value && campo.value !== ultimoVencimentoAuto_) { ultimoVencimentoAuto_ = null; return; }
+
+    var competencia = $('competenciaInput').value;
+    var tiposSelecionados = Array.from(itensGrid.querySelectorAll('input[type="checkbox"]:checked'))
+      .map(function (i) { return i.dataset.key; })
+      .filter(function (k) { return VENCIMENTO_AUTOMATICO_[k]; });
+
+    var datas = Array.from(new Set(tiposSelecionados.map(function (k) { return calcularVencimentoAutomatico_(competencia, k); })));
+    var nova = datas.length === 1 ? datas[0] : null;
+
+    if (nova) { campo.value = nova; ultimoVencimentoAuto_ = nova; }
+    else if (ultimoVencimentoAuto_) { campo.value = ''; ultimoVencimentoAuto_ = null; }
+  }
+
   function aplicarDadosDoPdf_(textoBruto, imagemDataUrl) {
     var texto = normalizarTexto_(textoBruto);
     var achados = [];
@@ -3154,6 +3215,11 @@
     if (venc) {
       $('vencimentoInput').value = venc;
       achados.push('vencimento');
+    } else if (tipoAchado && comp) {
+      // a guia não trouxe a data escrita (ou não achamos) — calcula pela
+      // regra do documento, já que o tipo e a competência são conhecidos
+      atualizarVencimentoAutomatico_();
+      if ($('vencimentoInput').value) achados.push('vencimento (estimado)');
     }
 
     if (tipoAchado) {
@@ -3467,7 +3533,9 @@
     if ($('honorarioPixField').hidden) $('honorarioPixToggle').checked = false;
   }
 
-  itensGrid.addEventListener('change', function () { renderValores(); atualizarCampoHonorarioPix_(); });
+  itensGrid.addEventListener('change', function () { renderValores(); atualizarCampoHonorarioPix_(); atualizarVencimentoAutomatico_(); });
+  $('competenciaInput').addEventListener('input', atualizarVencimentoAutomatico_);
+  $('competenciaInput').addEventListener('change', atualizarVencimentoAutomatico_);
   $('outroInput').addEventListener('input', atualizarCampoHonorarioPix_);
   $('outroInput').addEventListener('input', renderValores);
 
@@ -3765,6 +3833,7 @@
     }
     $('recebedorInput').value = '';
     $('vencimentoInput').value = '';
+    ultimoVencimentoAuto_ = null;
     $('falhaToggle').checked = false;
     $('falhaMotivo').value = '';
     mainSigPad.clear();
