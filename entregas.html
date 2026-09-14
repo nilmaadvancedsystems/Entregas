@@ -2764,7 +2764,12 @@
   // aba: assim a decisão mora num lugar só, em vez de espalhada em seis
   // seções de HTML.
   var contextoPorAba_ = {
-    'tab-rota': ['recadosCard', 'vencimentosCard', 'fechamentoCard', 'atestadosCard'],
+    // Vencendo por último de propósito: agora que o vencimento é calculado
+    // sozinho pra DAS/FGTS/DARF/eSocial/prolabore, essa lista pode ficar
+    // longa (quase a rota inteira, numa semana de muita guia vencendo
+    // junto) — no celular, isso empurrava Recados e Atestados pra muito
+    // longe da vista. Os dois cartões curtos e de ação vêm primeiro.
+    'tab-rota': ['recadosCard', 'atestadosCard', 'fechamentoCard', 'vencimentosCard'],
     'tab-painel': ['alertaSemEntregaCard', 'graficoCard', 'rankingCard'],
     'tab-solicitacoes': ['pendentesCard'],
     'tab-perfil': ['integracaoCard', 'competenciasCard', 'auditoriaCard'],
@@ -4361,6 +4366,15 @@
     return 'vence em ' + dias + ' dias';
   }
 
+  // Desde que o vencimento passou a ser calculado sozinho (DAS, FGTS,
+  // DARF, eSocial, prólabore), essa lista deixou de ser as 2 ou 3 guias
+  // realmente urgentes e virou quase a rota inteira numa semana comum —
+  // e um cartão desse tamanho empurra tudo que vem depois dele pra muito
+  // longe da vista. Mostra só as mais urgentes de cara; o resto fica atrás
+  // de um clique.
+  var LIMITE_VENCIMENTOS_VISIVEL_ = 6;
+  var mostrarTodosVencimentos_ = false;
+
   function renderVencimentos_() {
     var card = $('vencimentosCard');
     var lista = pendentesCache
@@ -4372,7 +4386,8 @@
     card.hidden = false;
     var el = $('vencimentosList');
     el.innerHTML = '';
-    lista.forEach(function (x) {
+    var visiveis = mostrarTodosVencimentos_ ? lista : lista.slice(0, LIMITE_VENCIMENTOS_VISIVEL_);
+    visiveis.forEach(function (x) {
       var vencido = x.dias < 0, hoje = x.dias === 0;
       var row = document.createElement('div');
       row.className = 'entrega-row st-' + (vencido ? 'falha' : (hoje ? 'rota' : 'rota'));
@@ -4385,6 +4400,16 @@
       row.addEventListener('click', function () { openConfirmPendingModal(x.e); });
       el.appendChild(row);
     });
+    if (lista.length > LIMITE_VENCIMENTOS_VISIVEL_) {
+      var resto = lista.length - visiveis.length;
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn-chip';
+      btn.style.width = '100%';
+      btn.textContent = mostrarTodosVencimentos_ ? 'Mostrar menos' : ('Mostrar mais ' + resto);
+      btn.addEventListener('click', function () { mostrarTodosVencimentos_ = !mostrarTodosVencimentos_; renderVencimentos_(); });
+      el.appendChild(btn);
+    }
   }
 
   // ---------- abrir a rota no Google Maps ----------
