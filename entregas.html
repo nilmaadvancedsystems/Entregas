@@ -1594,6 +1594,8 @@
         </div>
       </div>
 
+      <p class="card-hint" id="honorarioInfoHint" hidden style="margin:0 0 var(--esp-3);"></p>
+
       <label class="field" id="honorarioPixField" hidden>
         <span class="avulso-toggle"><input type="checkbox" id="honorarioPixToggle"> Recebido via Pix</span>
         <span class="card-hint" style="margin-top:4px;display:block;">Em dinheiro o próprio dinheiro é o comprovante — não precisa de foto nem assinatura. Via Pix, marque aqui e anexe o comprovante da transferência.</span>
@@ -1722,6 +1724,13 @@
       </div>
       <p class="card-hint">Pedidos de busca de atestado nas clínicas (Assegi, Preventive etc.) — marque como buscado quando pegar.</p>
       <div id="atestadosList"></div>
+    </div>
+    <div class="card" id="honorariosCobrarCard" hidden>
+      <div class="card-head-row">
+        <h2><i class="ph ph-hand-coins" aria-hidden="true"></i> Honorário pra cobrar</h2>
+      </div>
+      <p class="card-hint">Clientes que pagam em dinheiro, Pix ou boleto e estão na janela de cobrança desta semana.</p>
+      <div id="honorariosCobrarList"></div>
     </div>
   </section>
 
@@ -1949,6 +1958,14 @@
       </div>
       <p class="card-hint">Preenche endereço, bairro, CEP e o ponto no mapa de cada cliente, a partir do relatório de empresas do escritório. Use o arquivo <code>enderecos.json</code> que veio junto com o sistema. É o que faz a rota por proximidade e o "Abrir no Maps" funcionarem. Pode clicar de novo sem medo — só grava o que mudou.</p>
       <div id="enderecosResumo" hidden></div>
+    </div>
+    <div class="card" id="honorariosCard" hidden>
+      <div class="card-head-row">
+        <h2><i class="ph ph-hand-coins" aria-hidden="true"></i> Honorários</h2>
+        <button type="button" class="btn-chip accent" id="importHonorariosBtn"><i class="ph ph-upload-simple" aria-hidden="true"></i> Preencher de arquivo</button>
+      </div>
+      <p class="card-hint">Ponto de referência e forma de cobrança de cada cliente, a partir da planilha do escritório. Use o arquivo <code>honorarios.json</code>. Casa pelo nome — quando o nome do arquivo é abreviado (ex.: "XTREME" por "XTREME ACADEMIA..."), só aceita se achar exatamente UM cliente com esse começo de nome; senão, deixa pra você conferir na mão. Pode clicar de novo sem medo — só grava o que mudou.</p>
+      <div id="honorariosResumo" hidden></div>
     </div>
     <div class="card" id="qualidadeRotaCard" hidden>
       <div class="card-head-row">
@@ -2780,11 +2797,11 @@
     // longa (quase a rota inteira, numa semana de muita guia vencendo
     // junto) — no celular, isso empurrava Recados e Atestados pra muito
     // longe da vista. Os dois cartões curtos e de ação vêm primeiro.
-    'tab-rota': ['recadosCard', 'atestadosCard', 'fechamentoCard', 'vencimentosCard'],
+    'tab-rota': ['recadosCard', 'atestadosCard', 'honorariosCobrarCard', 'fechamentoCard', 'vencimentosCard'],
     'tab-painel': ['alertaSemEntregaCard', 'graficoCard', 'rankingCard'],
     'tab-solicitacoes': ['pendentesCard'],
     'tab-perfil': ['integracaoCard', 'competenciasCard', 'auditoriaCard'],
-    'tab-clientes': ['importCard', 'enderecosCard', 'qualidadeRotaCard']
+    'tab-clientes': ['importCard', 'enderecosCard', 'honorariosCard', 'qualidadeRotaCard']
   };
   Object.keys(contextoPorAba_).forEach(function (idAba) {
     var aba = document.getElementById(idAba);
@@ -3547,6 +3564,20 @@
   function atualizarCampoHonorarioPix_() {
     $('honorarioPixField').hidden = !isApenasHonorario_();
     if ($('honorarioPixField').hidden) $('honorarioPixToggle').checked = false;
+
+    // Como esse cliente costuma pagar o honorário (vem da planilha do
+    // escritório) — ajuda a saber se é normal não ter Pix (Boleto/Paga
+    // aqui) ou se falta cobrar (Dinheiro/Pix, mas ainda não apareceu).
+    var hint = $('honorarioInfoHint');
+    var cliente = selectedClienteId ? clientesCache.get(selectedClienteId) : null;
+    if (isApenasHonorario_() && cliente && cliente.honorarioForma) {
+      hint.hidden = false;
+      hint.textContent = 'Esse cliente costuma pagar: ' + cliente.honorarioForma +
+        (cliente.honorarioDia ? ' · dia ' + cliente.honorarioDia : '') +
+        (cliente.pontoReferencia ? ' · 📍 ' + cliente.pontoReferencia : '');
+    } else {
+      hint.hidden = true;
+    }
   }
 
   itensGrid.addEventListener('change', function () { renderValores(); atualizarCampoHonorarioPix_(); atualizarVencimentoAutomatico_(); });
@@ -3603,6 +3634,7 @@
         clearFieldError('cliente');
         aplicarZonaDoCliente_(c);
         oferecerRepetirMesPassado_(c);
+        atualizarCampoHonorarioPix_();
       });
       suggestionsEl.appendChild(btn);
     });
@@ -3846,6 +3878,7 @@
       renderValores();
       $('honorarioPixToggle').checked = false;
       $('honorarioPixField').hidden = true;
+      $('honorarioInfoHint').hidden = true;
     }
     $('recebedorInput').value = '';
     $('vencimentoInput').value = '';
@@ -4420,6 +4453,69 @@
       btn.style.width = '100%';
       btn.textContent = mostrarTodosVencimentos_ ? 'Mostrar menos' : ('Mostrar mais ' + resto);
       btn.addEventListener('click', function () { mostrarTodosVencimentos_ = !mostrarTodosVencimentos_; renderVencimentos_(); });
+      el.appendChild(btn);
+    }
+  }
+
+  // Formas de pagamento que exigem ALGUÉM ir até o cliente: "Paga aqui" é
+  // o cliente que vem até o escritório, "Email" não precisa de rota — só
+  // essas duas ficam de fora.
+  function honorarioPrecisaVisita_(forma) {
+    var f = (forma || '').trim().toLowerCase();
+    if (!f) return false;
+    return f.indexOf('paga aqui') === -1 && f !== 'email';
+  }
+
+  // "01 a 05", "20 A 26" — intervalo de dia do mês em que a cobrança
+  // costuma acontecer. Texto que não segue esse formato (ex.: "Só Deus
+  // sabe", que é literal na planilha) não entra na conta: mostrar um
+  // cliente com o dia errado é peor do que não avisar nada.
+  function honorarioNoIntervaloHoje_(diaTexto, diaDoMes) {
+    var m = String(diaTexto || '').match(/(\d{1,2})\s*a\s*(\d{1,2})/i);
+    if (!m) return false;
+    var ini = parseInt(m[1], 10), fim = parseInt(m[2], 10);
+    if (ini <= fim) return diaDoMes >= ini && diaDoMes <= fim;
+    return diaDoMes >= ini || diaDoMes <= fim; // janela que atravessa a virada do mês (ex.: 28 a 03)
+  }
+
+  var LIMITE_HONORARIOS_VISIVEL_ = 8;
+  var mostrarTodosHonorarios_ = false;
+
+  function renderHonorariosCobrar_() {
+    var card = $('honorariosCobrarCard');
+    if (!card) return;
+    var hoje = new Date().getDate();
+    var lista = Array.from(clientesCache.values())
+      .filter(function (c) {
+        return c.ativo !== false && honorarioPrecisaVisita_(c.honorarioForma) && honorarioNoIntervaloHoje_(c.honorarioDia, hoje);
+      })
+      .sort(function (a, b) { return (a.nome || '').localeCompare(b.nome || '', 'pt-BR'); });
+
+    if (!lista.length) { card.hidden = true; return; }
+    card.hidden = false;
+    var el = $('honorariosCobrarList');
+    el.innerHTML = '';
+    var visiveis = mostrarTodosHonorarios_ ? lista : lista.slice(0, LIMITE_HONORARIOS_VISIVEL_);
+    visiveis.forEach(function (c) {
+      var row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'client-row';
+      row.style.width = '100%';
+      row.innerHTML = '<div><div class="cr-name"></div><div class="cr-sub"></div></div>' +
+        '<span class="status-pill rota"></span>';
+      row.querySelector('.cr-name').textContent = clienteLabel(c);
+      row.querySelector('.cr-sub').textContent = [c.honorarioForma, c.pontoReferencia].filter(Boolean).join(' · ');
+      row.querySelector('.status-pill').textContent = 'dia ' + c.honorarioDia;
+      row.addEventListener('click', function () { openClienteHistorico(c); });
+      el.appendChild(row);
+    });
+    if (lista.length > LIMITE_HONORARIOS_VISIVEL_) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn-chip';
+      btn.style.width = '100%';
+      btn.textContent = mostrarTodosHonorarios_ ? 'Mostrar menos' : ('Mostrar mais ' + (lista.length - visiveis.length));
+      btn.addEventListener('click', function () { mostrarTodosHonorarios_ = !mostrarTodosHonorarios_; renderHonorariosCobrar_(); });
       el.appendChild(btn);
     }
   }
@@ -5203,10 +5299,21 @@
       return;
     }
     var email = auth.currentUser.email;
+    var primeiraCargaEnviadas = true;
     unsubSolicitacoesEnviadas = db.collection('solicitacoes').where('criadoPor', '==', email).limit(300).onSnapshot(function (snap) {
       solicitacoesEnviadasCache = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
       solicitacoesCache = mesclarCachesSolicitacoes_();
       renderSolicitacoes();
+      // Avisa na hora se o app já está aberto — não precisa esperar o
+      // Apps Script rodar (a cada 5 min) pra saber que ficou pronto.
+      if (!primeiraCargaEnviadas) {
+        snap.docChanges().forEach(function (change) {
+          if (change.type === 'modified' && change.doc.data().status === 'concluida') {
+            notificarSolicitacaoConcluida_(Object.assign({ id: change.doc.id }, change.doc.data()));
+          }
+        });
+      }
+      primeiraCargaEnviadas = false;
     }, function (err) { showToast(errMsg(err, 'Não foi possível carregar as solicitações.'), 'error'); });
     unsubSolicitacoesConcluidas = db.collection('solicitacoes').where('concluidoPor', '==', email).limit(300).onSnapshot(function (snap) {
       solicitacoesConcluidasPorMimCache = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
@@ -5273,6 +5380,23 @@
       var n = new Notification('Nova solicitação — ' + tipoSolicitacaoLabel(s.tipo), {
         body: s.descricao + (s.local ? ' · ' + s.local : '') + (s.urgente ? ' · URGENTE' : ''),
         tag: 'sol-' + s.id
+      });
+      n.onclick = function () { window.focus(); document.querySelector('[data-tab="solicitacoes"]').click(); n.close(); };
+    } catch (e) {}
+    if (navigator.vibrate) { try { navigator.vibrate([120, 60, 120]); } catch (e) {} }
+  }
+
+  // Aviso pra quem PEDIU quando a solicitação dela é concluída — só
+  // funciona com o app aberto, igual notificarNovaSolicitacao. Com o app
+  // fechado, o mesmo aviso chega em até 5 minutos pelo Apps Script (que
+  // manda push de verdade, esse sim funciona fechado).
+  function notificarSolicitacaoConcluida_(s) {
+    showToast('✅ ' + tipoSolicitacaoLabel(s.tipo) + ' concluída' + (s.concluidoPorNome ? ' — ' + s.concluidoPorNome : ''));
+    try {
+      if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+      var n = new Notification(tipoSolicitacaoLabel(s.tipo) + ' concluída', {
+        body: (s.descricao || '') + (s.concluidoPorNome ? ' · resolvido por ' + s.concluidoPorNome : ''),
+        tag: 'sol-concluida-' + s.id
       });
       n.onclick = function () { window.focus(); document.querySelector('[data-tab="solicitacoes"]').click(); n.close(); };
     } catch (e) {}
@@ -5347,8 +5471,12 @@
   function atualizarBotaoNotificacoes() {
     var btn = $('solNotifBtn');
     if (!btn) return;
+    // Antes só office_boy via esse botão, porque só ele recebia notificação
+    // (solicitação nova). Agora quem PEDE também recebe aviso quando a
+    // solicitação dele é concluída — então qualquer pessoa que possa criar
+    // uma solicitação (todo mundo logado) precisa poder ativar.
     var suportado = typeof Notification !== 'undefined' && 'serviceWorker' in navigator;
-    btn.hidden = !(suportado && temPapel('office_boy'));
+    btn.hidden = !suportado;
     if (suportado) {
       btn.innerHTML = Notification.permission === 'granted' ? '<i class="ph ph-bell" aria-hidden="true"></i> Notificações ativadas' : '<i class="ph ph-bell-slash" aria-hidden="true"></i> Ativar notificações';
       if (Notification.permission === 'granted' && typeof firebase.messaging === 'function') {
@@ -6155,12 +6283,24 @@
         '<button type="button" class="btn-chip" id="aglutinarBtn"><i class="ph ph-link-simple" aria-hidden="true"></i> Aglutinar com outra empresa</button>' +
       '</div>' + avisoLocal;
 
+    // Info de honorário (importada da planilha do escritório): ponto de
+    // referência ajuda achar o lugar quando o endereço é vago ou não tem
+    // número; forma + dia dizem se dá pra ir cobrar essa semana.
+    var infoHonorario = (cliente.pontoReferencia || cliente.honorarioForma)
+      ? '<p class="card-hint" style="margin:0 0 10px">' +
+          (cliente.pontoReferencia ? '📍 ' + escapeHtml_(cliente.pontoReferencia) : '') +
+          (cliente.pontoReferencia && cliente.honorarioForma ? ' · ' : '') +
+          (cliente.honorarioForma ? 'Honorário: ' + escapeHtml_(cliente.honorarioForma) + (cliente.honorarioDia ? ' · dia ' + escapeHtml_(cliente.honorarioDia) : '') : '') +
+        '</p>'
+      : '';
+
     inner.innerHTML =
       '<div class="modal-head">' +
         '<div><h2>' + escapeHtml_(clienteLabel(cliente)) + '</h2><div class="card-hint" style="margin:2px 0 0">' +
           historico.length + ' entrega(s) em ' + porCompetencia.length + ' competência(s)</div></div>' +
         '<button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button>' +
       '</div>' +
+      infoHonorario +
       acoesHtml +
       rowsHtml;
     $('modalClose').addEventListener('click', closeModal);
@@ -7363,6 +7503,104 @@
       linhas.push(semCorrespondencia.length + ' empresa(s) do relatório sem cliente correspondente no app');
     }
     el.innerHTML = '<p class="card-hint" style="margin:12px 0 0">' + linhas.join('<br>') + '</p>' +
+      (semCorrespondencia.length
+        ? '<details style="margin-top:10px;"><summary class="card-hint" style="cursor:pointer">Ver quais ficaram de fora</summary>' +
+          '<p class="card-hint" style="margin:8px 0 0">' + semCorrespondencia.map(escapeHtml_).join('<br>') + '</p></details>'
+        : '');
+    showToast(atualizados ? atualizados + ' cliente(s) atualizados.' : 'Nenhuma mudança — já estava tudo em dia.');
+  }
+
+  // ---------- importar honorários (ponto de referência + forma de cobrança) ----------
+  // A planilha do escritório escreve o nome de qualquer jeito — às vezes o
+  // nome completo, às vezes um jeito curto ("XTREME" em vez de "XTREME
+  // ACADEMIA ESPECIALIZADA LTDA"). Casa por igualdade primeiro; se não
+  // achar, tenta por começo de nome — mas só aceita quando o começo aponta
+  // pra EXATAMENTE UM cliente. Nome curto que bate com dois clientes
+  // diferentes é ambiguidade, não acerto, e fica de fora pra conferir na mão.
+  function acharClientePorNomeHonorario_(nomePlanilha, porNomeExato) {
+    var chave = normalizarTexto_(nomePlanilha);
+    if (porNomeExato[chave]) return porNomeExato[chave];
+    var candidatos = Array.from(clientesCache.values()).filter(function (c) {
+      var nomeCliente = normalizarTexto_(c.nome || '');
+      return nomeCliente.indexOf(chave) === 0 || chave.indexOf(nomeCliente) === 0;
+    });
+    return candidatos.length === 1 ? candidatos[0] : null;
+  }
+
+  $('importHonorariosBtn').addEventListener('click', function () {
+    var btn = this;
+    lerJsonEscolhido_(null, function (lista) {
+      confirmarDuplo(btn, function () { importarHonorarios_(btn, lista); });
+    });
+  });
+
+  function importarHonorarios_(btn, lista) {
+    botaoOcupado_(btn);
+    var porNomeExato = {};
+    clientesCache.forEach(function (c) { porNomeExato[normalizarTexto_(c.nome || '')] = c; });
+
+    var aGravar = [], semCorrespondencia = [], porAproximacao = [], jaIguais = 0;
+    lista.forEach(function (r) {
+      if (!r.nome) return;
+      var cliente = acharClientePorNomeHonorario_(r.nome, porNomeExato);
+      if (!cliente) { semCorrespondencia.push(r.nome); return; }
+      if (normalizarTexto_(cliente.nome || '') !== normalizarTexto_(r.nome)) porAproximacao.push(r.nome + ' → ' + clienteLabel(cliente));
+
+      var dados = {};
+      if (r.pontoReferencia && cliente.pontoReferencia !== r.pontoReferencia) dados.pontoReferencia = r.pontoReferencia;
+      if (r.formaPagamento && cliente.honorarioForma !== r.formaPagamento) dados.honorarioForma = r.formaPagamento;
+      if (r.dia && cliente.honorarioDia !== r.dia) dados.honorarioDia = r.dia;
+      // telefone/nome fantasia só entram se o cliente ainda não tiver —
+      // o que já está no app pode ter sido corrigido na mão
+      if (r.nomeFantasia && !cliente.nomeFantasia) dados.nomeFantasia = r.nomeFantasia;
+
+      if (Object.keys(dados).length) aGravar.push({ id: cliente.id, dados: dados });
+      else jaIguais++;
+    });
+
+    if (!aGravar.length) {
+      botaoLivre_(btn);
+      mostrarResumoHonorarios_(0, jaIguais, semCorrespondencia, porAproximacao);
+      return;
+    }
+
+    var lotes = [];
+    for (var i = 0; i < aGravar.length; i += 400) lotes.push(aGravar.slice(i, i + 400));
+    var feitos = 0;
+    function proximo(i) {
+      if (i >= lotes.length) {
+        botaoLivre_(btn);
+        registrarAuditoria_('honorarios_importados', feitos + ' cliente(s)');
+        mostrarResumoHonorarios_(feitos, jaIguais, semCorrespondencia, porAproximacao);
+        return;
+      }
+      var batch = db.batch();
+      lotes[i].forEach(function (item) { batch.update(db.doc('clientes/' + item.id), item.dados); });
+      batch.commit().then(function () {
+        feitos += lotes[i].length;
+        proximo(i + 1);
+      }).catch(function (err) {
+        botaoLivre_(btn);
+        showToast(errMsg(err, 'Falha ao gravar os honorários.'), 'error');
+      });
+    }
+    proximo(0);
+  }
+
+  function mostrarResumoHonorarios_(atualizados, jaIguais, semCorrespondencia, porAproximacao) {
+    var el = $('honorariosResumo');
+    el.hidden = false;
+    var linhas = [
+      '<strong>' + atualizados + '</strong> cliente(s) atualizados',
+      jaIguais + ' já estavam em dia'
+    ];
+    if (porAproximacao.length) linhas.push(porAproximacao.length + ' casados por aproximação de nome (confira)');
+    if (semCorrespondencia.length) linhas.push(semCorrespondencia.length + ' sem cliente correspondente no app');
+    el.innerHTML = '<p class="card-hint" style="margin:12px 0 0">' + linhas.join('<br>') + '</p>' +
+      (porAproximacao.length
+        ? '<details style="margin-top:10px;"><summary class="card-hint" style="cursor:pointer">Ver os casados por aproximação</summary>' +
+          '<p class="card-hint" style="margin:8px 0 0">' + porAproximacao.map(escapeHtml_).join('<br>') + '</p></details>'
+        : '') +
       (semCorrespondencia.length
         ? '<details style="margin-top:10px;"><summary class="card-hint" style="cursor:pointer">Ver quais ficaram de fora</summary>' +
           '<p class="card-hint" style="margin:8px 0 0">' + semCorrespondencia.map(escapeHtml_).join('<br>') + '</p></details>'
@@ -8595,6 +8833,7 @@
     $('importCard').hidden = !temPapel('admin');
     $('definirMetaBtn').hidden = !temPapel('admin');
     $('enderecosCard').hidden = !temPapel('admin');
+    $('honorariosCard').hidden = !temPapel('admin');
     $('qualidadeRotaCard').hidden = !temPapel('admin');
     // Perfil é a página de administração de acessos: só admin enxerga.
     $('tabPerfil').hidden = !temPapel('admin');
@@ -8605,6 +8844,7 @@
       clientesCache = new Map(snap.docs.map(function (d) { return [d.id, Object.assign({ id: d.id }, d.data())]; }));
       renderClientesList();
       renderQualidadeRota_();
+      renderHonorariosCobrar_();
       renderPainel();
       updateDashStrip();
       if (primeiraCargaClientes) { primeiraCargaClientes = false; restaurarRascunhoSeExistir_(); atualizarAlertaSemEntrega_(); }
