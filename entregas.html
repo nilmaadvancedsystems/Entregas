@@ -1123,17 +1123,14 @@
     border: none; background: none; padding: 6px; margin: -6px; border-radius: var(--r-sm);
     cursor: pointer; text-align: left; color: inherit;
   }
-  /* Com quatro cargos o selo não cabe do lado do nome numa tela estreita —
-     em vez de espremer o nome, o selo desce sozinho. */
   /* Com quatro cargos ("Admin · Office boy · Contábil · Equipe geral") o selo
      pedia 247px de uma tela de 375 e esmagava o bloco do nome pra 26px — o
      nome saía quebrado letra por letra e a linha inchava pra 103px. O selo
      era encolhível, então o flex-wrap nunca o mandava pra linha de baixo:
-     preferia espremer o vizinho. Abaixo de 600px ele vai pra própria linha
-     de uma vez; acima, encosta à direita como antes. */
-     No estreito vira grade de uma coluna: o nome ocupa a linha de cima e o
-     selo a de baixo, do tamanho do conteúdo — em flex ele esticaria de ponta
-     a ponta e deixaria de parecer selo. */
+     preferia espremer o vizinho. Abaixo de 600px vira grade de uma coluna:
+     o nome ocupa a linha de cima e o selo a de baixo, do tamanho do
+     conteúdo — em flex ele esticaria de ponta a ponta e deixaria de parecer
+     selo. Acima de 600px, o selo encosta à direita como antes. */
   .equipe-abrir { display: grid; grid-template-columns: minmax(0, 1fr); justify-items: start; gap: 3px; }
   .equipe-abrir .equipe-info { min-width: 0; width: 100%; }
   .equipe-abrir .status-pill { white-space: normal; text-align: left; max-width: 100%; }
