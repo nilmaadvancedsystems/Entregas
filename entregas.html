@@ -790,6 +790,38 @@
 
   .empty-state { color: var(--ink-faint); font-size: var(--t-base); text-align: center; padding: var(--esp-5) var(--esp-3); line-height: 1.5; }
 
+  /* ---------- tabela de honorários ---------- */
+  /* No celular cada "coluna" empilha com o rótulo na frente (1 coluna só
+     no grid); no PC (>=900px) as mesmas divs viram colunas de verdade,
+     lado a lado, como o cabeçalho já anuncia. */
+  .honorarios-tabela { border: 1px solid var(--border); border-radius: var(--r-md); overflow: hidden; }
+  .honorarios-cabecalho { display: none; }
+  .honorario-linha {
+    display: grid; grid-template-columns: 1fr; gap: 3px;
+    padding: var(--esp-3) var(--esp-3); border-bottom: 1px solid var(--border);
+  }
+  .honorario-linha:last-child { border-bottom: none; }
+  .honorario-linha:hover { background: var(--surface-2); }
+  .honorario-col-rotulo { display: inline; font-size: var(--t-xs); color: var(--ink-faint); margin-right: 4px; }
+  .honorario-col-nome { font-weight: 500; }
+  .honorario-col-status { display: flex; }
+  .honorario-acoes { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+  @media (min-width: 900px) {
+    .honorarios-cabecalho {
+      display: grid; grid-template-columns: minmax(0,2fr) 130px 70px minmax(0,2fr) 120px auto;
+      gap: 0 var(--esp-3); padding: 8px var(--esp-3); background: var(--surface-2);
+      font-size: var(--t-xs); font-weight: 600; color: var(--ink-soft);
+      text-transform: uppercase; letter-spacing: .03em;
+    }
+    .honorario-linha {
+      grid-template-columns: minmax(0,2fr) 130px 70px minmax(0,2fr) 120px auto;
+      gap: 0 var(--esp-3); align-items: center; min-height: var(--linha); padding: 4px var(--esp-3);
+    }
+    .honorario-col-rotulo { display: none; }
+    .honorario-col-sub { color: var(--ink-faint); font-size: var(--t-sm); }
+    .honorario-acoes { margin-top: 0; }
+  }
+
   /* ---------- esqueleto de carregamento ---------- */
   .skeleton {
     background: linear-gradient(90deg, var(--surface-2) 25%, var(--border) 37%, var(--surface-2) 63%);
@@ -1940,6 +1972,7 @@
     <div class="card">
       <div class="card-head-row">
         <h2><i class="ph ph-hand-coins" aria-hidden="true"></i> Honorários</h2>
+        <button type="button" class="btn-chip" id="exportHonorariosBtn"><i class="ph ph-download-simple" aria-hidden="true"></i> Exportar planilha</button>
         <button type="button" class="btn-chip accent" id="importHonorariosBtn"><i class="ph ph-upload-simple" aria-hidden="true"></i> Preencher de arquivo</button>
       </div>
       <p class="card-hint">Quem paga em dinheiro, Pix ou boleto — alguém do escritório precisa ir até o cliente. "Recebido" é lido da própria entrega confirmada NESSE MÊS (pela data real da entrega, não pela competência escrita no documento); não é um controle separado.</p>
@@ -1948,10 +1981,32 @@
           <label for="honorariosMes">Mês da entrega</label>
           <input class="input" id="honorariosMes" type="month">
         </div>
+        <div class="filtro">
+          <label for="honorariosBusca">Buscar cliente</label>
+          <input class="input" id="honorariosBusca" enterkeyhint="search" type="text" placeholder="Nome, código ou CNPJ">
+        </div>
+        <div class="filtro">
+          <label for="honorariosFiltroStatus">Situação</label>
+          <select class="input" id="honorariosFiltroStatus">
+            <option value="">Todas</option>
+            <option value="pendente">Pendente</option>
+            <option value="janela">Nesta janela</option>
+            <option value="recebido">Recebido</option>
+          </select>
+        </div>
+        <div class="filtro">
+          <label for="honorariosFiltroForma">Forma de pagamento</label>
+          <select class="input" id="honorariosFiltroForma"><option value="">Todas</option></select>
+        </div>
       </div>
       <p class="card-hint" id="honorariosResumoTab" style="margin-top:8px;"></p>
       <div id="honorariosResumo" hidden></div>
-      <div id="honorariosTabList" style="margin-top:8px;"></div>
+      <div class="honorarios-tabela" id="honorariosTabela">
+        <div class="honorarios-cabecalho">
+          <span>Cliente</span><span>Forma</span><span>Dia</span><span>Ponto de referência</span><span>Situação</span><span>Ações</span>
+        </div>
+        <div id="honorariosTabList"></div>
+      </div>
     </div>
   </section>
 
@@ -4568,56 +4623,203 @@
     if (chk && !chk.checked) { chk.checked = true; chk.dispatchEvent(new Event('change')); }
   }
 
+  function honorarioStatusChave_(x) {
+    return x.recebido ? 'recebido' : (x.naJanela ? 'janela' : 'pendente');
+  }
+
+  // O <select> de forma é montado a partir do que existe de verdade nos
+  // dados (a planilha escreve texto livre — "Pix, só pegar o recibo" é
+  // diferente de "Dinheiro/Pix") em vez de uma lista fixa que ficaria
+  // sempre atrasada ou incompleta.
+  function atualizarFormasHonorario_(clientes) {
+    var sel = $('honorariosFiltroForma');
+    var atual = sel.value;
+    var formas = Array.from(new Set(clientes.map(function (c) { return c.honorarioForma; }).filter(Boolean)))
+      .sort(function (a, b) { return a.localeCompare(b, 'pt-BR'); });
+    sel.innerHTML = '<option value="">Todas</option>' +
+      formas.map(function (f) { return '<option value="' + escapeHtml_(f) + '">' + escapeHtml_(f) + '</option>'; }).join('');
+    if (formas.indexOf(atual) !== -1) sel.value = atual;
+  }
+
   function renderHonorariosTab_() {
     if (!$('tab-honorarios')) return;
     var mesAno = $('honorariosMes').value || currentCompetencia();
     var hoje = new Date().getDate();
+    var busca = $('honorariosBusca').value.trim().toLowerCase();
+    var filtroStatus = $('honorariosFiltroStatus').value;
+    var filtroForma = $('honorariosFiltroForma').value;
 
-    var linhas = Array.from(clientesCache.values())
-      .filter(function (c) { return c.ativo !== false && honorarioPrecisaVisita_(c.honorarioForma); })
-      .map(function (c) {
-        return { c: c, recebido: statusHonorarioNoMes_(c), naJanela: honorarioNoIntervaloHoje_(c.honorarioDia, hoje) };
-      })
+    var clientesHonorario = Array.from(clientesCache.values())
+      .filter(function (c) { return c.ativo !== false && honorarioPrecisaVisita_(c.honorarioForma); });
+    atualizarFormasHonorario_(clientesHonorario);
+
+    var todasLinhas = clientesHonorario.map(function (c) {
+      return { c: c, recebido: statusHonorarioNoMes_(c), naJanela: honorarioNoIntervaloHoje_(c.honorarioDia, hoje) };
+    });
+
+    var linhas = todasLinhas
+      .filter(function (x) { return !busca || clienteCombina_(x.c, busca); })
+      .filter(function (x) { return !filtroStatus || honorarioStatusChave_(x) === filtroStatus; })
+      .filter(function (x) { return !filtroForma || x.c.honorarioForma === filtroForma; })
       .sort(function (a, b) {
         if (a.recebido !== b.recebido) return a.recebido ? 1 : -1;
         if (a.naJanela !== b.naJanela) return a.naJanela ? -1 : 1;
         return (a.c.nome || '').localeCompare(b.c.nome || '', 'pt-BR');
       });
 
-    var pendentes = linhas.filter(function (x) { return !x.recebido; }).length;
-    $('honorariosResumoTab').textContent = linhas.length
-      ? pendentes + ' de ' + linhas.length + ' ainda não entregues em ' + fmtCompetencia(mesAno)
+    var totalPendentesReal = todasLinhas.filter(function (x) { return !x.recebido; }).length;
+    $('honorariosResumoTab').textContent = todasLinhas.length
+      ? totalPendentesReal + ' de ' + todasLinhas.length + ' ainda não entregues em ' + fmtCompetencia(mesAno) +
+        (linhas.length !== todasLinhas.length ? ' · mostrando ' + linhas.length + ' com o filtro atual' : '')
       : '';
-    atualizarBadge_($('honorariosBadge'), pendentes);
+    atualizarBadge_($('honorariosBadge'), totalPendentesReal);
 
     var el = $('honorariosTabList');
     el.innerHTML = '';
-    if (!linhas.length) {
+    if (!todasLinhas.length) {
       el.innerHTML = '<div class="empty-state">Nenhum cliente de cobrança por visita ainda — importe a planilha no botão acima.</div>';
+      return;
+    }
+    if (!linhas.length) {
+      el.innerHTML = '<div class="empty-state">Nenhum cliente bate com esse filtro.</div>';
       return;
     }
     linhas.forEach(function (x) {
       var c = x.c;
-      var row = document.createElement('div');
-      row.className = 'client-row';
+      var chaveStatus = honorarioStatusChave_(x);
       var pillClasse = x.recebido ? 'entregue' : (x.naJanela ? 'rota' : 'pendente');
       var pillTexto = x.recebido ? 'Recebido' : (x.naJanela ? 'Nesta janela' : 'Pendente');
+      var row = document.createElement('div');
+      row.className = 'honorario-linha';
       row.innerHTML =
-        '<div class="cr-clickable"><div><div class="cr-name"></div><div class="cr-sub"></div></div>' +
-        '<span class="status-pill ' + pillClasse + '">' + pillTexto + '</span></div>' +
-        (!x.recebido ? '<div class="cr-actions"><button type="button" class="btn-chip">Registrar</button></div>' : '');
-      row.querySelector('.cr-name').textContent = clienteLabel(c);
-      row.querySelector('.cr-sub').textContent = [c.honorarioForma, c.honorarioDia ? 'dia ' + c.honorarioDia : '', c.pontoReferencia].filter(Boolean).join(' · ');
-      row.querySelector('.cr-clickable').addEventListener('click', function () { openClienteHistorico(c); });
-      if (!x.recebido) {
-        row.querySelector('.btn-chip').addEventListener('click', function (ev) {
-          ev.stopPropagation();
-          irRegistrarHonorario_(c);
-        });
+        '<div class="honorario-col-nome"></div>' +
+        '<div><span class="honorario-col-rotulo">Forma:</span><span class="honorario-col-sub"></span></div>' +
+        '<div><span class="honorario-col-rotulo">Dia:</span><span class="honorario-col-sub"></span></div>' +
+        '<div><span class="honorario-col-rotulo">Ref.:</span><span class="honorario-col-sub"></span></div>' +
+        '<div class="honorario-col-status"><span class="status-pill ' + pillClasse + '">' + pillTexto + '</span></div>' +
+        '<div class="honorario-acoes"></div>';
+      row.querySelector('.honorario-col-nome').textContent = clienteLabel(c);
+      var subs = row.querySelectorAll('.honorario-col-sub');
+      subs[0].textContent = c.honorarioForma || '—';
+      subs[1].textContent = c.honorarioDia || '—';
+      subs[2].textContent = c.pontoReferencia || '—';
+      row.querySelector('.honorario-col-nome').addEventListener('click', function () { openClienteHistorico(c); });
+      row.querySelector('.honorario-col-nome').style.cursor = 'pointer';
+
+      if (chaveStatus !== 'recebido') {
+        var acoes = row.querySelector('.honorario-acoes');
+        var btnRegistrar = document.createElement('button');
+        btnRegistrar.type = 'button';
+        btnRegistrar.className = 'btn-chip';
+        btnRegistrar.textContent = 'Registrar';
+        btnRegistrar.title = 'Ir pra Nova entrega com esse cliente, colhendo assinatura ou foto agora';
+        btnRegistrar.addEventListener('click', function () { irRegistrarHonorario_(c); });
+        acoes.appendChild(btnRegistrar);
+
+        var btnSemComprovante = document.createElement('button');
+        btnSemComprovante.type = 'button';
+        btnSemComprovante.className = 'btn-chip';
+        btnSemComprovante.innerHTML = '<i class="ph ph-note-pencil" aria-hidden="true"></i> Já entreguei';
+        btnSemComprovante.title = 'Marcar como entregue sem comprovante — pra entregas antigas, de antes do app';
+        btnSemComprovante.addEventListener('click', function () { abrirMarcarHonorarioSemComprovante_(c, mesAno); });
+        acoes.appendChild(btnSemComprovante);
       }
       el.appendChild(row);
     });
   }
+
+  // Pra quem foi entregue antes do app existir e não tem como provar. Grava
+  // direto (sem passar pelo formulário de Nova entrega, que exigiria
+  // assinatura/foto) marcado como semComprovante — igual ao caminho que já
+  // existe pra "cliente ausente" — mas exige o motivo, pra nunca ficar
+  // marcado como entregue em silêncio.
+  function abrirMarcarHonorarioSemComprovante_(cliente, mesAno) {
+    var root = $('modalRoot');
+    var chaveDoc = (cliente.honorarioForma || '').toLowerCase().indexOf('boleto') !== -1 ? 'Boleto' : 'Honorário';
+    root.innerHTML =
+      '<div class="modal-overlay" id="overlay"><div class="modal" id="modalInner">' +
+        '<div class="modal-head"><div><h2>Marcar como entregue</h2>' +
+          '<div class="card-hint" style="margin:2px 0 0">' + escapeHtml_(clienteLabel(cliente)) + ' · ' + fmtCompetencia(mesAno) + '</div>' +
+        '</div><button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button></div>' +
+        '<p class="card-hint" style="margin:0 0 12px">Vai contar como "' + chaveDoc + '" entregue em ' + fmtCompetencia(mesAno) + ', sem assinatura nem foto. Use só quando não tem como comprovar de outro jeito.</p>' +
+        '<label class="field"><span>Por que não tem comprovante</span>' +
+          '<textarea class="input" id="honorarioSemComprovanteMotivo" rows="2" placeholder="Ex.: entreguei antes de começar a usar o app"></textarea>' +
+          '<div class="field-error show" id="err-honorarioSemComprovanteMotivo" hidden>Explique o que aconteceu.</div>' +
+        '</label>' +
+        '<button type="button" class="btn btn-primary" id="honorarioSemComprovanteBtn">Marcar como entregue</button>' +
+      '</div></div>';
+
+    function fechar() { closeModal(); }
+    $('overlay').addEventListener('click', function (e) { if (e.target.id === 'overlay') fechar(); });
+    $('modalClose').addEventListener('click', fechar);
+
+    $('honorarioSemComprovanteBtn').addEventListener('click', function () {
+      var motivo = $('honorarioSemComprovanteMotivo').value.trim();
+      if (!motivo) { $('err-honorarioSemComprovanteMotivo').hidden = false; return; }
+      $('err-honorarioSemComprovanteMotivo').hidden = true;
+
+      var btn = this;
+      botaoOcupado_(btn);
+      // A data cai no MEIO do mês selecionado — é o mês que a pessoa está
+      // gerenciando, e não dá pra saber o dia exato de uma entrega que já
+      // passou. Se o mês escolhido é o atual, usa a hora de agora mesmo.
+      var partes = mesAno.split('-');
+      var agora = new Date();
+      var ehMesAtual = partes[0] === String(agora.getFullYear()) && parseInt(partes[1], 10) === agora.getMonth() + 1;
+      var quando = ehMesAtual ? agora : new Date(parseInt(partes[0], 10), parseInt(partes[1], 10) - 1, 15, 12, 0, 0);
+      var quandoIso = quando.toISOString();
+
+      db.collection('entregas').add({
+        clienteId: cliente.id,
+        clienteNome: clienteLabel(cliente),
+        avulso: false,
+        competencia: mesAno,
+        itens: [{ tipo: chaveDoc, valor: null }],
+        status: 'confirmada',
+        semComprovante: true,
+        motivoSemComprovante: motivo,
+        temAssinatura: false,
+        temFoto: false,
+        entregadoPor: (auth.currentUser && auth.currentUser.email) || '',
+        entregadoPorNome: currentUserNome || (auth.currentUser && auth.currentUser.email) || '',
+        criadoEm: quandoIso,
+        confirmadoEm: quandoIso
+      }).then(function () {
+        registrarAuditoria_('honorario_marcado_sem_comprovante', clienteLabel(cliente) + ' · ' + fmtCompetencia(mesAno) + ' · ' + motivo);
+        showToast('Marcado como entregue.');
+        fechar();
+      }).catch(function (err) {
+        showToast(errMsg(err, 'Não foi possível marcar.'), 'error');
+        botaoLivre_(btn);
+      });
+    });
+  }
+
+  $('honorariosBusca').addEventListener('input', aoParar(renderHonorariosTab_));
+  $('honorariosFiltroStatus').addEventListener('change', renderHonorariosTab_);
+  $('honorariosFiltroForma').addEventListener('change', renderHonorariosTab_);
+
+  $('exportHonorariosBtn').addEventListener('click', function () {
+    if (typeof XLSX === 'undefined') { showToast('Biblioteca de planilha não carregou. Recarregue a página.', 'error'); return; }
+    var mesAno = $('honorariosMes').value || currentCompetencia();
+    var hoje = new Date().getDate();
+    var linhas = [['Cliente', 'Código', 'Forma de pagamento', 'Dia', 'Ponto de referência', 'Situação']];
+    Array.from(clientesCache.values())
+      .filter(function (c) { return c.ativo !== false && honorarioPrecisaVisita_(c.honorarioForma); })
+      .map(function (c) { return { c: c, recebido: statusHonorarioNoMes_(c), naJanela: honorarioNoIntervaloHoje_(c.honorarioDia, hoje) }; })
+      .sort(function (a, b) { return (a.c.nome || '').localeCompare(b.c.nome || '', 'pt-BR'); })
+      .forEach(function (x) {
+        var situacao = x.recebido ? 'Recebido' : (x.naJanela ? 'Nesta janela' : 'Pendente');
+        linhas.push([x.c.nome || '', x.c.codigoOrigem || '', x.c.honorarioForma || '', x.c.honorarioDia || '', x.c.pontoReferencia || '', situacao]);
+      });
+    if (linhas.length === 1) { showToast('Nenhum cliente pra exportar.', 'error'); return; }
+    var ws = XLSX.utils.aoa_to_sheet(linhas);
+    ws['!cols'] = [{ wch: 35 }, { wch: 10 }, { wch: 20 }, { wch: 12 }, { wch: 30 }, { wch: 14 }];
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Honorários');
+    XLSX.writeFile(wb, 'honorarios-' + mesAno + '.xlsx');
+    showToast('Planilha baixada.');
+  });
 
   // ---------- abrir a rota no Google Maps ----------
   // O Maps aceita no máximo 9 paradas intermediárias por link (origem +
