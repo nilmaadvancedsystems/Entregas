@@ -2211,6 +2211,25 @@
   </div>
 </div>
 
+<div class="auth-gate" id="rotaGate" hidden>
+  <div class="auth-shell">
+    <div class="auth-form">
+      <h1 class="auth-titulo">Acompanhar entrega</h1>
+      <p class="auth-sub" id="rotaSub">Abrindo...</p>
+      <div id="rotaConteudo" hidden>
+        <p class="card-hint" id="rotaClienteNome" style="font-weight:600;font-size:var(--t-md);color:var(--ink);margin-bottom:var(--esp-4);"></p>
+        <div id="rotaPosicaoBox" style="text-align:center;padding:var(--esp-4);background:var(--surface-2);border-radius:var(--r-md);margin-bottom:var(--esp-4);">
+          <div id="rotaPosicaoNumero" style="font-size:2rem;font-weight:700;line-height:1;"></div>
+          <div id="rotaPosicaoTexto" class="card-hint" style="margin-top:4px;"></div>
+        </div>
+        <p class="card-hint" id="rotaListaTitulo" style="margin-bottom:6px;"></p>
+        <ul id="rotaListaAntes" style="margin:0 0 var(--esp-3);padding-left:20px;"></ul>
+        <p class="card-hint" id="rotaAtualizadoEm" style="text-align:center;"></p>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="auth-gate" id="assinaturaGate" hidden>
   <div class="auth-shell">
     <div class="auth-form">
@@ -4131,7 +4150,59 @@
       updateDashStrip();
       renderFechamentoDia_();
       renderVencimentos_();
+      sincronizarRotaLinks_();
     }, function (err) { showToast(errMsg(err, 'Não foi possível carregar a rota.'), 'error'); });
+  }
+
+  // ---------- acompanhamento de rota pro cliente (links públicos) ----------
+  // Não existe servidor rodando isso sozinho: quem mantém a posição
+  // atualizada é o aparelho de qualquer pessoa da equipe com a aba Rota
+  // aberta, recalculando e gravando de novo a cada mudança na fila.
+  var rotaLinksCache = [];
+  var unsubRotaLinks = null;
+  function subscribeRotaLinks_() {
+    if (!db) return;
+    if (unsubRotaLinks) unsubRotaLinks();
+    unsubRotaLinks = db.collection('rotaLinks').where('expiraEm', '>', new Date().toISOString()).limit(200)
+      .onSnapshot(function (snap) {
+        rotaLinksCache = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+        sincronizarRotaLinks_();
+      }, function () {});
+  }
+
+  function sincronizarRotaLinks_() {
+    if (!db || !rotaLinksCache.length) return;
+    var agora = new Date().toISOString();
+    rotaLinksCache.forEach(function (link) {
+      var pendentesDaFila = link.zona
+        ? pendentesCache.filter(function (e) { return e.zona === link.zona; })
+        : pendentesCache.slice();
+      var ordenados = ordenarPendentes_(pendentesDaFila);
+      var chaves = [];
+      var vistos = {};
+      var nomesPorChave = {};
+      ordenados.forEach(function (e) {
+        var chave = chaveDaParada_(e);
+        if (!vistos[chave]) {
+          vistos[chave] = true;
+          chaves.push(chave);
+          var doParada = ordenados.filter(function (x) { return chaveDaParada_(x) === chave; });
+          nomesPorChave[chave] = Array.from(new Set(doParada.map(function (x) { return x.clienteNome || '?'; }))).join(' + ');
+        }
+      });
+      var idx = chaves.indexOf(link.clienteChave);
+      var concluida = idx === -1;
+      var paradasAntes = concluida ? [] : chaves.slice(0, idx).map(function (c) { return nomesPorChave[c]; });
+      // a fila não muda a cada segundo — só grava quando alguma coisa de
+      // fato mudou, pra não virar escrita constante no banco
+      var mudou = concluida !== !!link.concluida || JSON.stringify(paradasAntes) !== JSON.stringify(link.paradasAntes || []);
+      if (!mudou) return;
+      link.concluida = concluida;
+      link.paradasAntes = paradasAntes;
+      db.collection('rotaLinks').doc(link.id).update({
+        paradasAntes: paradasAntes, concluida: concluida, atualizadoEm: agora
+      }).catch(function () {});
+    });
   }
 
   var ZONA_LABEL = { superior: 'Parte superior', central: 'Central', inferior: 'Parte inferior' };
@@ -5498,6 +5569,29 @@
 
   $('rotaMapsBtn').addEventListener('click', abrirRotaNoMaps_);
 
+  // paradas, não entregas: o mesmo cliente com 3 guias é uma parada só,
+  // e duas empresas aglutinadas (mesmo endereço físico) também contam
+  // como uma parada só — por isso a chave usa grupoLocal quando existe.
+  // Compartilhada com sincronizarRotaLinks_ pra a fila pública contar
+  // parada do mesmo jeito que a tela da equipe.
+  function chaveDaParada_(e) {
+    var cliente = e.clienteId ? clientesCache.get(e.clienteId) : null;
+    return (cliente && cliente.grupoLocal) || e.clienteId || e.clienteNome || '?';
+  }
+  // Quem já foi arrastada pra uma posição manual usa essa ordem; quem
+  // nunca foi movida entra no fim, na ordem de criação (comportamento de
+  // sempre, antes de existir o arrastar-e-soltar).
+  function ordenarPendentes_(lista) {
+    return lista.slice().sort(function (a, b) {
+      var ao = typeof a.ordemRota === 'number' ? a.ordemRota : null;
+      var bo = typeof b.ordemRota === 'number' ? b.ordemRota : null;
+      if (ao !== null && bo !== null && ao !== bo) return ao - bo;
+      if (ao !== null && bo === null) return -1;
+      if (ao === null && bo !== null) return 1;
+      return new Date(a.criadoEm) - new Date(b.criadoEm);
+    });
+  }
+
   function renderRota() {
     var badge = $('rotaBadge');
     atualizarBadge_(badge, pendentesCache.length);
@@ -5512,20 +5606,7 @@
     var busca = $('rotaBusca').value.trim().toLowerCase();
     var filtroPessoa = selPessoa.value;
     var filtroZona = $('rotaFiltroZona').value;
-    // Quem já foi arrastada pra uma posição manual usa essa ordem; quem
-    // nunca foi movida entra no fim, na ordem de criação (comportamento
-    // de sempre, antes de existir o arrastar-e-soltar).
-    var list = pendentesCache.slice().sort(function (a, b) {
-      var ao = typeof a.ordemRota === 'number' ? a.ordemRota : null;
-      var bo = typeof b.ordemRota === 'number' ? b.ordemRota : null;
-      // empate na posição (dado antigo, de quando reordenar com filtro
-      // ligado numerava só o visível) cai na data de criação, pra a lista
-      // pelo menos não trocar de ordem sozinha a cada carregamento
-      if (ao !== null && bo !== null && ao !== bo) return ao - bo;
-      if (ao !== null && bo === null) return -1;
-      if (ao === null && bo !== null) return 1;
-      return new Date(a.criadoEm) - new Date(b.criadoEm);
-    });
+    var list = ordenarPendentes_(pendentesCache);
     if (busca) list = list.filter(function (e) { return (e.clienteNome || '').toLowerCase().indexOf(busca) !== -1; });
     if (filtroPessoa) list = list.filter(function (e) { return (e.entregadoPorNome || e.entregadoPor) === filtroPessoa; });
     if (filtroZona) list = list.filter(function (e) { return e.zona === filtroZona; });
@@ -5539,13 +5620,6 @@
       listEl.innerHTML = '<div class="empty-state">Nenhuma entrega na rota. Toque em "+ Adicionar à rota" para preparar a próxima.</div>';
       renderPrevisaoRota_(0);
       return;
-    }
-    // paradas, não entregas: o mesmo cliente com 3 guias é uma parada só,
-    // e duas empresas aglutinadas (mesmo endereço físico) também contam
-    // como uma parada só — por isso a chave usa grupoLocal quando existe.
-    function chaveDaParada_(e) {
-      var cliente = e.clienteId ? clientesCache.get(e.clienteId) : null;
-      return (cliente && cliente.grupoLocal) || e.clienteId || e.clienteNome || '?';
     }
     renderPrevisaoRota_(new Set(list.map(chaveDaParada_)).size);
     // quantas entregas cada parada tem na rota — com mais de uma, dá pra
@@ -5586,7 +5660,7 @@
 
       var chaveParada = chaveDaParada_(e);
       var doParada = porParada[chaveParada];
-      if (doParada.length > 1 && !loteJaOferecido[chaveParada]) {
+      if (!loteJaOferecido[chaveParada]) {
         loteJaOferecido[chaveParada] = true;
         // aglutinado: os nomes podem ser de empresas diferentes — mostra
         // todos, tanto no botão quanto no título do modal, pra ficar claro
@@ -5594,14 +5668,23 @@
         // lado a lado na lista
         var nomesDaParada = Array.from(new Set(doParada.map(function (x) { return x.clienteNome || '?'; })));
         var tituloParada = nomesDaParada.join(' + ');
-        var btnLote = document.createElement('button');
-        btnLote.type = 'button';
-        btnLote.className = 'btn-chip accent';
-        btnLote.style.cssText = 'margin:2px 0 10px 26px;';
-        btnLote.innerHTML = '<i class="ph ph-signature" aria-hidden="true"></i> Assinar as ' + doParada.length + ' juntas' +
-          (nomesDaParada.length > 1 ? ' (' + escapeHtml_(tituloParada) + ')' : '');
-        btnLote.addEventListener('click', function () { openConfirmLoteModal_(tituloParada, doParada); });
-        listEl.appendChild(btnLote);
+        if (doParada.length > 1) {
+          var btnLote = document.createElement('button');
+          btnLote.type = 'button';
+          btnLote.className = 'btn-chip accent';
+          btnLote.style.cssText = 'margin:2px 0 4px 26px;';
+          btnLote.innerHTML = '<i class="ph ph-signature" aria-hidden="true"></i> Assinar as ' + doParada.length + ' juntas' +
+            (nomesDaParada.length > 1 ? ' (' + escapeHtml_(tituloParada) + ')' : '');
+          btnLote.addEventListener('click', function () { openConfirmLoteModal_(tituloParada, doParada); });
+          listEl.appendChild(btnLote);
+        }
+        var btnEnviarRota = document.createElement('button');
+        btnEnviarRota.type = 'button';
+        btnEnviarRota.className = 'btn-chip';
+        btnEnviarRota.style.cssText = 'margin:2px 0 10px 26px;';
+        btnEnviarRota.innerHTML = '<i class="ph ph-share-network" aria-hidden="true"></i> Enviar rota pro cliente';
+        btnEnviarRota.addEventListener('click', function () { abrirEnviarRotaCliente_(e, chaveParada, tituloParada); });
+        listEl.appendChild(btnEnviarRota);
       }
     });
     listaChegou_(listEl);
@@ -7601,6 +7684,67 @@
     return Array.from(a).map(function (b) { return b.toString(16).padStart(2, '0'); }).join('');
   }
 
+  // ---------- link de acompanhamento de rota pro cliente ----------
+  // Mesma ideia da assinatura remota (link com token, sem login), mas pra
+  // acompanhar a fila, não pra assinar. Vale por 24h — é sobre a rota de
+  // HOJE, não faz sentido durar mais que isso.
+  var HORAS_ROTA_LINK = 24;
+
+  function abrirEnviarRotaCliente_(entrega, chaveParada, nomeParada) {
+    var token = gerarTokenAssinatura_();
+    var link = location.href.split(/[?#]/)[0] + '?rota=' + token;
+
+    var root = $('modalRoot');
+    root.innerHTML =
+      '<div class="modal-overlay" id="overlayRotaLink"><div class="modal" id="modalRotaLink">' +
+        '<div class="modal-head"><div><h2>Enviar rota pro cliente</h2>' +
+          '<div class="card-hint" style="margin:2px 0 0">' + escapeHtml_(nomeParada) + '</div>' +
+        '</div><button class="modal-close" id="rotaLinkVoltar" title="Fechar"><i class="ph ph-x" aria-hidden="true"></i></button></div>' +
+        '<p class="card-hint" id="rotaLinkStatus">Preparando o link...</p>' +
+        '<div id="rotaLinkQr" style="display:flex;justify-content:center;margin:14px 0;"></div>' +
+        '<div class="modal-acoes">' +
+          '<button type="button" class="btn-chip" id="rotaLinkCopiarBtn"><i class="ph ph-copy" aria-hidden="true"></i> Copiar link</button>' +
+          '<button type="button" class="btn-chip" id="rotaLinkWhatsBtn"><i class="ph ph-whatsapp-logo" aria-hidden="true"></i> Mandar no WhatsApp</button>' +
+        '</div>' +
+        '<p class="card-hint">O cliente só vê quantas empresas faltam até a dele e os nomes de quem está na frente — nada de documento, valor ou data, e não dá pra mexer em nada. Vale 24h.</p>' +
+      '</div></div>';
+
+    function fechar() { closeModal(); }
+    $('rotaLinkVoltar').addEventListener('click', fechar);
+    $('overlayRotaLink').addEventListener('click', function (e) { if (e.target.id === 'overlayRotaLink') fechar(); });
+
+    db.collection('rotaLinks').doc(token).set({
+      clienteChave: chaveParada,
+      clienteNomeParada: nomeParada,
+      zona: entrega.zona || null,
+      criadoPor: (auth.currentUser && auth.currentUser.email) || '',
+      criadoPorNome: currentUserNome || '',
+      criadoEm: new Date().toISOString(),
+      expiraEm: new Date(Date.now() + HORAS_ROTA_LINK * 3600000).toISOString(),
+      paradasAntes: [],
+      concluida: false,
+      atualizadoEm: new Date().toISOString()
+    }).then(function () {
+      $('rotaLinkStatus').textContent = 'Link pronto — atualiza sozinho conforme a rota andar.';
+      if (typeof QRCode !== 'undefined') {
+        new QRCode($('rotaLinkQr'), { text: link, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.M });
+      } else {
+        $('rotaLinkQr').innerHTML = '<p class="card-hint" style="word-break:break-all">' + escapeHtml_(link) + '</p>';
+      }
+      $('rotaLinkCopiarBtn').addEventListener('click', function () {
+        navigator.clipboard.writeText(link).then(function () { showToast('Link copiado.'); });
+      });
+      $('rotaLinkWhatsBtn').addEventListener('click', function () {
+        var cliente = entrega.clienteId ? clientesCache.get(entrega.clienteId) : null;
+        var texto = 'Acompanhe sua entrega da Nilma Contabilidade — quantas empresas faltam até a sua: ' + link;
+        window.open(whatsAppUrl_(texto, cliente && cliente.telefone), '_blank');
+      });
+      sincronizarRotaLinks_();
+    }).catch(function (err) {
+      $('rotaLinkStatus').textContent = errMsg(err, 'Não foi possível preparar o link.');
+    });
+  }
+
   function abrirAssinaturaRemota_(entrega, guardarParar) {
     var token = gerarTokenAssinatura_();
     var itensResumo = (entrega.itens || []).map(function (i) {
@@ -9468,6 +9612,8 @@
       renderHonorariosTab_();
       renderPainel();
       updateDashStrip();
+      renderRota();
+      sincronizarRotaLinks_();
       if (primeiraCargaClientes) { primeiraCargaClientes = false; restaurarRascunhoSeExistir_(); atualizarAlertaSemEntrega_(); }
     }, function (err) {
       $('no-db').hidden = false;
@@ -9480,6 +9626,7 @@
       subscribeHonorarioNaoAplicavel_($('honorariosMes').value);
     }
     subscribePendentes();
+    subscribeRotaLinks_();
     subscribeSolicitacoes();
     subscribeRecados();
     subscribeNotas();
@@ -9715,7 +9862,7 @@
       if (logo) $('authLogo').src = logo.src;
       // com a tela de convite (ou a do cliente assinando) aberta, o login
       // não deve aparecer por cima
-      $('authGate').hidden = !$('conviteGate').hidden || !$('assinaturaGate').hidden;
+      $('authGate').hidden = !$('conviteGate').hidden || !$('assinaturaGate').hidden || !$('rotaGate').hidden;
       $('settingsBtn').hidden = true;
       $('notasBtn').hidden = true;
       $('brandName').textContent = 'Nilma';
@@ -9943,12 +10090,57 @@
     });
   }
 
+  // ---------- tela do cliente acompanhando a rota (sem login) ----------
+  // Só mostra posição na fila e nomes de quem está na frente — nunca os
+  // documentos, valores ou datas de ninguém, e não tem nada pra clicar
+  // além de olhar. Atualiza ao vivo (onSnapshot), mas só muda de valor
+  // quando algum aparelho da equipe com a aba Rota aberta recalcular e
+  // gravar de novo — não existe servidor rodando sozinho aqui atrás.
+  function abrirTelaRota_(token) {
+    $('rotaGate').hidden = false;
+    $('authGate').hidden = true;
+    db.collection('rotaLinks').doc(token).onSnapshot(function (snap) {
+      if (!snap.exists) { $('rotaSub').textContent = 'Este link não existe mais. Peça um novo a quem está entregando.'; return; }
+      var d = snap.data();
+      if (d.expiraEm && new Date(d.expiraEm) < new Date()) {
+        $('rotaSub').textContent = 'Este link expirou. Peça um novo a quem está entregando.';
+        $('rotaConteudo').hidden = true;
+        return;
+      }
+      $('rotaSub').textContent = 'Nilma Contabilidade';
+      $('rotaClienteNome').textContent = d.clienteNomeParada || '';
+      $('rotaConteudo').hidden = false;
+
+      if (d.concluida) {
+        $('rotaPosicaoNumero').textContent = '✓';
+        $('rotaPosicaoTexto').textContent = 'Entrega concluída — obrigado!';
+        $('rotaListaTitulo').textContent = '';
+        $('rotaListaAntes').innerHTML = '';
+        return;
+      }
+      var antes = d.paradasAntes || [];
+      $('rotaPosicaoNumero').textContent = antes.length === 0 ? '🚚' : String(antes.length);
+      $('rotaPosicaoTexto').textContent = antes.length === 0
+        ? 'Você é a próxima entrega!'
+        : 'empresa' + (antes.length > 1 ? 's' : '') + ' na frente da sua';
+      $('rotaListaTitulo').textContent = antes.length ? 'Quem está na frente:' : '';
+      $('rotaListaAntes').innerHTML = antes.map(function (nome) { return '<li>' + escapeHtml_(nome) + '</li>'; }).join('');
+      $('rotaAtualizadoEm').textContent = d.atualizadoEm
+        ? 'Atualizado ' + new Date(d.atualizadoEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+        : '';
+    }, function () {
+      $('rotaSub').textContent = 'Não foi possível abrir este link agora. Tente de novo.';
+    });
+  }
+
   (function () {
     var params = new URLSearchParams(location.search);
     var assinar = params.get('assinar');
     if (assinar && db) { abrirTelaAssinatura_(assinar); return; }
     var codigo = params.get('convite');
-    if (codigo && db) abrirTelaConvite_(codigo);
+    if (codigo && db) { abrirTelaConvite_(codigo); return; }
+    var rota = params.get('rota');
+    if (rota && db) abrirTelaRota_(rota);
   })();
 })();
 </script>

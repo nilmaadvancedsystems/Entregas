@@ -271,6 +271,31 @@ service cloud.firestore {
       allow delete: if logado();
     }
 
+    // ---------- rotaLinks: acompanhamento de rota pro cliente (SEM LOGIN) ----------
+    // Outra porta aberta pra fora, igual a `assinaturas`: o cliente recebe
+    // um link (WhatsApp ou QR) e abre sem conta. O que ele lê aqui é só
+    // nome da parada, quem está na frente e se já foi concluída — nunca
+    // documento, valor ou data, e essa regra não abre acesso a `entregas`
+    // pra ele: a projeção é gravada por quem já está logado, sempre que a
+    // fila muda (sincronizarRotaLinks_ no app).
+    match /rotaLinks/{token} {
+      // Sem `list`: com ele, um estranho varria a coleção e lia nome de
+      // cliente de todo mundo que já recebeu um link, sem login.
+      allow get: if true;
+      allow list: if logado();
+
+      allow create: if logado()
+        && request.resource.data.clienteChave is string
+        && request.resource.data.expiraEm is string;
+
+      // Só a projeção pode mudar depois de criado (nome do cliente e zona
+      // são fixos desde a criação); e só quem está logado grava — o
+      // cliente do outro lado do link não escreve nada, só lê.
+      allow update: if logado() && so(['paradasAntes', 'concluida', 'atualizadoEm']);
+
+      allow delete: if logado();
+    }
+
     // ---------- conciliações (Contábil: conciliador.html, cheque-especial.html) ----------
     // Essas duas ferramentas não vieram no mesmo pacote — se este arquivo
     // fosse publicado sem esta seção, a aba Contábil inteira parava de
