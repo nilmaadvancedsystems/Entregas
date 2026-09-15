@@ -807,19 +807,26 @@
   .honorario-col-status { display: flex; }
   .honorario-acoes { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
   @media (min-width: 900px) {
+    /* "auto" na última coluna deixava ela crescer pra caber os 4 botões
+       numa linha só, espremendo Nome e Ponto de referência (é isso que
+       fazia nome/referência quebrar em duas linhas torto). Largura fixa
+       + flex-wrap: os botões quebram em até 2 linhas dentro da própria
+       coluna, sem roubar espaço das outras. */
     .honorarios-cabecalho {
-      display: grid; grid-template-columns: minmax(0,2fr) 130px 70px minmax(0,2fr) 120px auto;
-      gap: 0 var(--esp-3); padding: 8px var(--esp-3); background: var(--surface-2);
+      display: grid; grid-template-columns: minmax(0,1.6fr) 120px 70px minmax(0,1.3fr) 108px 190px;
+      gap: 0 var(--esp-2); padding: 8px var(--esp-3); background: var(--surface-2);
       font-size: var(--t-xs); font-weight: 600; color: var(--ink-soft);
       text-transform: uppercase; letter-spacing: .03em;
     }
     .honorario-linha {
-      grid-template-columns: minmax(0,2fr) 130px 70px minmax(0,2fr) 120px auto;
-      gap: 0 var(--esp-3); align-items: center; min-height: var(--linha); padding: 4px var(--esp-3);
+      grid-template-columns: minmax(0,1.6fr) 120px 70px minmax(0,1.3fr) 108px 190px;
+      gap: 0 var(--esp-2); align-items: center; min-height: var(--linha); padding: 6px var(--esp-3);
     }
     .honorario-col-rotulo { display: none; }
-    .honorario-col-sub { color: var(--ink-faint); font-size: var(--t-sm); }
-    .honorario-acoes { margin-top: 0; }
+    .honorario-col-sub { color: var(--ink-faint); font-size: var(--t-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .honorario-col-nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .honorario-acoes { margin-top: 0; justify-content: flex-end; }
+    .honorario-acoes .btn-chip, .honorario-acoes .link-btn { font-size: var(--t-xs); padding: 4px 8px; }
   }
 
   /* ---------- esqueleto de carregamento ---------- */
@@ -2000,7 +2007,11 @@
           <select class="input" id="honorariosFiltroForma"><option value="">Todas</option></select>
         </div>
         <div class="filtro">
-          <label for="honorariosFiltroDia">Dia do mês</label>
+          <label for="honorariosFiltroDiaExato">Dia</label>
+          <select class="input" id="honorariosFiltroDiaExato"><option value="">Todos</option></select>
+        </div>
+        <div class="filtro">
+          <label for="honorariosFiltroDia">Ver como se hoje fosse o dia</label>
           <input class="input" id="honorariosFiltroDia" type="number" min="1" max="31" placeholder="Ex.: 20 (vazio = hoje)">
         </div>
       </div>
@@ -4757,12 +4768,27 @@
     if (formas.indexOf(atual) !== -1) sel.value = atual;
   }
 
+  // Mesma ideia do de cima, mas pro campo "Dia": lista os valores que
+  // existem de verdade (a planilha escreve "01 a 05", "20 a 26", até
+  // "Só Deus sabe") — escolher um da lista em vez de adivinhar um número
+  // que caia dentro do intervalo certo.
+  function atualizarDiasHonorario_(clientes) {
+    var sel = $('honorariosFiltroDiaExato');
+    var atual = sel.value;
+    var dias = Array.from(new Set(clientes.map(function (c) { return c.honorarioDia; }).filter(Boolean)))
+      .sort(function (a, b) { return a.localeCompare(b, 'pt-BR', { numeric: true }); });
+    sel.innerHTML = '<option value="">Todos</option>' +
+      dias.map(function (d) { return '<option value="' + escapeHtml_(d) + '">' + escapeHtml_(d) + '</option>'; }).join('');
+    if (dias.indexOf(atual) !== -1) sel.value = atual;
+  }
+
   function renderHonorariosTab_() {
     if (!$('tab-honorarios')) return;
     var mesAno = $('honorariosMes').value || currentCompetencia();
     var busca = $('honorariosBusca').value.trim().toLowerCase();
     var filtroStatus = $('honorariosFiltroStatus').value;
     var filtroForma = $('honorariosFiltroForma').value;
+    var filtroDiaExato = $('honorariosFiltroDiaExato').value;
     var filtroDiaTexto = $('honorariosFiltroDia').value.trim();
     var filtroDia = filtroDiaTexto ? parseInt(filtroDiaTexto, 10) : null;
     // sem filtro de dia, "nesta janela" usa o dia de hoje; com filtro, usa o
@@ -4776,6 +4802,7 @@
     var clientesHonorario = Array.from(clientesCache.values())
       .filter(function (c) { return c.ativo !== false && honorarioPrecisaVisita_(c.honorarioForma); });
     atualizarFormasHonorario_(clientesHonorario);
+    atualizarDiasHonorario_(clientesHonorario);
 
     var todasLinhas = clientesHonorario.map(function (c) {
       var excecao = excecoesPorCliente[c.id];
@@ -4790,6 +4817,7 @@
       .filter(function (x) { return !busca || clienteCombina_(x.c, busca); })
       .filter(function (x) { return !filtroStatus || honorarioStatusChave_(x) === filtroStatus; })
       .filter(function (x) { return !filtroForma || x.c.honorarioForma === filtroForma; })
+      .filter(function (x) { return !filtroDiaExato || x.c.honorarioDia === filtroDiaExato; })
       .filter(function (x) { return !filtroDia || x.naoAplicavel || honorarioNoIntervaloHoje_(x.c.honorarioDia, filtroDia); })
       .sort(function (a, b) {
         if (a.naoAplicavel !== b.naoAplicavel) return a.naoAplicavel ? 1 : -1;
@@ -4959,6 +4987,7 @@
   $('honorariosBusca').addEventListener('input', aoParar(renderHonorariosTab_));
   $('honorariosFiltroStatus').addEventListener('change', renderHonorariosTab_);
   $('honorariosFiltroForma').addEventListener('change', renderHonorariosTab_);
+  $('honorariosFiltroDiaExato').addEventListener('change', renderHonorariosTab_);
   $('honorariosFiltroDia').addEventListener('input', aoParar(renderHonorariosTab_));
 
   $('exportHonorariosBtn').addEventListener('click', function () {
