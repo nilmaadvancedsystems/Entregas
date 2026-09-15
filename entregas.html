@@ -621,6 +621,25 @@
   .suggestion .s-doc { font-size: var(--t-sm); color: var(--ink-faint); }
   .suggestion.add-new { color: var(--accent-forte); font-weight: 600; }
 
+  /* ---------- seletor de vários valores (ex.: dias de honorário) ---------- */
+  .multiselect { position: relative; }
+  .multiselect-btn {
+    display: flex; align-items: center; justify-content: space-between; gap: 6px;
+    text-align: left; cursor: pointer; color: inherit;
+  }
+  .multiselect-btn i { color: var(--ink-faint); flex-shrink: 0; }
+  .multiselect-painel {
+    position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: var(--z-suspenso);
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md);
+    box-shadow: var(--shadow); max-height: 260px; overflow-y: auto; padding: 4px;
+  }
+  .multiselect-opcao {
+    display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+    border-radius: var(--r-sm); cursor: pointer;
+  }
+  .multiselect-opcao:hover { background: var(--surface-2); }
+  .multiselect-opcao input { margin: 0; }
+
   /* ---------- interruptores de contexto ---------- */
   .avulso-toggle {
     display: flex; align-items: center; gap: var(--esp-2); font-size: var(--t-md);
@@ -823,9 +842,13 @@
       gap: 0 var(--esp-2); align-items: center; min-height: var(--linha); padding: 6px var(--esp-3);
     }
     .honorario-col-rotulo { display: none; }
-    .honorario-col-sub { color: var(--ink-faint); font-size: var(--t-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .honorario-col-nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .honorario-acoes { margin-top: 0; justify-content: flex-end; }
+    /* overflow tem que estar na CÉLULA do grid (a div direta), não só no
+       texto de dentro — senão o navegador não corta nada, só deixa o
+       texto comprido pintar por cima da coluna vizinha (foi o que criava
+       "Só Deus sabeAntiga Krok" colado, sem corte nem espaço). */
+    .honorario-linha > div { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+    .honorario-col-sub { color: var(--ink-faint); font-size: var(--t-sm); }
+    .honorario-linha > .honorario-acoes { margin-top: 0; justify-content: flex-end; overflow: visible; white-space: normal; }
     .honorario-acoes .btn-chip, .honorario-acoes .link-btn { font-size: var(--t-xs); padding: 4px 8px; }
   }
 
@@ -1980,6 +2003,7 @@
       <div class="card-head-row">
         <h2><i class="ph ph-hand-coins" aria-hidden="true"></i> Honorários</h2>
         <button type="button" class="btn-chip" id="exportHonorariosBtn"><i class="ph ph-download-simple" aria-hidden="true"></i> Exportar planilha</button>
+        <button type="button" class="btn-chip" id="addHonorarioClienteBtn"><i class="ph ph-plus" aria-hidden="true"></i> Adicionar cliente</button>
         <button type="button" class="btn-chip accent" id="importHonorariosBtn"><i class="ph ph-upload-simple" aria-hidden="true"></i> Preencher de arquivo</button>
       </div>
       <p class="card-hint">Quem paga em dinheiro, Pix ou boleto — alguém do escritório precisa ir até o cliente. "Recebido" é lido da própria entrega confirmada NESSE MÊS (pela data real da entrega, não pela competência escrita no documento); não é um controle separado.</p>
@@ -2007,12 +2031,13 @@
           <select class="input" id="honorariosFiltroForma"><option value="">Todas</option></select>
         </div>
         <div class="filtro">
-          <label for="honorariosFiltroDiaExato">Dia</label>
-          <select class="input" id="honorariosFiltroDiaExato"><option value="">Todos</option></select>
-        </div>
-        <div class="filtro">
-          <label for="honorariosFiltroDia">Ver como se hoje fosse o dia</label>
-          <input class="input" id="honorariosFiltroDia" type="number" min="1" max="31" placeholder="Ex.: 20 (vazio = hoje)">
+          <label for="honorariosFiltroDiaBtn">Dia</label>
+          <div class="multiselect" id="honorariosFiltroDiaMulti">
+            <button type="button" class="input multiselect-btn" id="honorariosFiltroDiaBtn">
+              <span id="honorariosFiltroDiaBtnTexto">Todos</span><i class="ph ph-caret-down" aria-hidden="true"></i>
+            </button>
+            <div class="multiselect-painel" id="honorariosFiltroDiaPainel" hidden></div>
+          </div>
         </div>
       </div>
       <p class="card-hint" id="honorariosResumoTab" style="margin-top:8px;"></p>
@@ -4667,6 +4692,54 @@
     }).catch(function (err) { showToast(errMsg(err, 'Não foi possível desfazer.'), 'error'); });
   }
 
+  // ---------- honorários: adicionar cliente ----------
+  // A planilha original só trouxe quem já cobrava por honorário/boleto
+  // na época do import — um cliente novo, ou um que passou a precisar de
+  // visita depois, não tinha como entrar na lista sem reimportar tudo.
+  // Aqui é só buscar o cliente já cadastrado e preencher forma/dia —
+  // reaproveita o mesmo modal de editar, que já grava esses campos.
+  function abrirAdicionarHonorarioCliente_() {
+    var root = $('modalRoot');
+    root.innerHTML =
+      '<div class="modal-overlay" id="overlay"><div class="modal" id="modalInner">' +
+        '<div class="modal-head"><div><h2>Adicionar cliente aos honorários</h2>' +
+          '<div class="card-hint" style="margin:2px 0 0">Busque um cliente já cadastrado.</div>' +
+        '</div><button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button></div>' +
+        '<label class="field"><span>Buscar cliente</span>' +
+          '<input class="input" id="addHonorarioBusca" type="text" placeholder="Nome, código ou CNPJ" autocomplete="off"></label>' +
+        '<div id="addHonorarioLista"></div>' +
+      '</div></div>';
+
+    function fechar() { closeModal(); }
+    $('overlay').addEventListener('click', function (e) { if (e.target.id === 'overlay') fechar(); });
+    $('modalClose').addEventListener('click', fechar);
+
+    $('addHonorarioBusca').addEventListener('input', aoParar(function () {
+      var q = $('addHonorarioBusca').value.trim().toLowerCase();
+      var lista = $('addHonorarioLista');
+      lista.innerHTML = '';
+      if (q.length < 2) return;
+      Array.from(clientesCache.values())
+        .filter(function (c) { return c.ativo !== false && clienteCombina_(c, q); })
+        .slice(0, 8)
+        .forEach(function (c) {
+          var b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'client-row';
+          b.style.width = '100%';
+          b.innerHTML = '<div><div class="cr-name"></div><div class="cr-sub"></div></div>';
+          b.querySelector('.cr-name').textContent = clienteLabel(c);
+          b.querySelector('.cr-sub').textContent = c.honorarioForma
+            ? 'Já está nos honorários — ' + c.honorarioForma
+            : 'Ainda não está nos honorários';
+          b.addEventListener('click', function () { abrirEditarHonorarioCliente_(c); });
+          lista.appendChild(b);
+        });
+    }));
+    $('addHonorarioBusca').focus();
+  }
+  $('addHonorarioClienteBtn').addEventListener('click', abrirAdicionarHonorarioCliente_);
+
   // ---------- honorários: editar / remover dados do cliente ----------
   // Corrige forma, dia ou ponto de referência sem precisar reimportar a
   // planilha inteira por causa de UM cliente que mudou (ex.: passou a
@@ -4696,6 +4769,14 @@
 
     $('editHonorarioSalvarBtn').addEventListener('click', function () {
       var btn = this;
+      // sem forma de pagamento o cliente não conta como "precisa de
+      // visita" (honorarioPrecisaVisita_) e desaparece da lista sem
+      // aviso nenhum — melhor recusar aqui do que deixar a pessoa
+      // pensar que salvou e não achar o cliente depois.
+      if (!$('editHonorarioForma').value.trim()) {
+        showToast('Preencha a forma de pagamento — sem ela o cliente não aparece na lista.', 'error');
+        return;
+      }
       botaoOcupado_(btn);
       db.doc('clientes/' + cliente.id).update({
         honorarioForma: $('editHonorarioForma').value.trim(),
@@ -4768,19 +4849,61 @@
     if (formas.indexOf(atual) !== -1) sel.value = atual;
   }
 
-  // Mesma ideia do de cima, mas pro campo "Dia": lista os valores que
-  // existem de verdade (a planilha escreve "01 a 05", "20 a 26", até
-  // "Só Deus sabe") — escolher um da lista em vez de adivinhar um número
-  // que caia dentro do intervalo certo.
-  function atualizarDiasHonorario_(clientes) {
-    var sel = $('honorariosFiltroDiaExato');
-    var atual = sel.value;
-    var dias = Array.from(new Set(clientes.map(function (c) { return c.honorarioDia; }).filter(Boolean)))
-      .sort(function (a, b) { return a.localeCompare(b, 'pt-BR', { numeric: true }); });
-    sel.innerHTML = '<option value="">Todos</option>' +
-      dias.map(function (d) { return '<option value="' + escapeHtml_(d) + '">' + escapeHtml_(d) + '</option>'; }).join('');
-    if (dias.indexOf(atual) !== -1) sel.value = atual;
+  // Mesma ideia do de cima, mas pro campo "Dia" — só que com vários
+  // valores marcáveis, não um só (um cliente cair no dia 05 e outro no
+  // 20 não são situações que se excluem, então filtrar precisa deixar
+  // marcar os dois ao mesmo tempo).
+  //
+  // A planilha escreve texto livre, e "20 a 26" e "20 A 26" são o mesmo
+  // intervalo com A maiúsculo por acidente — sem normalizar, apareciam
+  // como duas opções diferentes na lista. honorarioDiaChave_ padroniza
+  // pra agrupar os dois; a comparação do filtro usa a mesma função.
+  var honorariosDiasSelecionados = [];
+  function honorarioDiaChave_(valor) {
+    return String(valor || '').trim().replace(/\s+a\s+/i, ' a ').toLowerCase();
   }
+  function atualizarDiasHonorario_(clientes) {
+    var porChave = {};
+    clientes.forEach(function (c) {
+      if (!c.honorarioDia) return;
+      var chave = honorarioDiaChave_(c.honorarioDia);
+      if (!porChave[chave]) porChave[chave] = String(c.honorarioDia).trim().replace(/\s+a\s+/i, ' a ');
+    });
+    var chaves = Object.keys(porChave).sort(function (a, b) { return porChave[a].localeCompare(porChave[b], 'pt-BR', { numeric: true }); });
+    // não deixa marcado um valor que sumiu dos dados (ex.: depois de editar um cliente)
+    honorariosDiasSelecionados = honorariosDiasSelecionados.filter(function (c) { return chaves.indexOf(c) !== -1; });
+
+    var painel = $('honorariosFiltroDiaPainel');
+    painel.innerHTML = chaves.map(function (chave) {
+      var marcado = honorariosDiasSelecionados.indexOf(chave) !== -1;
+      return '<label class="multiselect-opcao"><input type="checkbox" data-chave="' + escapeHtml_(chave) + '"' + (marcado ? ' checked' : '') + '>' +
+        '<span>' + escapeHtml_(porChave[chave]) + '</span></label>';
+    }).join('') || '<p class="card-hint" style="padding:8px 10px;">Nenhum dia cadastrado ainda.</p>';
+    painel.querySelectorAll('input[type="checkbox"]').forEach(function (chk) {
+      chk.addEventListener('change', function () {
+        var chave = chk.dataset.chave;
+        var idx = honorariosDiasSelecionados.indexOf(chave);
+        if (chk.checked && idx === -1) honorariosDiasSelecionados.push(chave);
+        else if (!chk.checked && idx !== -1) honorariosDiasSelecionados.splice(idx, 1);
+        atualizarTextoBotaoDia_(porChave);
+        renderHonorariosTab_();
+      });
+    });
+    atualizarTextoBotaoDia_(porChave);
+  }
+  function atualizarTextoBotaoDia_(porChave) {
+    var n = honorariosDiasSelecionados.length;
+    $('honorariosFiltroDiaBtnTexto').textContent = !n ? 'Todos'
+      : n === 1 ? porChave[honorariosDiasSelecionados[0]]
+      : n + ' dias selecionados';
+  }
+  $('honorariosFiltroDiaBtn').addEventListener('click', function (ev) {
+    ev.stopPropagation();
+    $('honorariosFiltroDiaPainel').hidden = !$('honorariosFiltroDiaPainel').hidden;
+  });
+  document.addEventListener('click', function (ev) {
+    if (!ev.target.closest('#honorariosFiltroDiaMulti')) $('honorariosFiltroDiaPainel').hidden = true;
+  });
 
   function renderHonorariosTab_() {
     if (!$('tab-honorarios')) return;
@@ -4788,13 +4911,7 @@
     var busca = $('honorariosBusca').value.trim().toLowerCase();
     var filtroStatus = $('honorariosFiltroStatus').value;
     var filtroForma = $('honorariosFiltroForma').value;
-    var filtroDiaExato = $('honorariosFiltroDiaExato').value;
-    var filtroDiaTexto = $('honorariosFiltroDia').value.trim();
-    var filtroDia = filtroDiaTexto ? parseInt(filtroDiaTexto, 10) : null;
-    // sem filtro de dia, "nesta janela" usa o dia de hoje; com filtro, usa o
-    // dia escolhido — pra poder olhar pra frente ("quem eu preciso visitar
-    // por volta do dia 20"), não só pro que está valendo agora
-    var diaReferencia = filtroDia || new Date().getDate();
+    var diaReferencia = new Date().getDate();
 
     var excecoesPorCliente = {};
     honorarioNaoAplicavelCache.forEach(function (ex) { excecoesPorCliente[ex.clienteId] = ex; });
@@ -4817,8 +4934,7 @@
       .filter(function (x) { return !busca || clienteCombina_(x.c, busca); })
       .filter(function (x) { return !filtroStatus || honorarioStatusChave_(x) === filtroStatus; })
       .filter(function (x) { return !filtroForma || x.c.honorarioForma === filtroForma; })
-      .filter(function (x) { return !filtroDiaExato || x.c.honorarioDia === filtroDiaExato; })
-      .filter(function (x) { return !filtroDia || x.naoAplicavel || honorarioNoIntervaloHoje_(x.c.honorarioDia, filtroDia); })
+      .filter(function (x) { return !honorariosDiasSelecionados.length || honorariosDiasSelecionados.indexOf(honorarioDiaChave_(x.c.honorarioDia)) !== -1; })
       .sort(function (a, b) {
         if (a.naoAplicavel !== b.naoAplicavel) return a.naoAplicavel ? 1 : -1;
         if (a.recebido !== b.recebido) return a.recebido ? 1 : -1;
@@ -4987,8 +5103,6 @@
   $('honorariosBusca').addEventListener('input', aoParar(renderHonorariosTab_));
   $('honorariosFiltroStatus').addEventListener('change', renderHonorariosTab_);
   $('honorariosFiltroForma').addEventListener('change', renderHonorariosTab_);
-  $('honorariosFiltroDiaExato').addEventListener('change', renderHonorariosTab_);
-  $('honorariosFiltroDia').addEventListener('input', aoParar(renderHonorariosTab_));
 
   $('exportHonorariosBtn').addEventListener('click', function () {
     if (typeof XLSX === 'undefined') { showToast('Biblioteca de planilha não carregou. Recarregue a página.', 'error'); return; }
