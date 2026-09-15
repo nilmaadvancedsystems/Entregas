@@ -291,7 +291,7 @@ service cloud.firestore {
       // Só a projeção pode mudar depois de criado (nome do cliente e zona
       // são fixos desde a criação); e só quem está logado grava — o
       // cliente do outro lado do link não escreve nada, só lê.
-      allow update: if logado() && so(['paradasAntes', 'concluida', 'atualizadoEm']);
+      allow update: if logado() && so(['paradasAntes', 'concluida', 'estimativaMinutos', 'atualizadoEm']);
 
       allow delete: if logado();
     }

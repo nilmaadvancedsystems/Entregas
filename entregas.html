@@ -2222,6 +2222,7 @@
         <div id="rotaPosicaoBox" style="text-align:center;padding:var(--esp-4);background:var(--surface-2);border-radius:var(--r-md);margin-bottom:var(--esp-4);">
           <div id="rotaPosicaoNumero" style="font-size:2rem;font-weight:700;line-height:1;"></div>
           <div id="rotaPosicaoTexto" class="card-hint" style="margin-top:4px;"></div>
+          <div id="rotaEstimativa" class="card-hint" style="margin-top:8px;font-weight:500;color:var(--ink-soft);"></div>
         </div>
         <p class="card-hint" id="rotaListaTitulo" style="margin-bottom:6px;"></p>
         <ul id="rotaListaAntes" style="margin:0 0 var(--esp-3);padding-left:20px;"></ul>
@@ -4174,6 +4175,11 @@
   function sincronizarRotaLinks_() {
     if (!db || !rotaLinksCache.length) return;
     var agora = new Date().toISOString();
+    // ritmo medido nas entregas confirmadas de verdade (minutos entre uma
+    // parada e outra da mesma pessoa, no mesmo dia) — mesma conta que já
+    // aparece pra equipe em "Previsão da rota", só multiplicada por quantas
+    // paradas faltam até a do cliente. Sem amostra suficiente, não estima.
+    var ritmo = minutosPorParada_();
     rotaLinksCache.forEach(function (link) {
       var pendentesDaFila = link.zona
         ? pendentesCache.filter(function (e) { return e.zona === link.zona; })
@@ -4197,14 +4203,18 @@
       var idx = chaves.indexOf(link.clienteChave);
       var concluida = idx === -1;
       var paradasAntes = concluida ? [] : chaves.slice(0, idx).map(function (c) { return nomesPorChave[c]; });
+      var estimativaMinutos = (!concluida && ritmo) ? Math.round(ritmo.minutos * paradasAntes.length) : null;
       // a fila não muda a cada segundo — só grava quando alguma coisa de
       // fato mudou, pra não virar escrita constante no banco
-      var mudou = concluida !== !!link.concluida || JSON.stringify(paradasAntes) !== JSON.stringify(link.paradasAntes || []);
+      var mudou = concluida !== !!link.concluida
+        || JSON.stringify(paradasAntes) !== JSON.stringify(link.paradasAntes || [])
+        || estimativaMinutos !== (typeof link.estimativaMinutos === 'number' ? link.estimativaMinutos : null);
       if (!mudou) return;
       link.concluida = concluida;
       link.paradasAntes = paradasAntes;
+      link.estimativaMinutos = estimativaMinutos;
       db.collection('rotaLinks').doc(link.id).update({
-        paradasAntes: paradasAntes, concluida: concluida, atualizadoEm: agora
+        paradasAntes: paradasAntes, concluida: concluida, estimativaMinutos: estimativaMinutos, atualizadoEm: agora
       }).catch(function () {});
     });
   }
@@ -7772,6 +7782,7 @@
       expiraEm: new Date(Date.now() + HORAS_ROTA_LINK * 3600000).toISOString(),
       paradasAntes: [],
       concluida: false,
+      estimativaMinutos: null,
       atualizadoEm: new Date().toISOString()
     }).then(function () {
       $('rotaLinkStatus').textContent = 'Link pronto — atualiza sozinho conforme a rota andar.';
@@ -10163,6 +10174,7 @@
       if (d.concluida) {
         $('rotaPosicaoNumero').textContent = '✓';
         $('rotaPosicaoTexto').textContent = 'Entrega concluída — obrigado!';
+        $('rotaEstimativa').textContent = '';
         $('rotaListaTitulo').textContent = '';
         $('rotaListaAntes').innerHTML = '';
         return;
@@ -10172,6 +10184,11 @@
       $('rotaPosicaoTexto').textContent = antes.length === 0
         ? 'Você é a próxima entrega!'
         : 'empresa' + (antes.length > 1 ? 's' : '') + ' na frente da sua';
+      // é uma estimativa no ritmo médio de quem está entregando — pode
+      // variar bastante (trânsito, cliente ausente, parada que atrasa).
+      $('rotaEstimativa').textContent = typeof d.estimativaMinutos === 'number'
+        ? (d.estimativaMinutos <= 1 ? 'Chegando em poucos minutos' : '~' + fmtDuracao_(d.estimativaMinutos) + ' de espera (estimativa)')
+        : '';
       $('rotaListaTitulo').textContent = antes.length ? 'Quem está na frente:' : '';
       $('rotaListaAntes').innerHTML = antes.map(function (nome) { return '<li>' + escapeHtml_(nome) + '</li>'; }).join('');
       $('rotaAtualizadoEm').textContent = d.atualizadoEm
