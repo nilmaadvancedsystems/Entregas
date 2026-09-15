@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Importador LCDPR — Nilma Contabilidade</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Mesma paleta/tokens do app de Entregas (Nilma Protocolos) — "uma
+   superfície só" (fundo e cartão no mesmo tom, separados por fio de
+   1px, não bloco de cor) e o mesmo acento. Esta ferramenta só tem
+   tema escuro, então usa direto os valores escuros do app principal
+   em vez de replicar o esquema de :root/@media dele. */
+:root{
+  --bg:#141414; --surface:#141414; --surface-2:#1E1E1E; --text:#F0F0F0;
+  --muted:#ADADAD; --muted-2:#8C8C8C; --divider:#2C2C2C;
+  --accent:#DE756B; --accent-ink:#26100E; --accent-hover:color-mix(in srgb, var(--accent) 92%, var(--text)); --accent-soft:#38201D;
+  --warn:#D9A857; --warn-soft:#322614;
+  --radius:10px; --radius-sm:6px;
+}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,'Segoe UI',system-ui,sans-serif;font-size:13px;line-height:1.5}
+h1,h2,h3{font-weight:800;letter-spacing:-.01em;margin:0 0 8px}
+h1{font-size:26px} h2{font-size:16px} h3{font-size:14px}
+a{color:var(--accent-hover)}
+button{font-family:inherit;cursor:pointer}
+input,select,textarea{font-family:inherit;font-size:13.5px;color:var(--text);background:var(--surface-2);border:1px solid var(--divider);border-radius:var(--radius-sm);padding:6px 9px}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:0}
+.app{display:flex;align-items:stretch;min-height:100vh}
+.sidebar{width:250px;flex:0 0 auto;background:var(--surface);border-right:1px solid var(--divider);display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+.brand{padding:20px 18px;border-bottom:1px solid var(--divider);display:flex;align-items:center;gap:12px}
+.brand .logo{width:38px;height:38px;flex:0 0 auto;background:var(--accent);color:var(--accent-ink);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;border-radius:8px}
+.brand .t1{font-weight:800;font-size:13px;letter-spacing:-.01em}
+.brand .t2{font-size:10.5px;color:var(--muted);margin-top:2px}
+nav.navlist{padding:14px 0;flex:1;overflow-y:auto}
+.navgroup{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:16px 18px 6px}
+.navbtn{display:block;width:100%;text-align:left;background:none;border:none;color:var(--muted);font-size:13.5px;padding:9px 18px;border-left:2px solid transparent}
+.navbtn:hover{background:rgba(255,255,255,.04);color:var(--text)}
+.navbtn.active{color:var(--text);background:var(--accent-soft);border-left-color:var(--accent);font-weight:600}
+.sidebar-foot{padding:12px 18px;border-top:1px solid var(--divider);font-size:10.5px;color:var(--muted)}
+main{flex:1;min-width:0;padding:34px 40px 80px}
+.screen{max-width:1400px}
+.hdr{margin-bottom:22px;padding-bottom:16px;border-bottom:1px solid var(--divider)}
+.kicker{font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--accent-hover);margin-bottom:6px}
+.desc{color:var(--muted);max-width:76ch;margin:0}
+.btn{display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:13px;padding:8px 14px;border-radius:var(--radius-sm);border:1px solid transparent;background:transparent;color:var(--text)}
+.btn-primary{background:var(--accent);color:var(--accent-ink)}
+.btn-primary:hover{background:var(--accent-hover)}
+.btn-secondary{border-color:var(--divider)}
+.btn-secondary:hover{background:rgba(255,255,255,.05)}
+.btn-ghost{color:var(--accent-hover);padding:4px 8px}
+.btn-ghost:hover{background:var(--accent-soft)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.dropzone{border:2px dashed var(--divider);border-radius:var(--radius);padding:34px 20px;text-align:center;color:var(--muted);cursor:pointer;margin-bottom:20px}
+.dropzone:hover{border-color:var(--accent)}
+.dropzone.drag{border-color:var(--accent);background:var(--accent-soft)}
+.dropzone .big{font-size:14.5px;color:var(--text);font-weight:600;margin-bottom:4px}
+.stats{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:18px}
+.stat{background:var(--surface);border:1px solid var(--divider);border-radius:var(--radius);padding:12px 18px;min-width:130px}
+.stat b{display:block;font-size:22px;font-weight:800}
+.stat span{font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.toolbar input[type=search]{min-width:260px}
+.bulkbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;padding:9px 12px;background:var(--surface);border:1px solid var(--divider);border-radius:var(--radius-sm);font-size:12.5px;color:var(--muted)}
+.tablewrap{overflow-x:auto;border:1px solid var(--divider);border-radius:var(--radius)}
+table.t{width:100%;border-collapse:collapse;font-size:13px}
+table.t th{text-align:left;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);padding:8px 10px;border-bottom:1px solid var(--divider);white-space:nowrap;position:sticky;top:0;background:var(--surface)}
+table.t td{padding:6px 10px;border-bottom:1px solid var(--divider);vertical-align:middle}
+table.t tbody tr:hover{background:rgba(255,255,255,.03)}
+table.t tbody tr.revisar{background:var(--warn-soft)}
+.tag{display:inline-flex;align-items:center;font-size:10.5px;padding:2px 8px;border-radius:5px;font-weight:700}
+.tag-nf{background:var(--accent-soft);color:var(--accent)}
+.tag-cte{background:var(--surface-2);color:var(--muted)}
+.tag-warn{background:var(--warn-soft);color:var(--warn)}
+.small{font-size:11.5px;color:var(--muted)}
+.mono{font-family:'JetBrains Mono',ui-monospace,Consolas,monospace}
+.hint{color:var(--muted);font-size:13px;max-width:74ch;margin:0 0 12px}
+.card{background:var(--surface);border:1px solid var(--divider);border-radius:var(--radius);padding:16px;margin-bottom:26px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.field label{display:block;font-size:11.5px;color:var(--muted);margin-bottom:5px}
+.field input,.field select{width:100%}
+.section-sep{height:1px;background:var(--divider);margin:26px 0}
+.twocol{display:grid;grid-template-columns:1fr 1fr;gap:28px}
+@media (max-width: 900px){.twocol,.grid2{grid-template-columns:1fr}}
+.icon-btn{width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;border-radius:6px;background:none;border:none;color:var(--muted)}
+.icon-btn:hover{background:var(--accent-soft);color:var(--accent-hover)}
+.tbl-input{width:100%;min-width:70px;background:transparent;border:1px solid transparent;padding:4px 6px}
+.tbl-input:hover{border-color:var(--divider)}
+.tbl-input:focus{background:var(--surface-2);border-color:var(--accent)}
+.toast{position:fixed;bottom:20px;right:20px;background:var(--surface);border:1px solid var(--divider);color:var(--text);padding:11px 16px;border-radius:var(--radius-sm);font-size:13px;box-shadow:0 8px 24px rgba(0,0,0,.4);z-index:999;max-width:360px}
+.badge-count{background:var(--accent);color:var(--accent-ink);font-size:10px;border-radius:8px;padding:1px 6px;margin-left:6px}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="logo">N</div>
+      <div><div class="t1">IMPORTADOR LCDPR</div><div class="t2">Nilma Contabilidade</div></div>
+    </div>
+    <nav class="navlist" id="navlist"></nav>
+    <div class="sidebar-foot">Salvo automaticamente neste navegador (localStorage)</div>
+  </aside>
+  <main><div class="screen" id="screen"></div></main>
+</div>
+
+<script>
+/* ============================== ESTADO / PERSISTÊNCIA ============================== */
+const STORAGE_KEY = 'lcdpr_importador_nilma_v1';
+
+const TEMPLATES = {
+  fretes: 'Pelo valor de fretes s/ CTe nº {{doc}} - {{fornecedor}}',
+  pecas: 'Pelo serviço/aquisição de peças para conservação e manutenção de máquinas/equipamentos conf. nota fiscal nº {{doc}} - {{fornecedor}}',
+  combustiveis: 'Pela compra de combustíveis/lubrificantes conf. nota fiscal {{doc}} - {{fornecedor}} - {{cnpj}}',
+  usoConsumo: 'Pela compra de materiais para uso e consumo conforme nota fiscal {{doc}} - {{fornecedor}} - {{cnpj}}',
+  matConstrucao: 'Pela compra de material p/ conservação e manutenção em geral conf. nota fiscal {{doc}} - {{fornecedor}} - {{cnpj}}',
+  adubos: 'Pela compra de adubos, defensivos e fertilizantes conf. nota fiscal {{doc}} - {{fornecedor}}',
+  insumosAnimais: 'Pela compra de insumos conf. nota fiscal nº {{doc}} - {{fornecedor}} - {{cnpj}}',
+  bovinos: 'Compra de bovinos conf. NF {{doc}} - {{fornecedor}}',
+  generico: 'Pela compra conforme NF nº {{doc}} - {{fornecedor}}',
+  maquinas: 'Pela compra de máquinas/implementos agrícolas conf. NF nº {{doc}} - {{fornecedor}}',
+  benfeitorias: 'Pagamento de benfeitorias no imóvel rural conf. NF {{doc}} - {{fornecedor}}',
+  fixo: 'Pelo pagamento de {{fornecedor}}'
+};
+
+function defaultState(){
+  return {
+    currentScreen: 'importar',
+    config: {
+      cpfProdutor: '42460727615',
+      contaCredoraPadrao: '35',
+      imovelPadrao: '001',
+      tipoDocPadrao: '1',
+      tipoLancPadrao: '2',
+      categoriaFretesCTe: 'Fretes e Carretos'
+    },
+    categorias: [
+      {nome:'Fretes e Carretos', conta:'805', codHist:'91011', historico:TEMPLATES.fretes},
+      {nome:'Conservação e Manutenção (peças)', conta:'784', codHist:'00066', historico:TEMPLATES.pecas},
+      {nome:'Combustíveis e Lubrificantes', conta:'924', codHist:'00061', historico:TEMPLATES.combustiveis},
+      {nome:'Uso e Consumo', conta:'812', codHist:'00044', historico:TEMPLATES.usoConsumo},
+      {nome:'Material de Construção', conta:'847', codHist:'00176', historico:TEMPLATES.matConstrucao},
+      {nome:'Adubos, Defensivos e Fertilizantes', conta:'722', codHist:'96337', historico:TEMPLATES.adubos},
+      {nome:'Insumos para Animais', conta:'85', codHist:'00563', historico:TEMPLATES.insumosAnimais},
+      {nome:'Compra de Bovinos', conta:'730', codHist:'', historico:TEMPLATES.bovinos},
+      {nome:'Máquinas e Implementos Agrícolas', conta:'735', codHist:'', historico:TEMPLATES.maquinas},
+      {nome:'Material Siderúrgico', conta:'1292', codHist:'', historico:TEMPLATES.generico},
+      {nome:'Ferragens', conta:'910', codHist:'', historico:TEMPLATES.generico},
+      {nome:'Benfeitorias e Instalações', conta:'752', codHist:'00176', historico:TEMPLATES.benfeitorias},
+      {nome:'Máquinas/Equip. Conservação e Reparos', conta:'875', codHist:'00066', historico:TEMPLATES.pecas},
+      {nome:'Energia Elétrica', conta:'966', codHist:'92023', historico:TEMPLATES.fixo},
+      {nome:'Impostos Municipais', conta:'1043', codHist:'00189', historico:TEMPLATES.fixo},
+      {nome:'Impostos Estaduais', conta:'1050', codHist:'00224', historico:TEMPLATES.fixo},
+      {nome:'Impostos Federais', conta:'1057', codHist:'91326', historico:TEMPLATES.fixo},
+      {nome:'Taxas Cartoriais', conta:'931', codHist:'91327', historico:TEMPLATES.fixo}
+    ],
+    planoContas: [
+      {codigo:'35', nome:'Caixa', classificacao:'Disponível', tipo:'A'},
+      {codigo:'805', nome:'Fretes e Carretos', classificacao:'Despesa', tipo:'A'},
+      {codigo:'784', nome:'Conservação e Manutenção de Máquinas/Equip.', classificacao:'Despesa', tipo:'A'},
+      {codigo:'924', nome:'Combustíveis e Lubrificantes', classificacao:'Despesa', tipo:'A'},
+      {codigo:'812', nome:'Materiais de Uso e Consumo', classificacao:'Despesa', tipo:'A'},
+      {codigo:'847', nome:'Material de Construção/Manutenção Geral', classificacao:'Despesa', tipo:'A'},
+      {codigo:'722', nome:'Adubos, Defensivos e Fertilizantes', classificacao:'Despesa', tipo:'A'},
+      {codigo:'85', nome:'Compra de Insumos para Animais', classificacao:'Despesa', tipo:'A'},
+      {codigo:'730', nome:'Compra de Bovinos', classificacao:'Despesa', tipo:'A'},
+      {codigo:'735', nome:'Custos de Aquisição de Máq. e Impl. Agrícolas', classificacao:'Despesa', tipo:'A'},
+      {codigo:'1292', nome:'Compra de Material Siderúrgico', classificacao:'Despesa', tipo:'A'},
+      {codigo:'910', nome:'Ferragens', classificacao:'Despesa', tipo:'A'},
+      {codigo:'752', nome:'Custos na Aquisição de Benfeitorias e Instalações', classificacao:'Despesa', tipo:'A'},
+      {codigo:'875', nome:'Máquinas, Equip. - Conservação e Reparos', classificacao:'Despesa', tipo:'A'},
+      {codigo:'966', nome:'Energia Elétrica', classificacao:'Despesa', tipo:'A'},
+      {codigo:'1043', nome:'Impostos Municipais', classificacao:'Despesa', tipo:'A'},
+      {codigo:'1050', nome:'Impostos Estaduais', classificacao:'Despesa', tipo:'A'},
+      {codigo:'1057', nome:'Impostos Federais', classificacao:'Despesa', tipo:'A'},
+      {codigo:'931', nome:'Taxas Cartoriais', classificacao:'Despesa', tipo:'A'},
+      {codigo:'709', nome:'FGTS', classificacao:'Despesa', tipo:'A'},
+      {codigo:'719', nome:'INSS', classificacao:'Despesa', tipo:'A'},
+      {codigo:'721', nome:'Serviços de Terceiros (PJ)', classificacao:'Despesa', tipo:'A'},
+      {codigo:'224', nome:'Venda de Café', classificacao:'Receita', tipo:'A'},
+      {codigo:'238', nome:'Venda de Bovinos', classificacao:'Receita', tipo:'A'}
+    ],
+    fornecedores: [
+      f('COMPECAS LTDA','24359754000109','924','00061',TEMPLATES.combustiveis),
+      f('MERCOLUB LUBRIFICANTES LTDA','07468230000129','924','00061',TEMPLATES.combustiveis),
+      f('MERCOLUB PETROLEO LTDA','04799975000182','924','00061',TEMPLATES.combustiveis),
+      f('POSTO JANAUBA LTDA','71014658000109','924','00061',TEMPLATES.combustiveis),
+      f('POSTO JENIPAPO DE SALINAS LTDA','07876896000116','924','00061',TEMPLATES.combustiveis),
+      f('POSTO TRANSANIMAIS LTDA','26185153000144','924','00061',TEMPLATES.combustiveis),
+      f('REDE DOM PEDRO DE POSTOS LTDA','20415295006962','924','00061',TEMPLATES.combustiveis),
+      f('REDE FALCO COMBUSTIVEIS SAO FRANCISCO LTDA','26656706000108','924','00061',TEMPLATES.combustiveis),
+      f('ANTONIO MARON CHEQUER LTDA','19388198000150','924','00061',TEMPLATES.combustiveis),
+      f('COMERCIAL GALA LTDA','42985218001598','812','00044',TEMPLATES.usoConsumo),
+      f('SAYRO EQUIPAMENTOS DE SEGURANCA LTDA','00947030000100','812','00044',TEMPLATES.usoConsumo),
+      f('JOELFLOR PEREIRA DA ROCHA LTDA','17683269000112','812','00044',TEMPLATES.usoConsumo),
+      f('CONSTRUIR MATERIAIS DE CONSTRUCAO DE TAIOBEIRAS','11345512000106','847','00176',TEMPLATES.matConstrucao),
+      f('SERRALHERIA OURO VERDE LTDA','25542416000162','847','00176',TEMPLATES.matConstrucao),
+      f('DEUSDETE JOSE DOS SANTOS','01901756000174','784','00066',TEMPLATES.pecas),
+      f('TECNNOAR SERVICO E COMERCIO EIRELLI ME','15766730000175','784','00066',TEMPLATES.pecas),
+      f('RM TRATOR PECAS LTDA','39968260000190','784','00066',TEMPLATES.pecas),
+      f('MURANGA IND. COMERCIO E SERVICOS LTDA','10210180000190','784','00066',TEMPLATES.pecas),
+      f('TONINHO AUTO CENTER','28449462000100','784','00066',TEMPLATES.pecas),
+      f('DISOL PRODUTOS AGROPECUARIOS','21424452000170','85','00563',TEMPLATES.insumosAnimais),
+      f('GUABI NUTRICAO E SAUDE ANIMAL LTDA','02918654000558','85','00563',TEMPLATES.insumosAnimais),
+      f('SUPER SAFRA CONCESSIONARIA DE TRATORES LTDA','20604641000162','735','',TEMPLATES.maquinas),
+      f('PAULINERIS TRANSPORTES E ENCOMENDAS LTDA','42846634000290','805','91011',TEMPLATES.fretes),
+      f('MG FLORESTAL & TRANSPORTES LTDA','14598428000192','805','91011',TEMPLATES.fretes),
+      f('MENEGHETTI TRANSPORTES E LOGISTICA LTDA','17088302000166','805','91011',TEMPLATES.fretes),
+      f('DMC TRANSPORTES DE GADO LTDA','24651312000123','805','91011',TEMPLATES.fretes),
+      f('DILTON ALVES PEREIRA FILHO','12421505000109','805','91011',TEMPLATES.fretes)
+    ],
+    ncmRules: [
+      {prefixo:'2710', conta:'924', codHist:'00061', historico:TEMPLATES.combustiveis}
+    ],
+    produtoRules: [
+      {palavras:'OLEO DIESEL, GASOLINA, ETANOL, COMBUSTIVEL, ARLA', conta:'924', codHist:'00061', historico:TEMPLATES.combustiveis},
+      {palavras:'ADUBO, FERTILIZANTE, DEFENSIVO, SEMENTE, HERBICIDA, INSETICIDA, FUNGICIDA', conta:'722', codHist:'96337', historico:TEMPLATES.adubos},
+      {palavras:'RACAO, NUTRICAO ANIMAL, SUPLEMENTO MINERAL, SAL MINERAL, BIMECTIN', conta:'85', codHist:'00563', historico:TEMPLATES.insumosAnimais}
+    ],
+    imoveis: [
+      {codigo:'001', descricao:'Imóvel 001'},
+      {codigo:'002', descricao:'Imóvel 002'},
+      {codigo:'007', descricao:'Imóvel 007'}
+    ],
+    ieDest: [],
+    tipoDoc: [
+      {codigo:'1', descricao:'Nota Fiscal / CT-e'},
+      {codigo:'9', descricao:'Outros'}
+    ],
+    tipoLanc: [
+      {codigo:'1', descricao:'Receita'},
+      {codigo:'2', descricao:'Despesa'},
+      {codigo:'3', descricao:'Adiantamento'}
+    ],
+    lancamentos: [],
+    ui: { search:'', showOnlyRevisar:false, bulkCategoria:'' }
+  };
+}
+function f(nome,cnpj,conta,codHist,historico){ return {nome,cnpj,conta,codHist,historico}; }
+
+let state = load();
+function load(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return defaultState();
+    const parsed = JSON.parse(raw);
+    const d = defaultState();
+    // shallow-merge top level, keep saved arrays/objects if present
+    return Object.assign(d, parsed);
+  }catch(e){ console.warn('Falha ao carregar estado salvo, usando padrão.', e); return defaultState(); }
+}
+function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+
+/* ============================== HELPERS ============================== */
+function onlyDigits(s){ return String(s==null?'':s).replace(/\D/g,''); }
+function fmtCnpjCpf(digits){
+  digits = onlyDigits(digits);
+  if(digits.length===11) return digits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+  if(digits.length===14) return digits.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
+  return digits;
+}
+function fmtMoney(v){ return (Number(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmtDateBR(d){
+  if(!d) return '';
+  if(d instanceof Date) return d.toLocaleDateString('pt-BR');
+  return String(d);
+}
+function excelDateToJS(v){
+  if(v instanceof Date) return v;
+  if(typeof v === 'number'){
+    const parsed = XLSX.SSF.parse_date_code(v);
+    if(parsed) return new Date(Date.UTC(parsed.y, parsed.m-1, parsed.d));
+  }
+  if(typeof v === 'string'){
+    const m = v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if(m) return new Date(Date.UTC(+m[3], +m[2]-1, +m[1]));
+    const d = new Date(v);
+    if(!isNaN(d)) return d;
+  }
+  return null;
+}
+function normSerie(s){
+  if(s===undefined||s===null||s==='') return '';
+  const n = parseFloat(s);
+  if(isNaN(n)) return String(s).trim();
+  return String(n);
+}
+function buildDocumento(numero, serie){
+  const num = String(numero||'').trim();
+  const ser = normSerie(serie);
+  if(!ser || ser==='1') return num;
+  return num + '/' + ser;
+}
+function applyTemplate(tmpl, ctx){
+  const cnpjFmt = fmtCnpjCpf(ctx.cnpj);
+  return String(tmpl||'')
+    .replaceAll('{{doc}}', ctx.documento||'')
+    .replaceAll('{{fornecedor}}', ctx.fornecedor||'')
+    .replaceAll('{{cnpj}}', cnpjFmt);
+}
+function findCategoriaLabel(conta, codHist){
+  const c = state.categorias.find(c=>String(c.conta)===String(conta) && String(c.codHist||'')===String(codHist||''));
+  return c ? c.nome : '';
+}
+let toastTimer=null;
+function toast(msg){
+  let el = document.getElementById('__toast');
+  if(!el){ el=document.createElement('div'); el.id='__toast'; el.className='toast'; document.body.appendChild(el); }
+  el.textContent = msg; el.style.display='block';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>{ el.style.display='none'; }, 3200);
+}
+let uid = 1;
+
+/* ============================== CLASSIFICAÇÃO ============================== */
+function classifyNF(doc){
+  for(const line of doc.linhas){
+    const ncmStr = String(line.ncm||'').trim();
+    if(!ncmStr) continue;
+    for(const rule of state.ncmRules){
+      const pref = String(rule.prefixo||'').trim();
+      if(pref && ncmStr.startsWith(pref)) return {conta:rule.conta, codHist:rule.codHist, historico:rule.historico, origemRegra:'NCM'};
+    }
+  }
+  const text = doc.produtoJoined.toUpperCase();
+  for(const rule of state.produtoRules){
+    const keys = String(rule.palavras||'').split(',').map(s=>s.trim().toUpperCase()).filter(Boolean);
+    if(keys.some(k=>k && text.includes(k))) return {conta:rule.conta, codHist:rule.codHist, historico:rule.historico, origemRegra:'Produto'};
+  }
+  const cnpjDigits = onlyDigits(doc.cnpj);
+  if(cnpjDigits){
+    const frule = state.fornecedores.find(fr=>onlyDigits(fr.cnpj)===cnpjDigits);
+    if(frule) return {conta:frule.conta, codHist:frule.codHist, historico:frule.historico, origemRegra:'Fornecedor'};
+  }
+  return null;
+}
+function classifyCTe(doc){
+  const cnpjDigits = onlyDigits(doc.cnpj);
+  if(cnpjDigits){
+    const frule = state.fornecedores.find(fr=>onlyDigits(fr.cnpj)===cnpjDigits);
+    if(frule) return {conta:frule.conta, codHist:frule.codHist, historico:frule.historico, origemRegra:'Fornecedor'};
+  }
+  const cat = state.categorias.find(c=>c.nome===state.config.categoriaFretesCTe);
+  if(cat) return {conta:cat.conta, codHist:cat.codHist, historico:cat.historico, origemRegra:'Padrão CT-e'};
+  return null;
+}
+function buildLancamentoFromDoc(doc, origem){
+  const match = origem==='NF' ? classifyNF(doc) : classifyCTe(doc);
+  const ctx = {documento:doc.documento, fornecedor:doc.fornecedor, cnpj:doc.cnpj};
+  const ieEntry = doc.ieDestRaw ? state.ieDest.find(x=>onlyDigits(x.ie)===onlyDigits(doc.ieDestRaw)) : null;
+  const imovel = ieEntry ? ieEntry.imovel : state.config.imovelPadrao;
+  const row = {
+    id: uid++,
+    selected:false,
+    origem,
+    data: doc.dataISO,
+    documento: doc.documento,
+    cnpj: onlyDigits(doc.cnpj),
+    fornecedor: doc.fornecedor,
+    categoria: '',
+    contaDeved: match ? match.conta : '',
+    contaCred: state.config.contaCredoraPadrao,
+    codHist: match ? (match.codHist||'') : '',
+    historico: match ? applyTemplate(match.historico, ctx) : '⚠ Sem regra correspondente — classificar manualmente',
+    valor: doc.valor,
+    imovel,
+    tipoDoc: state.config.tipoDocPadrao,
+    tipoLanc: state.config.tipoLancPadrao,
+    produto: doc.produtoJoined || '',
+    revisar: !match
+  };
+  if(match) row.categoria = findCategoriaLabel(match.conta, match.codHist);
+  return row;
+}
+
+/* ============================== IMPORTAÇÃO DE ARQUIVOS ============================== */
+async function handleFiles(fileList){
+  const files = Array.from(fileList);
+  let added = 0, skippedFiles = 0;
+  for(const file of files){
+    try{
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, {type:'array', cellDates:true});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {defval:''});
+      if(!rows.length){ skippedFiles++; continue; }
+      const headers = Object.keys(rows[0]);
+      if(headers.includes('Valor_Transporte') || headers.includes('Prod_Predominante')){
+        added += importCTe(rows);
+      } else if(headers.includes('Produto') && headers.includes('Valor_Unitario')){
+        added += importDetalhamento(rows);
+      } else {
+        skippedFiles++;
+        toast('Arquivo "'+file.name+'" não reconhecido (não é Detalhamento de Produtos nem CT-e).');
+      }
+    }catch(err){
+      console.error(err);
+      toast('Erro ao ler "'+file.name+'": '+err.message);
+    }
+  }
+  save();
+  render();
+  if(added>0) toast(added+' lançamento(s) importado(s).');
+  else if(skippedFiles>0 && added===0) toast('Nenhum lançamento novo importado.');
+}
+
+function importDetalhamento(rows){
+  const cpfProdutor = onlyDigits(state.config.cpfProdutor);
+  const groups = {};
+  for(const r of rows){
+    const numero = r.Numero, serie = r.Serie;
+    if(!numero) continue;
+    const status = String(r.Status||'');
+    if(!status.startsWith('Autorizado')) continue;
+    const tpnf = String(r.Tp_NF||'');
+    if(tpnf !== 'Saída' && tpnf !== 'Saida') continue; // só compras (despesa); notas de Entrada = venda, fora do escopo
+    const key = numero+'|'+serie;
+    if(!groups[key]) groups[key] = {
+      documento: buildDocumento(numero, serie),
+      fornecedor: String(r.Rz_Emit||'').trim(),
+      cnpj: onlyDigits(r.CNPJ_CPF_Emit),
+      valor: Number(r.Valor_Total_Nota)||0,
+      dataISO: excelDateToJS(r.Dt_Emissao),
+      ieDestRaw: r.IE_Dest,
+      produtos: [],
+      linhas: []
+    };
+    const g = groups[key];
+    const prod = String(r.Produto||'').trim();
+    if(prod) g.produtos.push(prod);
+    g.linhas.push({ncm:r.NCM});
+  }
+  let count=0;
+  for(const key in groups){
+    const g = groups[key];
+    g.produtoJoined = g.produtos.join(' | ');
+    const row = buildLancamentoFromDoc(g, 'NF');
+    state.lancamentos.push(row);
+    count++;
+  }
+  return count;
+}
+
+function importCTe(rows){
+  const cpfProdutor = onlyDigits(state.config.cpfProdutor);
+  let count=0;
+  for(const r of rows){
+    const numero = r.Numero;
+    if(!numero) continue;
+    const status = String(r.Status||'');
+    if(!status.startsWith('Autorizado')) continue;
+    const destCnpj = onlyDigits(r.CNPJ_CPF_Dest);
+    if(cpfProdutor && destCnpj !== cpfProdutor) continue; // frete não é do produtor (ex: pago pela trading)
+    const doc = {
+      documento: buildDocumento(numero, r.Serie),
+      fornecedor: String(r.Rz_Emit||'').trim(),
+      cnpj: onlyDigits(r.CNPJ_CPF_Emitente),
+      valor: Number(r.Valor_Transporte)||0,
+      dataISO: excelDateToJS(r.Dt_Emissao),
+      ieDestRaw: null,
+      produtoJoined: String(r.Prod_Predominante||'').trim(),
+      linhas: []
+    };
+    const row = buildLancamentoFromDoc(doc, 'CTe');
+    state.lancamentos.push(row);
+    count++;
+  }
+  return count;
+}
+
+/* ============================== EXPORTAÇÃO ============================== */
+function exportPlanilha(){
+  const header = ['Lancamento Automatico','Data','Conta Devedora','Conta Credora','Codigo Historico','Historico','Valor','Documento','Imovel','Tipo de Documento','Tipo de Lancamento','CPF/CNPJ','Produto'];
+  const rows = [header];
+  const list = state.lancamentos.slice().sort((a,b)=> (a.data? new Date(a.data):0) - (b.data? new Date(b.data):0));
+  for(const r of list){
+    rows.push(['', fmtDateBR(r.data), r.contaDeved, r.contaCred, r.codHist, r.historico, Number(r.valor)||0, r.documento, r.imovel, r.tipoDoc, r.tipoLanc, r.cnpj, r.produto]);
+  }
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Lancamentos LCDPR');
+  XLSX.writeFile(wb, 'Lancamentos_LCDPR.xls', {bookType:'biff8'});
+}
+
+/* ============================== NAVEGAÇÃO / RENDER ============================== */
+const NAV = [
+  {group:true, label:'Importar & Conferir'},
+  {id:'importar', label:'Importar & Conferir'},
+  {group:true, label:'Regras de Classificação'},
+  {id:'plano', label:'Plano de Contas'},
+  {id:'regras', label:'Fornecedores, NCM & Categorias'},
+  {id:'tabelas', label:'Tabelas de Apoio'},
+  {group:true, label:'Sistema'},
+  {id:'config', label:'Configuração Geral'}
+];
+function renderNav(){
+  const el = document.getElementById('navlist');
+  el.innerHTML = NAV.map(item=>{
+    if(item.group) return `<div class="navgroup">${esc(item.label)}</div>`;
+    const active = state.currentScreen===item.id ? ' active' : '';
+    return `<button class="navbtn${active}" data-nav="${item.id}">${esc(item.label)}</button>`;
+  }).join('');
+  el.querySelectorAll('[data-nav]').forEach(b=>b.addEventListener('click', ()=>{
+    state.currentScreen = b.dataset.nav; save(); render();
+  }));
+}
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function render(){
+  renderNav();
+  const el = document.getElementById('screen');
+  if(state.currentScreen==='importar') el.innerHTML = screenImportar();
+  else if(state.currentScreen==='plano') el.innerHTML = screenPlano();
+  else if(state.currentScreen==='regras') el.innerHTML = screenRegras();
+  else if(state.currentScreen==='tabelas') el.innerHTML = screenTabelas();
+  else if(state.currentScreen==='config') el.innerHTML = screenConfig();
+  wireScreen();
+}
+
+/* ============================== TELA: IMPORTAR ============================== */
+function visibleLancamentos(){
+  let list = state.lancamentos;
+  if(state.ui.showOnlyRevisar) list = list.filter(r=>r.revisar);
+  const q = (state.ui.search||'').trim().toUpperCase();
+  if(q) list = list.filter(r=> (r.fornecedor+' '+r.documento+' '+r.historico+' '+r.produto).toUpperCase().includes(q));
+  return list.slice().sort((a,b)=>(a.data?new Date(a.data):0)-(b.data?new Date(b.data):0));
+}
+function screenImportar(){
+  const total = state.lancamentos.length;
+  const revisar = state.lancamentos.filter(r=>r.revisar).length;
+  const selecionados = state.lancamentos.filter(r=>r.selected).length;
+  const valorTotal = state.lancamentos.reduce((s,r)=>s+(Number(r.valor)||0),0);
+  const list = visibleLancamentos();
+  const catOptions = ['<option value="">— escolher categoria —</option>'].concat(
+    state.categorias.map(c=>`<option value="${esc(c.nome)}">${esc(c.nome)}</option>`)
+  ).join('');
+  return `
+  <section>
+    <div class="hdr">
+      <div class="kicker">Passo 1</div>
+      <h1>Importar relatórios do SIEG</h1>
+      <p class="desc">Envie um ou mais relatórios (.xlsx) — <strong>Detalhamento de Produtos</strong> (notas de compra) e/ou <strong>CT-e</strong> (fretes). O app reconhece o tipo de cada arquivo, agrupa por documento, descarta cancelados/notas de outros destinatários e classifica cada lançamento.</p>
+    </div>
+
+    <div class="dropzone" id="dropzone">
+      <div class="big">Clique para escolher os arquivos, ou arraste aqui</div>
+      <div class="small">.xlsx do Relatório de Detalhamento de Produtos e/ou do Relatório de CT-e (SIEG)</div>
+      <input type="file" id="fileInput" accept=".xlsx,.xls" multiple style="display:none">
+    </div>
+
+    <div class="stats">
+      <div class="stat"><b>${total}</b><span>Lançamentos</span></div>
+      <div class="stat"><b>${revisar}</b><span>A revisar</span></div>
+      <div class="stat"><b>${selecionados}</b><span>Selecionados</span></div>
+      <div class="stat"><b>R$ ${fmtMoney(valorTotal)}</b><span>Valor total</span></div>
+    </div>
+
+    <div class="toolbar">
+      <input type="search" id="searchBox" placeholder="Buscar por fornecedor, documento, histórico…" value="${esc(state.ui.search)}">
+      <span style="flex:1"></span>
+      <button class="btn btn-secondary" id="toggleRevisar">${state.ui.showOnlyRevisar? 'Mostrar todos' : 'Mostrar só REVISAR'}</button>
+      <button class="btn btn-primary" id="btnExport" ${total===0?'disabled':''}>Baixar planilha .xls</button>
+    </div>
+
+    <div class="bulkbar">
+      <span>${selecionados} selecionada(s)</span>
+      <select id="bulkCategoria">${catOptions}</select>
+      <button class="btn btn-secondary" id="bulkApply">Aplicar à seleção</button>
+      <button class="btn btn-ghost" id="selectAllRevisar">Selecionar todas REVISAR</button>
+      <span style="flex:1"></span>
+      <label class="small" style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="selectAllVisible"> selecionar visíveis</label>
+    </div>
+
+    <div class="tablewrap">
+      <table class="t">
+        <thead><tr>
+          <th></th><th>Origem</th><th style="min-width:190px">Categoria rápida</th><th>Data</th><th>Documento</th>
+          <th>CPF/CNPJ</th><th>Conta Deved.</th><th>Conta Cred.</th><th>Cód. Hist.</th>
+          <th style="min-width:300px">Histórico</th><th>Valor</th><th>Imóvel</th><th>Tipo Doc.</th><th style="min-width:220px">Produto</th>
+        </tr></thead>
+        <tbody>
+        ${list.length? list.map(r=>rowHtml(r)).join('') : `<tr><td colspan="14" style="text-align:center;color:var(--muted);padding:24px">Nenhum lançamento ainda. Importe um relatório acima.</td></tr>`}
+        </tbody>
+      </table>
+    </div>
+  </section>`;
+}
+function rowHtml(r){
+  const catOptions = ['<option value="">'+(r.categoria?'— sem categoria —':'— nenhuma —')+'</option>'].concat(
+    state.categorias.map(c=>`<option value="${esc(c.nome)}" ${c.nome===r.categoria?'selected':''}>${esc(c.nome)}</option>`)
+  ).join('');
+  return `<tr class="${r.revisar?'revisar':''}" data-row="${r.id}">
+    <td style="text-align:center"><input type="checkbox" data-sel="${r.id}" ${r.selected?'checked':''}></td>
+    <td><span class="tag ${r.origem==='NF'?'tag-nf':'tag-cte'}">${r.origem}</span>${r.revisar?' <span class="tag tag-warn">REVISAR</span>':''}</td>
+    <td><select data-catsel="${r.id}">${catOptions}</select></td>
+    <td class="mono small" style="white-space:nowrap">${fmtDateBR(r.data)}</td>
+    <td style="white-space:nowrap"><input class="tbl-input" data-field="documento" data-id="${r.id}" value="${esc(r.documento)}"></td>
+    <td class="mono small"><input class="tbl-input mono" data-field="cnpj" data-id="${r.id}" value="${esc(r.cnpj)}"></td>
+    <td><input class="tbl-input" data-field="contaDeved" data-id="${r.id}" value="${esc(r.contaDeved)}" style="width:70px"></td>
+    <td><input class="tbl-input" data-field="contaCred" data-id="${r.id}" value="${esc(r.contaCred)}" style="width:60px"></td>
+    <td><input class="tbl-input" data-field="codHist" data-id="${r.id}" value="${esc(r.codHist)}" style="width:70px"></td>
+    <td style="min-width:300px"><input class="tbl-input" data-field="historico" data-id="${r.id}" value="${esc(r.historico)}" style="width:100%"></td>
+    <td style="text-align:right;white-space:nowrap"><input class="tbl-input" data-field="valor" data-id="${r.id}" value="${fmtMoney(r.valor)}" style="width:90px;text-align:right"></td>
+    <td><input class="tbl-input" data-field="imovel" data-id="${r.id}" value="${esc(r.imovel)}" style="width:56px"></td>
+    <td><input class="tbl-input" data-field="tipoDoc" data-id="${r.id}" value="${esc(r.tipoDoc)}" style="width:50px"></td>
+    <td style="min-width:220px" class="small">${esc(r.produto)}</td>
+  </tr>`;
+}
+function findLanc(id){ return state.lancamentos.find(r=>r.id===Number(id)); }
+function applyCategoriaToRow(row, catNome){
+  const cat = state.categorias.find(c=>c.nome===catNome);
+  row.categoria = catNome||'';
+  if(cat){
+    row.contaDeved = cat.conta;
+    row.codHist = cat.codHist||'';
+    row.historico = applyTemplate(cat.historico, {documento:row.documento, fornecedor:row.fornecedor, cnpj:row.cnpj});
+    row.revisar = false;
+  }
+}
+
+/* ============================== TELA: PLANO DE CONTAS ============================== */
+function screenPlano(){
+  const rows = state.planoContas.map((c,i)=>`<tr>
+    <td><input class="tbl-input" data-arr="planoContas" data-i="${i}" data-f="codigo" value="${esc(c.codigo)}" style="width:80px"></td>
+    <td><input class="tbl-input" data-arr="planoContas" data-i="${i}" data-f="nome" value="${esc(c.nome)}"></td>
+    <td><input class="tbl-input" data-arr="planoContas" data-i="${i}" data-f="classificacao" value="${esc(c.classificacao)}" style="width:140px"></td>
+    <td><select data-arr="planoContas" data-i="${i}" data-f="tipo">
+      <option value="A" ${c.tipo==='A'?'selected':''}>A</option>
+      <option value="S" ${c.tipo==='S'?'selected':''}>S</option>
+    </select></td>
+    <td><button class="icon-btn" data-del="planoContas" data-i="${i}" title="Remover">✕</button></td>
+  </tr>`).join('');
+  return `<section>
+    <div class="hdr">
+      <div class="kicker">Regras de classificação</div>
+      <h1>Plano de contas</h1>
+      <p class="desc">Contas usadas para classificar débito/crédito. Só contas <strong>A</strong> analíticas recebem lançamento — as <strong>S</strong> sintéticas são só agrupadoras.</p>
+    </div>
+    <div class="toolbar"><span style="flex:1"></span><button class="btn btn-primary" data-add="planoContas">+ Nova conta</button></div>
+    <div class="tablewrap"><table class="t">
+      <thead><tr><th style="width:90px">Código</th><th>Nome da conta</th><th style="width:150px">Classificação</th><th style="width:70px">Tipo</th><th style="width:40px"></th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>
+  </section>`;
+}
+
+/* ============================== TELA: REGRAS ============================== */
+function ruleRows(arrName, cols){
+  return state[arrName].map((row,i)=>{
+    const tds = cols.map(c=>{
+      if(c.w) return `<td><input class="tbl-input" data-arr="${arrName}" data-i="${i}" data-f="${c.k}" value="${esc(row[c.k])}" style="width:${c.w}"></td>`;
+      return `<td><input class="tbl-input" data-arr="${arrName}" data-i="${i}" data-f="${c.k}" value="${esc(row[c.k])}"></td>`;
+    }).join('');
+    return `<tr>${tds}<td><button class="icon-btn" data-del="${arrName}" data-i="${i}" title="Remover">✕</button></td></tr>`;
+  }).join('');
+}
+function screenRegras(){
+  return `<section>
+    <div class="hdr">
+      <div class="kicker">Regras de classificação</div>
+      <h1>Fornecedores, NCM &amp; categorias</h1>
+      <p class="desc">O produto da nota decide antes do fornecedor — o NCM e a palavra-chave têm prioridade. O fornecedor só entra como último recurso.</p>
+    </div>
+
+    <h2>Categorias rápidas</h2>
+    <p class="hint">Aparecem como atalho na coluna "Categoria rápida" da tabela de lançamentos. Use <span class="mono">{{doc}}</span>, <span class="mono">{{fornecedor}}</span> e <span class="mono">{{cnpj}}</span> no texto do histórico — são substituídos automaticamente.</p>
+    <div class="toolbar"><span style="flex:1"></span><button class="btn btn-primary" data-add="categorias">+ Nova categoria</button></div>
+    <div class="tablewrap" style="margin-bottom:36px"><table class="t">
+      <thead><tr><th style="width:220px">Nome da categoria</th><th style="width:90px">Conta</th><th style="width:90px">Cód. Hist.</th><th>Texto do histórico</th><th style="width:40px"></th></tr></thead>
+      <tbody>${ruleRows('categorias',[{k:'nome',w:'220px'},{k:'conta',w:'90px'},{k:'codHist',w:'90px'},{k:'historico'}])}</tbody>
+    </table></div>
+
+    <div class="section-sep"></div>
+
+    <h2>Regras por fornecedor</h2>
+    <p class="hint"><strong>Usada por último</strong> — só entra quando o NCM e a palavra-chave do produto não resolveram nada. Identificado pelo CPF/CNPJ do emitente (só números).</p>
+    <div class="toolbar"><span style="flex:1"></span><button class="btn btn-primary" data-add="fornecedores">+ Novo fornecedor</button></div>
+    <div class="tablewrap" style="margin-bottom:36px"><table class="t">
+      <thead><tr><th style="width:220px">Fornecedor</th><th style="width:150px">CNPJ/CPF (números)</th><th style="width:90px">Conta</th><th style="width:90px">Cód. Hist.</th><th>Texto do histórico</th><th style="width:40px"></th></tr></thead>
+      <tbody>${ruleRows('fornecedores',[{k:'nome',w:'220px'},{k:'cnpj',w:'150px'},{k:'conta',w:'90px'},{k:'codHist',w:'90px'},{k:'historico'}])}</tbody>
+    </table></div>
+
+    <h3>Regras por NCM (código fiscal do produto)</h3>
+    <p class="hint">A mais útil pra fornecedor novo — não depende de cadastrar nome de fornecedor. O prefixo é comparado com o início do NCM da linha do produto.</p>
+    <div class="toolbar"><span style="flex:1"></span><button class="btn btn-primary" data-add="ncmRules">+ Nova regra de NCM</button></div>
+    <div class="tablewrap" style="margin-bottom:36px"><table class="t">
+      <thead><tr><th style="width:150px">Prefixo do NCM</th><th style="width:90px">Conta</th><th style="width:90px">Cód. Hist.</th><th>Texto do histórico</th><th style="width:40px"></th></tr></thead>
+      <tbody>${ruleRows('ncmRules',[{k:'prefixo',w:'150px'},{k:'conta',w:'90px'},{k:'codHist',w:'90px'},{k:'historico'}])}</tbody>
+    </table></div>
+
+    <h3>Regras por palavra no produto</h3>
+    <p class="hint">Última tentativa antes do fornecedor. Separe várias palavras-chave por vírgula — basta uma aparecer no texto do produto.</p>
+    <div class="toolbar"><span style="flex:1"></span><button class="btn btn-primary" data-add="produtoRules">+ Nova regra de produto</button></div>
+    <div class="tablewrap"><table class="t">
+      <thead><tr><th style="width:280px">Palavras-chave</th><th style="width:90px">Conta</th><th style="width:90px">Cód. Hist.</th><th>Texto do histórico</th><th style="width:40px"></th></tr></thead>
+      <tbody>${ruleRows('produtoRules',[{k:'palavras',w:'280px'},{k:'conta',w:'90px'},{k:'codHist',w:'90px'},{k:'historico'}])}</tbody>
+    </table></div>
+  </section>`;
+}
+
+/* ============================== TELA: TABELAS DE APOIO ============================== */
+function screenTabelas(){
+  return `<section>
+    <div class="hdr">
+      <div class="kicker">Regras de classificação</div>
+      <h1>Tabelas de apoio</h1>
+      <p class="desc">Imóveis, tipos de documento/lançamento e o mapeamento entre a Inscrição Estadual do destinatário e o imóvel correspondente.</p>
+    </div>
+    <div class="twocol">
+      <div>
+        <h2>Imóveis rurais</h2>
+        <p class="hint">Código e nome de cada propriedade, como cadastrado no LCDPR.</p>
+        <div class="tablewrap" style="margin-bottom:12px"><table class="t">
+          <thead><tr><th style="width:70px">Código</th><th>Descrição</th><th style="width:40px"></th></tr></thead>
+          <tbody>${ruleRows('imoveis',[{k:'codigo',w:'70px'},{k:'descricao'}])}</tbody>
+        </table></div>
+        <button class="btn btn-secondary" data-add="imoveis" style="margin-bottom:28px">+ Imóvel</button>
+
+        <h2>IE do destinatário → imóvel</h2>
+        <p class="hint">A Inscrição Estadual do destinatário decide automaticamente qual imóvel usar (relatório de Detalhamento de Produtos).</p>
+        <div class="tablewrap" style="margin-bottom:12px"><table class="t">
+          <thead><tr><th style="width:150px">IE Destinatário</th><th>Imóvel (código)</th><th style="width:40px"></th></tr></thead>
+          <tbody>${ruleRows('ieDest',[{k:'ie',w:'150px'},{k:'imovel'}])}</tbody>
+        </table></div>
+        <button class="btn btn-secondary" data-add="ieDest">+ Mapeamento</button>
+      </div>
+      <div>
+        <h2>Tipo de documento</h2>
+        <div class="tablewrap" style="margin-bottom:12px"><table class="t">
+          <thead><tr><th style="width:70px">Código</th><th>Descrição</th><th style="width:40px"></th></tr></thead>
+          <tbody>${ruleRows('tipoDoc',[{k:'codigo',w:'70px'},{k:'descricao'}])}</tbody>
+        </table></div>
+        <button class="btn btn-secondary" data-add="tipoDoc" style="margin-bottom:28px">+ Tipo de documento</button>
+
+        <h2>Tipo de lançamento</h2>
+        <div class="tablewrap" style="margin-bottom:12px"><table class="t">
+          <thead><tr><th style="width:70px">Código</th><th>Descrição</th><th style="width:40px"></th></tr></thead>
+          <tbody>${ruleRows('tipoLanc',[{k:'codigo',w:'70px'},{k:'descricao'}])}</tbody>
+        </table></div>
+        <button class="btn btn-secondary" data-add="tipoLanc">+ Tipo de lançamento</button>
+      </div>
+    </div>
+  </section>`;
+}
+
+/* ============================== TELA: CONFIG ============================== */
+function screenConfig(){
+  const c = state.config;
+  const imovelOptions = state.imoveis.map(i=>`<option value="${esc(i.codigo)}" ${i.codigo===c.imovelPadrao?'selected':''}>${esc(i.codigo)} — ${esc(i.descricao)}</option>`).join('');
+  const tipoDocOptions = state.tipoDoc.map(t=>`<option value="${esc(t.codigo)}" ${t.codigo===c.tipoDocPadrao?'selected':''}>${esc(t.codigo)} — ${esc(t.descricao)}</option>`).join('');
+  const tipoLancOptions = state.tipoLanc.map(t=>`<option value="${esc(t.codigo)}" ${t.codigo===c.tipoLancPadrao?'selected':''}>${esc(t.codigo)} — ${esc(t.descricao)}</option>`).join('');
+  const catOptions = state.categorias.map(cat=>`<option value="${esc(cat.nome)}" ${cat.nome===c.categoriaFretesCTe?'selected':''}>${esc(cat.nome)}</option>`).join('');
+  return `<section>
+    <div class="hdr">
+      <div class="kicker">Sistema</div>
+      <h1>Configuração geral</h1>
+      <p class="desc">Padrões usados em toda linha gerada, e backup das suas configurações.</p>
+    </div>
+    <div class="card">
+      <div class="grid2">
+        <div class="field"><label>CPF/CNPJ do produtor (só números)</label><input id="cfgCpf" value="${esc(c.cpfProdutor)}"></div>
+        <div class="field"><label>Conta credora padrão</label><input id="cfgContaCred" value="${esc(c.contaCredoraPadrao)}"></div>
+      </div>
+      <div class="grid2" style="margin-top:18px">
+        <div class="field"><label>Imóvel padrão</label><select id="cfgImovel">${imovelOptions}</select></div>
+        <div class="field"><label>Tipo de documento padrão</label><select id="cfgTipoDoc">${tipoDocOptions}</select></div>
+      </div>
+      <div class="grid2" style="margin-top:18px">
+        <div class="field"><label>Tipo de lançamento padrão</label><select id="cfgTipoLanc">${tipoLancOptions}</select></div>
+        <div class="field"><label>Categoria padrão p/ CT-e (frete)</label><select id="cfgCatFretes">${catOptions}</select></div>
+      </div>
+    </div>
+
+    <h2>Backup</h2>
+    <p class="hint">Exporte suas configurações e regras (sem os lançamentos importados) para restaurar depois ou levar pra outro computador.</p>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-secondary" id="btnBackupExport">Exportar backup (.json)</button>
+      <button class="btn btn-secondary" id="btnBackupImport">Importar backup (.json)</button>
+      <input type="file" id="backupFile" accept=".json" style="display:none">
+      <button class="btn btn-ghost" id="btnResetData" style="margin-left:auto;color:var(--accent)">Limpar todos os lançamentos</button>
+    </div>
+  </section>`;
+}
+
+/* ============================== EVENTOS ============================== */
+function wireScreen(){
+  // Importar
+  const dz = document.getElementById('dropzone');
+  const fi = document.getElementById('fileInput');
+  if(dz){
+    dz.addEventListener('click', ()=>fi.click());
+    dz.addEventListener('dragover', e=>{ e.preventDefault(); dz.classList.add('drag'); });
+    dz.addEventListener('dragleave', ()=>dz.classList.remove('drag'));
+    dz.addEventListener('drop', e=>{ e.preventDefault(); dz.classList.remove('drag'); if(e.dataTransfer.files.length) handleFiles(e.dataTransfer.files); });
+    fi.addEventListener('change', ()=>{ if(fi.files.length) handleFiles(fi.files); fi.value=''; });
+  }
+  const searchBox = document.getElementById('searchBox');
+  if(searchBox) searchBox.addEventListener('input', ()=>{ state.ui.search = searchBox.value; render(); document.getElementById('searchBox').focus(); document.getElementById('searchBox').selectionStart = document.getElementById('searchBox').value.length; });
+  const toggleRev = document.getElementById('toggleRevisar');
+  if(toggleRev) toggleRev.addEventListener('click', ()=>{ state.ui.showOnlyRevisar = !state.ui.showOnlyRevisar; save(); render(); });
+  const btnExport = document.getElementById('btnExport');
+  if(btnExport) btnExport.addEventListener('click', exportPlanilha);
+  const bulkApply = document.getElementById('bulkApply');
+  if(bulkApply) bulkApply.addEventListener('click', ()=>{
+    const cat = document.getElementById('bulkCategoria').value;
+    if(!cat) return;
+    state.lancamentos.filter(r=>r.selected).forEach(r=>applyCategoriaToRow(r, cat));
+    save(); render();
+  });
+  const selAllRevisar = document.getElementById('selectAllRevisar');
+  if(selAllRevisar) selAllRevisar.addEventListener('click', ()=>{
+    visibleLancamentos().filter(r=>r.revisar).forEach(r=>r.selected=true);
+    save(); render();
+  });
+  const selAllVisible = document.getElementById('selectAllVisible');
+  if(selAllVisible) selAllVisible.addEventListener('change', ()=>{
+    visibleLancamentos().forEach(r=>r.selected = selAllVisible.checked);
+    save(); render();
+  });
+  document.querySelectorAll('[data-sel]').forEach(cb=>cb.addEventListener('change', ()=>{
+    const row = findLanc(cb.dataset.sel); if(row){ row.selected = cb.checked; save(); }
+    const count = state.lancamentos.filter(r=>r.selected).length;
+    document.querySelectorAll('.bulkbar span')[0] && (document.querySelectorAll('.bulkbar span')[0].textContent = count+' selecionada(s)');
+  }));
+  document.querySelectorAll('[data-catsel]').forEach(sel=>sel.addEventListener('change', ()=>{
+    const row = findLanc(sel.dataset.catsel);
+    if(row){ applyCategoriaToRow(row, sel.value); save(); render(); }
+  }));
+  document.querySelectorAll('[data-field]').forEach(inp=>inp.addEventListener('change', ()=>{
+    const row = findLanc(inp.dataset.id);
+    if(!row) return;
+    let v = inp.value;
+    if(inp.dataset.field==='valor'){ v = Number(String(v).replace(/\./g,'').replace(',','.'))||0; }
+    row[inp.dataset.field] = v;
+    if(inp.dataset.field!=='historico') row.revisar = row.revisar; // keep manual edits, don't auto-clear
+    save();
+  }));
+
+  // Tabelas genéricas (planoContas, categorias, fornecedores, ncmRules, produtoRules, imoveis, ieDest, tipoDoc, tipoLanc)
+  document.querySelectorAll('[data-arr]').forEach(inp=>{
+    const evt = inp.tagName==='SELECT' ? 'change' : 'change';
+    inp.addEventListener(evt, ()=>{
+      const arr = state[inp.dataset.arr]; const i = Number(inp.dataset.i); const f = inp.dataset.f;
+      if(arr && arr[i]){ arr[i][f] = inp.value; save(); }
+    });
+  });
+  document.querySelectorAll('[data-add]').forEach(btn=>btn.addEventListener('click', ()=>{
+    const arrName = btn.dataset.add;
+    const blank = blankRowFor(arrName);
+    state[arrName].push(blank);
+    save(); render();
+  }));
+  document.querySelectorAll('[data-del]').forEach(btn=>btn.addEventListener('click', ()=>{
+    const arrName = btn.dataset.del; const i = Number(btn.dataset.i);
+    state[arrName].splice(i,1);
+    save(); render();
+  }));
+
+  // Config
+  const cfgCpf = document.getElementById('cfgCpf');
+  if(cfgCpf){
+    const bind = (id, key, transform)=>{
+      const el = document.getElementById(id);
+      el.addEventListener('change', ()=>{ state.config[key] = transform? transform(el.value): el.value; save(); });
+    };
+    bind('cfgCpf','cpfProdutor', onlyDigits);
+    bind('cfgContaCred','contaCredoraPadrao');
+    bind('cfgImovel','imovelPadrao');
+    bind('cfgTipoDoc','tipoDocPadrao');
+    bind('cfgTipoLanc','tipoLancPadrao');
+    bind('cfgCatFretes','categoriaFretesCTe');
+
+    document.getElementById('btnBackupExport').addEventListener('click', ()=>{
+      const backup = {config:state.config, categorias:state.categorias, planoContas:state.planoContas, fornecedores:state.fornecedores, ncmRules:state.ncmRules, produtoRules:state.produtoRules, imoveis:state.imoveis, ieDest:state.ieDest, tipoDoc:state.tipoDoc, tipoLanc:state.tipoLanc};
+      const blob = new Blob([JSON.stringify(backup,null,2)], {type:'application/json'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = 'backup_importador_lcdpr.json'; a.click();
+      URL.revokeObjectURL(a.href);
+    });
+    document.getElementById('btnBackupImport').addEventListener('click', ()=>document.getElementById('backupFile').click());
+    document.getElementById('backupFile').addEventListener('change', async (e)=>{
+      const file = e.target.files[0]; if(!file) return;
+      try{
+        const text = await file.text();
+        const backup = JSON.parse(text);
+        Object.assign(state, backup);
+        save(); render();
+        toast('Backup importado.');
+      }catch(err){ toast('Backup inválido: '+err.message); }
+      e.target.value='';
+    });
+    document.getElementById('btnResetData').addEventListener('click', ()=>{
+      if(confirm('Remover todos os lançamentos importados? As regras/cadastros não são afetadas.')){
+        state.lancamentos = []; save(); render();
+      }
+    });
+  }
+}
+function blankRowFor(arrName){
+  switch(arrName){
+    case 'planoContas': return {codigo:'', nome:'', classificacao:'', tipo:'A'};
+    case 'categorias': return {nome:'', conta:'', codHist:'', historico:''};
+    case 'fornecedores': return {nome:'', cnpj:'', conta:'', codHist:'', historico:''};
+    case 'ncmRules': return {prefixo:'', conta:'', codHist:'', historico:''};
+    case 'produtoRules': return {palavras:'', conta:'', codHist:'', historico:''};
+    case 'imoveis': return {codigo:'', descricao:''};
+    case 'ieDest': return {ie:'', imovel:''};
+    case 'tipoDoc': return {codigo:'', descricao:''};
+    case 'tipoLanc': return {codigo:'', descricao:''};
+    default: return {};
+  }
+}
+
+/* ============================== INIT ============================== */
+render();
+</script>
+</body>
+</html>
