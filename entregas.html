@@ -4296,7 +4296,30 @@
   var ZONA_LABEL = { superior: 'Parte superior', central: 'Central', inferior: 'Parte inferior' };
   $('rotaBusca').addEventListener('input', aoParar(renderRota));
   $('rotaFiltroPessoa').addEventListener('change', renderRota);
-  $('rotaFiltroZona').addEventListener('change', renderRota);
+
+  // Região com várias marcadas ao mesmo tempo — mesmo padrão do "Dia" em
+  // Honorários (menu com checkbox em vez de um valor só por vez).
+  var rotaZonasSelecionadas = [];
+  function atualizarTextoBotaoZona_() {
+    var n = rotaZonasSelecionadas.length;
+    $('rotaFiltroZonaBtnTexto').textContent = !n ? 'Todas as regiões'
+      : n === 1 ? ZONA_LABEL[rotaZonasSelecionadas[0]]
+      : n + ' regiões selecionadas';
+  }
+  $('rotaFiltroZonaPainel').querySelectorAll('input[type="checkbox"]').forEach(function (chk) {
+    chk.addEventListener('change', function () {
+      var zona = chk.dataset.zona;
+      var idx = rotaZonasSelecionadas.indexOf(zona);
+      if (chk.checked && idx === -1) rotaZonasSelecionadas.push(zona);
+      else if (!chk.checked && idx !== -1) rotaZonasSelecionadas.splice(idx, 1);
+      atualizarTextoBotaoZona_();
+      renderRota();
+    });
+  });
+  $('rotaFiltroZonaBtn').addEventListener('click', function (ev) {
+    ev.stopPropagation();
+    $('rotaFiltroZonaPainel').hidden = !$('rotaFiltroZonaPainel').hidden;
+  });
   $('rotaAddBtn').addEventListener('click', function () {
     document.querySelector('.tab[data-tab="nova"]').click();
     document.querySelector('#modeToggle .mode-btn[data-mode="rota"]').click();
@@ -5060,8 +5083,14 @@
     ev.stopPropagation();
     $('honorariosFiltroDiaPainel').hidden = !$('honorariosFiltroDiaPainel').hidden;
   });
+  // Fecha qualquer seletor de vários valores aberto (dia, região...) ao
+  // clicar fora dele — genérico, serve pra qualquer .multiselect novo.
   document.addEventListener('click', function (ev) {
-    if (!ev.target.closest('#honorariosFiltroDiaMulti')) $('honorariosFiltroDiaPainel').hidden = true;
+    document.querySelectorAll('.multiselect-painel').forEach(function (painel) {
+      if (painel.hidden) return;
+      var wrap = painel.closest('.multiselect');
+      if (wrap && !wrap.contains(ev.target)) painel.hidden = true;
+    });
   });
 
   function renderHonorariosTab_() {
@@ -5700,11 +5729,10 @@
 
     var busca = $('rotaBusca').value.trim().toLowerCase();
     var filtroPessoa = selPessoa.value;
-    var filtroZona = $('rotaFiltroZona').value;
     var list = ordenarPendentes_(pendentesCache);
     if (busca) list = list.filter(function (e) { return (e.clienteNome || '').toLowerCase().indexOf(busca) !== -1; });
     if (filtroPessoa) list = list.filter(function (e) { return (e.entregadoPorNome || e.entregadoPor) === filtroPessoa; });
-    if (filtroZona) list = list.filter(function (e) { return e.zona === filtroZona; });
+    if (rotaZonasSelecionadas.length) list = list.filter(function (e) { return rotaZonasSelecionadas.indexOf(e.zona) !== -1; });
     // guarda o que está de fato na tela pra "Abrir no Maps" seguir a mesma
     // ordem e os mesmos filtros que a pessoa está vendo
     rotaListaVisivel = list;
