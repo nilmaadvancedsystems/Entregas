@@ -106,8 +106,13 @@ service cloud.firestore {
 
     function conviteValido(codigo) {
       let c = get(/databases/$(database)/documents/convites/$(codigo)).data;
+      // expiraEm é Timestamp de verdade (não texto): testado isoladamente
+      // nesse projeto que NEM string(request.time) NEM timestamp(string)
+      // funcionam — as duas conversões falham sempre, mesmo comparando
+      // valores óbvios sem tocar em dado nenhum. Timestamp-contra-Timestamp
+      // direto, sem converter nada, é o único jeito que funciona de verdade.
       return c.get('usado', false) == false
-        && c.get('expiraEm', '') > string(request.time);
+        && c.expiraEm > request.time;
     }
 
     // ---------- convites ----------
@@ -128,7 +133,7 @@ service cloud.firestore {
       // dois faria o botão "Gerar link de nova senha" ser recusado sempre.
       allow create: if ehAdmin()
         && request.resource.data.usado == false
-        && request.resource.data.expiraEm is string
+        && request.resource.data.expiraEm is timestamp
         && (
           (request.resource.data.tipo == 'novo' && request.resource.data.roles is list)
           || (request.resource.data.tipo == 'reset' && request.resource.data.uidAlvo is string)
@@ -224,11 +229,16 @@ service cloud.firestore {
 
       allow create: if logado()
         && request.resource.data.assinado == false
-        && request.resource.data.expiraEm is string;
+        && request.resource.data.expiraEm is timestamp;
 
       // O cliente só faz uma coisa: assinar, uma vez, antes de vencer.
+      // expiraEm é Timestamp de verdade (não texto ISO): nesse projeto,
+      // NEM string(request.time) NEM timestamp(string) funcionam — as
+      // duas conversões falham sempre, confirmado testando isoladamente,
+      // até com valores fixos sem tocar em dado nenhum. Timestamp direto
+      // contra request.time, sem converter nada, é o que de fato funciona.
       allow update: if resource.data.assinado == false
-        && resource.data.expiraEm > string(request.time)
+        && resource.data.expiraEm > request.time
         && request.resource.data.assinado == true
         && so(['assinado', 'assinadoEm', 'assinatura', 'recebedor']);
 

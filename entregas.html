@@ -1801,13 +1801,17 @@
           </select>
         </div>
         <div class="filtro">
-          <label for="rotaFiltroZona">Região</label>
-          <select class="input" id="rotaFiltroZona">
-            <option value="">Todas as regiões</option>
-            <option value="superior">Parte superior</option>
-            <option value="central">Central</option>
-            <option value="inferior">Parte inferior</option>
-          </select>
+          <label for="rotaFiltroZonaBtn">Região</label>
+          <div class="multiselect" id="rotaFiltroZonaMulti">
+            <button type="button" class="input multiselect-btn" id="rotaFiltroZonaBtn">
+              <span id="rotaFiltroZonaBtnTexto">Todas as regiões</span><i class="ph ph-caret-down" aria-hidden="true"></i>
+            </button>
+            <div class="multiselect-painel" id="rotaFiltroZonaPainel" hidden>
+              <label class="multiselect-opcao"><input type="checkbox" data-zona="superior"><span>Parte superior</span></label>
+              <label class="multiselect-opcao"><input type="checkbox" data-zona="central"><span>Central</span></label>
+              <label class="multiselect-opcao"><input type="checkbox" data-zona="inferior"><span>Parte inferior</span></label>
+            </div>
+          </div>
         </div>
       </div>
       <div id="rotaList"><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
@@ -7920,7 +7924,11 @@
       criadoPor: (auth.currentUser && auth.currentUser.email) || '',
       criadoPorNome: currentUserNome || '',
       criadoEm: new Date().toISOString(),
-      expiraEm: new Date(Date.now() + MINUTOS_ASSINATURA * 60000).toISOString()
+      // Timestamp de verdade, não texto: a regra compara isso direto com
+      // request.time sem converter nada — string(request.time) e
+      // timestamp(string) não funcionam nesse motor de regras (testado
+      // isoladamente, os dois falham mesmo sem tocar em dado nenhum).
+      expiraEm: firebase.firestore.Timestamp.fromDate(new Date(Date.now() + MINUTOS_ASSINATURA * 60000))
     }).then(function () {
       $('assinStatus').textContent = 'Esperando o cliente assinar...';
       if (typeof QRCode !== 'undefined') {
@@ -8721,7 +8729,10 @@
           criadoPor: (auth.currentUser && auth.currentUser.email) || '',
           criadoPorNome: currentUserNome,
           criadoEm: new Date().toISOString(),
-          expiraEm: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+          // Timestamp de verdade — mesmo motivo do link de assinatura:
+          // string(request.time)/timestamp(string) não funcionam na
+          // regra, comparação direta Timestamp-com-Timestamp funciona.
+          expiraEm: firebase.firestore.Timestamp.fromDate(new Date(Date.now() + 24 * 60 * 60 * 1000)),
           // o endereço do serviço de contas vai junto no convite: quem abre
           // esse link está deslogado (é justamente por isso que precisa de
           // senha nova) e não consegue ler config/integracoes, que só quem
@@ -10034,7 +10045,7 @@
       criadoPor: (auth.currentUser && auth.currentUser.email) || '',
       criadoPorNome: currentUserNome,
       criadoEm: new Date().toISOString(),
-      expiraEm: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+      expiraEm: firebase.firestore.Timestamp.fromDate(new Date(Date.now() + 24 * 60 * 60 * 1000))
     }).then(function () {
       var base = location.href.split(/[?#]/)[0];
       $('conviteLink').value = base + '?convite=' + codigo;
@@ -10065,7 +10076,8 @@
       if (!snap.exists) { $('conviteSub').textContent = 'Esse convite não existe. Peça um link novo para o administrativo.'; return; }
       var c = snap.data();
       if (c.usado) { $('conviteSub').textContent = 'Esse convite já foi usado. Peça um link novo para o administrativo.'; return; }
-      if (c.expiraEm && new Date(c.expiraEm) < new Date()) { $('conviteSub').textContent = 'Esse convite expirou (vale 24 horas). Peça um link novo.'; return; }
+      // expiraEm é Timestamp de verdade agora (não texto) — .toDate() converte pro JS Date
+      if (c.expiraEm && c.expiraEm.toDate() < new Date()) { $('conviteSub').textContent = 'Esse convite expirou (vale 24 horas). Peça um link novo.'; return; }
 
       var isReset = c.tipo === 'reset';
       if (isReset) {
@@ -10170,7 +10182,8 @@
       if (!snap.exists) { $('assinaturaSub').textContent = 'Este link não existe mais. Peça um novo a quem está entregando.'; return; }
       var d = snap.data();
       if (d.assinado) { $('assinaturaSub').textContent = 'Este recebimento já foi assinado. Obrigado!'; return; }
-      if (d.expiraEm && new Date(d.expiraEm) < new Date()) {
+      // expiraEm é Timestamp de verdade agora (não texto) — .toDate() converte pro JS Date
+      if (d.expiraEm && d.expiraEm.toDate() < new Date()) {
         $('assinaturaSub').textContent = 'Este link expirou. Peça um novo a quem está entregando.';
         return;
       }
