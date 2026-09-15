@@ -3048,6 +3048,13 @@
     }
 
     function startStroke(clientX, clientY) {
+      // Se o primeiro toque chegar antes do canvas medir o próprio
+      // tamanho (a espera normal é só 1 quadro via requestAnimationFrame,
+      // mas em alguns celulares isso não roda a tempo — foi o que fazia
+      // "não detectar o dedo" até apertar Limpar, que força essa mesma
+      // preparação de novo, só que de forma síncrona), tenta preparar
+      // agora mesmo em vez de simplesmente ignorar o toque.
+      if (!ctx) setup(true);
       if (!ctx) return;
       drawing = true;
       var p = pos(clientX, clientY);
