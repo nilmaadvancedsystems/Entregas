@@ -1733,6 +1733,7 @@
         <h2><i class="ph ph-path" aria-hidden="true"></i> Rota de entregas</h2>
         <button type="button" class="btn-chip" id="rotaProximidadeBtn"><i class="ph ph-navigation-arrow" aria-hidden="true"></i> Ordenar por proximidade</button>
         <button type="button" class="btn-chip" id="rotaMapsBtn"><i class="ph ph-map-trifold" aria-hidden="true"></i> Abrir no Maps</button>
+        <button type="button" class="btn-chip" id="rotaEnviarLinkBtn"><i class="ph ph-share-network" aria-hidden="true"></i> Enviar rota pro cliente</button>
         <button type="button" class="btn-chip accent" id="rotaAddBtn">+ Adicionar à rota</button>
       </div>
       <p class="card-hint">Documentos e valores já prontos — falta só colher a assinatura na hora da entrega.</p>
@@ -4187,7 +4188,10 @@
           vistos[chave] = true;
           chaves.push(chave);
           var doParada = ordenados.filter(function (x) { return chaveDaParada_(x) === chave; });
-          nomesPorChave[chave] = Array.from(new Set(doParada.map(function (x) { return x.clienteNome || '?'; }))).join(' + ');
+          // só o código, nunca o nome — quem abre o link pode ser um
+          // concorrente do próprio cliente na fila, e o nome da empresa
+          // alheia não é dele pra ver.
+          nomesPorChave[chave] = Array.from(new Set(doParada.map(codigoAnonimoEntrega_))).join(' + ');
         }
       });
       var idx = chaves.indexOf(link.clienteChave);
@@ -5578,6 +5582,13 @@
     var cliente = e.clienteId ? clientesCache.get(e.clienteId) : null;
     return (cliente && cliente.grupoLocal) || e.clienteId || e.clienteNome || '?';
   }
+  // Só pro link público (rotaLinks): identifica a parada sem entregar o
+  // nome da empresa pra quem está na fila atrás dela — pode ser
+  // concorrente. O código interno não diz nada pra quem não é da casa.
+  function codigoAnonimoEntrega_(e) {
+    var cliente = e.clienteId ? clientesCache.get(e.clienteId) : null;
+    return (cliente && cliente.codigoOrigem) || 'sem código';
+  }
   // Quem já foi arrastada pra uma posição manual usa essa ordem; quem
   // nunca foi movida entra no fim, na ordem de criação (comportamento de
   // sempre, antes de existir o arrastar-e-soltar).
@@ -5678,13 +5689,6 @@
           btnLote.addEventListener('click', function () { openConfirmLoteModal_(tituloParada, doParada); });
           listEl.appendChild(btnLote);
         }
-        var btnEnviarRota = document.createElement('button');
-        btnEnviarRota.type = 'button';
-        btnEnviarRota.className = 'btn-chip';
-        btnEnviarRota.style.cssText = 'margin:2px 0 10px 26px;';
-        btnEnviarRota.innerHTML = '<i class="ph ph-share-network" aria-hidden="true"></i> Enviar rota pro cliente';
-        btnEnviarRota.addEventListener('click', function () { abrirEnviarRotaCliente_(e, chaveParada, tituloParada); });
-        listEl.appendChild(btnEnviarRota);
       }
     });
     listaChegou_(listEl);
@@ -7683,6 +7687,51 @@
     crypto.getRandomValues(a);
     return Array.from(a).map(function (b) { return b.toString(16).padStart(2, '0'); }).join('');
   }
+
+  // ---------- escolher a empresa antes de gerar o link ----------
+  // Botão único no topo da Rota, em vez de um botão espremido em cada
+  // parada — abre a lista das paradas que estão na rota agora pra
+  // escolher pra qual gerar o link.
+  function abrirEscolherParadaEnviarRota_() {
+    var lista = ordenarPendentes_(pendentesCache);
+    if (!lista.length) { showToast('Não tem ninguém na rota agora.', 'error'); return; }
+    var porParada = {};
+    var chaves = [];
+    lista.forEach(function (e) {
+      var chave = chaveDaParada_(e);
+      if (!porParada[chave]) { porParada[chave] = []; chaves.push(chave); }
+      porParada[chave].push(e);
+    });
+
+    var root = $('modalRoot');
+    root.innerHTML =
+      '<div class="modal-overlay" id="overlayEscolherParada"><div class="modal" id="modalEscolherParada">' +
+        '<div class="modal-head"><div><h2>Enviar rota pro cliente</h2>' +
+          '<div class="card-hint" style="margin:2px 0 0">Escolha a empresa que está na rota</div>' +
+        '</div><button class="modal-close" id="escolherParadaClose"><i class="ph ph-x" aria-hidden="true"></i></button></div>' +
+        '<div id="escolherParadaLista"></div>' +
+      '</div></div>';
+    function fechar() { closeModal(); }
+    $('overlayEscolherParada').addEventListener('click', function (e) { if (e.target.id === 'overlayEscolherParada') fechar(); });
+    $('escolherParadaClose').addEventListener('click', fechar);
+
+    var listaEl = $('escolherParadaLista');
+    chaves.forEach(function (chave) {
+      var doParada = porParada[chave];
+      var nomesDaParada = Array.from(new Set(doParada.map(function (x) { return x.clienteNome || '?'; })));
+      var tituloParada = nomesDaParada.join(' + ');
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'client-row';
+      b.style.width = '100%';
+      b.innerHTML = '<div><div class="cr-name"></div><div class="cr-sub"></div></div>';
+      b.querySelector('.cr-name').textContent = tituloParada;
+      b.querySelector('.cr-sub').textContent = doParada[0].zona ? ZONA_LABEL[doParada[0].zona] : 'sem região definida';
+      b.addEventListener('click', function () { abrirEnviarRotaCliente_(doParada[0], chave, tituloParada); });
+      listaEl.appendChild(b);
+    });
+  }
+  $('rotaEnviarLinkBtn').addEventListener('click', abrirEscolherParadaEnviarRota_);
 
   // ---------- link de acompanhamento de rota pro cliente ----------
   // Mesma ideia da assinatura remota (link com token, sem login), mas pra
