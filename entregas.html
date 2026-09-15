@@ -1117,6 +1117,54 @@
   /* Celular deitado: a faixa come a tela toda. */
   @media (max-height: 460px) { .auth-side { display: none; } }
 
+  /* ---------- acompanhar rota (tela pública do cliente) ---------- */
+  .rota-track-empresa {
+    text-align: center; font-weight: 600; font-size: var(--t-md); color: var(--ink);
+    margin: 0 0 var(--esp-4);
+  }
+  .rota-track-hero {
+    text-align: center; padding: var(--esp-5) var(--esp-4); border-radius: var(--r-lg);
+    margin-bottom: var(--esp-4); background: var(--accent-soft); border: 1px solid var(--border);
+  }
+  .rota-track-hero .ph { font-size: 2rem; color: var(--accent-forte); }
+  .rota-track-hero.concluida { background: var(--success-soft); }
+  .rota-track-hero.concluida .ph { color: var(--success); }
+  .rota-track-numero {
+    font-size: 2.75rem; font-weight: 700; line-height: 1.1; color: var(--ink);
+    font-family: var(--font-mono); margin-top: 6px;
+  }
+  .rota-track-texto { font-size: var(--t-base); color: var(--ink-soft); margin-top: 2px; font-weight: 500; }
+  .rota-track-estimativa {
+    display: inline-flex; align-items: center; gap: 6px; margin-top: var(--esp-3);
+    background: var(--surface); border: 1px solid var(--border); border-radius: 999px;
+    padding: 6px 14px; font-size: var(--t-sm); font-weight: 600; color: var(--ink-soft);
+  }
+  .rota-track-estimativa .ph { font-size: 1rem; color: var(--ink-faint); }
+  .rota-track-lista-titulo {
+    font-size: var(--t-sm); font-weight: 600; color: var(--ink-soft); text-transform: uppercase;
+    letter-spacing: .03em; margin: 0 0 var(--esp-2);
+  }
+  .rota-track-lista { list-style: none; margin: 0 0 var(--esp-4); padding: 0; display: grid; gap: 6px; }
+  .rota-track-lista li {
+    display: flex; align-items: center; gap: 10px; padding: 9px 12px;
+    background: var(--surface-2); border-radius: var(--r-sm); font-size: var(--t-base);
+  }
+  .rota-track-lista li .rota-track-pos {
+    display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%;
+    background: var(--surface); color: var(--ink-faint); font-size: var(--t-xs); font-weight: 700;
+    flex-shrink: 0;
+  }
+  .rota-track-live {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    text-align: center; font-size: var(--t-sm); color: var(--ink-faint);
+  }
+  .rota-track-live-dot {
+    width: 7px; height: 7px; border-radius: 50%; background: var(--success); flex-shrink: 0;
+    animation: rota-track-pulso 1.8s ease infinite;
+  }
+  @keyframes rota-track-pulso { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
+  html[data-animacao="reduzida"] .rota-track-live-dot { animation: none; }
+
   /* ---------- escolher função ---------- */
   .hub-screen {
     position: fixed; inset: 0; background: var(--bg); z-index: calc(var(--z-tela) - 5);
@@ -2218,15 +2266,18 @@
       <h1 class="auth-titulo">Acompanhar entrega</h1>
       <p class="auth-sub" id="rotaSub">Abrindo...</p>
       <div id="rotaConteudo" hidden>
-        <p class="card-hint" id="rotaClienteNome" style="font-weight:600;font-size:var(--t-md);color:var(--ink);margin-bottom:var(--esp-4);"></p>
-        <div id="rotaPosicaoBox" style="text-align:center;padding:var(--esp-4);background:var(--surface-2);border-radius:var(--r-md);margin-bottom:var(--esp-4);">
-          <div id="rotaPosicaoNumero" style="font-size:2rem;font-weight:700;line-height:1;"></div>
-          <div id="rotaPosicaoTexto" class="card-hint" style="margin-top:4px;"></div>
-          <div id="rotaEstimativa" class="card-hint" style="margin-top:8px;font-weight:500;color:var(--ink-soft);"></div>
+        <p class="rota-track-empresa" id="rotaClienteNome"></p>
+        <div class="rota-track-hero" id="rotaPosicaoBox">
+          <i class="ph ph-truck" id="rotaPosicaoIcone" aria-hidden="true"></i>
+          <div class="rota-track-numero" id="rotaPosicaoNumero"></div>
+          <div class="rota-track-texto" id="rotaPosicaoTexto"></div>
+          <div class="rota-track-estimativa" id="rotaEstimativa" hidden><i class="ph ph-clock" aria-hidden="true"></i><span id="rotaEstimativaTexto"></span></div>
         </div>
-        <p class="card-hint" id="rotaListaTitulo" style="margin-bottom:6px;"></p>
-        <ul id="rotaListaAntes" style="margin:0 0 var(--esp-3);padding-left:20px;"></ul>
-        <p class="card-hint" id="rotaAtualizadoEm" style="text-align:center;"></p>
+        <p class="rota-track-lista-titulo" id="rotaListaTitulo"></p>
+        <ul class="rota-track-lista" id="rotaListaAntes"></ul>
+        <p class="rota-track-live" id="rotaAtualizadoLinha" hidden>
+          <span class="rota-track-live-dot" aria-hidden="true"></span><span id="rotaAtualizadoEm"></span>
+        </p>
       </div>
     </div>
   </div>
@@ -10172,28 +10223,43 @@
       $('rotaConteudo').hidden = false;
 
       if (d.concluida) {
-        $('rotaPosicaoNumero').textContent = '✓';
+        $('rotaPosicaoBox').classList.add('concluida');
+        $('rotaPosicaoIcone').className = 'ph ph-check-circle';
+        $('rotaPosicaoNumero').textContent = '';
         $('rotaPosicaoTexto').textContent = 'Entrega concluída — obrigado!';
-        $('rotaEstimativa').textContent = '';
+        $('rotaEstimativa').hidden = true;
         $('rotaListaTitulo').textContent = '';
         $('rotaListaAntes').innerHTML = '';
+        $('rotaAtualizadoLinha').hidden = true;
         return;
       }
+      $('rotaPosicaoBox').classList.remove('concluida');
       var antes = d.paradasAntes || [];
-      $('rotaPosicaoNumero').textContent = antes.length === 0 ? '🚚' : String(antes.length);
+      $('rotaPosicaoIcone').className = antes.length === 0 ? 'ph ph-flag-checkered' : 'ph ph-truck';
+      $('rotaPosicaoNumero').textContent = String(antes.length);
       $('rotaPosicaoTexto').textContent = antes.length === 0
         ? 'Você é a próxima entrega!'
         : 'empresa' + (antes.length > 1 ? 's' : '') + ' na frente da sua';
       // é uma estimativa no ritmo médio de quem está entregando — pode
       // variar bastante (trânsito, cliente ausente, parada que atrasa).
-      $('rotaEstimativa').textContent = typeof d.estimativaMinutos === 'number'
-        ? (d.estimativaMinutos <= 1 ? 'Chegando em poucos minutos' : '~' + fmtDuracao_(d.estimativaMinutos) + ' de espera (estimativa)')
-        : '';
-      $('rotaListaTitulo').textContent = antes.length ? 'Quem está na frente:' : '';
-      $('rotaListaAntes').innerHTML = antes.map(function (nome) { return '<li>' + escapeHtml_(nome) + '</li>'; }).join('');
-      $('rotaAtualizadoEm').textContent = d.atualizadoEm
-        ? 'Atualizado ' + new Date(d.atualizadoEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-        : '';
+      if (typeof d.estimativaMinutos === 'number') {
+        $('rotaEstimativa').hidden = false;
+        $('rotaEstimativaTexto').textContent = d.estimativaMinutos <= 1
+          ? 'Chegando em poucos minutos'
+          : '~' + fmtDuracao_(d.estimativaMinutos) + ' de espera';
+      } else {
+        $('rotaEstimativa').hidden = true;
+      }
+      $('rotaListaTitulo').textContent = antes.length ? 'Quem está na frente' : '';
+      $('rotaListaAntes').innerHTML = antes.map(function (nome, i) {
+        return '<li><span class="rota-track-pos">' + (i + 1) + '</span><span>' + escapeHtml_(nome) + '</span></li>';
+      }).join('');
+      if (d.atualizadoEm) {
+        $('rotaAtualizadoLinha').hidden = false;
+        $('rotaAtualizadoEm').textContent = 'Atualizado ' + new Date(d.atualizadoEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      } else {
+        $('rotaAtualizadoLinha').hidden = true;
+      }
     }, function () {
       $('rotaSub').textContent = 'Não foi possível abrir este link agora. Tente de novo.';
     });
