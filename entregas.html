@@ -7409,20 +7409,30 @@
             '<button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button>' +
           '</div>' +
           '<div class="field"><span>Entregas incluídas</span>' + linhasHtml + '</div>' +
-          '<label class="field">' +
+          '<label class="avulso-toggle falha-toggle" style="margin-top:14px;">' +
+            '<input type="checkbox" id="loteFalhaToggle">' +
+            '<i class="ph ph-warning" aria-hidden="true"></i> Cliente ausente / entrega não realizada' +
+          '</label>' +
+          '<label class="field" id="loteFalhaMotivoField" hidden>' +
+            '<span>O que aconteceu</span>' +
+            '<textarea class="input" id="loteFalhaMotivo" rows="2" placeholder="Ex.: Estabelecimento fechado, ninguém atendeu..."></textarea>' +
+            '<div class="field-error" id="err-loteFalhaMotivo">Explique o que aconteceu.</div>' +
+          '</label>' +
+          '<label class="field" id="loteRecebedorField">' +
             '<span>Nome de quem recebeu (opcional)</span>' +
             '<input class="input" id="loteRecebedor" type="text" placeholder="Quem assinou pelo cliente">' +
           '</label>' +
-          '<div class="field">' +
-            '<span>Foto (opcional se colher assinatura)</span>' +
+          '<div class="field" id="loteFotoField">' +
+            '<span id="loteFotoLabel">Foto (opcional se colher assinatura)</span>' +
             '<input type="file" accept="image/*" capture="environment" id="loteFotoInput" class="foto-file-input">' +
             '<label for="loteFotoInput" class="btn btn-secondary foto-label"><i class="ph ph-camera" aria-hidden="true"></i> Tirar foto / anexar</label>' +
             '<div class="foto-preview-wrap" id="loteFotoPreviewWrap" hidden>' +
               '<img id="loteFotoPreview" class="foto-preview" alt="Foto anexada">' +
               '<button type="button" class="link-btn" id="loteFotoRemove">Remover foto</button>' +
             '</div>' +
+            '<div class="field-error" id="err-loteFoto">Anexe uma foto — é obrigatória nesse caso.</div>' +
           '</div>' +
-          '<label class="field">' +
+          '<label class="field" id="loteAssinaturaField">' +
             '<span>Assinatura (opcional se anexar foto)</span>' +
             '<div class="sig-wrap">' +
               '<canvas id="loteSigCanvas"></canvas>' +
@@ -7475,24 +7485,54 @@
       $('loteSigPlaceholder').classList.remove('hide');
     });
 
+    // Mesmo comportamento do modal de uma entrega só: marcar como não
+    // realizada esconde assinatura/recebedor (não fazem sentido pra quem
+    // não foi entregue) e passa a exigir foto, como prova de que a
+    // tentativa aconteceu de verdade.
+    function atualizarModoFalhaLote_() {
+      var isFalha = $('loteFalhaToggle').checked;
+      $('loteFalhaMotivoField').hidden = !isFalha;
+      $('loteAssinaturaField').hidden = isFalha;
+      $('loteRecebedorField').hidden = isFalha;
+      $('loteFotoLabel').textContent = isFalha ? 'Foto (obrigatória)' : 'Foto (opcional se colher assinatura)';
+      $('loteConfirmBtn').textContent = isFalha ? 'Registrar como não realizada' : 'Confirmar todas';
+    }
+    $('loteFalhaToggle').addEventListener('change', atualizarModoFalhaLote_);
+
     $('loteConfirmBtn').addEventListener('click', function () {
+      var isFalha = $('loteFalhaToggle').checked;
+      var motivo = $('loteFalhaMotivo').value.trim();
       $('loteSigError').hidden = true;
+      clearFieldError('loteFoto');
+      clearFieldError('loteFalhaMotivo');
       var escolhidas = Array.from(document.querySelectorAll('.lote-item:checked'))
         .map(function (c) { return entregas[parseInt(c.dataset.idx, 10)]; });
       if (!escolhidas.length) { showToast('Escolha ao menos uma entrega.', 'error'); return; }
-      if (!lotePad.hasSignature && !loteFoto) { $('loteSigError').hidden = false; return; }
+      if (isFalha) {
+        var ok = true;
+        if (!loteFoto) { showFieldError('loteFoto'); ok = false; }
+        if (!motivo) { showFieldError('loteFalhaMotivo'); ok = false; }
+        if (!ok) return;
+      } else if (!lotePad.hasSignature && !loteFoto) {
+        $('loteSigError').hidden = false;
+        return;
+      }
 
       var btn = $('loteConfirmBtn');
       botaoOcupado_(btn);
-      var assinatura = lotePad.hasSignature ? lotePad.dataUrl() : null;
+      var assinatura = !isFalha && lotePad.hasSignature ? lotePad.dataUrl() : null;
       var agora = new Date().toISOString();
-      var recebedor = $('loteRecebedor').value.trim();
+      var recebedor = isFalha ? '' : $('loteRecebedor').value.trim();
 
       // Quando são duas empresas aglutinadas em vez do mesmo cliente
       // repetido, cada uma tem seu próprio clienteId — mas aglutinar já
       // copia a localização de uma pra outra, então checar a divergência
-      // pela primeira da lista vale pra todas do lote.
-      var avaliacaoLote = avaliarLocalDaEntrega_(escolhidas[0] && escolhidas[0].clienteId, loteGeo);
+      // pela primeira da lista vale pra todas do lote. Numa tentativa que
+      // não deu certo, a divergência não importa — o ponto do cliente só
+      // deve mudar quando a entrega realmente aconteceu ali.
+      var avaliacaoLote = isFalha
+        ? { divergente: false, distancia: null }
+        : avaliarLocalDaEntrega_(escolhidas[0] && escolhidas[0].clienteId, loteGeo);
 
       // a mesma assinatura/foto vale como comprovante de cada entrega,
       // então cada documento continua tendo seu próprio comprovante salvo.
@@ -7504,29 +7544,32 @@
         return ref.update({
           recebedor: recebedor,
           geo: loteGeo,
-          temAssinatura: !!assinatura,
+          temAssinatura: !isFalha && !!assinatura,
           temFoto: !!loteFoto,
           localDivergente: avaliacaoLote.divergente,
           distanciaDoClienteKm: avaliacaoLote.distancia,
-          falha: false,
-          motivoFalha: '',
+          falha: isFalha,
+          motivoFalha: isFalha ? motivo : '',
           entregadoPor: (auth.currentUser && auth.currentUser.email) || '',
           entregadoPorNome: currentUserNome || (auth.currentUser && auth.currentUser.email) || '',
-          status: 'confirmada',
+          status: isFalha ? 'falha' : 'confirmada',
           confirmadoEm: agora
         }).then(function () {
-          guardarLocalDoCliente_(e.clienteId, loteGeo);
-          return ref.collection('anexos').doc('comprovante').set({ assinatura: assinatura, foto: loteFoto }, { merge: true });
+          if (!isFalha) guardarLocalDoCliente_(e.clienteId, loteGeo);
+          return ref.collection('anexos').doc('comprovante').set({ assinatura: isFalha ? null : assinatura, foto: loteFoto }, { merge: true });
         });
       });
 
       escritaQueNaoTrava_(Promise.all(gravacoes)).then(function (resultado) {
-        showToast(avisoDeEscrita_(resultado, escolhidas.length + ' entregas confirmadas de uma vez.'));
-        avisarLocalDivergente_(avaliacaoLote, clienteNome);
+        showToast(avisoDeEscrita_(resultado, isFalha
+          ? escolhidas.length + ' entregas registradas como não realizadas.'
+          : escolhidas.length + ' entregas confirmadas de uma vez.'));
+        if (!isFalha) avisarLocalDivergente_(avaliacaoLote, clienteNome);
         closeModal();
       }).catch(function (err) {
         showToast(errMsg(err, 'Não foi possível confirmar.'), 'error');
         botaoLivre_(btn);
+        atualizarModoFalhaLote_();
       });
     });
   }
