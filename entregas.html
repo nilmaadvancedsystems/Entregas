@@ -2005,7 +2005,8 @@
         <span>Cargos (além de Equipe)</span>
         <label class="avulso-toggle"><input type="checkbox" id="novoUsuarioAdmin"> Admin</label>
         <label class="avulso-toggle"><input type="checkbox" id="novoUsuarioOfficeBoy"> Office boy (fica com a página de Solicitações)</label>
-        <label class="avulso-toggle"><input type="checkbox" id="novoUsuarioContabil"> Contábil (Conciliadorzinho, Cheque especial e Importador LCDPR)</label>
+        <label class="avulso-toggle"><input type="checkbox" id="novoUsuarioContabil"> Contábil (Conciliadorzinho e Cheque especial)</label>
+        <label class="avulso-toggle"><input type="checkbox" id="novoUsuarioFiscal"> Fiscal (Importador LCDPR)</label>
         <label class="avulso-toggle"><input type="checkbox" id="novoUsuarioEquipeGeral"> Equipe geral</label>
       </div>
       <button type="submit" class="btn btn-primary">Criar acesso</button>
@@ -2228,7 +2229,12 @@
       <button type="button" class="hub-card" id="hubContabil" data-cargo="contabil" hidden>
         <span class="hub-card-ico"><i class="ph ph-calculator" aria-hidden="true"></i></span>
         <span class="hub-card-nome">Contábil</span>
-        <span class="hub-card-desc">Conciliadorzinho, cheque especial e importador LCDPR</span>
+        <span class="hub-card-desc">Conciliadorzinho e ajuste de cheque especial</span>
+      </button>
+      <button type="button" class="hub-card" id="hubFiscal" data-cargo="fiscal" hidden>
+        <span class="hub-card-ico"><i class="ph ph-file-text" aria-hidden="true"></i></span>
+        <span class="hub-card-nome">Fiscal</span>
+        <span class="hub-card-desc">Importador LCDPR</span>
       </button>
     </div>
     <div class="hub-grid" id="hubGridContabil" hidden>
@@ -2247,6 +2253,13 @@
         <span class="hub-card-nome">Cheque especial</span>
         <span class="hub-card-desc">Ajuste de lançamentos de saldo negativo</span>
       </a>
+    </div>
+    <div class="hub-grid" id="hubGridFiscal" hidden>
+      <button type="button" class="hub-card" id="hubFiscalVoltar">
+        <span class="hub-card-ico"><i class="ph ph-arrow-left" aria-hidden="true"></i></span>
+        <span class="hub-card-nome">Voltar</span>
+        <span class="hub-card-desc">Escolher outra função</span>
+      </button>
       <a href="lcdpr.html" class="hub-card">
         <span class="hub-card-ico"><i class="ph ph-tractor" aria-hidden="true"></i></span>
         <span class="hub-card-nome">Importador LCDPR</span>
@@ -2524,6 +2537,7 @@
     { key: 'admin', label: 'Admin' },
     { key: 'office_boy', label: 'Office boy' },
     { key: 'contabil', label: 'Contábil' },
+    { key: 'fiscal', label: 'Fiscal' },
     { key: 'equipe_geral', label: 'Equipe geral' }
   ];
 
@@ -9605,6 +9619,7 @@
     if ($('novoUsuarioAdmin').checked) roles.push('admin');
     if ($('novoUsuarioOfficeBoy').checked) roles.push('office_boy');
     if ($('novoUsuarioContabil').checked) roles.push('contabil');
+    if ($('novoUsuarioFiscal').checked) roles.push('fiscal');
     if ($('novoUsuarioEquipeGeral').checked) roles.push('equipe_geral');
     var btn = e.target.querySelector('button[type="submit"]');
     botaoOcupado_(btn);
@@ -9616,6 +9631,7 @@
       $('novoUsuarioAdmin').checked = false;
       $('novoUsuarioOfficeBoy').checked = false;
       $('novoUsuarioContabil').checked = false;
+      $('novoUsuarioFiscal').checked = false;
       $('novoUsuarioEquipeGeral').checked = false;
     }).catch(function (err) {
       var msg = (err && err.code === 'auth/email-already-in-use') ? 'Já existe um acesso com esse nome.' : errMsg(err, 'Não foi possível criar o acesso.');
@@ -10045,8 +10061,10 @@
     closeModal();
     appShellEls.forEach(function (el) { if (el) el.hidden = true; });
     $('hubGridContabil').hidden = true;
+    $('hubGridFiscal').hidden = true;
     $('hubGridPrincipal').hidden = false;
     $('hubContabil').hidden = !(temPapel('admin') || temPapel('contabil'));
+    $('hubFiscal').hidden = !(temPapel('admin') || temPapel('fiscal'));
     $('hubScreen').hidden = false;
   }
 
@@ -10063,6 +10081,14 @@
   });
   $('hubContabilVoltar').addEventListener('click', function () {
     $('hubGridContabil').hidden = true;
+    $('hubGridPrincipal').hidden = false;
+  });
+  $('hubFiscal').addEventListener('click', function () {
+    $('hubGridPrincipal').hidden = true;
+    $('hubGridFiscal').hidden = false;
+  });
+  $('hubFiscalVoltar').addEventListener('click', function () {
+    $('hubGridFiscal').hidden = true;
     $('hubGridPrincipal').hidden = false;
   });
 
@@ -10109,6 +10135,7 @@
     if ($('novoUsuarioAdmin').checked) roles.push('admin');
     if ($('novoUsuarioOfficeBoy').checked) roles.push('office_boy');
     if ($('novoUsuarioContabil').checked) roles.push('contabil');
+    if ($('novoUsuarioFiscal').checked) roles.push('fiscal');
     if ($('novoUsuarioEquipeGeral').checked) roles.push('equipe_geral');
 
     var btn = this;
