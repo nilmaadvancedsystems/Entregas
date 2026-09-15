@@ -2294,10 +2294,6 @@
       <div id="assinaturaConteudo" hidden>
         <div class="itens-list" id="assinaturaItens"></div>
         <label class="field">
-          <span>Seu nome</span>
-          <input class="input" id="assinaturaNome" type="text" placeholder="Quem está recebendo" autocomplete="name">
-        </label>
-        <label class="field">
           <span>Assinatura</span>
           <div class="sig-wrap">
             <canvas id="assinaturaCanvas"></canvas>
@@ -2307,6 +2303,13 @@
               <button type="button" class="link-btn" id="assinaturaLimpar">Limpar</button>
             </div>
           </div>
+        </label>
+        <!-- Nome vem DEPOIS de assinar: abrir o teclado pra digitar
+             antes de desenhar é o gatilho mais comum do reajuste de
+             tela que apagava o traço em andamento. -->
+        <label class="field">
+          <span>Seu nome</span>
+          <input class="input" id="assinaturaNome" type="text" placeholder="Quem está recebendo" autocomplete="name" enterkeyhint="done">
         </label>
         <div class="auth-erro" id="assinaturaErro" hidden><i class="ph ph-warning-circle" aria-hidden="true"></i> <span id="assinaturaErroTexto"></span></div>
         <button type="button" class="btn btn-primary" id="assinaturaEnviarBtn">Confirmar recebimento</button>
@@ -3122,6 +3125,12 @@
         if (Math.abs(box.width - lastW) > 1 || Math.abs(box.height - lastH) > 1) {
           lastW = box.width; lastH = box.height;
           if (drawing) { pendingResize = true; return; }
+          // "hasSignature" já é true a partir do primeiro traço — mesmo
+          // que a pessoa nunca tenha soltado o dedo ainda (saveSnapshot só
+          // roda em endStroke). Sem isto, um reajuste de tela no MEIO da
+          // assinatura (o teclado do celular abrindo/fechando é a causa
+          // mais comum) apagava um traço que nunca tinha sido salvo.
+          if (ctx && pad.hasSignature) { try { snapshot = canvasEl.toDataURL('image/png'); } catch (err) {} }
           if (ctx) setup(true);
         }
       });
@@ -10177,6 +10186,12 @@
         $('assinaturaStatus').textContent = 'Sem assinatura ainda.';
         $('assinaturaStatus').classList.remove('ok');
         $('assinaturaPlaceholder').classList.remove('hide');
+      });
+      // "Concluído" no teclado fecha o teclado em vez de não fazer nada —
+      // sem isto, a única forma de sumir com o teclado era tocar em outro
+      // campo, e nesta tela não tem outro campo depois do nome.
+      $('assinaturaNome').addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter') { ev.preventDefault(); this.blur(); }
       });
 
       $('assinaturaEnviarBtn').addEventListener('click', function () {
