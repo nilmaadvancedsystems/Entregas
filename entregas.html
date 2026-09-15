@@ -584,7 +584,7 @@
     outline: none; border-color: var(--accent);
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
   }
-  .field-error { color: var(--danger-forte); font-size: var(--t-sm); margin-top: 5px; display: none; }
+  .field-error { color: var(--danger-forte); font-size: var(--t-sm); margin-top: var(--esp-1); display: none; }
   .field-error.show { display: block; }
 
   /* Um tamanho só de caixa de marcar. */
@@ -688,7 +688,7 @@
   .valor-row input { width: 132px; min-height: 38px; text-align: right; padding: 7px 10px; }
   .valor-clear, .valor-duplicar {
     border: 1px solid var(--border); background: var(--surface); color: var(--ink-soft);
-    width: 32px; height: 32px; border-radius: var(--r-sm); cursor: pointer; font-size: .78rem;
+    width: 32px; height: 32px; border-radius: var(--r-sm); cursor: pointer; font-size: .8rem;
     flex: none; display: inline-grid; place-items: center;
   }
   .valor-clear:hover { border-color: var(--danger); background: var(--danger-soft); color: var(--danger-forte); }
@@ -963,6 +963,9 @@
   }
   .modal-head { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--esp-3); margin-bottom: var(--esp-4); }
   .modal-head > div:first-child { min-width: 0; flex: 1; overflow-wrap: break-word; word-break: break-word; }
+  /* subtítulo (nome do cliente, competência etc.) embaixo do <h2> do
+     modal — ficava repetido como style="margin:2px 0 0" em ~20 modais */
+  .modal-head-sub { margin: 2px 0 0; }
   .modal-close {
     border: 1px solid var(--border); background: var(--surface); border-radius: var(--r-sm);
     width: 34px; height: 34px; cursor: pointer; font-size: .95rem; flex: none;
@@ -1087,7 +1090,7 @@
   .auth-titulo { font-size: var(--t-xl); margin: 0 0 4px; letter-spacing: -.018em; font-weight: 600; }
   .auth-sub { color: var(--ink-soft); font-size: var(--t-base); margin: 0 0 var(--esp-5); }
   .auth-form .field { display: block; margin-bottom: var(--esp-3); }
-  .auth-form .field > label { display: block; font-size: var(--t-sm); font-weight: 500; color: var(--ink-soft); margin-bottom: 5px; }
+  .auth-form .field > label { display: block; font-size: var(--t-sm); font-weight: 500; color: var(--ink-soft); margin-bottom: var(--esp-1); }
   .auth-form .btn { margin-top: var(--esp-2); }
   .senha-wrap { position: relative; display: block; }
   .senha-wrap .input { padding-right: 46px; }
@@ -1136,7 +1139,7 @@
   .rota-track-texto { font-size: var(--t-base); color: var(--ink-soft); margin-top: 2px; font-weight: 500; }
   .rota-track-estimativa {
     display: inline-flex; align-items: center; gap: 6px; margin-top: var(--esp-3);
-    background: var(--surface); border: 1px solid var(--border); border-radius: 999px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-pill);
     padding: 6px 14px; font-size: var(--t-sm); font-weight: 600; color: var(--ink-soft);
   }
   .rota-track-estimativa .ph { font-size: 1rem; color: var(--ink-faint); }
@@ -1994,7 +1997,7 @@
       <!-- Cada cargo é um <label> próprio: clicar no nome marca a caixinha
            dele. Envolver todos num único <label> fazia qualquer clique aqui
            dentro cair no primeiro checkbox da lista (Admin). -->
-      <div class="field" style="margin-bottom:16px;">
+      <div class="field">
         <span>Cargos (além de Equipe)</span>
         <label class="avulso-toggle"><input type="checkbox" id="novoUsuarioAdmin"> Admin</label>
         <label class="avulso-toggle"><input type="checkbox" id="novoUsuarioOfficeBoy"> Office boy (fica com a página de Solicitações)</label>
@@ -2171,7 +2174,7 @@
         <h2><i class="ph ph-users" aria-hidden="true"></i> Clientes</h2>
         <button type="button" class="btn-chip accent" id="exportClientesBtn"><i class="ph ph-download-simple" aria-hidden="true"></i> Exportar planilha</button>
       </div>
-      <div class="filtro" style="margin:12px 0;">
+      <div class="filtro" style="margin:var(--esp-3) 0;">
         <label for="clientesBusca">Buscar cliente</label>
         <input class="input" id="clientesBusca" enterkeyhint="search" type="text" placeholder="Nome, código ou CNPJ">
       </div>
@@ -4355,7 +4358,7 @@
     root.innerHTML =
       '<div class="modal-overlay" id="overlay"><div class="modal">' +
         '<div class="modal-head"><div><h2>' + escapeHtml_(titulo) + '</h2>' +
-        '<div class="card-hint" style="margin:2px 0 0">Selecione tudo e copie pra mandar onde quiser.</div></div>' +
+        '<div class="card-hint modal-head-sub">Selecione tudo e copie pra mandar onde quiser.</div></div>' +
         '<button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button></div>' +
         '<textarea class="input" id="textoParaCopiar" rows="12" readonly></textarea>' +
       '</div></div>';
@@ -4839,7 +4842,7 @@
     root.innerHTML =
       '<div class="modal-overlay" id="overlay"><div class="modal" id="modalInner">' +
         '<div class="modal-head"><div><h2>Adicionar cliente aos honorários</h2>' +
-          '<div class="card-hint" style="margin:2px 0 0">Busque um cliente já cadastrado.</div>' +
+          '<div class="card-hint modal-head-sub">Busque um cliente já cadastrado.</div>' +
         '</div><button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button></div>' +
         '<label class="field"><span>Buscar cliente</span>' +
           '<input class="input" id="addHonorarioBusca" type="text" placeholder="Nome, código ou CNPJ" autocomplete="off"></label>' +
@@ -4887,7 +4890,7 @@
     root.innerHTML =
       '<div class="modal-overlay" id="overlay"><div class="modal" id="modalInner">' +
         '<div class="modal-head"><div><h2>Editar honorário</h2>' +
-          '<div class="card-hint" style="margin:2px 0 0">' + escapeHtml_(clienteLabel(cliente)) + '</div>' +
+          '<div class="card-hint modal-head-sub">' + escapeHtml_(clienteLabel(cliente)) + '</div>' +
         '</div><button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button></div>' +
         '<label class="field"><span>Forma de pagamento</span>' +
           '<input class="input" id="editHonorarioForma" type="text" placeholder="Ex.: Boleto, Dinheiro/Pix" value="' + escapeHtml_(cliente.honorarioForma || '') + '"></label>' +
@@ -5180,9 +5183,9 @@
     root.innerHTML =
       '<div class="modal-overlay" id="overlay"><div class="modal" id="modalInner">' +
         '<div class="modal-head"><div><h2>Marcar como entregue</h2>' +
-          '<div class="card-hint" style="margin:2px 0 0">' + escapeHtml_(clienteLabel(cliente)) + ' · ' + fmtCompetencia(mesAno) + '</div>' +
+          '<div class="card-hint modal-head-sub">' + escapeHtml_(clienteLabel(cliente)) + ' · ' + fmtCompetencia(mesAno) + '</div>' +
         '</div><button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button></div>' +
-        '<p class="card-hint" style="margin:0 0 12px">Vai contar como "' + chaveDoc + '" entregue em ' + fmtCompetencia(mesAno) + ', sem assinatura nem foto. Use só quando não tem como comprovar de outro jeito.</p>' +
+        '<p class="card-hint">Vai contar como "' + chaveDoc + '" entregue em ' + fmtCompetencia(mesAno) + ', sem assinatura nem foto. Use só quando não tem como comprovar de outro jeito.</p>' +
         '<label class="field"><span>Por que não tem comprovante</span>' +
           '<textarea class="input" id="honorarioSemComprovanteMotivo" rows="2" placeholder="Ex.: entreguei antes de começar a usar o app"></textarea>' +
           '<div class="field-error show" id="err-honorarioSemComprovanteMotivo" hidden>Explique o que aconteceu.</div>' +
@@ -5541,7 +5544,7 @@
     root.innerHTML =
       '<div class="modal-overlay" id="overlay"><div class="modal" id="modalInner">' +
         '<div class="modal-head"><div><h2>Rota no Google Maps</h2>' +
-          '<div class="card-hint" style="margin:2px 0 0">' + totalComLocal + ' parada(s) com localização' +
+          '<div class="card-hint modal-head-sub">' + totalComLocal + ' parada(s) com localização' +
           (trechos.length > 1 ? ' · dividida em ' + trechos.length + ' trechos, porque o Maps aceita no máximo 10 paradas por link' : '') +
           '</div></div>' +
           '<button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button>' +
@@ -6428,7 +6431,10 @@
         m.bindPopup(
           '<b>' + escapeHtml_(e.clienteNome || '') + '</b><br>' +
           (isFalha ? escapeHtml_(e.motivoFalha || 'Não entregue') : escapeHtml_(itensStr)) + '<br>' +
-          '<span style="opacity:.7">' + escapeHtml_(fmtDateTime(e.confirmadoEm || e.criadoEm)) + '</span>'
+          // cor fixa, não var(--ink-faint): o popup do Leaflet é sempre
+          // fundo branco (não segue o tema escuro do app), então usa o
+          // mesmo tom que --ink-faint tem no claro
+          '<span style="color:#6C6C6C">' + escapeHtml_(fmtDateTime(e.confirmadoEm || e.criadoEm)) + '</span>'
         );
         painelMarkers.push(m);
         bounds.push([e.geo.lat, e.geo.lng]);
@@ -6616,7 +6622,7 @@
     root.innerHTML =
       '<div class="modal-overlay" id="overlay"><div class="modal" id="modalInner">' +
         '<div class="modal-head"><div><h2>Meta do mês</h2>' +
-          '<div class="card-hint" style="margin:2px 0 0">Quantas entregas confirmadas cada pessoa deve fazer por competência</div>' +
+          '<div class="card-hint modal-head-sub">Quantas entregas confirmadas cada pessoa deve fazer por competência</div>' +
         '</div><button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button></div>' +
         '<label class="field"><span>Entregas por pessoa</span>' +
           '<input class="input" id="metaValorInput" type="number" min="0" step="1" value="' + (metaPorPessoa || '') + '" placeholder="ex.: 40">' +
@@ -6740,7 +6746,7 @@
     root.innerHTML =
       '<div class="modal-overlay" id="overlay">' +
         '<div class="modal" id="modalInner">' +
-          '<div class="modal-head"><div><h2>Sem entrega há tempo</h2><div class="card-hint" style="margin:2px 0 0">' + clientesSemEntregaCache.length + ' cliente(s) ativo(s) sem entrega confirmada nas últimas 3 competências</div></div>' +
+          '<div class="modal-head"><div><h2>Sem entrega há tempo</h2><div class="card-hint modal-head-sub">' + clientesSemEntregaCache.length + ' cliente(s) ativo(s) sem entrega confirmada nas últimas 3 competências</div></div>' +
             '<button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button>' +
           '</div>' +
         '</div>' +
@@ -6776,7 +6782,7 @@
     root.innerHTML =
       '<div class="modal-overlay" id="overlay"><div class="modal" id="modalInner">' +
         '<div class="modal-head"><div><h2>Corrigir localização</h2>' +
-          '<div class="card-hint" style="margin:2px 0 0">' + escapeHtml_(clienteLabel(cliente)) + '</div>' +
+          '<div class="card-hint modal-head-sub">' + escapeHtml_(clienteLabel(cliente)) + '</div>' +
         '</div><button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button></div>' +
         '<div class="field"><span>Onde fica</span>' +
           '<button type="button" class="btn btn-secondary" id="usarPosicaoBtn" style="width:100%;margin-bottom:8px;">' +
@@ -6787,7 +6793,7 @@
         '<label class="field"><span>Região da rota</span>' +
           '<select class="input" id="corrigirZonaSelect">' + opcoesZona + '</select>' +
         '</label>' +
-        '<p class="card-hint" id="corrigirStatus" style="margin:0 0 12px"></p>' +
+        '<p class="card-hint" id="corrigirStatus"></p>' +
         '<button type="button" class="btn btn-primary" id="corrigirSalvarBtn">Salvar</button>' +
       '</div></div>';
 
@@ -6885,10 +6891,10 @@
 
     var statusHtml = '';
     if (ancoraAtual) {
-      statusHtml = '<p class="card-hint" style="margin:0 0 12px"><strong>Aglutinado com:</strong> ' + escapeHtml_(clienteLabel(ancoraAtual)) + '</p>' +
-        '<div class="modal-acoes" style="margin-bottom:16px;"><button type="button" class="btn-chip danger" id="desfazerAglutinarBtn"><i class="ph ph-link-break" aria-hidden="true"></i> Desfazer aglutinação</button></div>';
+      statusHtml = '<p class="card-hint"><strong>Aglutinado com:</strong> ' + escapeHtml_(clienteLabel(ancoraAtual)) + '</p>' +
+        '<div class="modal-acoes"><button type="button" class="btn-chip danger" id="desfazerAglutinarBtn"><i class="ph ph-link-break" aria-hidden="true"></i> Desfazer aglutinação</button></div>';
     } else if (seguidores.length) {
-      statusHtml = '<p class="card-hint" style="margin:0 0 12px"><strong>É a referência de:</strong> ' +
+      statusHtml = '<p class="card-hint"><strong>É a referência de:</strong> ' +
         seguidores.map(function (x) { return escapeHtml_(clienteLabel(x)); }).join(', ') +
         '. Para desfazer, abra a ficha de um deles.</p>';
     }
@@ -6896,9 +6902,9 @@
     root.innerHTML =
       '<div class="modal-overlay" id="overlay"><div class="modal" id="modalInner">' +
         '<div class="modal-head"><div><h2>Aglutinar com outra empresa</h2>' +
-          '<div class="card-hint" style="margin:2px 0 0">' + escapeHtml_(clienteLabel(cliente)) + '</div>' +
+          '<div class="card-hint modal-head-sub">' + escapeHtml_(clienteLabel(cliente)) + '</div>' +
         '</div><button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button></div>' +
-        '<p class="card-hint" style="margin:0 0 12px">Use quando duas empresas cadastradas separadamente ficam no mesmo endereço físico — por exemplo, dois CNPJs no mesmo terreno. Elas passam a valer como UMA parada só na rota, sem deixar de ser cadastros distintos pra tudo o mais (documentos, competências, histórico).</p>' +
+        '<p class="card-hint">Use quando duas empresas cadastradas separadamente ficam no mesmo endereço físico — por exemplo, dois CNPJs no mesmo terreno. Elas passam a valer como UMA parada só na rota, sem deixar de ser cadastros distintos pra tudo o mais (documentos, competências, histórico).</p>' +
         statusHtml +
         '<div class="field"><span>' + (ancoraAtual ? 'Trocar para outra empresa' : 'Buscar a outra empresa') + '</span>' +
           '<input class="input" id="aglutinarBusca" type="text" placeholder="Nome, código ou CNPJ" autocomplete="off">' +
@@ -7057,7 +7063,7 @@
 
     inner.innerHTML =
       '<div class="modal-head">' +
-        '<div><h2>' + escapeHtml_(clienteLabel(cliente)) + '</h2><div class="card-hint" style="margin:2px 0 0">' +
+        '<div><h2>' + escapeHtml_(clienteLabel(cliente)) + '</h2><div class="card-hint modal-head-sub">' +
           historico.length + ' entrega(s) em ' + porCompetencia.length + ' competência(s)</div></div>' +
         '<button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button>' +
       '</div>' +
@@ -7112,7 +7118,7 @@
     var geoLink = entrega.geo ? '<a href="https://maps.google.com/?q=' + entrega.geo.lat + ',' + entrega.geo.lng + '" target="_blank" rel="noopener">ver no mapa</a>' : 'não capturada';
     inner.innerHTML =
       '<div class="modal-head">' +
-        '<div><h2>' + escapeHtml_(clienteLabel(cliente)) + '</h2><div class="card-hint" style="margin:2px 0 0">' + fmtCompetencia(entrega.competencia) + '</div></div>' +
+        '<div><h2>' + escapeHtml_(clienteLabel(cliente)) + '</h2><div class="card-hint modal-head-sub">' + fmtCompetencia(entrega.competencia) + '</div></div>' +
         '<button class="modal-close" id="modalClose" title="Voltar ao histórico"><i class="ph ph-x" aria-hidden="true"></i></button>' +
       '</div>' +
       '<div class="itens-list">' + itensHtml + '</div>' +
@@ -7351,7 +7357,7 @@
       '<div class="modal-overlay" id="overlay">' +
         '<div class="modal">' +
           '<div class="modal-head">' +
-            '<div><h2>' + escapeHtml_(clienteNome) + '</h2><div class="card-hint" style="margin:2px 0 0">' + entregas.length + ' entregas na rota · uma assinatura para todas</div></div>' +
+            '<div><h2>' + escapeHtml_(clienteNome) + '</h2><div class="card-hint modal-head-sub">' + entregas.length + ' entregas na rota · uma assinatura para todas</div></div>' +
             '<button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button>' +
           '</div>' +
           '<div class="field"><span>Entregas incluídas</span>' + linhasHtml + '</div>' +
@@ -7494,7 +7500,7 @@
       '<div class="modal-overlay" id="overlay">' +
         '<div class="modal">' +
           '<div class="modal-head">' +
-            '<div><h2>' + escapeHtml_(entrega.clienteNome) + '</h2><div class="card-hint" style="margin:2px 0 0" id="pendingCompLabel">' + fmtCompetencia(entrega.competencia) + ' · na rota' + (entrega.zona ? ' · ' + ZONA_LABEL[entrega.zona] : '') + '</div></div>' +
+            '<div><h2>' + escapeHtml_(entrega.clienteNome) + '</h2><div class="card-hint modal-head-sub" id="pendingCompLabel">' + fmtCompetencia(entrega.competencia) + ' · na rota' + (entrega.zona ? ' · ' + ZONA_LABEL[entrega.zona] : '') + '</div></div>' +
             '<button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button>' +
           '</div>' +
           '<div id="pendingItensView">' +
@@ -7768,7 +7774,7 @@
     root.innerHTML =
       '<div class="modal-overlay" id="overlayEscolherParada"><div class="modal" id="modalEscolherParada">' +
         '<div class="modal-head"><div><h2>Enviar rota pro cliente</h2>' +
-          '<div class="card-hint" style="margin:2px 0 0">Escolha a empresa que está na rota</div>' +
+          '<div class="card-hint modal-head-sub">Escolha a empresa que está na rota</div>' +
         '</div><button class="modal-close" id="escolherParadaClose"><i class="ph ph-x" aria-hidden="true"></i></button></div>' +
         '<div id="escolherParadaLista"></div>' +
       '</div></div>';
@@ -7808,7 +7814,7 @@
     root.innerHTML =
       '<div class="modal-overlay" id="overlayRotaLink"><div class="modal" id="modalRotaLink">' +
         '<div class="modal-head"><div><h2>Enviar rota pro cliente</h2>' +
-          '<div class="card-hint" style="margin:2px 0 0">' + escapeHtml_(nomeParada) + '</div>' +
+          '<div class="card-hint modal-head-sub">' + escapeHtml_(nomeParada) + '</div>' +
         '</div><button class="modal-close" id="rotaLinkVoltar" title="Fechar"><i class="ph ph-x" aria-hidden="true"></i></button></div>' +
         '<p class="card-hint" id="rotaLinkStatus">Preparando o link...</p>' +
         '<div id="rotaLinkQr" style="display:flex;justify-content:center;margin:14px 0;"></div>' +
@@ -7868,7 +7874,7 @@
     root.innerHTML =
       '<div class="modal-overlay" id="overlayAssin"><div class="modal" id="modalAssin">' +
         '<div class="modal-head"><div><h2>Assinar no celular do cliente</h2>' +
-          '<div class="card-hint" style="margin:2px 0 0">' + escapeHtml_(entrega.clienteNome || '') + '</div>' +
+          '<div class="card-hint modal-head-sub">' + escapeHtml_(entrega.clienteNome || '') + '</div>' +
         '</div><button class="modal-close" id="assinVoltar" title="Voltar"><i class="ph ph-x" aria-hidden="true"></i></button></div>' +
         '<p class="card-hint" id="assinStatus">Preparando o link...</p>' +
         '<div id="assinQr" style="display:flex;justify-content:center;margin:14px 0;"></div>' +
@@ -7938,10 +7944,10 @@
     root.innerHTML =
       '<div class="modal-overlay" id="overlay"><div class="modal" id="modalInner">' +
         '<div class="modal-head"><div><h2>Tentar de novo?</h2>' +
-          '<div class="card-hint" style="margin:2px 0 0">' + escapeHtml_(entrega.clienteNome || 'cliente') + ' · ' + escapeHtml_(motivo || 'não entregue') + '</div>' +
+          '<div class="card-hint modal-head-sub">' + escapeHtml_(entrega.clienteNome || 'cliente') + ' · ' + escapeHtml_(motivo || 'não entregue') + '</div>' +
         '</div><button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button></div>' +
         '<p class="card-hint">Volta pra rota com os mesmos documentos e valores, marcada como ' + (tentativaAtual + 1) + 'ª tentativa. A entrega de hoje continua registrada como não realizada.</p>' +
-        '<div class="modal-acoes" style="margin-top:14px">' +
+        '<div class="modal-acoes">' +
           '<button type="button" class="btn-chip accent" id="reagendarSimBtn"><i class="ph ph-arrow-counter-clockwise" aria-hidden="true"></i> Colocar de volta na rota</button>' +
           '<button type="button" class="btn-chip" id="reagendarNaoBtn">Agora não</button>' +
         '</div>' +
@@ -9091,7 +9097,7 @@
       '<div class="modal-overlay" id="overlay">' +
         '<div class="modal" id="modalInner">' +
           '<div class="modal-head">' +
-            '<div><h2>Configurações</h2><div class="card-hint" style="margin:2px 0 0">' + escapeHtml_(currentUserNome) + '</div></div>' +
+            '<div><h2>Configurações</h2><div class="card-hint modal-head-sub">' + escapeHtml_(currentUserNome) + '</div></div>' +
             '<button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button>' +
           '</div>' +
           '<div class="mode-toggle config-abas" id="configAbas">' +
@@ -9164,7 +9170,7 @@
             '<div class="field-error" id="err-senha" style="display:block;"></div>' +
             '<button type="submit" class="btn btn-primary" style="margin-top:10px;">Salvar nova senha</button>' +
           '</form>' +
-          '<button type="button" class="btn btn-secondary btn-perigo" id="modalLogoutBtn" style="margin-top:22px;"><i class="ph ph-sign-out" aria-hidden="true"></i> Sair da conta</button>' +
+          '<button type="button" class="btn btn-secondary btn-perigo" id="modalLogoutBtn" style="margin-top:var(--esp-5);"><i class="ph ph-sign-out" aria-hidden="true"></i> Sair da conta</button>' +
           '</div>' +
         '</div>' +
       '</div>';
@@ -9441,7 +9447,7 @@
       '<div class="modal-overlay" id="overlay">' +
         '<div class="modal" id="modalInner">' +
           '<div class="modal-head">' +
-            '<div><h2><i class="ph ph-note" aria-hidden="true"></i> Minhas anotações</h2><div class="card-hint" style="margin:2px 0 0">Só você vê isso. Marque uma hora e o app avisa quando chegar.</div></div>' +
+            '<div><h2><i class="ph ph-note" aria-hidden="true"></i> Minhas anotações</h2><div class="card-hint modal-head-sub">Só você vê isso. Marque uma hora e o app avisa quando chegar.</div></div>' +
             '<button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button>' +
           '</div>' +
           '<div class="nota-form">' +
