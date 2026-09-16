@@ -156,7 +156,7 @@ service cloud.firestore {
       allow read: if logado();
       allow create, delete: if ehAdmin();
       allow update: if ehAdmin() ||
-        (logado() && so(['geo', 'zona', 'grupoLocal', 'honorarioForma', 'honorarioDia', 'pontoReferencia']));
+        (logado() && so(['geo', 'zona', 'grupoLocal', 'honorarioForma', 'honorarioDia', 'pontoReferencia', 'email']));
     }
 
     // ---------- entregas ----------
@@ -330,6 +330,16 @@ service cloud.firestore {
     // (extrato/comprovante/aplicação em falta). Quem monta e processa a
     // fila é admin/contábil — não é tarefa de office_boy nem staff comum.
     match /solicitacoesEmail/{id} {
+      allow read, create, update: if ehAdmin() || temPapel('contabil');
+      allow delete: if ehAdmin();
+    }
+
+    // ---------- controle mensal de documentos por cliente ----------
+    // Um documento por cliente+competência (id: "<clienteId>_<AAAA-MM>"),
+    // com um booleano por tipo de documento (extrato/comprovante/aplicacao).
+    // É a grade que a tela Pendencias-e-envio-automatico-via-Gmail.html
+    // mostra — o que ficar desmarcado é o que entra na cobrança por e-mail.
+    match /documentosMensal/{id} {
       allow read, create, update: if ehAdmin() || temPapel('contabil');
       allow delete: if ehAdmin();
     }

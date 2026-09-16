@@ -89,28 +89,55 @@
   }
   .chip-doc input { accent-color: var(--accent); }
   .chip-doc.marcado { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-forte); font-weight: 600; }
-  .tabs { display: flex; gap: 4px; margin-bottom: 14px; border-bottom: 1px solid var(--border); }
-  .tab {
-    padding: 8px 14px; font-size: 13px; font-weight: 600; color: var(--ink-faint);
-    border-bottom: 2px solid transparent; cursor: pointer; background: none; border-top: none; border-left: none; border-right: none;
-  }
-  .tab.ativa { color: var(--accent-forte); border-bottom-color: var(--accent); }
-  .row {
-    display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border);
-    min-height: 52px; flex-wrap: wrap;
-  }
-  .row:last-child { border-bottom: none; }
-  .row-main { flex: 1; min-width: 200px; }
-  .row-nome { font-weight: 600; }
-  .row-sub { color: var(--ink-faint); font-size: 12px; margin-top: 2px; }
-  .pill {
-    display: inline-flex; align-items: center; padding: 3px 10px; border-radius: var(--r-pill);
-    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .02em;
-  }
-  .pill.pendente { background: var(--warning-soft); color: var(--warning-forte); }
-  .pill.enviado { background: var(--success-soft); color: var(--success-forte); }
-  .pill.erro { background: var(--danger-soft); color: var(--danger-forte); }
   .vazio { color: var(--ink-faint); font-size: 13px; padding: 24px 0; text-align: center; }
+
+  /* ---------- barra de mês + busca ---------- */
+  .barra {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+  .mes-nav {
+    display: flex; align-items: center; gap: 4px; background: var(--surface-2);
+    border: 1px solid var(--border-forte); border-radius: var(--r-pill); padding: 4px;
+  }
+  .mes-nav button {
+    width: 30px; height: 30px; border-radius: var(--r-pill); border: none; background: none;
+    color: var(--ink-soft); cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+  .mes-nav button:hover { background: var(--surface); }
+  .mes-label { font-weight: 700; font-size: 14px; min-width: 110px; text-align: center; text-transform: capitalize; }
+  .busca { flex: 1; min-width: 180px; }
+  .contagem { color: var(--ink-faint); font-size: 12px; white-space: nowrap; }
+
+  /* ---------- tabela ---------- */
+  .tabela-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--r-md); }
+  table.grade { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 720px; }
+  table.grade th, table.grade td { padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
+  table.grade thead th {
+    background: var(--surface-2); font-size: 11px; text-transform: uppercase; letter-spacing: .03em;
+    color: var(--ink-faint); position: sticky; top: 0; z-index: 1;
+  }
+  table.grade th.col-doc, table.grade td.col-doc { text-align: center; width: 108px; }
+  table.grade td.col-cliente { white-space: normal; min-width: 220px; }
+  table.grade tr:last-child td { border-bottom: none; }
+  table.grade tr.linha-pendente td.col-cliente { border-left: 3px solid var(--warning); }
+  table.grade tr.linha-completa td.col-cliente { border-left: 3px solid var(--success); }
+  .nome-cliente { font-weight: 600; }
+  .nome-doc { color: var(--ink-faint); font-size: 11px; }
+  .email-input {
+    width: 100%; min-width: 170px; border: 1px solid transparent; background: transparent; color: var(--ink);
+    font: 12px Inter, sans-serif; padding: 4px 6px; border-radius: var(--r-sm);
+  }
+  .email-input:hover { border-color: var(--border-forte); background: var(--surface-2); }
+  .email-input:focus { outline: none; border-color: var(--accent); background: var(--surface-2); }
+  .email-input.vazio-aviso::placeholder { color: var(--danger-forte); }
+  .chk-doc { width: 20px; height: 20px; accent-color: var(--accent); cursor: pointer; }
+  .badge-pend {
+    display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700;
+    color: var(--warning-forte); background: var(--warning-soft); padding: 2px 8px; border-radius: var(--r-pill);
+  }
+  .badge-ok { color: var(--success-forte); background: var(--success-soft); }
   .toast {
     position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
     background: var(--ink); color: var(--bg); padding: 10px 18px; border-radius: var(--r-md);
@@ -152,47 +179,37 @@
     <header class="topo">
       <div>
         <h1>Cobrança de Documentos</h1>
-        <div class="sub">Extrato · Comprovante · Aplicação — pedidos de e-mail por cliente</div>
+        <div class="sub">Extrato · Comprovante · Aplicação — marque o que já foi recebido por cliente/mês</div>
       </div>
       <button class="btn btn-secondary" id="logoutBtn"><i class="ph ph-sign-out"></i> Sair</button>
     </header>
 
     <section class="card">
-      <h2><i class="ph ph-plus-circle"></i> Novo pedido</h2>
-      <form id="novoPedidoForm">
-        <div class="grid2">
-          <div class="campo">
-            <label for="fCliente">Cliente</label>
-            <input class="input" id="fCliente" type="text" placeholder="Nome do cliente" required>
-          </div>
-          <div class="campo">
-            <label for="fEmail">E-mail do cliente</label>
-            <input class="input" id="fEmail" type="email" placeholder="cliente@exemplo.com" required>
-          </div>
+      <div class="barra">
+        <div class="mes-nav">
+          <button type="button" id="mesAnterior" aria-label="Mês anterior"><i class="ph ph-caret-left"></i></button>
+          <span class="mes-label" id="mesLabel"></span>
+          <button type="button" id="mesProximo" aria-label="Próximo mês"><i class="ph ph-caret-right"></i></button>
         </div>
-        <div class="campo">
-          <label for="fCompetencia">Competência</label>
-          <input class="input" id="fCompetencia" type="month" required style="max-width:200px;">
-        </div>
-        <div class="campo">
-          <label>Documentos pendentes</label>
-          <div class="chips" id="chipsDocs">
-            <label class="chip-doc"><input type="checkbox" value="Extrato Bancário"> Extrato Bancário</label>
-            <label class="chip-doc"><input type="checkbox" value="Comprovante"> Comprovante</label>
-            <label class="chip-doc"><input type="checkbox" value="Aplicação"> Aplicação</label>
-          </div>
-        </div>
-        <button type="submit" class="btn btn-primary" id="criarBtn"><i class="ph ph-paper-plane-tilt"></i> Criar pedido</button>
-      </form>
-    </section>
-
-    <section class="card">
-      <div class="tabs">
-        <button type="button" class="tab ativa" data-status="pendente">Pendentes</button>
-        <button type="button" class="tab" data-status="enviado">Enviados</button>
-        <button type="button" class="tab" data-status="erro">Erros</button>
+        <input class="input busca" id="busca" type="text" placeholder="Buscar cliente ou CNPJ...">
+        <span class="contagem" id="contagem"></span>
       </div>
-      <div id="lista"></div>
+      <div class="tabela-wrap">
+        <table class="grade">
+          <thead>
+            <tr>
+              <th>Cliente</th>
+              <th>E-mail</th>
+              <th class="col-doc">Extrato</th>
+              <th class="col-doc">Comprovante</th>
+              <th class="col-doc">Aplicação</th>
+              <th class="col-doc">Situação</th>
+            </tr>
+          </thead>
+          <tbody id="corpoTabela"></tbody>
+        </table>
+      </div>
+      <div id="vazioAviso" class="vazio" hidden>Nenhum cliente encontrado.</div>
     </section>
   </div>
 </div>
@@ -219,10 +236,18 @@
   var db = firebase.firestore();
   var $ = function (id) { return document.getElementById(id); };
 
-  var COL = 'solicitacoesEmail';
-  var abaAtual = 'pendente';
-  var unsub = null;
+  var TIPOS = ['extrato', 'comprovante', 'aplicacao'];
+  var MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+
+  var competenciaAtual = new Date();
+  competenciaAtual.setDate(1);
+  var clientesCache = [];
+  var docsMensalCache = new Map(); // clienteId -> {extrato, comprovante, aplicacao}
+  var unsubClientes = null;
+  var unsubDocsMensal = null;
+  var termoBusca = '';
   var podeUsar = false;
+  var salvandoEmail = new Set(); // evita salvar de novo enquanto já está salvando
 
   function toast(msg) {
     var el = $('toast');
@@ -231,12 +256,12 @@
     setTimeout(function () { el.classList.remove('show'); }, 2600);
   }
 
-  function fmtCompetencia(c) {
-    if (!c) return '';
-    var partes = c.split('-');
-    var meses = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
-    var m = parseInt(partes[1], 10) - 1;
-    return (meses[m] || partes[1]) + '/' + partes[0];
+  function competenciaStr(d) {
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  }
+
+  function competenciaLabel(d) {
+    return MESES[d.getMonth()] + ' de ' + d.getFullYear();
   }
 
   var DIACRITICS_RE = /[̀-ͯ]/g;
@@ -252,125 +277,154 @@
     return input.indexOf('@') !== -1 ? input : emailFromNome(input);
   }
 
-  function fmtData(iso) {
-    if (!iso) return '';
-    var d = new Date(iso);
-    return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  function normalizarBusca(s) {
+    return (s || '').toLowerCase().normalize('NFD').replace(DIACRITICS_RE, '');
   }
 
-  // ---------- chips de documento ----------
-  document.querySelectorAll('.chip-doc').forEach(function (chip) {
-    var input = chip.querySelector('input');
-    input.addEventListener('change', function () {
-      chip.classList.toggle('marcado', input.checked);
-    });
-  });
-
-  // ---------- criar pedido ----------
-  $('novoPedidoForm').addEventListener('submit', function (ev) {
-    ev.preventDefault();
-    var docs = Array.from(document.querySelectorAll('#chipsDocs input:checked')).map(function (i) { return i.value; });
-    if (docs.length === 0) { toast('Marque ao menos um documento pendente.'); return; }
-    var competenciaInput = $('fCompetencia').value; // formato AAAA-MM
-    var btn = $('criarBtn');
-    btn.disabled = true;
-    db.collection(COL).add({
-      clienteNome: $('fCliente').value.trim(),
-      email: $('fEmail').value.trim(),
-      documentosPendentes: docs,
-      competencia: competenciaInput,
-      status: 'pendente',
-      criadoEm: new Date().toISOString(),
-      criadoPor: (auth.currentUser && auth.currentUser.email) || ''
-    }).then(function () {
-      toast('Pedido criado.');
-      $('novoPedidoForm').reset();
-      document.querySelectorAll('.chip-doc').forEach(function (c) { c.classList.remove('marcado'); });
-    }).catch(function (err) {
-      toast('Erro ao criar: ' + err.message);
-    }).finally(function () {
-      btn.disabled = false;
-    });
-  });
-
-  // ---------- abas ----------
-  document.querySelectorAll('.tab').forEach(function (tab) {
-    tab.addEventListener('click', function () {
-      document.querySelectorAll('.tab').forEach(function (t) { t.classList.remove('ativa'); });
-      tab.classList.add('ativa');
-      abaAtual = tab.dataset.status;
-      subscribeLista();
-    });
-  });
-
-  function reabrirPedido(id) {
-    db.collection(COL).doc(id).update({ status: 'pendente', erroMensagem: firebase.firestore.FieldValue.delete() })
-      .then(function () { toast('Pedido reaberto.'); })
-      .catch(function (err) { toast('Erro: ' + err.message); });
+  // ---------- navegação de mês ----------
+  function atualizarMesLabel() {
+    $('mesLabel').textContent = competenciaLabel(competenciaAtual);
   }
 
-  function excluirPedido(id) {
-    if (!confirm('Excluir este pedido?')) return;
-    db.collection(COL).doc(id).delete()
-      .then(function () { toast('Pedido excluído.'); })
-      .catch(function (err) { toast('Erro: ' + err.message); });
+  $('mesAnterior').addEventListener('click', function () {
+    competenciaAtual.setMonth(competenciaAtual.getMonth() - 1);
+    atualizarMesLabel();
+    subscribeDocsMensal();
+  });
+  $('mesProximo').addEventListener('click', function () {
+    competenciaAtual.setMonth(competenciaAtual.getMonth() + 1);
+    atualizarMesLabel();
+    subscribeDocsMensal();
+  });
+  $('busca').addEventListener('input', function () {
+    termoBusca = normalizarBusca($('busca').value);
+    renderTabela();
+  });
+
+  // ---------- dados: clientes (uma vez, com onSnapshot pra refletir edições) ----------
+  function subscribeClientes() {
+    unsubClientes = db.collection('clientes').where('ativo', '==', true)
+      .onSnapshot(function (snap) {
+        clientesCache = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+        clientesCache.sort(function (a, b) { return (a.nome || '').localeCompare(b.nome || '', 'pt-BR'); });
+        renderTabela();
+      }, function (err) {
+        $('corpoTabela').innerHTML = '';
+        $('vazioAviso').hidden = false;
+        $('vazioAviso').textContent = 'Erro ao carregar clientes: ' + err.message;
+      });
   }
 
-  function renderLista(pedidos) {
-    var el = $('lista');
-    el.innerHTML = '';
-    if (pedidos.length === 0) {
-      el.innerHTML = '<div class="vazio">Nenhum pedido nessa situação.</div>';
+  // ---------- dados: documentosMensal do mês corrente ----------
+  function subscribeDocsMensal() {
+    if (unsubDocsMensal) { unsubDocsMensal(); unsubDocsMensal = null; }
+    var comp = competenciaStr(competenciaAtual);
+    unsubDocsMensal = db.collection('documentosMensal').where('competencia', '==', comp)
+      .onSnapshot(function (snap) {
+        docsMensalCache = new Map();
+        snap.docs.forEach(function (d) {
+          var data = d.data();
+          docsMensalCache.set(data.clienteId, data);
+        });
+        renderTabela();
+      }, function (err) {
+        toast('Erro ao carregar situação do mês: ' + err.message);
+      });
+  }
+
+  // ---------- ações ----------
+  function alternarDoc(cliente, tipo, marcado) {
+    var comp = competenciaStr(competenciaAtual);
+    var id = cliente.id + '_' + comp;
+    var patch = { clienteId: cliente.id, clienteNome: cliente.nome, competencia: comp, atualizadoEm: new Date().toISOString() };
+    patch[tipo] = marcado;
+    db.collection('documentosMensal').doc(id).set(patch, { merge: true })
+      .catch(function (err) { toast('Erro ao salvar: ' + err.message); });
+  }
+
+  function salvarEmail(cliente, novoEmail, inputEl) {
+    novoEmail = novoEmail.trim();
+    if (novoEmail === (cliente.email || '')) return;
+    if (novoEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(novoEmail)) {
+      toast('E-mail inválido para ' + cliente.nome);
+      inputEl.value = cliente.email || '';
       return;
     }
-    pedidos.forEach(function (p) {
-      var row = document.createElement('div');
-      row.className = 'row';
-      var dataRef = p.status === 'enviado' ? p.enviadoEm : p.criadoEm;
-      row.innerHTML =
-        '<div class="row-main">' +
-          '<div class="row-nome"></div>' +
-          '<div class="row-sub"></div>' +
-        '</div>' +
-        '<span class="pill ' + p.status + '"></span>';
-      row.querySelector('.row-nome').textContent = p.clienteNome + ' — ' + fmtCompetencia(p.competencia);
-      var sub = (p.documentosPendentes || []).join(', ') + ' · ' + p.email;
-      if (p.status === 'erro' && p.erroMensagem) sub += ' · ' + p.erroMensagem;
-      sub += ' · ' + fmtData(dataRef);
-      row.querySelector('.row-sub').textContent = sub;
-      row.querySelector('.pill').textContent = p.status;
-
-      if (p.status === 'pendente') {
-        var delBtn = document.createElement('button');
-        delBtn.type = 'button';
-        delBtn.className = 'btn-chip btn-secondary';
-        delBtn.innerHTML = '<i class="ph ph-trash"></i>';
-        delBtn.addEventListener('click', function () { excluirPedido(p.id); });
-        row.appendChild(delBtn);
-      }
-      if (p.status === 'erro') {
-        var reBtn = document.createElement('button');
-        reBtn.type = 'button';
-        reBtn.className = 'btn-chip btn-secondary';
-        reBtn.textContent = 'Reabrir';
-        reBtn.addEventListener('click', function () { reabrirPedido(p.id); });
-        row.appendChild(reBtn);
-      }
-      el.appendChild(row);
-    });
+    db.collection('clientes').doc(cliente.id).update({ email: novoEmail })
+      .then(function () { toast('E-mail salvo.'); })
+      .catch(function (err) {
+        toast('Erro ao salvar e-mail: ' + err.message);
+        inputEl.value = cliente.email || '';
+      });
   }
 
-  function subscribeLista() {
-    if (unsub) { unsub(); unsub = null; }
-    var ordenarPor = abaAtual === 'enviado' ? 'enviadoEm' : 'criadoEm';
-    unsub = db.collection(COL).where('status', '==', abaAtual).limit(300)
-      .onSnapshot(function (snap) {
-        var pedidos = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
-        pedidos.sort(function (a, b) { return new Date(b[ordenarPor] || b.criadoEm || 0) - new Date(a[ordenarPor] || a.criadoEm || 0); });
-        renderLista(pedidos);
-      }, function (err) {
-        $('lista').innerHTML = '<div class="vazio">Erro ao carregar: ' + err.message + '</div>';
+  // ---------- renderização ----------
+  function renderTabela() {
+    var corpo = $('corpoTabela');
+    corpo.innerHTML = '';
+
+    var lista = clientesCache;
+    if (termoBusca) {
+      lista = lista.filter(function (c) {
+        return normalizarBusca(c.nome).indexOf(termoBusca) !== -1 ||
+          normalizarBusca(c.nomeFantasia).indexOf(termoBusca) !== -1 ||
+          normalizarBusca(c.documento).indexOf(termoBusca) !== -1;
       });
+    }
+
+    $('vazioAviso').hidden = lista.length > 0;
+    var pendentesCount = 0;
+
+    lista.forEach(function (cliente) {
+      var doc = docsMensalCache.get(cliente.id) || {};
+      var faltando = TIPOS.filter(function (t) { return !doc[t]; });
+      if (faltando.length > 0) pendentesCount++;
+
+      var tr = document.createElement('tr');
+      tr.className = faltando.length > 0 ? 'linha-pendente' : 'linha-completa';
+
+      var tdCliente = document.createElement('td');
+      tdCliente.className = 'col-cliente';
+      tdCliente.innerHTML = '<div class="nome-cliente"></div><div class="nome-doc"></div>';
+      tdCliente.querySelector('.nome-cliente').textContent = cliente.nome || '(sem nome)';
+      tdCliente.querySelector('.nome-doc').textContent = cliente.documento || '';
+      tr.appendChild(tdCliente);
+
+      var tdEmail = document.createElement('td');
+      var inputEmail = document.createElement('input');
+      inputEmail.type = 'email';
+      inputEmail.className = 'email-input' + (cliente.email ? '' : ' vazio-aviso');
+      inputEmail.placeholder = 'sem e-mail cadastrado';
+      inputEmail.value = cliente.email || '';
+      inputEmail.addEventListener('change', function () { salvarEmail(cliente, inputEmail.value, inputEmail); });
+      tdEmail.appendChild(inputEmail);
+      tr.appendChild(tdEmail);
+
+      TIPOS.forEach(function (tipo) {
+        var td = document.createElement('td');
+        td.className = 'col-doc';
+        var chk = document.createElement('input');
+        chk.type = 'checkbox';
+        chk.className = 'chk-doc';
+        chk.checked = !!doc[tipo];
+        chk.addEventListener('change', function () { alternarDoc(cliente, tipo, chk.checked); });
+        td.appendChild(chk);
+        tr.appendChild(td);
+      });
+
+      var tdSituacao = document.createElement('td');
+      tdSituacao.className = 'col-doc';
+      if (faltando.length === 0) {
+        tdSituacao.innerHTML = '<span class="badge-pend badge-ok"><i class="ph ph-check"></i> completo</span>';
+      } else {
+        tdSituacao.innerHTML = '<span class="badge-pend"><i class="ph ph-warning"></i> ' + faltando.length + ' falta' + (faltando.length > 1 ? 'm' : '') + '</span>';
+      }
+      tr.appendChild(tdSituacao);
+
+      corpo.appendChild(tr);
+    });
+
+    $('contagem').textContent = lista.length + ' cliente' + (lista.length !== 1 ? 's' : '') + ' · ' + pendentesCount + ' com pendência';
   }
 
   // ---------- autenticação ----------
@@ -387,7 +441,8 @@
   $('logoutBtn').addEventListener('click', function () { auth.signOut(); });
 
   auth.onAuthStateChanged(function (user) {
-    if (unsub) { unsub(); unsub = null; }
+    if (unsubClientes) { unsubClientes(); unsubClientes = null; }
+    if (unsubDocsMensal) { unsubDocsMensal(); unsubDocsMensal = null; }
     if (!user) {
       podeUsar = false;
       $('authGate').hidden = false;
@@ -404,7 +459,9 @@
           '<p>Sua conta não tem acesso a este painel (precisa do papel admin ou contábil).</p></div>';
         return;
       }
-      subscribeLista();
+      atualizarMesLabel();
+      subscribeClientes();
+      subscribeDocsMensal();
     });
   });
 })();
