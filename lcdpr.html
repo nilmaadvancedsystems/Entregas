@@ -7,6 +7,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
@@ -136,16 +137,31 @@ tr.row-detail-hidden{display:none}
 .detail-field input,.detail-field textarea{width:100%}
 textarea.tbl-input{resize:vertical;min-height:38px;font-family:inherit}
 .status-cell{display:flex;flex-direction:column;gap:3px;align-items:flex-start}
+.gate{position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;background:var(--bg);padding:20px}
+.gate-box{max-width:360px;text-align:center}
+.gate-box h1{font-size:var(--t-lg)}
+.gate-box p{color:var(--ink-soft);font-size:var(--t-base)}
+.back-link{display:flex;align-items:center;gap:6px;color:var(--ink-faint);font-size:var(--t-sm);text-decoration:none;padding:10px 18px;border-top:1px solid var(--border)}
+.back-link:hover{color:var(--ink)}
 </style>
 </head>
 <body>
-<div class="app">
+<div class="gate" id="gate" hidden>
+  <div class="gate-box">
+    <div class="brand" style="justify-content:center;margin-bottom:16px"><div class="logo">N</div></div>
+    <h1 id="gateTitle">Conectando…</h1>
+    <p id="gateMsg">Só um instante.</p>
+    <p id="gateAction"></p>
+  </div>
+</div>
+<div class="app" id="app" hidden>
   <aside class="sidebar">
     <div class="brand">
       <div class="logo">N</div>
       <div><div class="t1">IMPORTADOR LCDPR</div><div class="t2">Nilma Contabilidade</div></div>
     </div>
     <nav class="navlist" id="navlist"></nav>
+    <a class="back-link" href="entregas.html">← Voltar ao Entregas</a>
     <div class="sidebar-foot" id="sidebarFoot">Conectando à nuvem…</div>
   </aside>
   <main><div class="screen" id="screen"></div></main>
@@ -447,12 +463,60 @@ const FIREBASE_CONFIG = {
   messagingSenderId: "1009094556836",
   appId: "1:1009094556836:web:d3b6a9283e934db064fa31"
 };
-let db = null, cloudReady = false, cloudStatus = 'connecting'; // 'connecting' | 'ok' | 'error'
+let db = null, auth = null, cloudReady = false, cloudStatus = 'connecting'; // 'connecting' | 'ok' | 'error'
 let cloudSyncTimer = null;
 try{
   firebase.initializeApp(FIREBASE_CONFIG);
   db = firebase.firestore();
+  auth = firebase.auth();
 }catch(e){ console.warn('Firebase indisponível, usando só armazenamento local.', e); cloudStatus='error'; }
+
+/* ============================== ACESSO (login do Entregas) ==============================
+   Sem login próprio aqui: a sessão é a mesma do app Entregas (mesma origem
+   GitHub Pages, mesmo Firebase Auth) — quem entra pelo hub do Entregas já
+   chega autenticado. Exige cargo 'admin' ou 'fiscal', igual ao link do hub. */
+function showGate(title, msg, actionHtml){
+  document.getElementById('gateTitle').textContent = title;
+  document.getElementById('gateMsg').textContent = msg;
+  document.getElementById('gateAction').innerHTML = actionHtml || '';
+  document.getElementById('gate').hidden = false;
+  document.getElementById('app').hidden = true;
+}
+function showAppAndStart(){
+  document.getElementById('gate').hidden = true;
+  document.getElementById('app').hidden = false;
+  render();
+  renderSidebarFoot();
+  bootstrapCloud();
+}
+function startAccessCheck(){
+  if(!auth || !db){
+    // Firebase indisponível (CDN falhou etc.) — não dá pra checar login;
+    // libera acesso direto em vez de travar o app.
+    showAppAndStart();
+    return;
+  }
+  auth.onAuthStateChanged(async function(user){
+    if(!user){
+      showGate('Faça login', 'Entre pelo Entregas pra acessar o Importador LCDPR.',
+        '<a class="back-link" style="border:none;display:inline-flex;justify-content:center" href="entregas.html">Ir para o login →</a>');
+      return;
+    }
+    try{
+      const snap = await db.collection('usuarios').doc(user.uid).get();
+      const roles = snap.exists ? (snap.data().roles || []) : [];
+      if(roles.includes('admin') || roles.includes('fiscal')){
+        showAppAndStart();
+      }else{
+        showGate('Sem permissão', 'Sua conta não tem acesso ao Importador LCDPR. Peça pra um admin liberar o cargo Fiscal.',
+          '<a class="back-link" style="border:none;display:inline-flex;justify-content:center" href="entregas.html">Voltar ao Entregas →</a>');
+      }
+    }catch(e){
+      console.warn('Falha ao checar permissão', e);
+      showGate('Erro ao checar permissão', 'Tente recarregar a página.', '');
+    }
+  });
+}
 
 const SETTINGS_FIELDS = ['config','categorias','planoContas','ncmRules','imoveis','ieDest','tipoDoc','tipoLanc'];
 
@@ -1190,9 +1254,7 @@ function blankRowFor(arrName){
 }
 
 /* ============================== INIT ============================== */
-render();
-renderSidebarFoot();
-bootstrapCloud();
+startAccessCheck();
 </script>
 </body>
 </html>
