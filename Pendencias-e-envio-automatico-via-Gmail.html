@@ -29,6 +29,7 @@
     --success: #17694A; --success-soft: #E2F2EA; --success-forte: color-mix(in srgb, var(--success) 62%, var(--ink));
     --warning: #8A5D12; --warning-soft: #FAF0DC; --warning-forte: color-mix(in srgb, var(--warning) 62%, var(--ink));
     --danger: #A8322F; --danger-soft: #FAE6E4; --danger-forte: color-mix(in srgb, var(--danger) 62%, var(--ink));
+    --mister-azul: #2F6FED;
     --r-sm: 6px; --r-md: 8px; --r-lg: 10px; --r-pill: 999px;
     --shadow: 0 10px 28px -14px rgba(10,10,16,.45), 0 2px 6px -3px rgba(10,10,16,.18);
     color-scheme: light;
@@ -110,34 +111,63 @@
   .busca { flex: 1; min-width: 180px; }
   .contagem { color: var(--ink-faint); font-size: 12px; white-space: nowrap; }
 
-  /* ---------- tabela ---------- */
-  .tabela-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--r-md); }
-  table.grade { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 720px; }
-  table.grade th, table.grade td { padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
-  table.grade thead th {
-    background: var(--surface-2); font-size: 11px; text-transform: uppercase; letter-spacing: .03em;
-    color: var(--ink-faint); position: sticky; top: 0; z-index: 1;
+  /* ---------- estilo "Mister": cards com barras mensais ---------- */
+  .cards-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px;
   }
-  table.grade th.col-doc, table.grade td.col-doc { text-align: center; width: 108px; }
-  table.grade td.col-cliente { white-space: normal; min-width: 220px; }
-  table.grade tr:last-child td { border-bottom: none; }
-  table.grade tr.linha-pendente td.col-cliente { border-left: 3px solid var(--warning); }
-  table.grade tr.linha-completa td.col-cliente { border-left: 3px solid var(--success); }
-  .nome-cliente { font-weight: 600; }
-  .nome-doc { color: var(--ink-faint); font-size: 11px; }
-  .email-input {
-    width: 100%; min-width: 170px; border: 1px solid transparent; background: transparent; color: var(--ink);
-    font: 12px Inter, sans-serif; padding: 4px 6px; border-radius: var(--r-sm);
+  .card-cliente {
+    border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface);
+    padding: 16px; display: flex; flex-direction: column; gap: 10px; cursor: pointer;
   }
-  .email-input:hover { border-color: var(--border-forte); background: var(--surface-2); }
-  .email-input:focus { outline: none; border-color: var(--accent); background: var(--surface-2); }
-  .email-input.vazio-aviso::placeholder { color: var(--danger-forte); }
-  .chk-doc { width: 20px; height: 20px; accent-color: var(--accent); cursor: pointer; }
-  .badge-pend {
-    display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700;
-    color: var(--warning-forte); background: var(--warning-soft); padding: 2px 8px; border-radius: var(--r-pill);
+  .card-cliente:hover { border-color: var(--border-forte); }
+  .card-cliente.tem-pendencia { border-left: 3px solid var(--warning); }
+  .card-cliente.completo { border-left: 3px solid var(--success); }
+  .cc-nome { font-weight: 700; font-size: 13px; line-height: 1.3; }
+  .cc-doc { color: var(--ink-faint); font-size: 11px; font-family: 'JetBrains Mono', monospace; }
+  .cc-meta { display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: var(--ink-faint); }
+  .cc-num { color: var(--ink); font-weight: 700; font-size: 13px; }
+  .cc-legenda { display: flex; align-items: center; gap: 8px; }
+  .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 3px; }
+  .dot-pend { background: var(--warning); }
+  .dot-ok { background: var(--mister-azul); }
+  .cc-barras { display: flex; align-items: flex-end; gap: 6px; height: 64px; }
+  .barra-grupo { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; height: 100%; justify-content: flex-end; }
+  .barra-col {
+    width: 100%; max-width: 22px; height: 46px; border-radius: 3px 3px 0 0; overflow: hidden;
+    display: flex; flex-direction: column-reverse; background: var(--surface-2);
   }
-  .badge-ok { color: var(--success-forte); background: var(--success-soft); }
+  .barra-ok-seg { background: var(--mister-azul); width: 100%; }
+  .barra-pend-seg { background: var(--warning); width: 100%; }
+  .barra-semdado .barra-col { background: repeating-linear-gradient(135deg, var(--surface-2), var(--surface-2) 3px, var(--border) 3px, var(--border) 6px); }
+  .barra-pct { font-size: 9px; color: var(--ink-faint); font-weight: 700; }
+  .barra-mes { font-size: 9px; color: var(--ink-faint); }
+  .cc-ver {
+    margin-top: 4px; font-size: 12px; font-weight: 600; color: var(--accent-forte);
+    display: flex; align-items: center; gap: 4px; justify-content: flex-end;
+  }
+
+  /* ---------- tela de detalhe ---------- */
+  #viewDetalhe { display: flex; flex-direction: column; gap: 18px; }
+  .detalhe-header {
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+    padding-bottom: 14px; border-bottom: 1px solid var(--border);
+  }
+  .detalhe-nome { font-size: 18px; font-weight: 700; }
+  .detalhe-doc { color: var(--ink-faint); font-size: 12px; font-family: 'JetBrains Mono', monospace; margin-top: 2px; }
+  .detalhe-email { min-width: 240px; }
+  .detalhe-email label { display: block; font-size: 11px; color: var(--ink-soft); margin-bottom: 4px; }
+  .detalhe-tipos { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+  .tipo-card { border: 1px solid var(--border); border-radius: var(--r-lg); padding: 16px; }
+  .tipo-card-topo { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+  .tipo-card-titulo { font-size: 13px; font-weight: 700; color: var(--ink-soft); }
+  .tipo-card-num { font-size: 22px; font-weight: 800; margin-bottom: 2px; }
+  .tipo-card-legenda { display: flex; gap: 10px; font-size: 11px; color: var(--ink-faint); margin-bottom: 10px; }
+  .tipo-card .cc-barras { height: 90px; }
+  .tipo-card .barra-col { height: 68px; }
+  .toggle-mes-atual {
+    margin-top: 12px; width: 100%; justify-content: center; border-radius: var(--r-md);
+  }
+  .toggle-mes-atual.marcado { background: var(--success-soft); color: var(--success-forte); border-color: var(--success); }
   .toast {
     position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
     background: var(--ink); color: var(--bg); padding: 10px 18px; border-radius: var(--r-md);
@@ -194,21 +224,25 @@
         <input class="input busca" id="busca" type="text" placeholder="Buscar cliente ou CNPJ...">
         <span class="contagem" id="contagem"></span>
       </div>
-      <div class="tabela-wrap">
-        <table class="grade">
-          <thead>
-            <tr>
-              <th>Cliente</th>
-              <th>E-mail</th>
-              <th class="col-doc">Extrato</th>
-              <th class="col-doc">Comprovante</th>
-              <th class="col-doc">Aplicação</th>
-              <th class="col-doc">Situação</th>
-            </tr>
-          </thead>
-          <tbody id="corpoTabela"></tbody>
-        </table>
+      <div id="viewCards" class="cards-grid"></div>
+
+      <div id="viewDetalhe" hidden>
+        <button type="button" class="btn btn-secondary" id="voltarBtn" style="margin-bottom:14px;">
+          <i class="ph ph-arrow-left"></i> Voltar
+        </button>
+        <div class="detalhe-header">
+          <div>
+            <div class="detalhe-nome" id="detNome"></div>
+            <div class="detalhe-doc" id="detDoc"></div>
+          </div>
+          <div class="detalhe-email">
+            <label for="detEmailInput">E-mail de cobrança</label>
+            <input class="input" id="detEmailInput" type="email" placeholder="cliente@exemplo.com">
+          </div>
+        </div>
+        <div class="detalhe-tipos" id="detTipos"></div>
       </div>
+
       <div id="vazioAviso" class="vazio" hidden>Nenhum cliente encontrado.</div>
     </section>
   </div>
@@ -237,17 +271,19 @@
   var $ = function (id) { return document.getElementById(id); };
 
   var TIPOS = ['extrato', 'comprovante', 'aplicacao'];
+  var TIPO_LABEL = { extrato: 'Extrato Bancário', comprovante: 'Comprovante', aplicacao: 'Aplicação' };
   var MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+  var JANELA_MESES = 6; // quantos meses de histórico as barras mostram, terminando no mês selecionado
 
   var competenciaAtual = new Date();
   competenciaAtual.setDate(1);
   var clientesCache = [];
-  var docsMensalCache = new Map(); // clienteId -> {extrato, comprovante, aplicacao}
+  var docsMensalCache = new Map(); // clienteId -> Map(competencia -> {extrato, comprovante, aplicacao})
   var unsubClientes = null;
   var unsubDocsMensal = null;
   var termoBusca = '';
   var podeUsar = false;
-  var salvandoEmail = new Set(); // evita salvar de novo enquanto já está salvando
+  var clienteSelecionadoId = null; // null = mostrando grade de cards
 
   function toast(msg) {
     var el = $('toast');
@@ -262,6 +298,21 @@
 
   function competenciaLabel(d) {
     return MESES[d.getMonth()] + ' de ' + d.getFullYear();
+  }
+
+  function competenciaCurta(compStr) {
+    var partes = compStr.split('-');
+    return parseInt(partes[1], 10) + '/' + partes[0];
+  }
+
+  // Lista de competências "AAAA-MM", das mais antigas às mais novas, terminando em `fim`.
+  function janelaCompetencias(fim, n) {
+    var arr = [];
+    for (var i = n - 1; i >= 0; i--) {
+      var d = new Date(fim.getFullYear(), fim.getMonth() - i, 1);
+      arr.push(competenciaStr(d));
+    }
+    return arr;
   }
 
   var DIACRITICS_RE = /[̀-ͯ]/g;
@@ -298,7 +349,11 @@
   });
   $('busca').addEventListener('input', function () {
     termoBusca = normalizarBusca($('busca').value);
-    renderTabela();
+    renderView();
+  });
+  $('voltarBtn').addEventListener('click', function () {
+    clienteSelecionadoId = null;
+    renderView();
   });
 
   // ---------- dados: clientes (uma vez, com onSnapshot pra refletir edições) ----------
@@ -307,28 +362,29 @@
       .onSnapshot(function (snap) {
         clientesCache = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
         clientesCache.sort(function (a, b) { return (a.nome || '').localeCompare(b.nome || '', 'pt-BR'); });
-        renderTabela();
+        renderView();
       }, function (err) {
-        $('corpoTabela').innerHTML = '';
+        $('viewCards').innerHTML = '';
         $('vazioAviso').hidden = false;
         $('vazioAviso').textContent = 'Erro ao carregar clientes: ' + err.message;
       });
   }
 
-  // ---------- dados: documentosMensal do mês corrente ----------
+  // ---------- dados: documentosMensal da janela de meses exibida ----------
   function subscribeDocsMensal() {
     if (unsubDocsMensal) { unsubDocsMensal(); unsubDocsMensal = null; }
-    var comp = competenciaStr(competenciaAtual);
-    unsubDocsMensal = db.collection('documentosMensal').where('competencia', '==', comp)
+    var janela = janelaCompetencias(competenciaAtual, JANELA_MESES);
+    unsubDocsMensal = db.collection('documentosMensal').where('competencia', 'in', janela)
       .onSnapshot(function (snap) {
         docsMensalCache = new Map();
         snap.docs.forEach(function (d) {
           var data = d.data();
-          docsMensalCache.set(data.clienteId, data);
+          if (!docsMensalCache.has(data.clienteId)) docsMensalCache.set(data.clienteId, new Map());
+          docsMensalCache.get(data.clienteId).set(data.competencia, data);
         });
-        renderTabela();
+        renderView();
       }, function (err) {
-        toast('Erro ao carregar situação do mês: ' + err.message);
+        toast('Erro ao carregar situação dos meses: ' + err.message);
       });
   }
 
@@ -359,10 +415,55 @@
   }
 
   // ---------- renderização ----------
-  function renderTabela() {
-    var corpo = $('corpoTabela');
-    corpo.innerHTML = '';
+  function statusMes(clienteId, competencia) {
+    var porMes = docsMensalCache.get(clienteId);
+    return (porMes && porMes.get(competencia)) || null;
+  }
 
+  function pctMes(status) {
+    if (!status) return null; // sem registro nenhum nesse mês
+    var ok = TIPOS.filter(function (t) { return status[t]; }).length;
+    return Math.round((ok / TIPOS.length) * 100);
+  }
+
+  // Monta o grupo de barrinhas (uma por mês da janela) igual ao estilo Mister.
+  function montarBarras(clienteId, competenciaFinal, alturaPx) {
+    var janela = janelaCompetencias(competenciaFinal, JANELA_MESES);
+    var wrap = document.createElement('div');
+    wrap.className = 'cc-barras';
+    janela.forEach(function (comp) {
+      var status = statusMes(clienteId, comp);
+      var pct = pctMes(status);
+      var grupo = document.createElement('div');
+      grupo.className = 'barra-grupo' + (pct === null ? ' barra-semdado' : '');
+      var col = document.createElement('div');
+      col.className = 'barra-col';
+      if (alturaPx) col.style.height = alturaPx + 'px';
+      if (pct !== null) {
+        var ok = document.createElement('div');
+        ok.className = 'barra-ok-seg';
+        ok.style.height = pct + '%';
+        var pend = document.createElement('div');
+        pend.className = 'barra-pend-seg';
+        pend.style.height = (100 - pct) + '%';
+        col.appendChild(ok);
+        col.appendChild(pend);
+      }
+      var pctLabel = document.createElement('div');
+      pctLabel.className = 'barra-pct';
+      pctLabel.textContent = pct === null ? '—' : pct + '%';
+      var mesLabel = document.createElement('div');
+      mesLabel.className = 'barra-mes';
+      mesLabel.textContent = competenciaCurta(comp);
+      grupo.appendChild(col);
+      grupo.appendChild(pctLabel);
+      grupo.appendChild(mesLabel);
+      wrap.appendChild(grupo);
+    });
+    return wrap;
+  }
+
+  function listaFiltrada() {
     var lista = clientesCache;
     if (termoBusca) {
       lista = lista.filter(function (c) {
@@ -371,60 +472,132 @@
           normalizarBusca(c.documento).indexOf(termoBusca) !== -1;
       });
     }
+    return lista;
+  }
 
+  function renderView() {
+    if (clienteSelecionadoId) {
+      $('viewCards').hidden = true;
+      $('viewDetalhe').hidden = false;
+      renderDetalhe();
+    } else {
+      $('viewCards').hidden = false;
+      $('viewDetalhe').hidden = true;
+      renderCards();
+    }
+  }
+
+  function renderCards() {
+    var grid = $('viewCards');
+    grid.innerHTML = '';
+    var lista = listaFiltrada();
+    var compAtualStr = competenciaStr(competenciaAtual);
+    var janela = janelaCompetencias(competenciaAtual, JANELA_MESES);
     $('vazioAviso').hidden = lista.length > 0;
     var pendentesCount = 0;
 
     lista.forEach(function (cliente) {
-      var doc = docsMensalCache.get(cliente.id) || {};
-      var faltando = TIPOS.filter(function (t) { return !doc[t]; });
+      var statusAtual = statusMes(cliente.id, compAtualStr) || {};
+      var faltando = TIPOS.filter(function (t) { return !statusAtual[t]; });
       if (faltando.length > 0) pendentesCount++;
 
-      var tr = document.createElement('tr');
-      tr.className = faltando.length > 0 ? 'linha-pendente' : 'linha-completa';
+      var mesesComRegistro = janela.filter(function (c) { return statusMes(cliente.id, c); }).length;
 
-      var tdCliente = document.createElement('td');
-      tdCliente.className = 'col-cliente';
-      tdCliente.innerHTML = '<div class="nome-cliente"></div><div class="nome-doc"></div>';
-      tdCliente.querySelector('.nome-cliente').textContent = cliente.nome || '(sem nome)';
-      tdCliente.querySelector('.nome-doc').textContent = cliente.documento || '';
-      tr.appendChild(tdCliente);
-
-      var tdEmail = document.createElement('td');
-      var inputEmail = document.createElement('input');
-      inputEmail.type = 'email';
-      inputEmail.className = 'email-input' + (cliente.email ? '' : ' vazio-aviso');
-      inputEmail.placeholder = 'sem e-mail cadastrado';
-      inputEmail.value = cliente.email || '';
-      inputEmail.addEventListener('change', function () { salvarEmail(cliente, inputEmail.value, inputEmail); });
-      tdEmail.appendChild(inputEmail);
-      tr.appendChild(tdEmail);
-
-      TIPOS.forEach(function (tipo) {
-        var td = document.createElement('td');
-        td.className = 'col-doc';
-        var chk = document.createElement('input');
-        chk.type = 'checkbox';
-        chk.className = 'chk-doc';
-        chk.checked = !!doc[tipo];
-        chk.addEventListener('change', function () { alternarDoc(cliente, tipo, chk.checked); });
-        td.appendChild(chk);
-        tr.appendChild(td);
+      var card = document.createElement('div');
+      card.className = 'card-cliente ' + (faltando.length > 0 ? 'tem-pendencia' : 'completo');
+      card.innerHTML =
+        '<div><div class="cc-nome"></div><div class="cc-doc"></div></div>' +
+        '<div class="cc-meta">' +
+          '<span><span class="cc-num"></span> período' + (mesesComRegistro !== 1 ? 's' : '') + ' monitorado' + (mesesComRegistro !== 1 ? 's' : '') + '</span>' +
+          '<span class="cc-legenda"><span><i class="dot dot-pend"></i>Pendente</span><span><i class="dot dot-ok"></i>Recebido</span></span>' +
+        '</div>';
+      card.querySelector('.cc-nome').textContent = cliente.nome || '(sem nome)';
+      card.querySelector('.cc-doc').textContent = cliente.documento || '';
+      card.querySelector('.cc-num').textContent = mesesComRegistro;
+      card.appendChild(montarBarras(cliente.id, competenciaAtual, 46));
+      var ver = document.createElement('div');
+      ver.className = 'cc-ver';
+      ver.innerHTML = 'Visualizar detalhes <i class="ph ph-arrow-right"></i>';
+      card.appendChild(ver);
+      card.addEventListener('click', function () {
+        clienteSelecionadoId = cliente.id;
+        renderView();
       });
-
-      var tdSituacao = document.createElement('td');
-      tdSituacao.className = 'col-doc';
-      if (faltando.length === 0) {
-        tdSituacao.innerHTML = '<span class="badge-pend badge-ok"><i class="ph ph-check"></i> completo</span>';
-      } else {
-        tdSituacao.innerHTML = '<span class="badge-pend"><i class="ph ph-warning"></i> ' + faltando.length + ' falta' + (faltando.length > 1 ? 'm' : '') + '</span>';
-      }
-      tr.appendChild(tdSituacao);
-
-      corpo.appendChild(tr);
+      grid.appendChild(card);
     });
 
     $('contagem').textContent = lista.length + ' cliente' + (lista.length !== 1 ? 's' : '') + ' · ' + pendentesCount + ' com pendência';
+  }
+
+  function renderDetalhe() {
+    var cliente = clientesCache.filter(function (c) { return c.id === clienteSelecionadoId; })[0];
+    if (!cliente) { clienteSelecionadoId = null; renderView(); return; }
+
+    $('detNome').textContent = cliente.nome || '(sem nome)';
+    $('detDoc').textContent = cliente.documento || '';
+    var emailInput = $('detEmailInput');
+    emailInput.value = cliente.email || '';
+    emailInput.onchange = function () { salvarEmail(cliente, emailInput.value, emailInput); };
+
+    var compAtualStr = competenciaStr(competenciaAtual);
+    var statusAtual = statusMes(cliente.id, compAtualStr) || {};
+
+    var cont = $('detTipos');
+    cont.innerHTML = '';
+    TIPOS.forEach(function (tipo) {
+      var janela = janelaCompetencias(competenciaAtual, JANELA_MESES);
+      var mesesOk = janela.filter(function (c) { var s = statusMes(cliente.id, c); return s && s[tipo]; }).length;
+      var marcadoAgora = !!statusAtual[tipo];
+
+      var card = document.createElement('div');
+      card.className = 'tipo-card';
+      card.innerHTML =
+        '<div class="tipo-card-topo"><span class="tipo-card-titulo"></span></div>' +
+        '<div class="tipo-card-num"></div>' +
+        '<div class="tipo-card-legenda"><span><i class="dot dot-pend"></i>Pendente</span><span><i class="dot dot-ok"></i>Recebido</span></div>';
+      card.querySelector('.tipo-card-titulo').textContent = TIPO_LABEL[tipo];
+      card.querySelector('.tipo-card-num').textContent = mesesOk + ' de ' + janela.length + ' meses recebidos';
+
+      var barrasWrap = document.createElement('div');
+      janela.forEach(function (comp) {
+        var s = statusMes(cliente.id, comp);
+        var recebido = s ? !!s[tipo] : null;
+        var grupo = document.createElement('div');
+        grupo.className = 'barra-grupo' + (recebido === null ? ' barra-semdado' : '');
+        var col = document.createElement('div');
+        col.className = 'barra-col';
+        col.style.height = '68px';
+        if (recebido !== null) {
+          var seg = document.createElement('div');
+          seg.className = recebido ? 'barra-ok-seg' : 'barra-pend-seg';
+          seg.style.height = '100%';
+          col.appendChild(seg);
+        }
+        var pctLabel = document.createElement('div');
+        pctLabel.className = 'barra-pct';
+        pctLabel.textContent = recebido === null ? '—' : (recebido ? 'ok' : 'falta');
+        var mesLabel = document.createElement('div');
+        mesLabel.className = 'barra-mes';
+        mesLabel.textContent = competenciaCurta(comp);
+        grupo.appendChild(col);
+        grupo.appendChild(pctLabel);
+        grupo.appendChild(mesLabel);
+        barrasWrap.appendChild(grupo);
+      });
+      barrasWrap.className = 'cc-barras';
+      card.appendChild(barrasWrap);
+
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn btn-secondary toggle-mes-atual' + (marcadoAgora ? ' marcado' : '');
+      btn.innerHTML = marcadoAgora
+        ? '<i class="ph ph-check-circle"></i> Recebido em ' + competenciaCurta(compAtualStr)
+        : '<i class="ph ph-circle"></i> Marcar como recebido em ' + competenciaCurta(compAtualStr);
+      btn.addEventListener('click', function () { alternarDoc(cliente, tipo, !marcadoAgora); });
+      card.appendChild(btn);
+
+      cont.appendChild(card);
+    });
   }
 
   // ---------- autenticação ----------
