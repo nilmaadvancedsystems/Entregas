@@ -44,6 +44,11 @@
     --danger-soft: #3A1F1D; --danger-forte: color-mix(in srgb, var(--danger) 92%, var(--ink));
     color-scheme: dark;
   }
+  /* Qualquer elemento com o atributo hidden fica escondido de verdade,
+     mesmo que outra regra abaixo defina display nele (ex: .cards-grid
+     usa display:grid — sem isso, [hidden] normal do navegador perde
+     pra qualquer regra de autor com a mesma especificidade). */
+  [hidden] { display: none !important; }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
   body {
