@@ -10,7 +10,8 @@
       "DESIGN.md",
       "firestore.rules",
       "firestore.indexes.json",
-      "dados-do-escritorio/**"
+      "dados-do-escritorio/**",
+      "scripts/**"
     ],
     "rewrites": [
       {

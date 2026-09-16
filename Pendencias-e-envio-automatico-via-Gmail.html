@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#9A2B24">
+<meta name="description" content="Painel de cobrança de documentos por e-mail (extrato, comprovante, aplicação).">
+<title>Pendências e envio automático via Gmail — Nilma</title>
+<script>
+(function () {
+  try {
+    var t = localStorage.getItem('nilma_tema');
+    if (t === 'claro') document.documentElement.dataset.theme = 'light';
+    else if (t === 'escuro') document.documentElement.dataset.theme = 'dark';
+  } catch (e) {}
+})();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<style>
+  :root {
+    --bg: #FFFFFF; --surface: #FFFFFF; --surface-2: #F2F2F2;
+    --border: #E3E3E3; --border-forte: #C9C9C9;
+    --ink: #1A1A1A; --ink-soft: #525252; --ink-faint: #6C6C6C;
+    --accent: #9A2B24; --accent-ink: #FFFFFF; --accent-soft: #F7E7E5;
+    --accent-forte: color-mix(in srgb, var(--accent) 62%, var(--ink));
+    --success: #17694A; --success-soft: #E2F2EA; --success-forte: color-mix(in srgb, var(--success) 62%, var(--ink));
+    --warning: #8A5D12; --warning-soft: #FAF0DC; --warning-forte: color-mix(in srgb, var(--warning) 62%, var(--ink));
+    --danger: #A8322F; --danger-soft: #FAE6E4; --danger-forte: color-mix(in srgb, var(--danger) 62%, var(--ink));
+    --r-sm: 6px; --r-md: 8px; --r-lg: 10px; --r-pill: 999px;
+    --shadow: 0 10px 28px -14px rgba(10,10,16,.45), 0 2px 6px -3px rgba(10,10,16,.18);
+    color-scheme: light;
+  }
+  :root[data-theme="dark"] {
+    --bg: #17191A; --surface: #17191A; --surface-2: #232526;
+    --border: #33363A; --border-forte: #45484D;
+    --ink: #F2F2F2; --ink-soft: #C7C9CC; --ink-faint: #9A9DA2;
+    --accent-soft: #3A2422; --accent-forte: color-mix(in srgb, var(--accent) 92%, var(--ink));
+    --success-soft: #123526; --success-forte: color-mix(in srgb, var(--success) 92%, var(--ink));
+    --warning-soft: #3A2E0F; --warning-forte: color-mix(in srgb, var(--warning) 92%, var(--ink));
+    --danger-soft: #3A1F1D; --danger-forte: color-mix(in srgb, var(--danger) 92%, var(--ink));
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font: 14px/1.5 Inter, system-ui, sans-serif;
+    -webkit-font-smoothing: auto;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 24px 16px 64px; }
+  header.topo {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-bottom: 16px; margin-bottom: 20px; border-bottom: 1px solid var(--border);
+  }
+  header.topo h1 { font-size: 20px; font-weight: 700; margin: 0; }
+  header.topo .sub { color: var(--ink-faint); font-size: 12px; margin-top: 2px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 38px; padding: 0 14px; border-radius: var(--r-md);
+    font: 600 14px/1 Inter, sans-serif; cursor: pointer; border: 1px solid transparent;
+    white-space: nowrap;
+  }
+  .btn-primary { background: var(--accent); color: var(--accent-ink); }
+  .btn-primary:hover { filter: brightness(0.95); }
+  .btn-secondary { background: var(--surface); color: var(--ink); border-color: var(--border-forte); }
+  .btn-secondary:hover { background: var(--surface-2); }
+  .btn-chip { height: 30px; padding: 0 10px; font-size: 13px; border-radius: var(--r-pill); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  section.card { padding: 20px 0; border-bottom: 1px solid var(--border); }
+  section.card h2 { font-size: 16px; margin: 0 0 12px; display: flex; align-items: center; gap: 8px; }
+  .campo { margin-bottom: 14px; }
+  .campo label { display: block; font-size: 12px; color: var(--ink-soft); margin-bottom: 4px; font-weight: 500; }
+  .input, select.input {
+    width: 100%; height: 42px; padding: 0 12px; border-radius: var(--r-sm);
+    border: 1px solid var(--border-forte); background: var(--surface-2); color: var(--ink);
+    font: 14px Inter, sans-serif;
+  }
+  .input:focus, select.input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 640px) { .grid2 { grid-template-columns: 1fr; } }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip-doc {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 12px; border-radius: var(--r-pill); border: 1px solid var(--border-forte);
+    background: var(--surface); cursor: pointer; font-size: 13px; user-select: none;
+  }
+  .chip-doc input { accent-color: var(--accent); }
+  .chip-doc.marcado { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-forte); font-weight: 600; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 14px; border-bottom: 1px solid var(--border); }
+  .tab {
+    padding: 8px 14px; font-size: 13px; font-weight: 600; color: var(--ink-faint);
+    border-bottom: 2px solid transparent; cursor: pointer; background: none; border-top: none; border-left: none; border-right: none;
+  }
+  .tab.ativa { color: var(--accent-forte); border-bottom-color: var(--accent); }
+  .row {
+    display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border);
+    min-height: 52px; flex-wrap: wrap;
+  }
+  .row:last-child { border-bottom: none; }
+  .row-main { flex: 1; min-width: 200px; }
+  .row-nome { font-weight: 600; }
+  .row-sub { color: var(--ink-faint); font-size: 12px; margin-top: 2px; }
+  .pill {
+    display: inline-flex; align-items: center; padding: 3px 10px; border-radius: var(--r-pill);
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .02em;
+  }
+  .pill.pendente { background: var(--warning-soft); color: var(--warning-forte); }
+  .pill.enviado { background: var(--success-soft); color: var(--success-forte); }
+  .pill.erro { background: var(--danger-soft); color: var(--danger-forte); }
+  .vazio { color: var(--ink-faint); font-size: 13px; padding: 24px 0; text-align: center; }
+  .toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: var(--ink); color: var(--bg); padding: 10px 18px; border-radius: var(--r-md);
+    font-size: 13px; box-shadow: var(--shadow); z-index: 100; opacity: 0; pointer-events: none;
+    transition: opacity .18s ease;
+  }
+  .toast.show { opacity: 1; }
+  #authGate {
+    position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center;
+    justify-content: center; z-index: 50; padding: 20px;
+  }
+  #authGate form { width: 100%; max-width: 340px; }
+  #authGate h1 { font-size: 18px; text-align: center; margin-bottom: 20px; }
+  .auth-erro { color: var(--danger-forte); font-size: 13px; margin: 8px 0; }
+  #negado { text-align: center; padding: 60px 20px; color: var(--ink-soft); }
+</style>
+</head>
+<body>
+
+<div id="authGate">
+  <form id="loginForm">
+    <h1>Cobrança de Documentos</h1>
+    <div class="campo">
+      <label for="loginEmail">E-mail</label>
+      <input class="input" id="loginEmail" type="email" autocomplete="username" required>
+    </div>
+    <div class="campo">
+      <label for="loginSenha">Senha</label>
+      <input class="input" id="loginSenha" type="password" autocomplete="current-password" required>
+    </div>
+    <p class="auth-erro" id="loginError" hidden></p>
+    <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;">Entrar</button>
+  </form>
+</div>
+
+<div id="app" hidden>
+  <div class="wrap">
+    <header class="topo">
+      <div>
+        <h1>Cobrança de Documentos</h1>
+        <div class="sub">Extrato · Comprovante · Aplicação — pedidos de e-mail por cliente</div>
+      </div>
+      <button class="btn btn-secondary" id="logoutBtn"><i class="ph ph-sign-out"></i> Sair</button>
+    </header>
+
+    <section class="card">
+      <h2><i class="ph ph-plus-circle"></i> Novo pedido</h2>
+      <form id="novoPedidoForm">
+        <div class="grid2">
+          <div class="campo">
+            <label for="fCliente">Cliente</label>
+            <input class="input" id="fCliente" type="text" placeholder="Nome do cliente" required>
+          </div>
+          <div class="campo">
+            <label for="fEmail">E-mail do cliente</label>
+            <input class="input" id="fEmail" type="email" placeholder="cliente@exemplo.com" required>
+          </div>
+        </div>
+        <div class="campo">
+          <label for="fCompetencia">Competência</label>
+          <input class="input" id="fCompetencia" type="month" required style="max-width:200px;">
+        </div>
+        <div class="campo">
+          <label>Documentos pendentes</label>
+          <div class="chips" id="chipsDocs">
+            <label class="chip-doc"><input type="checkbox" value="Extrato Bancário"> Extrato Bancário</label>
+            <label class="chip-doc"><input type="checkbox" value="Comprovante"> Comprovante</label>
+            <label class="chip-doc"><input type="checkbox" value="Aplicação"> Aplicação</label>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary" id="criarBtn"><i class="ph ph-paper-plane-tilt"></i> Criar pedido</button>
+      </form>
+    </section>
+
+    <section class="card">
+      <div class="tabs">
+        <button type="button" class="tab ativa" data-status="pendente">Pendentes</button>
+        <button type="button" class="tab" data-status="enviado">Enviados</button>
+        <button type="button" class="tab" data-status="erro">Erros</button>
+      </div>
+      <div id="lista"></div>
+    </section>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script>
+  var firebaseConfig = {
+    apiKey: "AIzaSyD6xg7XhX8dKTKmaYup4hRX5k9XFHEkb98",
+    authDomain: "entregas-2e5e2.firebaseapp.com",
+    projectId: "entregas-2e5e2",
+    storageBucket: "entregas-2e5e2.firebasestorage.app",
+    messagingSenderId: "1009094556836",
+    appId: "1:1009094556836:web:d3b6a9283e934db064fa31"
+  };
+  firebase.initializeApp(firebaseConfig);
+</script>
+<script>
+(function () {
+  var auth = firebase.auth();
+  var db = firebase.firestore();
+  var $ = function (id) { return document.getElementById(id); };
+
+  var COL = 'solicitacoesEmail';
+  var abaAtual = 'pendente';
+  var unsub = null;
+  var podeUsar = false;
+
+  function toast(msg) {
+    var el = $('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    setTimeout(function () { el.classList.remove('show'); }, 2600);
+  }
+
+  function fmtCompetencia(c) {
+    if (!c) return '';
+    var partes = c.split('-');
+    var meses = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+    var m = parseInt(partes[1], 10) - 1;
+    return (meses[m] || partes[1]) + '/' + partes[0];
+  }
+
+  function fmtData(iso) {
+    if (!iso) return '';
+    var d = new Date(iso);
+    return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  // ---------- chips de documento ----------
+  document.querySelectorAll('.chip-doc').forEach(function (chip) {
+    var input = chip.querySelector('input');
+    input.addEventListener('change', function () {
+      chip.classList.toggle('marcado', input.checked);
+    });
+  });
+
+  // ---------- criar pedido ----------
+  $('novoPedidoForm').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var docs = Array.from(document.querySelectorAll('#chipsDocs input:checked')).map(function (i) { return i.value; });
+    if (docs.length === 0) { toast('Marque ao menos um documento pendente.'); return; }
+    var competenciaInput = $('fCompetencia').value; // formato AAAA-MM
+    var btn = $('criarBtn');
+    btn.disabled = true;
+    db.collection(COL).add({
+      clienteNome: $('fCliente').value.trim(),
+      email: $('fEmail').value.trim(),
+      documentosPendentes: docs,
+      competencia: competenciaInput,
+      status: 'pendente',
+      criadoEm: new Date().toISOString(),
+      criadoPor: (auth.currentUser && auth.currentUser.email) || ''
+    }).then(function () {
+      toast('Pedido criado.');
+      $('novoPedidoForm').reset();
+      document.querySelectorAll('.chip-doc').forEach(function (c) { c.classList.remove('marcado'); });
+    }).catch(function (err) {
+      toast('Erro ao criar: ' + err.message);
+    }).finally(function () {
+      btn.disabled = false;
+    });
+  });
+
+  // ---------- abas ----------
+  document.querySelectorAll('.tab').forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      document.querySelectorAll('.tab').forEach(function (t) { t.classList.remove('ativa'); });
+      tab.classList.add('ativa');
+      abaAtual = tab.dataset.status;
+      subscribeLista();
+    });
+  });
+
+  function reabrirPedido(id) {
+    db.collection(COL).doc(id).update({ status: 'pendente', erroMensagem: firebase.firestore.FieldValue.delete() })
+      .then(function () { toast('Pedido reaberto.'); })
+      .catch(function (err) { toast('Erro: ' + err.message); });
+  }
+
+  function excluirPedido(id) {
+    if (!confirm('Excluir este pedido?')) return;
+    db.collection(COL).doc(id).delete()
+      .then(function () { toast('Pedido excluído.'); })
+      .catch(function (err) { toast('Erro: ' + err.message); });
+  }
+
+  function renderLista(pedidos) {
+    var el = $('lista');
+    el.innerHTML = '';
+    if (pedidos.length === 0) {
+      el.innerHTML = '<div class="vazio">Nenhum pedido nessa situação.</div>';
+      return;
+    }
+    pedidos.forEach(function (p) {
+      var row = document.createElement('div');
+      row.className = 'row';
+      var dataRef = p.status === 'enviado' ? p.enviadoEm : p.criadoEm;
+      row.innerHTML =
+        '<div class="row-main">' +
+          '<div class="row-nome"></div>' +
+          '<div class="row-sub"></div>' +
+        '</div>' +
+        '<span class="pill ' + p.status + '"></span>';
+      row.querySelector('.row-nome').textContent = p.clienteNome + ' — ' + fmtCompetencia(p.competencia);
+      var sub = (p.documentosPendentes || []).join(', ') + ' · ' + p.email;
+      if (p.status === 'erro' && p.erroMensagem) sub += ' · ' + p.erroMensagem;
+      sub += ' · ' + fmtData(dataRef);
+      row.querySelector('.row-sub').textContent = sub;
+      row.querySelector('.pill').textContent = p.status;
+
+      if (p.status === 'pendente') {
+        var delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.className = 'btn-chip btn-secondary';
+        delBtn.innerHTML = '<i class="ph ph-trash"></i>';
+        delBtn.addEventListener('click', function () { excluirPedido(p.id); });
+        row.appendChild(delBtn);
+      }
+      if (p.status === 'erro') {
+        var reBtn = document.createElement('button');
+        reBtn.type = 'button';
+        reBtn.className = 'btn-chip btn-secondary';
+        reBtn.textContent = 'Reabrir';
+        reBtn.addEventListener('click', function () { reabrirPedido(p.id); });
+        row.appendChild(reBtn);
+      }
+      el.appendChild(row);
+    });
+  }
+
+  function subscribeLista() {
+    if (unsub) { unsub(); unsub = null; }
+    var ordenarPor = abaAtual === 'enviado' ? 'enviadoEm' : 'criadoEm';
+    unsub = db.collection(COL).where('status', '==', abaAtual).limit(300)
+      .onSnapshot(function (snap) {
+        var pedidos = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+        pedidos.sort(function (a, b) { return new Date(b[ordenarPor] || b.criadoEm || 0) - new Date(a[ordenarPor] || a.criadoEm || 0); });
+        renderLista(pedidos);
+      }, function (err) {
+        $('lista').innerHTML = '<div class="vazio">Erro ao carregar: ' + err.message + '</div>';
+      });
+  }
+
+  // ---------- autenticação ----------
+  $('loginForm').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    $('loginError').hidden = true;
+    auth.signInWithEmailAndPassword($('loginEmail').value.trim(), $('loginSenha').value)
+      .catch(function (err) {
+        $('loginError').textContent = 'Não foi possível entrar: ' + (err.message || err.code);
+        $('loginError').hidden = false;
+      });
+  });
+
+  $('logoutBtn').addEventListener('click', function () { auth.signOut(); });
+
+  auth.onAuthStateChanged(function (user) {
+    if (unsub) { unsub(); unsub = null; }
+    if (!user) {
+      podeUsar = false;
+      $('authGate').hidden = false;
+      $('app').hidden = true;
+      return;
+    }
+    db.collection('usuarios').doc(user.uid).get().then(function (doc) {
+      var roles = (doc.exists && doc.data().roles) || [];
+      podeUsar = roles.indexOf('admin') !== -1 || roles.indexOf('contabil') !== -1;
+      $('authGate').hidden = true;
+      $('app').hidden = false;
+      if (!podeUsar) {
+        document.querySelector('.wrap').innerHTML = '<div id="negado"><i class="ph ph-lock" style="font-size:32px;"></i>' +
+          '<p>Sua conta não tem acesso a este painel (precisa do papel admin ou contábil).</p></div>';
+        return;
+      }
+      subscribeLista();
+    });
+  });
+})();
+</script>
+</body>
+</html>

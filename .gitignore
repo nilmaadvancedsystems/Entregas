@@ -7,3 +7,8 @@ enderecos.json
 
 # arquivos de teste/preview que às vezes ficam soltos na pasta
 _preview-*.html
+
+# scripts locais de automação (Claude) - nunca vão pro repositório/hosting
+scripts/node_modules/
+scripts/*.log
+scripts/.firebase-token

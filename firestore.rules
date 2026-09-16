@@ -324,6 +324,16 @@ service cloud.firestore {
       allow update, delete: if ehAdmin();
     }
 
+    // ---------- solicitações de e-mail (cobrança de documentos) ----------
+    // Painel separado de `solicitacoes` (que é fila interna office_boy):
+    // aqui cada documento é um pedido de cobrança por e-mail a um cliente
+    // (extrato/comprovante/aplicação em falta). Quem monta e processa a
+    // fila é admin/contábil — não é tarefa de office_boy nem staff comum.
+    match /solicitacoesEmail/{id} {
+      allow read, create, update: if ehAdmin() || temPapel('contabil');
+      allow delete: if ehAdmin();
+    }
+
     // ---------- porta fechada ----------
     // Coleção nova que apareça sem regra própria nasce trancada, em vez de
     // nascer aberta.
