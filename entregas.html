@@ -10099,6 +10099,11 @@
   }
   function sairModoContabil_() {
     TABS_CONTABIL_.forEach(function (id) { if ($(id)) $(id).hidden = true; });
+    // faltava isto: escondia o BOTÃO da aba, mas não a SEÇÃO de conteúdo
+    // (com o iframe) — por isso o Conciliadorzinho/Cheque especial
+    // continuava na tela por cima de "Nova entrega" depois de voltar.
+    if ($('tab-conciliador')) $('tab-conciliador').hidden = true;
+    if ($('tab-cheque')) $('tab-cheque').hidden = true;
     if ($('contabilVoltarBtn')) $('contabilVoltarBtn').hidden = true;
     // restaura as abas de Entregas — as com papel (Honorários/Perfil)
     // seguem a MESMA checagem que startApp() usa, nunca "mostrar todas".
@@ -10111,6 +10116,20 @@
     $('tabPerfil').hidden = !temPapel('admin');
     $('notasBtn').hidden = false;
     $('settingsBtn').hidden = false;
+    // volta a aba ativa pra "Nova entrega" (sem disparar os efeitos de
+    // troca de aba — captureGeo/setupCanvas —, que startApp() já cuida
+    // de inicializar sozinho toda vez que entra em Entregas).
+    document.querySelectorAll('.tab').forEach(function (b) {
+      b.classList.remove('active');
+      b.setAttribute('aria-selected', 'false');
+      b.tabIndex = -1;
+    });
+    $('tabbtn-nova').classList.add('active');
+    $('tabbtn-nova').setAttribute('aria-selected', 'true');
+    $('tabbtn-nova').tabIndex = 0;
+    if ($('tab-nova')) $('tab-nova').hidden = false;
+    marcarIconeAba_();
+    if ($('pageTitle')) $('pageTitle').textContent = 'Nova entrega';
   }
 
   $('hubEntregas').addEventListener('click', function () { entrarNaFuncao('entregas'); });
