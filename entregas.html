@@ -2199,6 +2199,11 @@
   <section id="tab-cheque" class="view" role="tabpanel" tabindex="-1" aria-labelledby="tabbtn-cheque" hidden>
     <iframe id="frameCheque" data-src="cheque-especial.html" title="Cheque especial" style="width:100%;height:calc(100vh - 16px);border:0;display:block;border-radius:var(--r-md);"></iframe>
   </section>
+  <!-- Pendências: função separada de Contábil (pedido explícito), mesmo
+       padrão de iframe sob demanda. -->
+  <section id="tab-pendencias" class="view" role="tabpanel" tabindex="-1" aria-labelledby="tabbtn-pendencias" hidden>
+    <iframe id="framePendencias" data-src="Pendencias-e-envio-automatico-via-Gmail.html" title="Pendências" style="width:100%;height:calc(100vh - 16px);border:0;display:block;border-radius:var(--r-md);"></iframe>
+  </section>
 </main>
 
 <div class="sidebar-brand" aria-hidden="true">
@@ -2218,6 +2223,7 @@
   <button class="tab" data-tab="perfil" role="tab" id="tabPerfil" aria-controls="tab-perfil" aria-selected="false" tabindex="-1" hidden><span class="tab-ico"><i class="ph ph-identification-badge" aria-hidden="true"></i></span><span class="tab-label">Perfil</span></button>
   <button class="tab" data-tab="conciliador" role="tab" id="tabbtn-conciliador" aria-controls="tab-conciliador" aria-selected="false" tabindex="-1" hidden><span class="tab-ico"><i class="ph ph-credit-card" aria-hidden="true"></i></span><span class="tab-label">Conciliadorzinho</span></button>
   <button class="tab" data-tab="cheque" role="tab" id="tabbtn-cheque" aria-controls="tab-cheque" aria-selected="false" tabindex="-1" hidden><span class="tab-ico"><i class="ph ph-bank" aria-hidden="true"></i></span><span class="tab-label">Cheque especial</span></button>
+  <button class="tab" data-tab="pendencias" role="tab" id="tabbtn-pendencias" aria-controls="tab-pendencias" aria-selected="false" tabindex="-1" hidden><span class="tab-ico"><i class="ph ph-envelope-simple-open" aria-hidden="true"></i></span><span class="tab-label">Pendências</span></button>
 </nav>
 
 <div class="sidebar-footer">
@@ -2251,6 +2257,11 @@
         <span class="hub-card-ico"><i class="ph ph-file-text" aria-hidden="true"></i></span>
         <span class="hub-card-nome">Fiscal</span>
         <span class="hub-card-desc">Importador LCDPR</span>
+      </button>
+      <button type="button" class="hub-card" id="hubPendencias" data-cargo="contabil" hidden>
+        <span class="hub-card-ico"><i class="ph ph-envelope-simple-open" aria-hidden="true"></i></span>
+        <span class="hub-card-nome">Pendências</span>
+        <span class="hub-card-desc">Cobrança de documentos por e-mail</span>
       </button>
     </div>
     <div class="hub-grid" id="hubGridFiscal" hidden>
@@ -2949,11 +2960,11 @@
       marcarIconeAba_();
       var lbl = btn.querySelector('.tab-label');
       if (lbl && $('pageTitle')) $('pageTitle').textContent = lbl.textContent;
-      ['nova', 'rota', 'painel', 'solicitacoes', 'clientes', 'honorarios', 'perfil', 'conciliador', 'cheque'].forEach(function (name) {
+      ['nova', 'rota', 'painel', 'solicitacoes', 'clientes', 'honorarios', 'perfil', 'conciliador', 'cheque', 'pendencias'].forEach(function (name) {
         var el = $('tab-' + name);
         var papelPermite = name === 'perfil' ? temPapel('admin')
           : name === 'honorarios' ? (temPapel('admin') || temPapel('office_boy'))
-          : (name === 'conciliador' || name === 'cheque') ? (temPapel('admin') || temPapel('contabil'))
+          : (name === 'conciliador' || name === 'cheque' || name === 'pendencias') ? (temPapel('admin') || temPapel('contabil'))
           : true;
         el.hidden = name !== btn.dataset.tab || !papelPermite;
       });
@@ -10060,11 +10071,12 @@
   function mostrarHub() {
     closeModal();
     appShellEls.forEach(function (el) { if (el) el.hidden = true; });
-    sairModoContabil_();
+    sairDeAbaSecundaria_();
     $('hubGridFiscal').hidden = true;
     $('hubGridPrincipal').hidden = false;
     $('hubContabil').hidden = !(temPapel('admin') || temPapel('contabil'));
     $('hubFiscal').hidden = !(temPapel('admin') || temPapel('fiscal'));
+    $('hubPendencias').hidden = !(temPapel('admin') || temPapel('contabil'));
     $('hubScreen').hidden = false;
   }
 
@@ -10074,36 +10086,44 @@
     if (nomeFuncao === 'entregas') startApp();
   }
 
-  // Contábil não é mais um sub-hub de cartões que leva pra outra página —
-  // vira abas de verdade dentro da MESMA barra que Entregas usa. Cada
-  // ferramenta continua sendo o arquivo que já é (conciliador.html,
-  // cheque-especial.html), só mostrada aqui dentro via <iframe>, pra não
-  // ter que fundir CSS/JS de três apps num só (risco de colisão de nomes
-  // de função/variável e de estilo entre os três).
+  // "Aba secundária": Contábil e Pendências não são mais sub-hub de
+  // cartões que leva pra outra página — cada uma vira abas de verdade
+  // dentro da MESMA barra que Entregas usa. As ferramentas continuam
+  // sendo os arquivos que já são (conciliador.html, cheque-especial.html,
+  // Pendencias-e-envio-automatico-via-Gmail.html), só mostradas aqui
+  // dentro via <iframe>, pra não ter que fundir CSS/JS de quatro apps
+  // num só (risco de colisão de nomes de função/variável e de estilo).
   var TABS_ENTREGAS_ = ['tabbtn-nova', 'tabbtn-rota', 'tabbtn-painel', 'tabbtn-solicitacoes', 'tabHonorarios', 'tabbtn-clientes', 'tabPerfil'];
-  var TABS_CONTABIL_ = ['tabbtn-conciliador', 'tabbtn-cheque'];
-  function entrarModoContabil_() {
-    entrarNaFuncao('contabil');
+  // cada "aba secundária" registrada aqui: botões de aba, seções de
+  // conteúdo (pra esconder ao voltar) e frames (pra carregar sob demanda)
+  var ABAS_SECUNDARIAS_ = {
+    contabil: { botoes: ['tabbtn-conciliador', 'tabbtn-cheque'], secoes: ['tab-conciliador', 'tab-cheque'], frames: ['frameConciliador', 'frameCheque'], abaInicial: 'tabbtn-conciliador' },
+    pendencias: { botoes: ['tabbtn-pendencias'], secoes: ['tab-pendencias'], frames: ['framePendencias'], abaInicial: 'tabbtn-pendencias' }
+  };
+  function entrarModoSecundario_(nome) {
+    var cfg = ABAS_SECUNDARIAS_[nome];
+    entrarNaFuncao(nome);
     TABS_ENTREGAS_.forEach(function (id) { $(id).hidden = true; });
-    $('tabbtn-conciliador').hidden = false;
-    $('tabbtn-cheque').hidden = false;
+    cfg.botoes.forEach(function (id) { $(id).hidden = false; });
     $('notasBtn').hidden = true;
     $('settingsBtn').hidden = true;
     $('contabilVoltarBtn').hidden = false;
     // carrega o <iframe> só na primeira vez que a aba é aberta de verdade
-    ['frameConciliador', 'frameCheque'].forEach(function (id) {
+    cfg.frames.forEach(function (id) {
       var frame = $(id);
       if (frame.dataset.src && !frame.src) frame.src = frame.dataset.src;
     });
-    $('tabbtn-conciliador').click();
+    $(cfg.abaInicial).click();
   }
-  function sairModoContabil_() {
-    TABS_CONTABIL_.forEach(function (id) { if ($(id)) $(id).hidden = true; });
-    // faltava isto: escondia o BOTÃO da aba, mas não a SEÇÃO de conteúdo
-    // (com o iframe) — por isso o Conciliadorzinho/Cheque especial
-    // continuava na tela por cima de "Nova entrega" depois de voltar.
-    if ($('tab-conciliador')) $('tab-conciliador').hidden = true;
-    if ($('tab-cheque')) $('tab-cheque').hidden = true;
+  function sairDeAbaSecundaria_() {
+    Object.keys(ABAS_SECUNDARIAS_).forEach(function (nome) {
+      var cfg = ABAS_SECUNDARIAS_[nome];
+      cfg.botoes.forEach(function (id) { if ($(id)) $(id).hidden = true; });
+      // faltava isto na primeira versão: escondia o BOTÃO da aba, mas não
+      // a SEÇÃO de conteúdo (com o iframe) — por isso a ferramenta
+      // continuava na tela por cima de "Nova entrega" depois de voltar.
+      cfg.secoes.forEach(function (id) { if ($(id)) $(id).hidden = true; });
+    });
     if ($('contabilVoltarBtn')) $('contabilVoltarBtn').hidden = true;
     // restaura as abas de Entregas — as com papel (Honorários/Perfil)
     // seguem a MESMA checagem que startApp() usa, nunca "mostrar todas".
@@ -10133,7 +10153,8 @@
   }
 
   $('hubEntregas').addEventListener('click', function () { entrarNaFuncao('entregas'); });
-  $('hubContabil').addEventListener('click', entrarModoContabil_);
+  $('hubContabil').addEventListener('click', function () { entrarModoSecundario_('contabil'); });
+  $('hubPendencias').addEventListener('click', function () { entrarModoSecundario_('pendencias'); });
   $('contabilVoltarBtn').addEventListener('click', mostrarHub);
   $('hubFiscal').addEventListener('click', function () {
     $('hubGridPrincipal').hidden = true;
