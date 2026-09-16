@@ -151,34 +151,51 @@
   .linha-cliente.lc-pendente { --linha-cor: var(--warning); }
   .linha-cliente.lc-completo { --linha-cor: var(--success); }
 
-  .lc-info { flex: 1 1 auto; min-width: 0; }
+  .lc-info { flex: 1 1 auto; min-width: 0; cursor: pointer; background: none; border: none; text-align: left; padding: 0; color: inherit; font: inherit; }
   .lc-nome { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lc-info:hover .lc-nome { color: var(--accent-forte); text-decoration: underline; }
   .lc-doc { font-size: var(--t-xs); color: var(--ink-faint); font-family: 'JetBrains Mono', monospace; }
 
-  .lc-docs { display: flex; gap: 4px; flex: none; }
-  .lc-toggle {
-    width: 34px; height: 34px; border-radius: var(--r-sm); border: 1px solid var(--border-forte);
-    background: var(--surface); color: var(--ink-faint); cursor: pointer; font-size: 15px;
-    display: flex; align-items: center; justify-content: center; flex: none;
-    transition: background-color .12s ease, border-color .12s ease, color .12s ease;
-  }
-  .lc-toggle:hover { background: var(--surface-2); border-color: var(--border-forte); }
-  .lc-toggle.marcado { background: var(--success-soft); border-color: var(--success); color: var(--success-forte); }
+  .lc-resumo { flex: none; font-size: var(--t-sm); font-weight: 600; color: var(--ink-faint); white-space: nowrap; }
+  .lc-resumo.completo { color: var(--success-forte); }
+  .lc-email-txt { flex: none; width: 190px; font-size: var(--t-sm); color: var(--ink-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lc-email-txt.vazio { color: var(--warning-forte); }
 
-  .lc-email {
-    flex: none; width: 200px; height: 34px; padding: 0 10px; font-size: var(--t-base);
-    border: 1px solid transparent; background: transparent; color: var(--ink); border-radius: var(--r-sm);
-  }
-  .lc-email:hover { border-color: var(--border-forte); background: var(--surface-2); }
-  .lc-email:focus { outline: none; border-color: var(--accent); background: var(--surface-2); box-shadow: 0 0 0 3px var(--accent-soft); }
-  .lc-email::placeholder { color: var(--warning-forte); }
-
-  @media (max-width: 760px) {
+  @media (max-width: 640px) {
     .linha-cliente { flex-wrap: wrap; padding-top: var(--esp-2); padding-bottom: var(--esp-2); }
     .lc-info { flex-basis: 100%; }
-    .lc-docs { order: 2; }
-    .lc-email { order: 3; flex: 1 1 140px; width: auto; }
+    .lc-email-txt { width: auto; flex: 1; }
   }
+
+  /* ---------- comprimidos de documento (chip/chip-grid, igual ao entregas.html) ---------- */
+  .chip-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { position: relative; }
+  .chip input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+  .chip span {
+    display: inline-flex; align-items: center; position: relative; min-height: 34px; padding: 0 12px;
+    border: 1px solid var(--border); border-radius: var(--r-sm);
+    background: var(--surface); font-size: var(--t-base); font-weight: 500; cursor: pointer;
+    transition: background-color .12s ease, border-color .12s ease, color .12s ease;
+  }
+  .chip span:hover { border-color: var(--border-forte); }
+  .chip input:checked + span {
+    background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; padding-left: 28px;
+  }
+  .chip input:checked + span::before {
+    content: "✓"; position: absolute; left: 11px; top: 50%; transform: translateY(-50%); font-size: .78rem; font-weight: 700;
+  }
+
+  /* ---------- tela de detalhe do cliente ---------- */
+  #viewDetalhe { display: flex; flex-direction: column; gap: var(--esp-4); }
+  .detalhe-topo { display: flex; align-items: center; gap: var(--esp-3); }
+  .detalhe-cabecalho {
+    display: flex; align-items: flex-start; justify-content: space-between; gap: var(--esp-4); flex-wrap: wrap;
+    padding-bottom: var(--esp-3); border-bottom: 1px solid var(--border);
+  }
+  .detalhe-nome { font-size: 18px; font-weight: 700; }
+  .detalhe-doc { color: var(--ink-faint); font-size: var(--t-sm); font-family: 'JetBrains Mono', monospace; margin-top: 2px; }
+  .detalhe-campo { min-width: 220px; }
+  .detalhe-campo label { display: block; font-size: var(--t-sm); color: var(--ink-soft); margin-bottom: 4px; }
 
   .toast {
     position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
@@ -244,17 +261,40 @@
       </div>
     </div>
 
-    <div class="barra">
-      <div class="mes-nav">
-        <button type="button" id="mesAnterior" aria-label="Mês anterior"><i class="ph ph-caret-left"></i></button>
-        <span class="mes-label" id="mesLabel"></span>
-        <button type="button" id="mesProximo" aria-label="Próximo mês"><i class="ph ph-caret-right"></i></button>
+    <div id="viewLista">
+      <div class="barra">
+        <div class="mes-nav">
+          <button type="button" id="mesAnterior" aria-label="Mês anterior"><i class="ph ph-caret-left"></i></button>
+          <span class="mes-label" id="mesLabel"></span>
+          <button type="button" id="mesProximo" aria-label="Próximo mês"><i class="ph ph-caret-right"></i></button>
+        </div>
+        <input class="input busca" id="busca" type="text" placeholder="Buscar cliente ou CNPJ...">
       </div>
-      <input class="input busca" id="busca" type="text" placeholder="Buscar cliente ou CNPJ...">
+
+      <div id="lista" class="lista"></div>
+      <div id="vazioAviso" class="vazio" hidden>Nenhum cliente encontrado.</div>
     </div>
 
-    <div id="lista" class="lista"></div>
-    <div id="vazioAviso" class="vazio" hidden>Nenhum cliente encontrado.</div>
+    <div id="viewDetalhe" hidden>
+      <div class="detalhe-topo">
+        <button type="button" class="btn btn-secondary" id="voltarBtn"><i class="ph ph-arrow-left"></i> Voltar</button>
+        <span class="mes-label" id="detMesLabel" style="text-transform:capitalize;"></span>
+      </div>
+      <div class="detalhe-cabecalho">
+        <div>
+          <div class="detalhe-nome" id="detNome"></div>
+          <div class="detalhe-doc" id="detDoc"></div>
+        </div>
+        <div class="detalhe-campo">
+          <label for="detEmailInput">E-mail de cobrança</label>
+          <input class="input" id="detEmailInput" type="email" placeholder="cliente@exemplo.com">
+        </div>
+      </div>
+      <div class="detalhe-campo">
+        <label>Documentos recebidos este mês</label>
+        <div class="chip-grid" id="detChips"></div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -291,9 +331,9 @@
   var $ = function (id) { return document.getElementById(id); };
 
   var TIPOS = [
-    { chave: 'extrato', label: 'Extrato Bancário', abrev: 'EXT', icone: 'ph-bank' },
-    { chave: 'comprovante', label: 'Comprovante', abrev: 'CPV', icone: 'ph-receipt' },
-    { chave: 'aplicacao', label: 'Aplicação', abrev: 'APL', icone: 'ph-chart-line-up' }
+    { chave: 'extrato', label: 'Extrato Bancário' },
+    { chave: 'comprovante', label: 'Comprovante' },
+    { chave: 'aplicacao', label: 'Aplicação' }
   ];
   var MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
 
@@ -305,6 +345,7 @@
   var unsubStatus = null;
   var termoBusca = '';
   var podeUsar = false;
+  var clienteSelecionadoId = null; // null = mostrando a lista
 
   function toast(msg) {
     var el = $('toast');
@@ -421,7 +462,33 @@
     return lista;
   }
 
+  function statusDoCliente(clienteId) {
+    return statusCache.get(clienteId) || {};
+  }
+
   function render() {
+    if (clienteSelecionadoId) {
+      $('viewLista').hidden = true;
+      $('viewDetalhe').hidden = false;
+      renderDetalhe();
+    } else {
+      $('viewLista').hidden = false;
+      $('viewDetalhe').hidden = true;
+      renderLista();
+    }
+  }
+
+  function abrirDetalhe(clienteId) {
+    clienteSelecionadoId = clienteId;
+    render();
+  }
+
+  $('voltarBtn').addEventListener('click', function () {
+    clienteSelecionadoId = null;
+    render();
+  });
+
+  function renderLista() {
     var container = $('lista');
     container.innerHTML = '';
     var lista = listaFiltrada();
@@ -429,41 +496,32 @@
     var pendentesCount = 0;
 
     lista.forEach(function (cliente) {
-      var status = statusCache.get(cliente.id) || {};
-      var faltando = TIPOS.filter(function (t) { return !status[t.chave]; });
-      if (faltando.length > 0) pendentesCount++;
+      var status = statusDoCliente(cliente.id);
+      var okCount = TIPOS.filter(function (t) { return status[t.chave]; }).length;
+      var completo = okCount === TIPOS.length;
+      if (!completo) pendentesCount++;
 
       var row = document.createElement('div');
-      row.className = 'linha-cliente ' + (faltando.length > 0 ? 'lc-pendente' : 'lc-completo');
+      row.className = 'linha-cliente ' + (completo ? 'lc-completo' : 'lc-pendente');
 
-      var info = document.createElement('div');
+      var info = document.createElement('button');
+      info.type = 'button';
       info.className = 'lc-info';
       info.innerHTML = '<div class="lc-nome"></div><div class="lc-doc"></div>';
       info.querySelector('.lc-nome').textContent = cliente.nome || '(sem nome)';
       info.querySelector('.lc-doc').textContent = cliente.documento || '';
+      info.addEventListener('click', function () { abrirDetalhe(cliente.id); });
       row.appendChild(info);
 
-      var docsWrap = document.createElement('div');
-      docsWrap.className = 'lc-docs';
-      TIPOS.forEach(function (tipo) {
-        var marcado = !!status[tipo.chave];
-        var btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'lc-toggle' + (marcado ? ' marcado' : '');
-        btn.title = tipo.label + (marcado ? ' — recebido' : ' — pendente');
-        btn.innerHTML = '<i class="ph ' + (marcado ? 'ph-check' : tipo.icone) + '"></i>';
-        btn.addEventListener('click', function () { alternarDoc(cliente, tipo.chave, !marcado); });
-        docsWrap.appendChild(btn);
-      });
-      row.appendChild(docsWrap);
+      var resumo = document.createElement('span');
+      resumo.className = 'lc-resumo' + (completo ? ' completo' : '');
+      resumo.textContent = okCount + '/' + TIPOS.length;
+      row.appendChild(resumo);
 
-      var emailInput = document.createElement('input');
-      emailInput.type = 'email';
-      emailInput.className = 'lc-email';
-      emailInput.placeholder = 'sem e-mail';
-      emailInput.value = cliente.email || '';
-      emailInput.addEventListener('change', function () { salvarEmail(cliente, emailInput.value, emailInput); });
-      row.appendChild(emailInput);
+      var emailTxt = document.createElement('span');
+      emailTxt.className = 'lc-email-txt' + (cliente.email ? '' : ' vazio');
+      emailTxt.textContent = cliente.email || 'sem e-mail cadastrado';
+      row.appendChild(emailTxt);
 
       container.appendChild(row);
     });
@@ -471,6 +529,37 @@
     $('dashPendentes').textContent = pendentesCount;
     $('dashCompletos').textContent = lista.length - pendentesCount;
     $('dashClientes').textContent = clientesCache.length;
+  }
+
+  function renderDetalhe() {
+    var cliente = clientesCache.filter(function (c) { return c.id === clienteSelecionadoId; })[0];
+    if (!cliente) { clienteSelecionadoId = null; render(); return; }
+
+    $('detNome').textContent = cliente.nome || '(sem nome)';
+    $('detDoc').textContent = cliente.documento || '';
+    $('detMesLabel').textContent = competenciaLabel(competenciaAtual);
+
+    var emailInput = $('detEmailInput');
+    emailInput.value = cliente.email || '';
+    emailInput.onchange = function () { salvarEmail(cliente, emailInput.value, emailInput); };
+
+    var status = statusDoCliente(cliente.id);
+    var grid = $('detChips');
+    grid.innerHTML = '';
+    TIPOS.forEach(function (tipo) {
+      var marcado = !!status[tipo.chave];
+      var label = document.createElement('label');
+      label.className = 'chip';
+      var input = document.createElement('input');
+      input.type = 'checkbox';
+      input.checked = marcado;
+      input.addEventListener('change', function () { alternarDoc(cliente, tipo.chave, input.checked); });
+      var span = document.createElement('span');
+      span.textContent = tipo.label;
+      label.appendChild(input);
+      label.appendChild(span);
+      grid.appendChild(label);
+    });
   }
 
   // ---------- autenticação ----------
