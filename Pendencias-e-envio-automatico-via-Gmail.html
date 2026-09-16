@@ -196,6 +196,14 @@
   .detalhe-doc { color: var(--ink-faint); font-size: var(--t-sm); font-family: 'JetBrains Mono', monospace; margin-top: 2px; }
   .detalhe-campo { min-width: 220px; }
   .detalhe-campo label { display: block; font-size: var(--t-sm); color: var(--ink-soft); margin-bottom: 4px; }
+  .detalhe-razao { color: var(--ink-faint); font-size: var(--t-sm); margin-top: 2px; }
+  .detalhe-meta { display: flex; flex-wrap: wrap; gap: var(--esp-3); margin-top: var(--esp-2); }
+  .detalhe-meta span { display: inline-flex; align-items: center; gap: 5px; font-size: var(--t-sm); color: var(--ink-soft); }
+  .detalhe-meta .ph { color: var(--ink-faint); font-size: .95em; }
+  .badge-enquadramento {
+    display: inline-flex; align-items: center; font-size: var(--t-xs); font-weight: 600;
+    padding: 3px 8px; border-radius: var(--r-xs); background: var(--surface-2); color: var(--ink-soft);
+  }
 
   .toast {
     position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
@@ -283,7 +291,13 @@
       <div class="detalhe-cabecalho">
         <div>
           <div class="detalhe-nome" id="detNome"></div>
-          <div class="detalhe-doc" id="detDoc"></div>
+          <div class="detalhe-razao" id="detRazao" hidden></div>
+          <div class="detalhe-meta">
+            <span id="detDocWrap"><i class="ph ph-identification-card"></i><span id="detDoc"></span></span>
+            <span id="detTelWrap" hidden><i class="ph ph-phone"></i><span id="detTel"></span></span>
+            <span id="detCidadeWrap" hidden><i class="ph ph-map-pin"></i><span id="detCidade"></span></span>
+            <span class="badge-enquadramento" id="detEnquadramento" hidden></span>
+          </div>
         </div>
         <div class="detalhe-campo">
           <label for="detEmailInput">E-mail de cobrança</label>
@@ -535,8 +549,19 @@
     var cliente = clientesCache.filter(function (c) { return c.id === clienteSelecionadoId; })[0];
     if (!cliente) { clienteSelecionadoId = null; render(); return; }
 
-    $('detNome').textContent = cliente.nome || '(sem nome)';
-    $('detDoc').textContent = cliente.documento || '';
+    var nomeFantasia = (cliente.nomeFantasia || '').trim();
+    var nomePrincipal = nomeFantasia || cliente.nome || '(sem nome)';
+    $('detNome').textContent = nomePrincipal;
+    $('detRazao').hidden = !(nomeFantasia && cliente.nome && cliente.nome !== nomeFantasia);
+    $('detRazao').textContent = cliente.nome || '';
+    $('detDoc').textContent = cliente.documento || '(sem CNPJ/CPF)';
+    $('detTelWrap').hidden = !cliente.telefone;
+    $('detTel').textContent = cliente.telefone || '';
+    var localCidade = [cliente.bairro, cliente.cidade].filter(Boolean).join(' — ') || cliente.endereco || '';
+    $('detCidadeWrap').hidden = !localCidade;
+    $('detCidade').textContent = localCidade;
+    $('detEnquadramento').hidden = !cliente.enquadramento;
+    $('detEnquadramento').textContent = cliente.enquadramento || '';
     $('detMesLabel').textContent = competenciaLabel(competenciaAtual);
 
     var emailInput = $('detEmailInput');
