@@ -5,93 +5,137 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Importador LCDPR — Nilma Contabilidade</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
-/* Mesma paleta/tokens do app de Entregas (Nilma Protocolos) — "uma
-   superfície só" (fundo e cartão no mesmo tom, separados por fio de
-   1px, não bloco de cor) e o mesmo acento. Esta ferramenta só tem
-   tema escuro, então usa direto os valores escuros do app principal
-   em vez de replicar o esquema de :root/@media dele. */
+/* Mesmos tokens do app Entregas/Nilma Protocolos (ver DESIGN.md daquele
+   repositório) — claro como padrão, uma superfície só, cor da marca contida. */
 :root{
-  --bg:#141414; --surface:#141414; --surface-2:#1E1E1E; --text:#F0F0F0;
-  --muted:#ADADAD; --muted-2:#8C8C8C; --divider:#2C2C2C;
-  --accent:#DE756B; --accent-ink:#26100E; --accent-hover:color-mix(in srgb, var(--accent) 92%, var(--text)); --accent-soft:#38201D;
-  --warn:#D9A857; --warn-soft:#322614;
-  --radius:10px; --radius-sm:6px;
+  --bg:#FFFFFF; --surface:#FFFFFF; --surface-2:#F2F2F2;
+  --border:#E3E3E3; --border-forte:#C9C9C9;
+  --ink:#1A1A1A; --ink-soft:#525252; --ink-faint:#6C6C6C;
+  --accent:#9A2B24; --accent-ink:#FFFFFF; --accent-soft:#F7E7E5;
+  --accent-2:#6B6F75; --accent-2-soft:#EAEAEC;
+  --success:#17694A; --success-soft:#E2F2EA;
+  --warning:#8A5D12; --warning-soft:#FAF0DC;
+  --danger:#A8322F; --danger-soft:#FAE6E4; --danger-ink:#FFFFFF;
+  --dose-forte:62%;
+  --accent-forte:color-mix(in srgb, var(--accent) var(--dose-forte), var(--ink));
+  --success-forte:color-mix(in srgb, var(--success) var(--dose-forte), var(--ink));
+  --warning-forte:color-mix(in srgb, var(--warning) var(--dose-forte), var(--ink));
+  --danger-forte:color-mix(in srgb, var(--danger) var(--dose-forte), var(--ink));
+  --shadow:0 10px 28px -14px rgba(10,10,16,.45), 0 2px 6px -3px rgba(10,10,16,.18);
+  --r-xs:4px; --r-sm:6px; --r-md:8px; --r-lg:10px; --r-pill:999px;
+  --font-body:'Inter',-apple-system,'Segoe UI',system-ui,sans-serif;
+  --font-mono:'JetBrains Mono',SFMono-Regular,Consolas,monospace;
+  --t-xs:.6875rem; --t-sm:.75rem; --t-base:.8125rem; --t-md:.875rem; --t-lg:1rem; --t-xl:1.25rem;
+  --dur:180ms; --ease:cubic-bezier(.22,1,.36,1);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#141414; --surface:#141414; --surface-2:#1E1E1E;
+    --border:#2C2C2C; --border-forte:#404040;
+    --ink:#F0F0F0; --ink-soft:#ADADAD; --ink-faint:#8C8C8C;
+    --dose-forte:92%;
+    --accent:#DE756B; --accent-ink:#26100E; --accent-soft:#38201D;
+    --accent-2:#A9ADB2; --accent-2-soft:#2C2E33;
+    --success:#4FC188; --success-soft:#14301F;
+    --warning:#D9A857; --warning-soft:#322614;
+    --danger:#E8827A; --danger-soft:#381C1A; --danger-ink:#2E100E;
+    --shadow:0 10px 28px -14px rgba(0,0,0,.7), 0 2px 6px -3px rgba(0,0,0,.5);
+  }
 }
 *,*::before,*::after{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,'Segoe UI',system-ui,sans-serif;font-size:13px;line-height:1.5}
-h1,h2,h3{font-weight:800;letter-spacing:-.01em;margin:0 0 8px}
-h1{font-size:26px} h2{font-size:16px} h3{font-size:14px}
-a{color:var(--accent-hover)}
+* { scrollbar-width: thin; scrollbar-color: var(--border-forte) transparent; }
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:14px;line-height:1.5}
+h1,h2,h3{font-weight:700;letter-spacing:-.01em;margin:0 0 8px}
+h1{font-size:1.7rem} h2{font-size:var(--t-lg)} h3{font-size:var(--t-md)}
+a{color:var(--accent-forte)}
 button{font-family:inherit;cursor:pointer}
-input,select,textarea{font-family:inherit;font-size:13.5px;color:var(--text);background:var(--surface-2);border:1px solid var(--divider);border-radius:var(--radius-sm);padding:6px 9px}
-input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:0}
+input,select,textarea{font-family:inherit;font-size:var(--t-md);color:var(--ink);background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r-sm);padding:8px 10px}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
 .app{display:flex;align-items:stretch;min-height:100vh}
-.sidebar{width:250px;flex:0 0 auto;background:var(--surface);border-right:1px solid var(--divider);display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
-.brand{padding:20px 18px;border-bottom:1px solid var(--divider);display:flex;align-items:center;gap:12px}
-.brand .logo{width:38px;height:38px;flex:0 0 auto;background:var(--accent);color:var(--accent-ink);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;border-radius:8px}
-.brand .t1{font-weight:800;font-size:13px;letter-spacing:-.01em}
-.brand .t2{font-size:10.5px;color:var(--muted);margin-top:2px}
+.sidebar{width:250px;flex:0 0 auto;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+.brand{padding:20px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
+.brand .logo{width:38px;height:38px;flex:0 0 auto;background:var(--accent);color:var(--accent-ink);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:17px;border-radius:var(--r-md)}
+.brand .t1{font-weight:700;font-size:13px;letter-spacing:-.01em}
+.brand .t2{font-size:var(--t-xs);color:var(--ink-faint);margin-top:2px}
 nav.navlist{padding:14px 0;flex:1;overflow-y:auto}
-.navgroup{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:16px 18px 6px}
-.navbtn{display:block;width:100%;text-align:left;background:none;border:none;color:var(--muted);font-size:13.5px;padding:9px 18px;border-left:2px solid transparent}
-.navbtn:hover{background:rgba(255,255,255,.04);color:var(--text)}
-.navbtn.active{color:var(--text);background:var(--accent-soft);border-left-color:var(--accent);font-weight:600}
-.sidebar-foot{padding:12px 18px;border-top:1px solid var(--divider);font-size:10.5px;color:var(--muted)}
+.navgroup{font-size:var(--t-xs);font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);padding:16px 18px 6px}
+.navbtn{display:block;width:100%;text-align:left;background:none;border:none;color:var(--ink-soft);font-size:var(--t-md);padding:9px 18px;border-left:2px solid transparent;transition:background var(--dur) var(--ease),color var(--dur) var(--ease)}
+.navbtn:hover{background:var(--surface-2);color:var(--ink)}
+.navbtn.active{color:var(--accent-forte);background:var(--accent-soft);border-left-color:var(--accent);font-weight:600}
+.sidebar-foot{padding:12px 18px;border-top:1px solid var(--border);font-size:var(--t-xs);color:var(--ink-faint)}
 main{flex:1;min-width:0;padding:34px 40px 80px}
 .screen{max-width:1400px}
-.hdr{margin-bottom:22px;padding-bottom:16px;border-bottom:1px solid var(--divider)}
-.kicker{font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--accent-hover);margin-bottom:6px}
-.desc{color:var(--muted);max-width:76ch;margin:0}
-.btn{display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:13px;padding:8px 14px;border-radius:var(--radius-sm);border:1px solid transparent;background:transparent;color:var(--text)}
+.hdr{margin-bottom:22px;padding-bottom:16px;border-bottom:1px solid var(--border)}
+.kicker{font-size:var(--t-xs);font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent-forte);margin-bottom:6px}
+.desc{color:var(--ink-soft);max-width:76ch;margin:0}
+.btn{display:inline-flex;align-items:center;gap:6px;font-weight:600;font-size:var(--t-base);padding:8px 14px;border-radius:var(--r-sm);border:1px solid transparent;background:transparent;color:var(--ink);transition:background var(--dur) var(--ease),border-color var(--dur) var(--ease)}
 .btn-primary{background:var(--accent);color:var(--accent-ink)}
-.btn-primary:hover{background:var(--accent-hover)}
-.btn-secondary{border-color:var(--divider)}
-.btn-secondary:hover{background:rgba(255,255,255,.05)}
-.btn-ghost{color:var(--accent-hover);padding:4px 8px}
+.btn-primary:hover{background:color-mix(in srgb, var(--accent) 88%, black)}
+.btn-secondary{border-color:var(--border);background:var(--surface)}
+.btn-secondary:hover{background:var(--surface-2)}
+.btn-ghost{color:var(--accent-forte);padding:4px 8px}
 .btn-ghost:hover{background:var(--accent-soft)}
-.btn:disabled{opacity:.4;cursor:not-allowed}
-.dropzone{border:2px dashed var(--divider);border-radius:var(--radius);padding:34px 20px;text-align:center;color:var(--muted);cursor:pointer;margin-bottom:20px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.dropzone{border:2px dashed var(--border);border-radius:var(--r-lg);padding:34px 20px;text-align:center;color:var(--ink-faint);cursor:pointer;margin-bottom:20px;transition:border-color var(--dur) var(--ease)}
 .dropzone:hover{border-color:var(--accent)}
 .dropzone.drag{border-color:var(--accent);background:var(--accent-soft)}
-.dropzone .big{font-size:14.5px;color:var(--text);font-weight:600;margin-bottom:4px}
-.stats{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:18px}
-.stat{background:var(--surface);border:1px solid var(--divider);border-radius:var(--radius);padding:12px 18px;min-width:130px}
-.stat b{display:block;font-size:22px;font-weight:800}
-.stat span{font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.dropzone .big{font-size:var(--t-md);color:var(--ink);font-weight:600;margin-bottom:4px}
+.stats{display:flex;flex-wrap:wrap;margin-bottom:18px;border:1px solid var(--border);border-radius:var(--r-md);overflow:hidden}
+.stat{padding:12px 20px;min-width:130px;border-left:1px solid var(--border)}
+.stat:first-child{border-left:none}
+.stat b{display:block;font-size:1.35rem;font-weight:700;font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.stat span{font-size:var(--t-xs);letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint)}
 .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
 .toolbar input[type=search]{min-width:260px}
-.bulkbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;padding:9px 12px;background:var(--surface);border:1px solid var(--divider);border-radius:var(--radius-sm);font-size:12.5px;color:var(--muted)}
-.tablewrap{overflow-x:auto;border:1px solid var(--divider);border-radius:var(--radius)}
-table.t{width:100%;border-collapse:collapse;font-size:13px}
-table.t th{text-align:left;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);padding:8px 10px;border-bottom:1px solid var(--divider);white-space:nowrap;position:sticky;top:0;background:var(--surface)}
-table.t td{padding:6px 10px;border-bottom:1px solid var(--divider);vertical-align:middle}
-table.t tbody tr:hover{background:rgba(255,255,255,.03)}
-table.t tbody tr.revisar{background:var(--warn-soft)}
-.tag{display:inline-flex;align-items:center;font-size:10.5px;padding:2px 8px;border-radius:5px;font-weight:700}
-.tag-nf{background:var(--accent-soft);color:var(--accent)}
-.tag-cte{background:var(--surface-2);color:var(--muted)}
-.tag-warn{background:var(--warn-soft);color:var(--warn)}
-.small{font-size:11.5px;color:var(--muted)}
-.mono{font-family:'JetBrains Mono',ui-monospace,Consolas,monospace}
-.hint{color:var(--muted);font-size:13px;max-width:74ch;margin:0 0 12px}
-.card{background:var(--surface);border:1px solid var(--divider);border-radius:var(--radius);padding:16px;margin-bottom:26px}
+.bulkbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;padding:9px 12px;background:var(--surface-2);border-radius:var(--r-sm);font-size:var(--t-base);color:var(--ink-soft)}
+.tablewrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--r-md)}
+table.t{width:100%;border-collapse:collapse;font-size:var(--t-base)}
+table.t th{text-align:left;font-size:var(--t-xs);letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint);padding:8px 10px;border-bottom:1px solid var(--border);white-space:nowrap;position:sticky;top:0;background:var(--surface)}
+table.t td{padding:6px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
+table.t tbody tr:hover{background:var(--surface-2)}
+table.t tbody tr.revisar{background:var(--warning-soft)}
+.tag{display:inline-flex;align-items:center;font-size:var(--t-xs);padding:2px 8px;border-radius:var(--r-pill);font-weight:600}
+.tag-nf{background:var(--accent-soft);color:var(--accent-forte)}
+.tag-cte{background:var(--accent-2-soft);color:var(--accent-2)}
+.tag-warn{background:var(--warning-soft);color:var(--warning-forte)}
+.tag-ncm{background:var(--success-soft);color:var(--success-forte)}
+.tag-palavra{background:var(--accent-soft);color:var(--accent-forte)}
+.tag-manual{background:var(--accent-2-soft);color:var(--accent-2)}
+.tag-neutro{background:var(--surface-2);color:var(--ink-faint)}
+.small{font-size:var(--t-sm);color:var(--ink-faint)}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.hint{color:var(--ink-soft);font-size:var(--t-base);max-width:74ch;margin:0 0 12px}
+.card{border-top:1px solid var(--border);padding-top:16px;margin-bottom:26px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
-.field label{display:block;font-size:11.5px;color:var(--muted);margin-bottom:5px}
+.field label{display:block;font-size:var(--t-sm);color:var(--ink-soft);margin-bottom:5px}
 .field input,.field select{width:100%}
-.section-sep{height:1px;background:var(--divider);margin:26px 0}
+.section-sep{height:1px;background:var(--border);margin:26px 0}
 .twocol{display:grid;grid-template-columns:1fr 1fr;gap:28px}
 @media (max-width: 900px){.twocol,.grid2{grid-template-columns:1fr}}
-.icon-btn{width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;border-radius:6px;background:none;border:none;color:var(--muted)}
-.icon-btn:hover{background:var(--accent-soft);color:var(--accent-hover)}
-.tbl-input{width:100%;min-width:70px;background:transparent;border:1px solid transparent;padding:4px 6px}
-.tbl-input:hover{border-color:var(--divider)}
-.tbl-input:focus{background:var(--surface-2);border-color:var(--accent)}
-.toast{position:fixed;bottom:20px;right:20px;background:var(--surface);border:1px solid var(--divider);color:var(--text);padding:11px 16px;border-radius:var(--radius-sm);font-size:13px;box-shadow:0 8px 24px rgba(0,0,0,.4);z-index:999;max-width:360px}
-.badge-count{background:var(--accent);color:var(--accent-ink);font-size:10px;border-radius:8px;padding:1px 6px;margin-left:6px}
+.icon-btn{width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;border-radius:var(--r-sm);background:none;border:none;color:var(--ink-faint)}
+.icon-btn:hover{background:var(--accent-soft);color:var(--accent-forte)}
+.tbl-input{width:100%;min-width:70px;background:transparent;border:1px solid transparent;padding:4px 6px;border-radius:var(--r-xs)}
+.tbl-input:hover{border-color:var(--border)}
+.tbl-input:focus{background:var(--surface-2);border-color:var(--accent);box-shadow:none}
+.toast{position:fixed;bottom:20px;right:20px;background:var(--surface);border:1px solid var(--border);color:var(--ink);padding:11px 16px;border-radius:var(--r-sm);font-size:var(--t-base);box-shadow:var(--shadow);z-index:999;max-width:360px}
+.badge-count{background:var(--accent);color:var(--accent-ink);font-size:var(--t-xs);border-radius:var(--r-pill);padding:1px 6px;margin-left:6px}
+.truncate{max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
+.chev{width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;border-radius:var(--r-sm);background:none;border:none;color:var(--ink-faint);transition:transform var(--dur) var(--ease)}
+.chev:hover{background:var(--surface-2);color:var(--ink)}
+.chev.open{transform:rotate(90deg)}
+tr.row-detail td{background:var(--surface-2);padding:16px 18px;border-bottom:1px solid var(--border)}
+tr.row-detail-hidden{display:none}
+.detail-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:12px}
+.detail-field label{display:block;font-size:var(--t-xs);color:var(--ink-faint);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em}
+.detail-field input,.detail-field textarea{width:100%}
+textarea.tbl-input{resize:vertical;min-height:38px;font-family:inherit}
+.status-cell{display:flex;flex-direction:column;gap:3px;align-items:flex-start}
 </style>
 </head>
 <body>
@@ -102,7 +146,7 @@ table.t tbody tr.revisar{background:var(--warn-soft)}
       <div><div class="t1">IMPORTADOR LCDPR</div><div class="t2">Nilma Contabilidade</div></div>
     </div>
     <nav class="navlist" id="navlist"></nav>
-    <div class="sidebar-foot">Salvo automaticamente neste navegador (localStorage)</div>
+    <div class="sidebar-foot" id="sidebarFoot">Conectando à nuvem…</div>
   </aside>
   <main><div class="screen" id="screen"></div></main>
 </div>
@@ -183,63 +227,187 @@ function defaultState(){
       {codigo:'224', nome:'Venda de Café', classificacao:'Receita', tipo:'A'},
       {codigo:'238', nome:'Venda de Bovinos', classificacao:'Receita', tipo:'A'}
     ],
-    fornecedores: [
-      f('COMPECAS LTDA','24359754000109','924','00061',TEMPLATES.combustiveis),
-      f('MERCOLUB LUBRIFICANTES LTDA','07468230000129','924','00061',TEMPLATES.combustiveis),
-      f('MERCOLUB PETROLEO LTDA','04799975000182','924','00061',TEMPLATES.combustiveis),
-      f('POSTO JANAUBA LTDA','71014658000109','924','00061',TEMPLATES.combustiveis),
-      f('POSTO JENIPAPO DE SALINAS LTDA','07876896000116','924','00061',TEMPLATES.combustiveis),
-      f('POSTO TRANSANIMAIS LTDA','26185153000144','924','00061',TEMPLATES.combustiveis),
-      f('REDE DOM PEDRO DE POSTOS LTDA','20415295006962','924','00061',TEMPLATES.combustiveis),
-      f('REDE FALCO COMBUSTIVEIS SAO FRANCISCO LTDA','26656706000108','924','00061',TEMPLATES.combustiveis),
-      f('ANTONIO MARON CHEQUER LTDA','19388198000150','924','00061',TEMPLATES.combustiveis),
-      f('COMERCIAL GALA LTDA','42985218001598','812','00044',TEMPLATES.usoConsumo),
-      f('SAYRO EQUIPAMENTOS DE SEGURANCA LTDA','00947030000100','812','00044',TEMPLATES.usoConsumo),
-      f('JOELFLOR PEREIRA DA ROCHA LTDA','17683269000112','812','00044',TEMPLATES.usoConsumo),
-      f('CONSTRUIR MATERIAIS DE CONSTRUCAO DE TAIOBEIRAS','11345512000106','847','00176',TEMPLATES.matConstrucao),
-      f('SERRALHERIA OURO VERDE LTDA','25542416000162','847','00176',TEMPLATES.matConstrucao),
-      f('DEUSDETE JOSE DOS SANTOS','01901756000174','784','00066',TEMPLATES.pecas),
-      f('TECNNOAR SERVICO E COMERCIO EIRELLI ME','15766730000175','784','00066',TEMPLATES.pecas),
-      f('RM TRATOR PECAS LTDA','39968260000190','784','00066',TEMPLATES.pecas),
-      f('MURANGA IND. COMERCIO E SERVICOS LTDA','10210180000190','784','00066',TEMPLATES.pecas),
-      f('TONINHO AUTO CENTER','28449462000100','784','00066',TEMPLATES.pecas),
-      f('DISOL PRODUTOS AGROPECUARIOS','21424452000170','85','00563',TEMPLATES.insumosAnimais),
-      f('GUABI NUTRICAO E SAUDE ANIMAL LTDA','02918654000558','85','00563',TEMPLATES.insumosAnimais),
-      f('SUPER SAFRA CONCESSIONARIA DE TRATORES LTDA','20604641000162','735','',TEMPLATES.maquinas),
-      f('PAULINERIS TRANSPORTES E ENCOMENDAS LTDA','42846634000290','805','91011',TEMPLATES.fretes),
-      f('MG FLORESTAL & TRANSPORTES LTDA','14598428000192','805','91011',TEMPLATES.fretes),
-      f('MENEGHETTI TRANSPORTES E LOGISTICA LTDA','17088302000166','805','91011',TEMPLATES.fretes),
-      f('DMC TRANSPORTES DE GADO LTDA','24651312000123','805','91011',TEMPLATES.fretes),
-      f('DILTON ALVES PEREIRA FILHO','12421505000109','805','91011',TEMPLATES.fretes)
-    ],
+    // Classificação de compras é feita SÓ por NCM (prefixo = capítulo/posição da
+    // Nomenclatura Comum do Mercosul). Cobre os NCMs reais observados nos produtos
+    // do cliente — vá completando conforme aparecerem NCMs novos em REVISAR.
     ncmRules: [
-      {prefixo:'2710', conta:'924', codHist:'00061', historico:TEMPLATES.combustiveis}
-    ],
-    produtoRules: [
-      {palavras:'OLEO DIESEL, GASOLINA, ETANOL, COMBUSTIVEL, ARLA', conta:'924', codHist:'00061', historico:TEMPLATES.combustiveis},
-      {palavras:'ADUBO, FERTILIZANTE, DEFENSIVO, SEMENTE, HERBICIDA, INSETICIDA, FUNGICIDA', conta:'722', codHist:'96337', historico:TEMPLATES.adubos},
-      {palavras:'RACAO, NUTRICAO ANIMAL, SUPLEMENTO MINERAL, SAL MINERAL, BIMECTIN', conta:'85', codHist:'00563', historico:TEMPLATES.insumosAnimais}
+      // Combustíveis e lubrificantes
+      {prefixo:'2710', conta:'924', codHist:'00061', historico:TEMPLATES.combustiveis},
+      {prefixo:'2707', conta:'924', codHist:'00061', historico:TEMPLATES.combustiveis},
+      {prefixo:'3811', conta:'924', codHist:'00061', historico:TEMPLATES.combustiveis},
+      {prefixo:'3824', conta:'924', codHist:'00061', historico:TEMPLATES.combustiveis},
+      // Adubos, defensivos e fertilizantes
+      {prefixo:'3808', conta:'722', codHist:'96337', historico:TEMPLATES.adubos},
+      // Insumos para animais — ração/suplemento, medicamento/vacina veterinária, arreios
+      {prefixo:'2309', conta:'85', codHist:'00563', historico:TEMPLATES.insumosAnimais},
+      {prefixo:'3002', conta:'85', codHist:'00563', historico:TEMPLATES.insumosAnimais},
+      {prefixo:'3004', conta:'85', codHist:'00563', historico:TEMPLATES.insumosAnimais},
+      {prefixo:'4106', conta:'85', codHist:'00563', historico:TEMPLATES.insumosAnimais},
+      {prefixo:'4201', conta:'85', codHist:'00563', historico:TEMPLATES.insumosAnimais},
+      // Compra de bovinos
+      {prefixo:'0102', conta:'730', codHist:'', historico:TEMPLATES.bovinos},
+      // Máquinas e implementos agrícolas (a máquina inteira, não a peça)
+      {prefixo:'8701', conta:'735', codHist:'', historico:TEMPLATES.maquinas},
+      {prefixo:'8432', conta:'735', codHist:'', historico:TEMPLATES.maquinas},
+      {prefixo:'8430', conta:'735', codHist:'', historico:TEMPLATES.maquinas},
+      {prefixo:'8467', conta:'735', codHist:'', historico:TEMPLATES.maquinas},
+      // Peças / conservação e manutenção de máquinas e veículos
+      {prefixo:'7318', conta:'784', codHist:'00066', historico:TEMPLATES.pecas},
+      {prefixo:'7325', conta:'784', codHist:'00066', historico:TEMPLATES.pecas},
+      {prefixo:'7320', conta:'784', codHist:'00066', historico:TEMPLATES.pecas},
+      {prefixo:'7315', conta:'784', codHist:'00066', historico:TEMPLATES.pecas},
+      {prefixo:'7307', conta:'784', codHist:'00066', historico:TEMPLATES.pecas},
+      {prefixo:'8482', conta:'784', codHist:'00066', historico:TEMPLATES.pecas},
+      {prefixo:'8483', conta:'784', codHist:'00066', historico:TEMPLATES.pecas},
+      {prefixo:'8421', conta:'784', codHist:'00066', historico:TEMPLATES.pecas},
+      {prefixo:'8431', conta:'784', codHist:'00066', historico:TEMPLATES.pecas},
+      {prefixo:'8433', conta:'784', codHist:'00066', historico:TEMPLATES.pecas},
+      {prefixo:'8424', conta:'784', codHist:'00066', historico:TEMPLATES.pecas},
+      {prefixo:'8465', conta:'784', codHist:'00066', historico:TEMPLATES.pecas},
+      {prefixo:'8511', conta:'784', codHist:'00066', historico:TEMPLATES.pecas},
+      {prefixo:'8512', conta:'784', codHist:'00066', historico:TEMPLATES.pecas},
+      {prefixo:'8506', conta:'784', codHist:'00066', historico:TEMPLATES.pecas},
+      {prefixo:'8545', conta:'784', codHist:'00066', historico:TEMPLATES.pecas},
+      {prefixo:'8708', conta:'784', codHist:'00066', historico:TEMPLATES.pecas},
+      {prefixo:'8714', conta:'784', codHist:'00066', historico:TEMPLATES.pecas},
+      {prefixo:'4008', conta:'784', codHist:'00066', historico:TEMPLATES.pecas},
+      {prefixo:'4009', conta:'784', codHist:'00066', historico:TEMPLATES.pecas},
+      {prefixo:'4010', conta:'784', codHist:'00066', historico:TEMPLATES.pecas},
+      {prefixo:'4013', conta:'784', codHist:'00066', historico:TEMPLATES.pecas},
+      {prefixo:'4016', conta:'784', codHist:'00066', historico:TEMPLATES.pecas},
+      {prefixo:'8204', conta:'784', codHist:'00066', historico:TEMPLATES.pecas},
+      {prefixo:'5909', conta:'784', codHist:'00066', historico:TEMPLATES.pecas},
+      // Material de construção / conservação e manutenção de instalações
+      {prefixo:'2517', conta:'847', codHist:'00176', historico:TEMPLATES.matConstrucao},
+      {prefixo:'2505', conta:'847', codHist:'00176', historico:TEMPLATES.matConstrucao},
+      {prefixo:'6904', conta:'847', codHist:'00176', historico:TEMPLATES.matConstrucao},
+      {prefixo:'4407', conta:'847', codHist:'00176', historico:TEMPLATES.matConstrucao},
+      {prefixo:'7208', conta:'847', codHist:'00176', historico:TEMPLATES.matConstrucao},
+      {prefixo:'8301', conta:'847', codHist:'00176', historico:TEMPLATES.matConstrucao},
+      {prefixo:'8536', conta:'847', codHist:'00176', historico:TEMPLATES.matConstrucao},
+      {prefixo:'8481', conta:'847', codHist:'00176', historico:TEMPLATES.matConstrucao},
+      {prefixo:'3506', conta:'847', codHist:'00176', historico:TEMPLATES.matConstrucao},
+      {prefixo:'3214', conta:'847', codHist:'00176', historico:TEMPLATES.matConstrucao},
+      // Material siderúrgico (sucata, barra/tubo de aço)
+      {prefixo:'7204', conta:'1292', codHist:'', historico:TEMPLATES.generico},
+      {prefixo:'7214', conta:'1292', codHist:'', historico:TEMPLATES.generico},
+      // Adubos e fertilizantes — capítulo 31 inteiro (esterco/adubo orgânico e
+      // mineral são sempre a mesma conta, não importa o produto específico)
+      {prefixo:'31', conta:'722', codHist:'96337', historico:TEMPLATES.adubos},
+      // Uso e consumo — capítulos inteiros de alimentação/bebidas (compra de
+      // mercado é sempre a mesma conta, qualquer que seja o mantimento)
+      {prefixo:'02', conta:'812', codHist:'00044', historico:TEMPLATES.usoConsumo}, // carnes
+      {prefixo:'04', conta:'812', codHist:'00044', historico:TEMPLATES.usoConsumo}, // laticínios/ovos
+      {prefixo:'07', conta:'812', codHist:'00044', historico:TEMPLATES.usoConsumo}, // legumes/verduras
+      {prefixo:'08', conta:'812', codHist:'00044', historico:TEMPLATES.usoConsumo}, // frutas
+      {prefixo:'09', conta:'812', codHist:'00044', historico:TEMPLATES.usoConsumo}, // café/especiarias
+      {prefixo:'15', conta:'812', codHist:'00044', historico:TEMPLATES.usoConsumo}, // óleos/gorduras alimentícias
+      {prefixo:'16', conta:'812', codHist:'00044', historico:TEMPLATES.usoConsumo}, // preparações de carne/peixe
+      {prefixo:'17', conta:'812', codHist:'00044', historico:TEMPLATES.usoConsumo}, // açúcar/doces
+      {prefixo:'19', conta:'812', codHist:'00044', historico:TEMPLATES.usoConsumo}, // pães/massas/biscoitos
+      {prefixo:'20', conta:'812', codHist:'00044', historico:TEMPLATES.usoConsumo}, // preparações de legumes/frutas
+      {prefixo:'21', conta:'812', codHist:'00044', historico:TEMPLATES.usoConsumo}, // preparações alimentícias diversas
+      {prefixo:'22', conta:'812', codHist:'00044', historico:TEMPLATES.usoConsumo}, // bebidas
+      // Uso e consumo — limpeza, higiene, EPI, gás de cozinha, escritório etc.
+      {prefixo:'2711', conta:'812', codHist:'00044', historico:TEMPLATES.usoConsumo},
+      {prefixo:'2828', conta:'812', codHist:'00044', historico:TEMPLATES.usoConsumo}, // hipoclorito/cloro
+      {prefixo:'3304', conta:'812', codHist:'00044', historico:TEMPLATES.usoConsumo}, // protetor solar
+      {prefixo:'3402', conta:'812', codHist:'00044', historico:TEMPLATES.usoConsumo}, // sabão/detergente
+      {prefixo:'3503', conta:'812', codHist:'00044', historico:TEMPLATES.usoConsumo}, // suplemento/colágeno
+      {prefixo:'3809', conta:'812', codHist:'00044', historico:TEMPLATES.usoConsumo},
+      {prefixo:'3923', conta:'812', codHist:'00044', historico:TEMPLATES.usoConsumo},
+      {prefixo:'6403', conta:'812', codHist:'00044', historico:TEMPLATES.usoConsumo},
+      {prefixo:'6206', conta:'812', codHist:'00044', historico:TEMPLATES.usoConsumo}, // uniforme/EPI
+      {prefixo:'8516', conta:'812', codHist:'00044', historico:TEMPLATES.usoConsumo},
+      {prefixo:'8517', conta:'812', codHist:'00044', historico:TEMPLATES.usoConsumo}, // internet/roteador (ex: Starlink)
+      {prefixo:'8418', conta:'812', codHist:'00044', historico:TEMPLATES.usoConsumo}, // geladeira/freezer
+      {prefixo:'9401', conta:'812', codHist:'00044', historico:TEMPLATES.usoConsumo}, // móveis (assento)
+      {prefixo:'9403', conta:'812', codHist:'00044', historico:TEMPLATES.usoConsumo}, // móveis
+      {prefixo:'9404', conta:'812', codHist:'00044', historico:TEMPLATES.usoConsumo}, // colchão/roupa de cama
+      {prefixo:'5705', conta:'812', codHist:'00044', historico:TEMPLATES.usoConsumo}, // tapete
+      {prefixo:'6115', conta:'812', codHist:'00044', historico:TEMPLATES.usoConsumo}, // meias
+      {prefixo:'6116', conta:'812', codHist:'00044', historico:TEMPLATES.usoConsumo}, // luvas de tecido
+      {prefixo:'6302', conta:'812', codHist:'00044', historico:TEMPLATES.usoConsumo}, // roupa de cama/mesa
+      {prefixo:'4823', conta:'812', codHist:'00044', historico:TEMPLATES.usoConsumo}, // cartão/papel de escritório
+      {prefixo:'8523', conta:'812', codHist:'00044', historico:TEMPLATES.usoConsumo}, // cartão de memória
+      {prefixo:'3215', conta:'812', codHist:'00044', historico:TEMPLATES.usoConsumo}, // fita/tinta de impressão
+      {prefixo:'9603', conta:'812', codHist:'00044', historico:TEMPLATES.usoConsumo}, // vassoura/escova de limpeza
+      {prefixo:'4015', conta:'812', codHist:'00044', historico:TEMPLATES.usoConsumo}, // luva de borracha (EPI)
+      {prefixo:'6401', conta:'812', codHist:'00044', historico:TEMPLATES.usoConsumo}, // bota de borracha (EPI)
+      {prefixo:'9020', conta:'812', codHist:'00044', historico:TEMPLATES.usoConsumo}, // máscara/respirador (EPI)
+      {prefixo:'6307', conta:'812', codHist:'00044', historico:TEMPLATES.usoConsumo}, // sacaria/artefato têxtil diverso
+      {prefixo:'6203', conta:'812', codHist:'00044', historico:TEMPLATES.usoConsumo}, // vestuário/jaqueta (EPI)
+      {prefixo:'5407', conta:'812', codHist:'00044', historico:TEMPLATES.usoConsumo}, // saco/tecido sintético
+      // mais material de construção/instalações
+      {prefixo:'8205', conta:'847', codHist:'00176', historico:TEMPLATES.matConstrucao}, // ferramenta manual (colher de pedreiro)
+      {prefixo:'7317', conta:'847', codHist:'00176', historico:TEMPLATES.matConstrucao}, // pregos
+      {prefixo:'3208', conta:'847', codHist:'00176', historico:TEMPLATES.matConstrucao}, // tinta
+      {prefixo:'3917', conta:'847', codHist:'00176', historico:TEMPLATES.matConstrucao}, // tubo plástico
+      {prefixo:'2523', conta:'847', codHist:'00176', historico:TEMPLATES.matConstrucao}, // cimento
+      {prefixo:'7116', conta:'847', codHist:'00176', historico:TEMPLATES.matConstrucao}, // pedra/brita
+      {prefixo:'7217', conta:'847', codHist:'00176', historico:TEMPLATES.matConstrucao}, // arame (cerca)
+      {prefixo:'7306', conta:'847', codHist:'00176', historico:TEMPLATES.matConstrucao}, // tubo/perfil metálico estrutural
+      {prefixo:'8302', conta:'847', codHist:'00176', historico:TEMPLATES.matConstrucao}, // dobradiça/ferragem de porta-porteira
+      {prefixo:'3925', conta:'847', codHist:'00176', historico:TEMPLATES.matConstrucao}, // geomembrana/artefato de plástico p/ construção
+      {prefixo:'7209', conta:'847', codHist:'00176', historico:TEMPLATES.matConstrucao}, // chapa de aço laminada
+      {prefixo:'7308', conta:'847', codHist:'00176', historico:TEMPLATES.matConstrucao}, // telha/estrutura metálica
+      {prefixo:'4403', conta:'847', codHist:'00176', historico:TEMPLATES.matConstrucao}, // madeira bruta serrada
+      {prefixo:'7216', conta:'847', codHist:'00176', historico:TEMPLATES.matConstrucao}, // perfil metálico (U/T/L)
+      {prefixo:'7019', conta:'847', codHist:'00176', historico:TEMPLATES.matConstrucao}, // fibra/manta de vidro
+      // mais peças/manutenção de máquinas e veículos
+      {prefixo:'9032', conta:'784', codHist:'00066', historico:TEMPLATES.pecas}, // regulador de voltagem
+      {prefixo:'8544', conta:'784', codHist:'00066', historico:TEMPLATES.pecas}, // fio/cabo elétrico
+      {prefixo:'8208', conta:'784', codHist:'00066', historico:TEMPLATES.pecas}, // lâmina p/ máquina agrícola
+      {prefixo:'2804', conta:'784', codHist:'00066', historico:TEMPLATES.pecas}, // oxigênio industrial (solda/manutenção)
+      {prefixo:'4011', conta:'784', codHist:'00066', historico:TEMPLATES.pecas}, // pneu
+      {prefixo:'8479', conta:'784', codHist:'00066', historico:TEMPLATES.pecas}, // outras máquinas/aparelhos mecânicos
+      {prefixo:'8413', conta:'784', codHist:'00066', historico:TEMPLATES.pecas}, // bomba d'água/motor
+      {prefixo:'8202', conta:'784', codHist:'00066', historico:TEMPLATES.pecas}, // serra/lima manual
+      {prefixo:'8203', conta:'784', codHist:'00066', historico:TEMPLATES.pecas}, // lima/alicate
+      {prefixo:'8207', conta:'784', codHist:'00066', historico:TEMPLATES.pecas}, // ferramenta intercambiável
+      {prefixo:'7326', conta:'784', codHist:'00066', historico:TEMPLATES.pecas}, // clipe/obra de aço p/ cabo
+      {prefixo:'7415', conta:'784', codHist:'00066', historico:TEMPLATES.pecas}, // parafuso/rebite de cobre
+      {prefixo:'8414', conta:'784', codHist:'00066', historico:TEMPLATES.pecas}, // soprador/compressor/bomba de ar
+      {prefixo:'4004', conta:'784', codHist:'00066', historico:TEMPLATES.pecas}, // sucata/resíduo de borracha
+      // mais insumos para animais
+      {prefixo:'9018', conta:'85', codHist:'00563', historico:TEMPLATES.insumosAnimais}, // agulha/material veterinário
+      // mais máquinas e implementos agrícolas (a máquina/reboque inteiro)
+      {prefixo:'8716', conta:'735', codHist:'', historico:TEMPLATES.maquinas} // reboque/carreta agrícola
     ],
     imoveis: [
-      {codigo:'001', descricao:'Imóvel 001'},
-      {codigo:'002', descricao:'Imóvel 002'},
-      {codigo:'007', descricao:'Imóvel 007'}
+      {codigo:'001', descricao:'FAZENDA TABATINGA'},
+      {codigo:'002', descricao:'FAZENDA SAO JOSE'},
+      {codigo:'003', descricao:'FAZENDA GAMELEIRA'},
+      {codigo:'004', descricao:'ITABERABA FAZENDA BEM POSTA'},
+      {codigo:'005', descricao:'FAZENDA ALEGRIA I'},
+      {codigo:'006', descricao:'FAZENDA BOM JESUS DO MATO VERDE I-II'},
+      {codigo:'007', descricao:'FAZENDA UNIAO'},
+      {codigo:'008', descricao:'FAZENDA CALIFORNIA'}
     ],
-    ieDest: [],
+    // Descoberto cruzando o IE_Dest do relatório de Detalhamento de Produtos com
+    // a DANFE de uma nota de cada inscrição — confirmado pelo cliente.
+    ieDest: [
+      {ie:'11288860080', imovel:'001'}, // FAZENDA TABATINGA
+      {ie:'11288860404', imovel:'007'}, // FAZENDA UNIAO
+      {ie:'11288860242', imovel:'002'}  // FAZENDA SAO JOSE
+    ],
     tipoDoc: [
-      {codigo:'1', descricao:'Nota Fiscal / CT-e'},
-      {codigo:'9', descricao:'Outros'}
+      {codigo:'1', descricao:'Nota Fiscal'},
+      {codigo:'2', descricao:'Fatura'},
+      {codigo:'3', descricao:'Recibo'},
+      {codigo:'4', descricao:'Contrato'},
+      {codigo:'5', descricao:'Folha de Pagamento'},
+      {codigo:'6', descricao:'Outros'}
     ],
     tipoLanc: [
-      {codigo:'1', descricao:'Receita'},
-      {codigo:'2', descricao:'Despesa'},
-      {codigo:'3', descricao:'Adiantamento'}
+      {codigo:'1', descricao:'Receita da Atividade Rural'},
+      {codigo:'2', descricao:'Despesas de custeios e investimentos'},
+      {codigo:'3', descricao:'Receitas de produtos entregues no ano referente a adiantamentos de recursos'}
     ],
     lancamentos: [],
-    ui: { search:'', showOnlyRevisar:false, bulkCategoria:'' }
+    ui: { search:'', showOnlyRevisar:false, bulkCategoria:'', expandedId:null }
   };
 }
-function f(nome,cnpj,conta,codHist,historico){ return {nome,cnpj,conta,codHist,historico}; }
 
 let state = load();
 function load(){
@@ -249,10 +417,85 @@ function load(){
     const parsed = JSON.parse(raw);
     const d = defaultState();
     // shallow-merge top level, keep saved arrays/objects if present
-    return Object.assign(d, parsed);
+    const merged = Object.assign(d, parsed);
+    merged.lancamentos = []; // lançamentos nunca ficam salvos — ver save()
+    return merged;
   }catch(e){ console.warn('Falha ao carregar estado salvo, usando padrão.', e); return defaultState(); }
 }
-function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+function save(){
+  // Lançamentos importados NÃO ficam salvos (nem local, nem na nuvem) — são
+  // dados de trabalho, recriados a qualquer momento reimportando os relatórios
+  // do SIEG. Só regras/cadastros (que dão trabalho pra recriar) persistem.
+  const { lancamentos, ...toPersist } = state;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(toPersist));
+  scheduleCloudSync();
+}
+
+/* ============================== NUVEM (Firebase/Firestore) ==============================
+   Guardado no mesmo projeto Firebase que o app "Entregas", numa coleção própria
+   (lcdpr) que não tem nenhuma relação com as coleções do outro app. Só as
+   regras/cadastros (plano de contas, categorias, regras de NCM etc.) são
+   sincronizados — lançamentos importados não são salvos em lugar nenhum.
+   Sem login — aberto, igual ao link do GitHub Pages já é hoje. Se o Firebase
+   falhar (offline, CDN bloqueado etc.), o app continua funcionando só com o
+   localStorage, como antes. */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyD6xg7XhX8dKTKmaYup4hRX5k9XFHEkb98",
+  authDomain: "entregas-2e5e2.firebaseapp.com",
+  projectId: "entregas-2e5e2",
+  storageBucket: "entregas-2e5e2.firebasestorage.app",
+  messagingSenderId: "1009094556836",
+  appId: "1:1009094556836:web:d3b6a9283e934db064fa31"
+};
+let db = null, cloudReady = false, cloudStatus = 'connecting'; // 'connecting' | 'ok' | 'error'
+let cloudSyncTimer = null;
+try{
+  firebase.initializeApp(FIREBASE_CONFIG);
+  db = firebase.firestore();
+}catch(e){ console.warn('Firebase indisponível, usando só armazenamento local.', e); cloudStatus='error'; }
+
+const SETTINGS_FIELDS = ['config','categorias','planoContas','ncmRules','imoveis','ieDest','tipoDoc','tipoLanc'];
+
+async function bootstrapCloud(){
+  if(!db){ cloudStatus='error'; renderSidebarFoot(); return; }
+  try{
+    const settingsSnap = await db.collection('lcdpr').doc('config').get();
+    if(settingsSnap.exists){
+      const d = settingsSnap.data();
+      for(const k of SETTINGS_FIELDS) if(d[k]!==undefined) state[k] = d[k];
+    }
+    cloudReady = true; cloudStatus = 'ok';
+    const { lancamentos, ...toPersist } = state;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(toPersist)); // atualiza o cache local, sem reagendar sync
+    render();
+    renderSidebarFoot();
+  }catch(e){
+    console.warn('Não foi possível conectar à nuvem — usando dados salvos neste navegador.', e);
+    cloudStatus = 'error';
+    renderSidebarFoot();
+  }
+}
+function scheduleCloudSync(){
+  if(!db) return;
+  clearTimeout(cloudSyncTimer);
+  cloudSyncTimer = setTimeout(syncSettingsToCloud, 700);
+}
+async function syncSettingsToCloud(){
+  if(!db) return;
+  try{
+    const payload = {};
+    for(const k of SETTINGS_FIELDS) payload[k] = state[k];
+    await db.collection('lcdpr').doc('config').set(payload);
+    if(cloudStatus!=='ok'){ cloudStatus='ok'; renderSidebarFoot(); }
+  }catch(e){ console.warn('Falha ao sincronizar configurações com a nuvem.', e); cloudStatus='error'; renderSidebarFoot(); }
+}
+function renderSidebarFoot(){
+  const el = document.getElementById('sidebarFoot');
+  if(!el) return;
+  el.textContent = cloudStatus==='ok' ? 'Sincronizado com a nuvem'
+    : cloudStatus==='connecting' ? 'Conectando à nuvem…'
+    : 'Sem conexão com a nuvem — salvo só neste navegador';
+}
 
 /* ============================== HELPERS ============================== */
 function onlyDigits(s){ return String(s==null?'':s).replace(/\D/g,''); }
@@ -317,32 +560,42 @@ let uid = 1;
 
 /* ============================== CLASSIFICAÇÃO ============================== */
 function classifyNF(doc){
+  // NCM: um documento pode misturar itens de categorias diferentes (ex: nota de
+  // combustível com um filtro de brinde). Em vez de decidir pela primeira linha
+  // que bater uma regra, somamos o valor das linhas por regra e escolhemos a
+  // regra cujo total responde pela maior parte do valor da nota — assim o item
+  // principal manda, não o primeiro da lista.
+  const totals = new Map(); // key: índice da regra -> {rule, total}
   for(const line of doc.linhas){
-    const ncmStr = String(line.ncm||'').trim();
+    let ncmStr = String(line.ncm||'').trim();
+    // O Excel guarda NCM como número quando a célula não está formatada como texto,
+    // o que apaga o(s) zero(s) à esquerda (ex: NCM real 01022190 vira "1022190").
+    // Sem isso, nenhuma regra de capítulo 00-09 (carnes, frutas, café, gado...) bate.
+    if(/^\d+$/.test(ncmStr)) ncmStr = ncmStr.padStart(8,'0');
     if(!ncmStr) continue;
-    for(const rule of state.ncmRules){
+    for(let i=0;i<state.ncmRules.length;i++){
+      const rule = state.ncmRules[i];
       const pref = String(rule.prefixo||'').trim();
-      if(pref && ncmStr.startsWith(pref)) return {conta:rule.conta, codHist:rule.codHist, historico:rule.historico, origemRegra:'NCM'};
+      if(pref && ncmStr.startsWith(pref)){
+        const acc = totals.get(i) || {rule, total:0};
+        acc.total += Number(line.valor)||0;
+        totals.set(i, acc);
+        break; // essa linha já achou sua regra, não avalia as demais pra ela
+      }
     }
   }
-  const text = doc.produtoJoined.toUpperCase();
-  for(const rule of state.produtoRules){
-    const keys = String(rule.palavras||'').split(',').map(s=>s.trim().toUpperCase()).filter(Boolean);
-    if(keys.some(k=>k && text.includes(k))) return {conta:rule.conta, codHist:rule.codHist, historico:rule.historico, origemRegra:'Produto'};
+  if(totals.size){
+    let best = null;
+    for(const acc of totals.values()){ if(!best || acc.total>best.total) best = acc; }
+    return {conta:best.rule.conta, codHist:best.rule.codHist, historico:best.rule.historico, origemRegra:'NCM'};
   }
-  const cnpjDigits = onlyDigits(doc.cnpj);
-  if(cnpjDigits){
-    const frule = state.fornecedores.find(fr=>onlyDigits(fr.cnpj)===cnpjDigits);
-    if(frule) return {conta:frule.conta, codHist:frule.codHist, historico:frule.historico, origemRegra:'Fornecedor'};
-  }
+  // Sem NCM correspondente, vai pra REVISAR — classificação é só por NCM.
   return null;
 }
 function classifyCTe(doc){
-  const cnpjDigits = onlyDigits(doc.cnpj);
-  if(cnpjDigits){
-    const frule = state.fornecedores.find(fr=>onlyDigits(fr.cnpj)===cnpjDigits);
-    if(frule) return {conta:frule.conta, codHist:frule.codHist, historico:frule.historico, origemRegra:'Fornecedor'};
-  }
+  // CT-e não carrega NCM/produto confiável — mas ao contrário de uma nota de compra,
+  // o serviço prestado é sempre frete, então a categoria padrão configurada é segura
+  // independente da transportadora.
   const cat = state.categorias.find(c=>c.nome===state.config.categoriaFretesCTe);
   if(cat) return {conta:cat.conta, codHist:cat.codHist, historico:cat.historico, origemRegra:'Padrão CT-e'};
   return null;
@@ -350,7 +603,10 @@ function classifyCTe(doc){
 function buildLancamentoFromDoc(doc, origem){
   const match = origem==='NF' ? classifyNF(doc) : classifyCTe(doc);
   const ctx = {documento:doc.documento, fornecedor:doc.fornecedor, cnpj:doc.cnpj};
-  const ieEntry = doc.ieDestRaw ? state.ieDest.find(x=>onlyDigits(x.ie)===onlyDigits(doc.ieDestRaw)) : null;
+  // IE às vezes vem com zero(s) à esquerda diferentes entre notas (ex: "0011288860080"
+  // vs "11288860080") — normaliza removendo antes de comparar.
+  const normIe = s => onlyDigits(s).replace(/^0+/, '');
+  const ieEntry = doc.ieDestRaw ? state.ieDest.find(x=>normIe(x.ie) && normIe(x.ie)===normIe(doc.ieDestRaw)) : null;
   const imovel = ieEntry ? ieEntry.imovel : state.config.imovelPadrao;
   const row = {
     id: uid++,
@@ -370,7 +626,9 @@ function buildLancamentoFromDoc(doc, origem){
     tipoDoc: state.config.tipoDocPadrao,
     tipoLanc: state.config.tipoLancPadrao,
     produto: doc.produtoJoined || '',
-    revisar: !match
+    ncm: doc.ncmJoined || '', // guardado no HTML (atributo data-ncm da linha), não mostrado na UI
+    revisar: !match,
+    origemRegra: match ? match.origemRegra : 'Nenhuma'
   };
   if(match) row.categoria = findCategoriaLabel(match.conta, match.codHist);
   return row;
@@ -431,12 +689,17 @@ function importDetalhamento(rows){
     const g = groups[key];
     const prod = String(r.Produto||'').trim();
     if(prod) g.produtos.push(prod);
-    g.linhas.push({ncm:r.NCM});
+    g.linhas.push({ncm:r.NCM, valor:Number(r.Valor_Produto)||0});
   }
   let count=0;
   for(const key in groups){
     const g = groups[key];
     g.produtoJoined = g.produtos.join(' | ');
+    g.ncmJoined = [...new Set(g.linhas.map(l=>{
+      let n = String(l.ncm||'').trim();
+      if(/^\d+$/.test(n)) n = n.padStart(8,'0');
+      return n;
+    }).filter(Boolean))].join(', ');
     const row = buildLancamentoFromDoc(g, 'NF');
     state.lancamentos.push(row);
     count++;
@@ -491,7 +754,7 @@ const NAV = [
   {id:'importar', label:'Importar & Conferir'},
   {group:true, label:'Regras de Classificação'},
   {id:'plano', label:'Plano de Contas'},
-  {id:'regras', label:'Fornecedores, NCM & Categorias'},
+  {id:'regras', label:'NCM & Categorias'},
   {id:'tabelas', label:'Tabelas de Apoio'},
   {group:true, label:'Sistema'},
   {id:'config', label:'Configuração Geral'}
@@ -545,11 +808,14 @@ function screenImportar(){
       <p class="desc">Envie um ou mais relatórios (.xlsx) — <strong>Detalhamento de Produtos</strong> (notas de compra) e/ou <strong>CT-e</strong> (fretes). O app reconhece o tipo de cada arquivo, agrupa por documento, descarta cancelados/notas de outros destinatários e classifica cada lançamento.</p>
     </div>
 
-    <div class="dropzone" id="dropzone">
+    ${!cloudReady ? `<div class="dropzone" style="cursor:default;opacity:.6">
+      <div class="big">Carregando dados da nuvem…</div>
+      <div class="small">Só um instante — evita perder algo que já foi importado em outro computador.</div>
+    </div>` : `<div class="dropzone" id="dropzone">
       <div class="big">Clique para escolher os arquivos, ou arraste aqui</div>
       <div class="small">.xlsx do Relatório de Detalhamento de Produtos e/ou do Relatório de CT-e (SIEG)</div>
       <input type="file" id="fileInput" accept=".xlsx,.xls" multiple style="display:none">
-    </div>
+    </div>`}
 
     <div class="stats">
       <div class="stat"><b>${total}</b><span>Lançamentos</span></div>
@@ -574,40 +840,61 @@ function screenImportar(){
       <label class="small" style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="selectAllVisible"> selecionar visíveis</label>
     </div>
 
+    <p class="small" style="margin-bottom:10px">Clique na seta ▸ de uma linha pra ver/editar conta, código histórico, imóvel e o texto completo do histórico.</p>
     <div class="tablewrap">
       <table class="t">
         <thead><tr>
-          <th></th><th>Origem</th><th style="min-width:190px">Categoria rápida</th><th>Data</th><th>Documento</th>
-          <th>CPF/CNPJ</th><th>Conta Deved.</th><th>Conta Cred.</th><th>Cód. Hist.</th>
-          <th style="min-width:300px">Histórico</th><th>Valor</th><th>Imóvel</th><th>Tipo Doc.</th><th style="min-width:220px">Produto</th>
+          <th></th><th style="width:110px">Status</th><th style="min-width:200px">Categoria rápida</th><th>Data</th>
+          <th style="min-width:170px">Fornecedor</th><th>Documento</th><th>Valor</th><th style="width:34px"></th>
         </tr></thead>
         <tbody>
-        ${list.length? list.map(r=>rowHtml(r)).join('') : `<tr><td colspan="14" style="text-align:center;color:var(--muted);padding:24px">Nenhum lançamento ainda. Importe um relatório acima.</td></tr>`}
+        ${list.length? list.map(r=>rowHtml(r)).join('') : `<tr><td colspan="8" style="text-align:center;color:var(--ink-faint);padding:24px">Nenhum lançamento ainda. Importe um relatório acima.</td></tr>`}
         </tbody>
       </table>
     </div>
   </section>`;
 }
+const ORIGEM_TAG = {
+  'NCM': {cls:'tag-ncm', label:'NCM'},
+  'Produto': {cls:'tag-palavra', label:'palavra-chave'},
+  'Padrão CT-e': {cls:'tag-neutro', label:'padrão CT-e'},
+  'Manual': {cls:'tag-manual', label:'manual'},
+  'Nenhuma': null
+};
 function rowHtml(r){
   const catOptions = ['<option value="">'+(r.categoria?'— sem categoria —':'— nenhuma —')+'</option>'].concat(
     state.categorias.map(c=>`<option value="${esc(c.nome)}" ${c.nome===r.categoria?'selected':''}>${esc(c.nome)}</option>`)
   ).join('');
-  return `<tr class="${r.revisar?'revisar':''}" data-row="${r.id}">
+  const ot = ORIGEM_TAG[r.origemRegra];
+  const origemTagHtml = ot ? `<span class="tag ${ot.cls}" title="Classificado por: ${ot.label}">${ot.label}</span>` : '';
+  const open = state.ui.expandedId===r.id;
+  const compact = `<tr class="${r.revisar?'revisar':''}" data-row="${r.id}" data-ncm="${esc(r.ncm||'')}">
     <td style="text-align:center"><input type="checkbox" data-sel="${r.id}" ${r.selected?'checked':''}></td>
-    <td><span class="tag ${r.origem==='NF'?'tag-nf':'tag-cte'}">${r.origem}</span>${r.revisar?' <span class="tag tag-warn">REVISAR</span>':''}</td>
+    <td><div class="status-cell"><span class="tag ${r.origem==='NF'?'tag-nf':'tag-cte'}">${r.origem}</span>${r.revisar?'<span class="tag tag-warn">REVISAR</span>':origemTagHtml}</div></td>
     <td><select data-catsel="${r.id}">${catOptions}</select></td>
     <td class="mono small" style="white-space:nowrap">${fmtDateBR(r.data)}</td>
-    <td style="white-space:nowrap"><input class="tbl-input" data-field="documento" data-id="${r.id}" value="${esc(r.documento)}"></td>
-    <td class="mono small"><input class="tbl-input mono" data-field="cnpj" data-id="${r.id}" value="${esc(r.cnpj)}"></td>
-    <td><input class="tbl-input" data-field="contaDeved" data-id="${r.id}" value="${esc(r.contaDeved)}" style="width:70px"></td>
-    <td><input class="tbl-input" data-field="contaCred" data-id="${r.id}" value="${esc(r.contaCred)}" style="width:60px"></td>
-    <td><input class="tbl-input" data-field="codHist" data-id="${r.id}" value="${esc(r.codHist)}" style="width:70px"></td>
-    <td style="min-width:300px"><input class="tbl-input" data-field="historico" data-id="${r.id}" value="${esc(r.historico)}" style="width:100%"></td>
-    <td style="text-align:right;white-space:nowrap"><input class="tbl-input" data-field="valor" data-id="${r.id}" value="${fmtMoney(r.valor)}" style="width:90px;text-align:right"></td>
-    <td><input class="tbl-input" data-field="imovel" data-id="${r.id}" value="${esc(r.imovel)}" style="width:56px"></td>
-    <td><input class="tbl-input" data-field="tipoDoc" data-id="${r.id}" value="${esc(r.tipoDoc)}" style="width:50px"></td>
-    <td style="min-width:220px" class="small">${esc(r.produto)}</td>
+    <td><span class="truncate" title="${esc(r.fornecedor)}">${esc(r.fornecedor)}</span></td>
+    <td style="white-space:nowrap">${esc(r.documento)}</td>
+    <td style="text-align:right;white-space:nowrap" class="mono">${fmtMoney(r.valor)}</td>
+    <td style="text-align:center"><button class="chev${open?' open':''}" data-expand="${r.id}" title="Ver/editar detalhes">▸</button></td>
   </tr>`;
+  if(!open) return compact;
+  const detail = `<tr class="row-detail" data-row-detail="${r.id}"><td colspan="8">
+    <div class="detail-grid">
+      <div class="detail-field"><label>Conta devedora</label><input class="tbl-input" data-field="contaDeved" data-id="${r.id}" value="${esc(r.contaDeved)}"></div>
+      <div class="detail-field"><label>Conta credora</label><input class="tbl-input" data-field="contaCred" data-id="${r.id}" value="${esc(r.contaCred)}"></div>
+      <div class="detail-field"><label>Cód. histórico</label><input class="tbl-input" data-field="codHist" data-id="${r.id}" value="${esc(r.codHist)}"></div>
+      <div class="detail-field"><label>Imóvel</label><input class="tbl-input" data-field="imovel" data-id="${r.id}" value="${esc(r.imovel)}"></div>
+      <div class="detail-field"><label>Tipo doc.</label><input class="tbl-input" data-field="tipoDoc" data-id="${r.id}" value="${esc(r.tipoDoc)}"></div>
+      <div class="detail-field"><label>Tipo lançamento</label><input class="tbl-input" data-field="tipoLanc" data-id="${r.id}" value="${esc(r.tipoLanc)}"></div>
+      <div class="detail-field"><label>CPF/CNPJ</label><input class="tbl-input mono" data-field="cnpj" data-id="${r.id}" value="${esc(r.cnpj)}"></div>
+      <div class="detail-field"><label>Documento</label><input class="tbl-input" data-field="documento" data-id="${r.id}" value="${esc(r.documento)}"></div>
+      <div class="detail-field"><label>Valor</label><input class="tbl-input" data-field="valor" data-id="${r.id}" value="${fmtMoney(r.valor)}"></div>
+    </div>
+    <div class="detail-field" style="margin-bottom:12px"><label>Histórico</label><textarea class="tbl-input" data-field="historico" data-id="${r.id}" rows="2">${esc(r.historico)}</textarea></div>
+    <div class="detail-field"><label>Produto(s)</label><textarea class="tbl-input" data-field="produto" data-id="${r.id}" rows="2">${esc(r.produto)}</textarea></div>
+  </td></tr>`;
+  return compact + detail;
 }
 function findLanc(id){ return state.lancamentos.find(r=>r.id===Number(id)); }
 function applyCategoriaToRow(row, catNome){
@@ -618,6 +905,7 @@ function applyCategoriaToRow(row, catNome){
     row.codHist = cat.codHist||'';
     row.historico = applyTemplate(cat.historico, {documento:row.documento, fornecedor:row.fornecedor, cnpj:row.cnpj});
     row.revisar = false;
+    row.origemRegra = 'Manual';
   }
 }
 
@@ -661,12 +949,12 @@ function screenRegras(){
   return `<section>
     <div class="hdr">
       <div class="kicker">Regras de classificação</div>
-      <h1>Fornecedores, NCM &amp; categorias</h1>
-      <p class="desc">O produto da nota decide antes do fornecedor — o NCM e a palavra-chave têm prioridade. O fornecedor só entra como último recurso.</p>
+      <h1>NCM &amp; categorias</h1>
+      <p class="desc">A classificação de compras é feita <strong>só pelo NCM</strong> do produto — o código é lido de cada nota e fica guardado internamente (não aparece como coluna na tabela). Sem um prefixo de NCM cadastrado que bata com a nota, ela vai pra REVISAR.</p>
     </div>
 
     <h2>Categorias rápidas</h2>
-    <p class="hint">Aparecem como atalho na coluna "Categoria rápida" da tabela de lançamentos. Use <span class="mono">{{doc}}</span>, <span class="mono">{{fornecedor}}</span> e <span class="mono">{{cnpj}}</span> no texto do histórico — são substituídos automaticamente.</p>
+    <p class="hint">Aparecem como atalho na coluna "Categoria rápida" da tabela de lançamentos, pra reclassificar manualmente. Use <span class="mono">{{doc}}</span>, <span class="mono">{{fornecedor}}</span> e <span class="mono">{{cnpj}}</span> no texto do histórico — são substituídos automaticamente.</p>
     <div class="toolbar"><span style="flex:1"></span><button class="btn btn-primary" data-add="categorias">+ Nova categoria</button></div>
     <div class="tablewrap" style="margin-bottom:36px"><table class="t">
       <thead><tr><th style="width:220px">Nome da categoria</th><th style="width:90px">Conta</th><th style="width:90px">Cód. Hist.</th><th>Texto do histórico</th><th style="width:40px"></th></tr></thead>
@@ -675,28 +963,12 @@ function screenRegras(){
 
     <div class="section-sep"></div>
 
-    <h2>Regras por fornecedor</h2>
-    <p class="hint"><strong>Usada por último</strong> — só entra quando o NCM e a palavra-chave do produto não resolveram nada. Identificado pelo CPF/CNPJ do emitente (só números).</p>
-    <div class="toolbar"><span style="flex:1"></span><button class="btn btn-primary" data-add="fornecedores">+ Novo fornecedor</button></div>
-    <div class="tablewrap" style="margin-bottom:36px"><table class="t">
-      <thead><tr><th style="width:220px">Fornecedor</th><th style="width:150px">CNPJ/CPF (números)</th><th style="width:90px">Conta</th><th style="width:90px">Cód. Hist.</th><th>Texto do histórico</th><th style="width:40px"></th></tr></thead>
-      <tbody>${ruleRows('fornecedores',[{k:'nome',w:'220px'},{k:'cnpj',w:'150px'},{k:'conta',w:'90px'},{k:'codHist',w:'90px'},{k:'historico'}])}</tbody>
-    </table></div>
-
-    <h3>Regras por NCM (código fiscal do produto)</h3>
-    <p class="hint">A mais útil pra fornecedor novo — não depende de cadastrar nome de fornecedor. O prefixo é comparado com o início do NCM da linha do produto.</p>
+    <h2>Regras por NCM (código fiscal do produto)</h2>
+    <p class="hint">O prefixo é comparado com o início do NCM de cada linha de produto da nota. Um documento pode ter linhas com NCMs de categorias diferentes — nesse caso, a categoria escolhida é a que soma o maior valor entre as linhas que bateram alguma regra.</p>
     <div class="toolbar"><span style="flex:1"></span><button class="btn btn-primary" data-add="ncmRules">+ Nova regra de NCM</button></div>
-    <div class="tablewrap" style="margin-bottom:36px"><table class="t">
+    <div class="tablewrap"><table class="t">
       <thead><tr><th style="width:150px">Prefixo do NCM</th><th style="width:90px">Conta</th><th style="width:90px">Cód. Hist.</th><th>Texto do histórico</th><th style="width:40px"></th></tr></thead>
       <tbody>${ruleRows('ncmRules',[{k:'prefixo',w:'150px'},{k:'conta',w:'90px'},{k:'codHist',w:'90px'},{k:'historico'}])}</tbody>
-    </table></div>
-
-    <h3>Regras por palavra no produto</h3>
-    <p class="hint">Última tentativa antes do fornecedor. Separe várias palavras-chave por vírgula — basta uma aparecer no texto do produto.</p>
-    <div class="toolbar"><span style="flex:1"></span><button class="btn btn-primary" data-add="produtoRules">+ Nova regra de produto</button></div>
-    <div class="tablewrap"><table class="t">
-      <thead><tr><th style="width:280px">Palavras-chave</th><th style="width:90px">Conta</th><th style="width:90px">Cód. Hist.</th><th>Texto do histórico</th><th style="width:40px"></th></tr></thead>
-      <tbody>${ruleRows('produtoRules',[{k:'palavras',w:'280px'},{k:'conta',w:'90px'},{k:'codHist',w:'90px'},{k:'historico'}])}</tbody>
     </table></div>
   </section>`;
 }
@@ -780,7 +1052,7 @@ function screenConfig(){
       <button class="btn btn-secondary" id="btnBackupExport">Exportar backup (.json)</button>
       <button class="btn btn-secondary" id="btnBackupImport">Importar backup (.json)</button>
       <input type="file" id="backupFile" accept=".json" style="display:none">
-      <button class="btn btn-ghost" id="btnResetData" style="margin-left:auto;color:var(--accent)">Limpar todos os lançamentos</button>
+      <button class="btn btn-ghost" id="btnResetData" style="margin-left:auto;color:var(--danger)">Limpar todos os lançamentos</button>
     </div>
   </section>`;
 }
@@ -829,6 +1101,11 @@ function wireScreen(){
     const row = findLanc(sel.dataset.catsel);
     if(row){ applyCategoriaToRow(row, sel.value); save(); render(); }
   }));
+  document.querySelectorAll('[data-expand]').forEach(btn=>btn.addEventListener('click', ()=>{
+    const id = Number(btn.dataset.expand);
+    state.ui.expandedId = (state.ui.expandedId===id) ? null : id;
+    render();
+  }));
   document.querySelectorAll('[data-field]').forEach(inp=>inp.addEventListener('change', ()=>{
     const row = findLanc(inp.dataset.id);
     if(!row) return;
@@ -839,7 +1116,7 @@ function wireScreen(){
     save();
   }));
 
-  // Tabelas genéricas (planoContas, categorias, fornecedores, ncmRules, produtoRules, imoveis, ieDest, tipoDoc, tipoLanc)
+  // Tabelas genéricas (planoContas, categorias, ncmRules, imoveis, ieDest, tipoDoc, tipoLanc)
   document.querySelectorAll('[data-arr]').forEach(inp=>{
     const evt = inp.tagName==='SELECT' ? 'change' : 'change';
     inp.addEventListener(evt, ()=>{
@@ -874,7 +1151,7 @@ function wireScreen(){
     bind('cfgCatFretes','categoriaFretesCTe');
 
     document.getElementById('btnBackupExport').addEventListener('click', ()=>{
-      const backup = {config:state.config, categorias:state.categorias, planoContas:state.planoContas, fornecedores:state.fornecedores, ncmRules:state.ncmRules, produtoRules:state.produtoRules, imoveis:state.imoveis, ieDest:state.ieDest, tipoDoc:state.tipoDoc, tipoLanc:state.tipoLanc};
+      const backup = {config:state.config, categorias:state.categorias, planoContas:state.planoContas, ncmRules:state.ncmRules, imoveis:state.imoveis, ieDest:state.ieDest, tipoDoc:state.tipoDoc, tipoLanc:state.tipoLanc};
       const blob = new Blob([JSON.stringify(backup,null,2)], {type:'application/json'});
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob); a.download = 'backup_importador_lcdpr.json'; a.click();
@@ -903,9 +1180,7 @@ function blankRowFor(arrName){
   switch(arrName){
     case 'planoContas': return {codigo:'', nome:'', classificacao:'', tipo:'A'};
     case 'categorias': return {nome:'', conta:'', codHist:'', historico:''};
-    case 'fornecedores': return {nome:'', cnpj:'', conta:'', codHist:'', historico:''};
     case 'ncmRules': return {prefixo:'', conta:'', codHist:'', historico:''};
-    case 'produtoRules': return {palavras:'', conta:'', codHist:'', historico:''};
     case 'imoveis': return {codigo:'', descricao:''};
     case 'ieDest': return {ie:'', imovel:''};
     case 'tipoDoc': return {codigo:'', descricao:''};
@@ -916,6 +1191,8 @@ function blankRowFor(arrName){
 
 /* ============================== INIT ============================== */
 render();
+renderSidebarFoot();
+bootstrapCloud();
 </script>
 </body>
 </html>
