@@ -57,6 +57,30 @@
     -webkit-font-smoothing: auto;
   }
   .wrap { max-width: 980px; margin: 0 auto; padding: 24px 16px 64px; }
+  body.embutido .wrap { padding-top: 8px; }
+  body.embutido .topo { display: none; }
+
+  /* ---------- faixa de indicadores (igual ao dash-strip do entregas.html) ---------- */
+  .dash-strip { display: flex; margin-bottom: 18px; }
+  .dash-item {
+    flex: 1; min-width: 0; background: none; border: none;
+    border-left: 1px solid var(--border);
+    padding: 10px 8px; text-align: center;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    cursor: default; color: inherit;
+  }
+  .dash-item:first-child { border-left: none; padding-left: 0; }
+  .dash-item.ok { --dash-cor: var(--success-forte); }
+  .dash-item.pend { --dash-cor: var(--warning-forte); }
+  .dash-item.neutro { --dash-cor: var(--ink-soft); }
+  .dash-ico { font-size: .85rem; line-height: 1; color: var(--ink-faint); }
+  .dash-num { font-size: 1.5rem; font-weight: 600; line-height: 1.1; letter-spacing: -.02em; color: var(--dash-cor); }
+  .dash-label { font-size: 11px; color: var(--ink-soft); font-weight: 500; line-height: 1.25; }
+  @media (max-width: 640px) {
+    .dash-item { flex-direction: row; align-items: baseline; justify-content: flex-start; gap: 8px; padding: 10px 12px; text-align: left; }
+    .dash-item:first-child { border-left: none; padding-left: 12px; border-top: none; }
+    .dash-item { border-left: none; border-top: 1px solid var(--border); }
+  }
   header.topo {
     display: flex; align-items: center; justify-content: space-between;
     padding-bottom: 16px; margin-bottom: 20px; border-bottom: 1px solid var(--border);
@@ -114,7 +138,6 @@
   .mes-nav button:hover { background: var(--surface); }
   .mes-label { font-weight: 700; font-size: 14px; min-width: 110px; text-align: center; text-transform: capitalize; }
   .busca { flex: 1; min-width: 180px; }
-  .contagem { color: var(--ink-faint); font-size: 12px; white-space: nowrap; }
 
   /* ---------- estilo "Mister": cards com barras mensais ---------- */
   .cards-grid {
@@ -219,6 +242,24 @@
       <button class="btn btn-secondary" id="logoutBtn"><i class="ph ph-sign-out"></i> Sair</button>
     </header>
 
+    <div class="dash-strip" id="dashStrip">
+      <div class="dash-item pend">
+        <span class="dash-ico"><i class="ph ph-warning"></i></span>
+        <span class="dash-num" id="dashPendentes">–</span>
+        <span class="dash-label">com pendência</span>
+      </div>
+      <div class="dash-item ok">
+        <span class="dash-ico"><i class="ph ph-check"></i></span>
+        <span class="dash-num" id="dashCompletos">–</span>
+        <span class="dash-label">completos</span>
+      </div>
+      <div class="dash-item neutro">
+        <span class="dash-ico"><i class="ph ph-users"></i></span>
+        <span class="dash-num" id="dashClientes">–</span>
+        <span class="dash-label">clientes ativos</span>
+      </div>
+    </div>
+
     <section class="card">
       <div class="barra">
         <div class="mes-nav">
@@ -227,7 +268,6 @@
           <button type="button" id="mesProximo" aria-label="Próximo mês"><i class="ph ph-caret-right"></i></button>
         </div>
         <input class="input busca" id="busca" type="text" placeholder="Buscar cliente ou CNPJ...">
-        <span class="contagem" id="contagem"></span>
       </div>
       <div id="viewCards" class="cards-grid"></div>
 
@@ -271,6 +311,16 @@
 </script>
 <script>
 (function () {
+  // Dentro do hub (entregas.html), esta página carrega num <iframe> que já
+  // fica embaixo do cabeçalho "Pendências / <data>" e da barra lateral do
+  // app principal — o cabeçalho e o botão Sair daqui em cima ficariam
+  // duplicados, então somem quando não é acesso direto ao arquivo.
+  try {
+    if (window.self !== window.top) document.body.classList.add('embutido');
+  } catch (e) {
+    document.body.classList.add('embutido'); // acesso a window.top bloqueado = com certeza embutido
+  }
+
   var auth = firebase.auth();
   var db = firebase.firestore();
   var $ = function (id) { return document.getElementById(id); };
@@ -531,7 +581,9 @@
       grid.appendChild(card);
     });
 
-    $('contagem').textContent = lista.length + ' cliente' + (lista.length !== 1 ? 's' : '') + ' · ' + pendentesCount + ' com pendência';
+    $('dashPendentes').textContent = pendentesCount;
+    $('dashCompletos').textContent = lista.length - pendentesCount;
+    $('dashClientes').textContent = clientesCache.length;
   }
 
   function renderDetalhe() {
