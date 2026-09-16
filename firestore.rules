@@ -306,6 +306,14 @@ service cloud.firestore {
       allow delete: if logado();
     }
 
+    // ---------- Importador LCDPR (sem login — link aberto do GitHub Pages) ----------
+    // Publicada direto pela API por outra sessão enquanto o Importador LCDPR
+    // era construído; entrando aqui agora só pra o arquivo do repositório não
+    // ficar dessincronizado do que já está valendo em produção.
+    match /lcdpr/{doc} {
+      allow read, write: if true;
+    }
+
     // ---------- conciliações (Contábil: conciliador.html, cheque-especial.html) ----------
     // Essas duas ferramentas não vieram no mesmo pacote — se este arquivo
     // fosse publicado sem esta seção, a aba Contábil inteira parava de
