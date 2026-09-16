@@ -134,8 +134,8 @@
   <form id="loginForm">
     <h1>Cobrança de Documentos</h1>
     <div class="campo">
-      <label for="loginEmail">E-mail</label>
-      <input class="input" id="loginEmail" type="email" autocomplete="username" required>
+      <label for="loginEmail">Usuário</label>
+      <input class="input" id="loginEmail" type="text" autocomplete="username" placeholder="ex: teste" required>
     </div>
     <div class="campo">
       <label for="loginSenha">Senha</label>
@@ -236,6 +236,19 @@
     var meses = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
     var m = parseInt(partes[1], 10) - 1;
     return (meses[m] || partes[1]) + '/' + partes[0];
+  }
+
+  var DIACRITICS_RE = /[̀-ͯ]/g;
+  function emailFromNome(nome) {
+    var slug = nome.trim().toLowerCase()
+      .normalize('NFD').replace(DIACRITICS_RE, '')
+      .replace(/[^a-z0-9]+/g, '.')
+      .replace(/^\.+|\.+$/g, '');
+    return slug + '@nilma.local';
+  }
+  function resolveLoginEmail(input) {
+    input = input.trim();
+    return input.indexOf('@') !== -1 ? input : emailFromNome(input);
   }
 
   function fmtData(iso) {
@@ -363,7 +376,7 @@
   $('loginForm').addEventListener('submit', function (ev) {
     ev.preventDefault();
     $('loginError').hidden = true;
-    auth.signInWithEmailAndPassword($('loginEmail').value.trim(), $('loginSenha').value)
+    auth.signInWithEmailAndPassword(resolveLoginEmail($('loginEmail').value), $('loginSenha').value)
       .catch(function (err) {
         $('loginError').textContent = 'Não foi possível entrar: ' + (err.message || err.code);
         $('loginError').hidden = false;
