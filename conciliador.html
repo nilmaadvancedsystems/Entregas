@@ -10,107 +10,115 @@
 <style>
   /* ---------------------------------- tokens ---------------------------------- */
   :root{
+    /* Tokens remapeados pros valores do app Entregas (Nilma Protocolos) —
+       mesmos nomes de variável de sempre (nenhum uso no resto do arquivo
+       precisou mudar), só o valor de cada um trocado. */
     --bg:#FFFFFF;
     --surface:#FFFFFF;
-    --surface-2:#FAF7F7;
-    --surface-3:#F1EBEB;
-    --border:#EDE6E6;
-    --border-strong:#D8CCCC;
-    --ink:#1A1514;
-    --ink-muted:#6B615F;
-    --ink-faint:#9C918F;
-    --accent:#8B2E32;
-    --accent-strong:#6E2226;
-    --accent-soft:#FBF1F1;
-    --accent-ink:#6E2226;
-    --success:#12855A;
-    --success-soft:#EBFAF3;
-    --success-ink:#0B5B3C;
-    --btn-confirm:#12855A;
-    --btn-confirm-strong:#0E6B49;
+    --surface-2:#F2F2F2;
+    --surface-3:color-mix(in srgb, var(--surface-2) 70%, var(--border));
+    --border:#E3E3E3;
+    --border-strong:#C9C9C9;
+    --ink:#1A1A1A;
+    --ink-muted:#525252;
+    --ink-faint:#6C6C6C;
+    --accent:#9A2B24;
+    --accent-strong:color-mix(in srgb, var(--accent) 80%, black);
+    --accent-soft:#F7E7E5;
+    --accent-ink:color-mix(in srgb, var(--accent) 62%, var(--ink));
+    /* texto por cima do accent PREENCHIDO (botão primário etc.) — separado
+       do --accent-ink de cima, que é pra texto colorido sobre --accent-soft */
+    --accent-ink-on-fill:#FFFFFF;
+    --success:#17694A;
+    --success-soft:#E2F2EA;
+    --success-ink:color-mix(in srgb, var(--success) 62%, var(--ink));
+    --btn-confirm:#17694A;
+    --btn-confirm-strong:color-mix(in srgb, var(--btn-confirm) 80%, black);
     --btn-confirm-ink:#FFFFFF;
-    --danger:#C42B2B;
-    --danger-strong:#A11616;
+    --danger:#A8322F;
+    --danger-strong:color-mix(in srgb, var(--danger) 80%, black);
     --danger-ink-on-fill:#FFFFFF;
-    --danger-soft:#FDF0F0;
-    --danger-ink:#8A1616;
+    --danger-soft:#FAE6E4;
+    --danger-ink:color-mix(in srgb, var(--danger) 62%, var(--ink));
     --shadow-xs:0 1px 2px rgba(26,21,20,.05);
     --shadow:0 1px 2px rgba(26,21,20,.04), 0 6px 18px -10px rgba(26,21,20,.14);
     --shadow-md:0 2px 6px rgba(26,21,20,.05), 0 14px 32px -16px rgba(26,21,20,.22);
     --shadow-lg:0 8px 40px -14px rgba(26,21,20,.26);
-    --shadow-success:0 2px 6px rgba(18,133,90,.10), 0 14px 30px -14px rgba(18,133,90,.42);
-    --shadow-accent:0 2px 6px rgba(139,46,50,.10), 0 14px 30px -14px rgba(139,46,50,.38);
-    --radius:16px;
-    --radius-sm:11px;
+    --shadow-success:0 2px 6px rgba(23,105,74,.10), 0 14px 30px -14px rgba(23,105,74,.42);
+    --shadow-accent:0 2px 6px rgba(154,43,36,.10), 0 14px 30px -14px rgba(154,43,36,.38);
+    --radius:10px;
+    --radius-sm:6px;
     --font-display:'Inter',ui-sans-serif,system-ui,-apple-system,sans-serif;
     --font-body:'Inter',ui-sans-serif,system-ui,-apple-system,sans-serif;
-    --font-mono:'Inter',ui-sans-serif,system-ui,-apple-system,sans-serif;
+    --font-mono:'JetBrains Mono',ui-sans-serif,system-ui,-apple-system,sans-serif;
   }
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]){
-      --bg:#141110;
-      --surface:#1C1817;
-      --surface-2:#231E1D;
-      --surface-3:#2E2726;
-      --border:#332B2A;
-      --border-strong:#4A3E3D;
-      --ink:#F6F0EF;
-      --ink-muted:#B4A7A5;
-      --ink-faint:#877A78;
-      --accent:#E79A93;
-      --accent-strong:#F0ADA7;
-      --accent-soft:rgba(231,154,147,.13);
-      --accent-ink:#F4C6C1;
-      --success:#3FCE93;
-      --success-soft:rgba(63,206,147,.12);
-      --success-ink:#8FEBC4;
-      --btn-confirm:#3FCE93;
-      --btn-confirm-strong:#63DCA9;
-      --btn-confirm-ink:#0C2A1D;
-      --danger:#F16A6A;
-      --danger-strong:#F68C8C;
-      --danger-ink-on-fill:#2A0A0A;
-      --danger-soft:rgba(241,106,106,.13);
-      --danger-ink:#FFC9C9;
+      --bg:#141414;
+      --surface:#141414;
+      --surface-2:#1E1E1E;
+      --surface-3:color-mix(in srgb, var(--surface-2) 70%, var(--border));
+      --border:#2C2C2C;
+      --border-strong:#404040;
+      --ink:#F0F0F0;
+      --ink-muted:#ADADAD;
+      --ink-faint:#8C8C8C;
+      --accent:#DE756B;
+      --accent-strong:color-mix(in srgb, var(--accent) 85%, white);
+      --accent-soft:#38201D;
+      --accent-ink:color-mix(in srgb, var(--accent) 92%, var(--ink));
+      --accent-ink-on-fill:#26100E;
+      --success:#4FC188;
+      --success-soft:#14301F;
+      --success-ink:color-mix(in srgb, var(--success) 92%, var(--ink));
+      --btn-confirm:#4FC188;
+      --btn-confirm-strong:color-mix(in srgb, var(--btn-confirm) 85%, white);
+      --btn-confirm-ink:#0B2B1E;
+      --danger:#E8827A;
+      --danger-strong:color-mix(in srgb, var(--danger) 85%, white);
+      --danger-ink-on-fill:#2E100E;
+      --danger-soft:#381C1A;
+      --danger-ink:color-mix(in srgb, var(--danger) 92%, var(--ink));
       --shadow-xs:0 1px 2px rgba(0,0,0,.3);
       --shadow:0 1px 2px rgba(0,0,0,.3), 0 6px 18px -10px rgba(0,0,0,.6);
       --shadow-md:0 2px 6px rgba(0,0,0,.35), 0 14px 32px -16px rgba(0,0,0,.7);
       --shadow-lg:0 8px 40px -14px rgba(0,0,0,.75);
-      --shadow-success:0 2px 6px rgba(63,206,147,.10), 0 14px 30px -14px rgba(63,206,147,.34);
-      --shadow-accent:0 2px 6px rgba(231,154,147,.08), 0 14px 30px -14px rgba(231,154,147,.30);
+      --shadow-success:0 2px 6px rgba(79,193,136,.10), 0 14px 30px -14px rgba(79,193,136,.34);
+      --shadow-accent:0 2px 6px rgba(222,117,107,.08), 0 14px 30px -14px rgba(222,117,107,.30);
     }
   }
   :root[data-theme="dark"]{
-    --bg:#141110;
-    --surface:#1C1817;
-    --surface-2:#231E1D;
-    --surface-3:#2E2726;
-    --border:#332B2A;
-    --border-strong:#4A3E3D;
-    --ink:#F6F0EF;
-    --ink-muted:#B4A7A5;
-    --ink-faint:#877A78;
-    --accent:#E79A93;
-    --accent-strong:#F0ADA7;
-    --accent-soft:rgba(231,154,147,.13);
-    --accent-ink:#F4C6C1;
-    --success:#3FCE93;
-    --success-soft:rgba(63,206,147,.12);
-    --success-ink:#8FEBC4;
-    --btn-confirm:#3FCE93;
-    --btn-confirm-strong:#63DCA9;
-    --btn-confirm-ink:#0C2A1D;
-    --danger:#F16A6A;
-    --danger-strong:#F68C8C;
-    --danger-ink-on-fill:#2A0A0A;
-    --danger-soft:rgba(241,106,106,.13);
-    --danger-ink:#FFC9C9;
+    --bg:#141414;
+    --surface:#141414;
+    --surface-2:#1E1E1E;
+    --surface-3:color-mix(in srgb, var(--surface-2) 70%, var(--border));
+    --border:#2C2C2C;
+    --border-strong:#404040;
+    --ink:#F0F0F0;
+    --ink-muted:#ADADAD;
+    --ink-faint:#8C8C8C;
+    --accent:#DE756B;
+    --accent-strong:color-mix(in srgb, var(--accent) 85%, white);
+    --accent-soft:#38201D;
+    --accent-ink:color-mix(in srgb, var(--accent) 92%, var(--ink));
+    --accent-ink-on-fill:#26100E;
+    --success:#4FC188;
+    --success-soft:#14301F;
+    --success-ink:color-mix(in srgb, var(--success) 92%, var(--ink));
+    --btn-confirm:#4FC188;
+    --btn-confirm-strong:color-mix(in srgb, var(--btn-confirm) 85%, white);
+    --btn-confirm-ink:#0B2B1E;
+    --danger:#E8827A;
+    --danger-strong:color-mix(in srgb, var(--danger) 85%, white);
+    --danger-ink-on-fill:#2E100E;
+    --danger-soft:#381C1A;
+    --danger-ink:color-mix(in srgb, var(--danger) 92%, var(--ink));
     --shadow-xs:0 1px 2px rgba(0,0,0,.3);
     --shadow:0 1px 2px rgba(0,0,0,.3), 0 6px 18px -10px rgba(0,0,0,.6);
     --shadow-md:0 2px 6px rgba(0,0,0,.35), 0 14px 32px -16px rgba(0,0,0,.7);
     --shadow-lg:0 8px 40px -14px rgba(0,0,0,.75);
-    --shadow-success:0 2px 6px rgba(63,206,147,.10), 0 14px 30px -14px rgba(63,206,147,.34);
-    --shadow-accent:0 2px 6px rgba(231,154,147,.08), 0 14px 30px -14px rgba(231,154,147,.30);
+    --shadow-success:0 2px 6px rgba(79,193,136,.10), 0 14px 30px -14px rgba(79,193,136,.34);
+    --shadow-accent:0 2px 6px rgba(222,117,107,.08), 0 14px 30px -14px rgba(222,117,107,.30);
   }
 
   *{box-sizing:border-box;}
@@ -196,7 +204,7 @@
   }
   .theme-toggle button svg{width:15px;height:15px;}
   .theme-toggle button:hover{color:var(--ink);transform:translateY(-1px);}
-  .theme-toggle button.active{background:var(--accent);color:#fff;box-shadow:var(--shadow-xs);}
+  .theme-toggle button.active{background:var(--accent);color:var(--accent-ink-on-fill);box-shadow:var(--shadow-xs);}
 
   /* ---------------------------------- stepper (top, horizontal) ---------------------------------- */
   .layout{display:block;}
@@ -215,10 +223,10 @@
     transition:background .25s ease,border-color .25s ease,color .25s ease,box-shadow .25s ease,transform .25s ease;
   }
   .step-item .line{height:2px;flex:1;background:var(--border);margin:0 8px 0 10px;min-height:0;border-radius:2px;transition:background .35s ease;}
-  .step-item.done .step-dot{background:var(--success);border-color:var(--success);color:#fff;box-shadow:var(--shadow-success);}
+  .step-item.done .step-dot{background:var(--success);border-color:var(--success);color:var(--btn-confirm-ink);box-shadow:var(--shadow-success);}
   .step-item.done .line{background:var(--success);}
   .step-item.done .step-dot svg{width:14px;height:14px;}
-  .step-item.current .step-dot{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 0 0 4px var(--accent-soft),var(--shadow-accent);}
+  .step-item.current .step-dot{background:var(--accent);border-color:var(--accent);color:var(--accent-ink-on-fill);box-shadow:0 0 0 4px var(--accent-soft),var(--shadow-accent);}
   .step-body{padding:0 10px 0 0;min-width:0;}
   .step-label{
     font-weight:600;font-size:13px;color:var(--ink-faint);letter-spacing:-.012em;
@@ -323,7 +331,7 @@
     transition:background .18s ease,color .18s ease,box-shadow .2s ease,opacity .18s ease,transform .16s ease;
   }
   .btn svg{width:16px;height:16px;flex:none;}
-  .btn-primary{background:var(--accent);color:#fff;box-shadow:var(--shadow-accent);}
+  .btn-primary{background:var(--accent);color:var(--accent-ink-on-fill);box-shadow:var(--shadow-accent);}
   .btn-primary:hover:not(:disabled){background:var(--accent-strong);transform:translateY(-2px);}
   .btn-primary:disabled{opacity:.4;cursor:not-allowed;box-shadow:none;}
   .btn-primary:active:not(:disabled){transform:translateY(0);}
@@ -458,7 +466,7 @@
   .brand-check-mark svg{width:13px;height:13px;}
   .brand-check:hover .brand-check-row{border-color:var(--border-strong);transform:translateY(-2px);box-shadow:var(--shadow);}
   .brand-check input:checked + .brand-check-row{border-color:var(--success);box-shadow:var(--shadow-success);transform:translateY(-2px);}
-  .brand-check input:checked + .brand-check-row .brand-check-mark{background:var(--success);border-color:var(--success);color:#fff;transform:scale(1.06);}
+  .brand-check input:checked + .brand-check-row .brand-check-mark{background:var(--success);border-color:var(--success);color:var(--btn-confirm-ink);transform:scale(1.06);}
   .brand-check input:focus-visible + .brand-check-row{outline:2px solid var(--accent);outline-offset:2px;}
 
   /* ---------------------------------- result / cards ---------------------------------- */

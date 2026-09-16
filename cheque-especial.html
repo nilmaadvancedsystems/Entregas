@@ -10,93 +10,98 @@
 <style>
   /* ---------------------------------- tokens ---------------------------------- */
   :root{
-    --bg:#F7F5F4;
+    /* Tokens remapeados pros valores do app Entregas (Nilma Protocolos) —
+       mesmos nomes de variável de sempre, só o valor de cada um trocado. */
+    --bg:#FFFFFF;
     --surface:#FFFFFF;
-    --surface-2:#F3EEED;
-    --surface-3:#E9E1E0;
-    --border:#E1D8D7;
-    --border-strong:#C9BCBB;
-    --ink:#211A19;
-    --ink-muted:#6C6260;
-    --ink-faint:#9C9291;
-    --accent:#8B2E32;
-    --accent-strong:#6E2226;
-    --accent-soft:#F3E0DF;
-    --accent-ink:#5C1B1E;
-    --success:#137A45;
-    --success-soft:#E1F5EA;
-    --success-ink:#0B5B32;
-    --btn-confirm:#1F7A4B;
-    --btn-confirm-strong:#175C3A;
+    --surface-2:#F2F2F2;
+    --surface-3:color-mix(in srgb, var(--surface-2) 70%, var(--border));
+    --border:#E3E3E3;
+    --border-strong:#C9C9C9;
+    --ink:#1A1A1A;
+    --ink-muted:#525252;
+    --ink-faint:#6C6C6C;
+    --accent:#9A2B24;
+    --accent-strong:color-mix(in srgb, var(--accent) 80%, black);
+    --accent-soft:#F7E7E5;
+    --accent-ink:color-mix(in srgb, var(--accent) 62%, var(--ink));
+    --accent-ink-on-fill:#FFFFFF;
+    --success:#17694A;
+    --success-soft:#E2F2EA;
+    --success-ink:color-mix(in srgb, var(--success) 62%, var(--ink));
+    --btn-confirm:#17694A;
+    --btn-confirm-strong:color-mix(in srgb, var(--btn-confirm) 80%, black);
     --btn-confirm-ink:#FFFFFF;
-    --danger:#C81E1E;
-    --danger-strong:#A11616;
+    --danger:#A8322F;
+    --danger-strong:color-mix(in srgb, var(--danger) 80%, black);
     --danger-ink-on-fill:#FFFFFF;
-    --danger-soft:#FBE4E4;
-    --danger-ink:#8A1616;
-    --shadow:0 1px 2px rgba(33,26,25,.04), 0 8px 24px -12px rgba(33,26,25,.16);
-    --shadow-lg:0 12px 32px -12px rgba(33,26,25,.28);
-    --radius:14px;
-    --radius-sm:9px;
-    --font-display:'Manrope',ui-sans-serif,system-ui,sans-serif;
-    --font-body:'IBM Plex Sans',ui-sans-serif,system-ui,-apple-system,sans-serif;
-    --font-mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --danger-soft:#FAE6E4;
+    --danger-ink:color-mix(in srgb, var(--danger) 62%, var(--ink));
+    --shadow:0 1px 2px rgba(26,21,20,.04), 0 8px 24px -12px rgba(26,21,20,.16);
+    --shadow-lg:0 12px 32px -12px rgba(26,21,20,.28);
+    --radius:10px;
+    --radius-sm:6px;
+    --font-display:'Inter',ui-sans-serif,system-ui,-apple-system,sans-serif;
+    --font-body:'Inter',ui-sans-serif,system-ui,-apple-system,sans-serif;
+    --font-mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
   }
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]){
-      --bg:#1A1413;
-      --surface:#241C1B;
-      --surface-2:#2C2221;
-      --surface-3:#392B2A;
-      --border:#463534;
-      --border-strong:#5C4644;
-      --ink:#F5EDEC;
-      --ink-muted:#B9A9A7;
-      --ink-faint:#8D7C7A;
-      --accent:#E7998F;
-      --accent-strong:#EFAAA4;
-      --accent-soft:rgba(231,153,143,.16);
-      --accent-ink:#F6C7C1;
-      --success:#49D394;
-      --success-soft:rgba(73,211,148,.14);
-      --success-ink:#9CEFC6;
-      --btn-confirm:#57C08C;
-      --btn-confirm-strong:#79D3A6;
-      --btn-confirm-ink:#0E2A1C;
-      --danger:#F16565;
-      --danger-strong:#F68A8A;
-      --danger-ink-on-fill:#2A0A0A;
-      --danger-soft:rgba(241,101,101,.16);
-      --danger-ink:#FFC9C9;
+      --bg:#141414;
+      --surface:#141414;
+      --surface-2:#1E1E1E;
+      --surface-3:color-mix(in srgb, var(--surface-2) 70%, var(--border));
+      --border:#2C2C2C;
+      --border-strong:#404040;
+      --ink:#F0F0F0;
+      --ink-muted:#ADADAD;
+      --ink-faint:#8C8C8C;
+      --accent:#DE756B;
+      --accent-strong:color-mix(in srgb, var(--accent) 85%, white);
+      --accent-soft:#38201D;
+      --accent-ink:color-mix(in srgb, var(--accent) 92%, var(--ink));
+      --accent-ink-on-fill:#26100E;
+      --success:#4FC188;
+      --success-soft:#14301F;
+      --success-ink:color-mix(in srgb, var(--success) 92%, var(--ink));
+      --btn-confirm:#4FC188;
+      --btn-confirm-strong:color-mix(in srgb, var(--btn-confirm) 85%, white);
+      --btn-confirm-ink:#0B2B1E;
+      --danger:#E8827A;
+      --danger-strong:color-mix(in srgb, var(--danger) 85%, white);
+      --danger-ink-on-fill:#2E100E;
+      --danger-soft:#381C1A;
+      --danger-ink:color-mix(in srgb, var(--danger) 92%, var(--ink));
       --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 24px -12px rgba(0,0,0,.5);
       --shadow-lg:0 16px 40px -16px rgba(0,0,0,.6);
     }
   }
   :root[data-theme="dark"]{
-    --bg:#1A1413;
-    --surface:#241C1B;
-    --surface-2:#2C2221;
-    --surface-3:#392B2A;
-    --border:#463534;
-    --border-strong:#5C4644;
-    --ink:#F5EDEC;
-    --ink-muted:#B9A9A7;
-    --ink-faint:#8D7C7A;
-    --accent:#E7998F;
-    --accent-strong:#EFAAA4;
-    --accent-soft:rgba(231,153,143,.16);
-    --accent-ink:#F6C7C1;
-    --success:#49D394;
-    --success-soft:rgba(73,211,148,.14);
-    --success-ink:#9CEFC6;
-    --btn-confirm:#57C08C;
-    --btn-confirm-strong:#79D3A6;
-    --btn-confirm-ink:#0E2A1C;
-    --danger:#F16565;
-    --danger-strong:#F68A8A;
-    --danger-ink-on-fill:#2A0A0A;
-    --danger-soft:rgba(241,101,101,.16);
-    --danger-ink:#FFC9C9;
+    --bg:#141414;
+    --surface:#141414;
+    --surface-2:#1E1E1E;
+    --surface-3:color-mix(in srgb, var(--surface-2) 70%, var(--border));
+    --border:#2C2C2C;
+    --border-strong:#404040;
+    --ink:#F0F0F0;
+    --ink-muted:#ADADAD;
+    --ink-faint:#8C8C8C;
+    --accent:#DE756B;
+    --accent-strong:color-mix(in srgb, var(--accent) 85%, white);
+    --accent-soft:#38201D;
+    --accent-ink:color-mix(in srgb, var(--accent) 92%, var(--ink));
+    --accent-ink-on-fill:#26100E;
+    --success:#4FC188;
+    --success-soft:#14301F;
+    --success-ink:color-mix(in srgb, var(--success) 92%, var(--ink));
+    --btn-confirm:#4FC188;
+    --btn-confirm-strong:color-mix(in srgb, var(--btn-confirm) 85%, white);
+    --btn-confirm-ink:#0B2B1E;
+    --danger:#E8827A;
+    --danger-strong:color-mix(in srgb, var(--danger) 85%, white);
+    --danger-ink-on-fill:#2E100E;
+    --danger-soft:#381C1A;
+    --danger-ink:color-mix(in srgb, var(--danger) 92%, var(--ink));
     --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 24px -12px rgba(0,0,0,.5);
     --shadow-lg:0 16px 40px -16px rgba(0,0,0,.6);
   }
@@ -131,7 +136,7 @@
   }
   .brand{display:flex;align-items:center;gap:12px;}
   .brand-mark{
-    width:42px;height:42px;border-radius:11px;background:var(--accent);color:#fff;
+    width:42px;height:42px;border-radius:11px;background:var(--accent);color:var(--accent-ink-on-fill);
     display:flex;align-items:center;justify-content:center;flex:none;box-shadow:var(--shadow);
   }
   .brand-mark svg{width:22px;height:22px;}
