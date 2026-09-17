@@ -12,3 +12,6 @@ _preview-*.html
 scripts/node_modules/
 scripts/*.log
 scripts/.firebase-token
+scripts/gmail_oauth_client.json
+scripts/gmail_token.json
+scripts/gmail-processados.json
