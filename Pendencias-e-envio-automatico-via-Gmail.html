@@ -105,41 +105,7 @@
   body.embutido .wrap { padding-top: 8px; }
   body.embutido .topo { display: none; }
 
-  /* ==========================================================================
-     Modo PC: lista à esquerda, detalhe à direita, cada um rolando sozinho.
-     1000px e não 1200px porque dentro do <iframe> a media query mede a largura
-     do iframe (~1070px no app-mãe) — assim o embutido também entra no modo de
-     duas colunas, e fica abaixo do 1200px do app-mãe pra os dois não ligarem a
-     segunda coluna no mesmo instante.
-     ========================================================================== */
-  @media (min-width: 1000px) {
-    /* A cadeia tem que ser contínua: basta um elo sem altura (o #app) pra o
-       grid encolher até o tamanho do conteúdo e a página inteira voltar a
-       rolar junto. */
-    html, body, #app { height: 100%; }
-    .wrap {
-      max-width: 1400px; height: 100%; padding-bottom: 0;
-      display: flex; flex-direction: column;
-    }
-    /* min-height:0 é o que deixa o filho encolher e rolar dentro do flex —
-       sem isso as colunas esticam e quem rola é a página inteira. */
-    #split {
-      flex: 1; min-height: 0;
-      display: grid; grid-template-columns: minmax(0, 1fr) minmax(360px, 420px);
-      gap: var(--esp-4);
-    }
-    #viewLista, #viewDetalhe {
-      overflow-y: auto; min-height: 0; overscroll-behavior: contain;
-      padding-bottom: var(--esp-4);
-    }
-    #viewDetalhe { border-left: 1px solid var(--border); padding-left: var(--esp-4); }
-    /* A busca e os filtros ficam parados enquanto os 300 nomes rolam embaixo. */
-    #viewLista .barra, #viewLista .filtros {
-      position: sticky; top: 0; z-index: 2; background: var(--bg);
-    }
-    #viewLista .barra { padding-top: 2px; }
-    #viewLista .filtros { top: 44px; margin-top: 0; padding-bottom: var(--esp-2); }
-  }
+  @media (min-width: 1000px) { .wrap { max-width: 1320px; } }
 
   header.topo {
     display: flex; align-items: center; justify-content: space-between; gap: var(--esp-3);
@@ -201,6 +167,64 @@
   }
   .btn-hoje:active { transform: scale(.96); }
   .busca { flex: 1; min-width: 180px; }
+
+  /* ---------- alternar cartões / lista ---------- */
+  .visao {
+    display: flex; gap: 2px; flex: none; padding: 3px;
+    border: 1px solid var(--borda-interativa); border-radius: var(--r-md); background: var(--surface-2);
+  }
+  .visao-btn {
+    width: 32px; height: 30px; border: none; border-radius: var(--r-sm); background: none;
+    color: var(--ink-soft); cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: background-color 140ms ease, color 140ms ease;
+  }
+  .visao-btn i { font-size: 17px; }
+  .visao-btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+
+  /* ==========================================================================
+     Painel de cartões. Cada cartão carrega os últimos 6 meses do cliente: é o
+     histórico que diz quem vive atrasando, coisa que a situação de um mês só
+     nunca mostra.
+     ========================================================================== */
+  .cartoes {
+    display: grid; gap: var(--esp-3);
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  }
+  .cartao {
+    display: flex; flex-direction: column; gap: var(--esp-2);
+    padding: var(--esp-3); border: 1px solid var(--border); border-radius: var(--r-md);
+    background: var(--surface); text-align: left; font: inherit; color: inherit; cursor: pointer;
+    transition: border-color 140ms ease, background-color 140ms ease, transform 140ms var(--ease-out);
+  }
+  .cartao:active { transform: scale(.995); }
+  .cartao:focus-visible { outline: 2px solid var(--foco); outline-offset: 2px; }
+  .cartao.selecionado { border-color: var(--accent); }
+  .cartao-nome {
+    font-weight: 600; font-size: var(--t-base); letter-spacing: -.01em; line-height: 1.3;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .cartao-doc { font-size: var(--t-xs); color: var(--ink-faint); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  .cartao-resumo { display: flex; align-items: baseline; gap: 6px; }
+  .cartao-num { font-size: 1.4rem; font-weight: 600; letter-spacing: -.02em; line-height: 1; font-variant-numeric: tabular-nums; }
+  .cartao-num.completo { color: var(--success-forte); }
+  .cartao-num.pendente { color: var(--warning-forte); }
+  .cartao-rotulo { font-size: var(--t-xs); color: var(--ink-soft); }
+
+  /* Gráfico em CSS puro: 6 colunas, altura proporcional a quantos dos 3
+     documentos chegaram. Sem biblioteca — são 18 divs. */
+  .grafico { display: flex; align-items: flex-end; gap: 4px; }
+  .grafico-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; }
+  /* Altura fixa no trilho, não `flex:1`: a barra tem altura em %, e porcentagem
+     só resolve contra um pai com altura definida — com flex ela virava um fio. */
+  .grafico-trilho {
+    width: 100%; height: 46px; display: flex; align-items: flex-end;
+    background: var(--surface-2); border-radius: var(--r-xs); overflow: hidden;
+  }
+  .grafico-barra { width: 100%; background: var(--success); border-radius: var(--r-xs); min-height: 2px; }
+  .grafico-barra.vazio { background: var(--border-forte); }
+  .grafico-barra.parcial { background: var(--warning); }
+  .grafico-mes { font-size: 9px; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+  .cartao-sem-email { font-size: var(--t-xs); color: var(--warning-forte); display: flex; align-items: center; gap: 4px; }
 
   /* ---------- contadores que filtram (o número é o botão) ---------- */
   .filtros { display: flex; gap: 6px; flex-wrap: wrap; margin: var(--esp-3) 0 var(--esp-2); }
@@ -312,55 +336,58 @@
   /* ==========================================================================
      Detalhe do cliente
      ========================================================================== */
-  #detalheConteudo { display: flex; flex-direction: column; gap: var(--esp-4); }
-  .detalhe-vazio {
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: var(--esp-2); text-align: center; color: var(--ink-faint);
-    font-size: var(--t-base); padding: 64px var(--esp-4); line-height: 1.5;
+  /* ==========================================================================
+     Tela do cliente: ocupa a tela toda, com o nome fixo no topo e as seções
+     numa coluna à esquerda — do jeito que o Mister faz.
+     ========================================================================== */
+  .cliente-topo {
+    display: flex; align-items: center; gap: var(--esp-3); flex-wrap: wrap;
+    padding-bottom: var(--esp-3); margin-bottom: var(--esp-4);
+    border-bottom: 1px solid var(--border);
   }
-  .detalhe-vazio i { font-size: 28px; }
-  .detalhe-vazio p { margin: 0; max-width: 24ch; }
-  /* Filtrar a lista não desmarca o cliente aberto — mas some com ele da
-     esquerda, e sem aviso parece que a tela travou num cliente que "não existe". */
-  .fora-do-filtro {
-    margin: 0; padding: var(--esp-2) var(--esp-3); border-radius: var(--r-sm);
-    background: var(--warning-soft); color: var(--warning-forte); font-size: var(--t-sm);
+  .cliente-identidade { flex: 1 1 auto; min-width: 0; }
+  .cliente-nome { font-size: var(--t-lg); font-weight: 600; letter-spacing: -.018em; line-height: 1.25; }
+  .cliente-razao { color: var(--ink-faint); font-size: var(--t-sm); margin-top: 1px; }
+  .cliente-doc { flex: none; font-size: var(--t-sm); color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+  .cliente-doc.mono { font-family: var(--font-mono); }
+
+  .cliente-corpo { display: grid; grid-template-columns: 1fr; gap: var(--esp-4); }
+  .cliente-menu { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--border); }
+  .cliente-menu::-webkit-scrollbar { display: none; }
+  .secao-btn {
+    flex: none; display: flex; align-items: center; gap: var(--esp-2);
+    height: 38px; padding: 0 12px; border: none; background: none; cursor: pointer;
+    color: var(--ink-soft); font: 500 var(--t-md)/1 inherit; white-space: nowrap;
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+    transition: color 140ms ease, background-color 140ms ease, border-color 140ms ease;
   }
-  .detalhe-topo { display: flex; align-items: center; gap: var(--esp-3); flex-wrap: wrap; }
-  .detalhe-topo .mes-label { min-width: 0; }
-  .detalhe-cabecalho { padding-bottom: var(--esp-3); border-bottom: 1px solid var(--border); }
-  .detalhe-nome { font-size: var(--t-lg); font-weight: 600; letter-spacing: -.018em; text-wrap: balance; }
-  .detalhe-razao { color: var(--ink-faint); font-size: var(--t-sm); margin-top: 2px; }
-  .detalhe-meta { display: flex; flex-wrap: wrap; gap: var(--esp-3); margin-top: var(--esp-2); align-items: center; }
-  .detalhe-meta span { display: inline-flex; align-items: center; gap: 5px; font-size: var(--t-sm); color: var(--ink-soft); }
-  .detalhe-meta .ph { color: var(--ink-faint); font-size: .95em; }
-  .detalhe-meta .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  .secao-btn i { font-size: 17px; }
+  .secao-btn[aria-selected="true"] { color: var(--ink); font-weight: 600; border-bottom-color: var(--accent); }
+  .secao-btn:focus-visible { outline: 2px solid var(--foco); outline-offset: -2px; }
+  .cliente-conteudo { min-width: 0; }
+
+  /* A partir de 900px o menu vira coluna de verdade na lateral. */
+  @media (min-width: 900px) {
+    .cliente-corpo { grid-template-columns: 216px minmax(0, 1fr); gap: var(--esp-5, 24px); }
+    .cliente-menu {
+      flex-direction: column; gap: 1px; overflow: visible;
+      border-bottom: none; border-right: 1px solid var(--border); padding-right: var(--esp-3);
+      align-self: start; position: sticky; top: var(--esp-3);
+    }
+    .secao-btn {
+      width: 100%; height: 38px; border-radius: var(--r-sm);
+      border-bottom: none; margin-bottom: 0;
+    }
+    .secao-btn[aria-selected="true"] { background: var(--accent-soft); color: var(--accent-forte); }
+  }
+
   .badge-enquadramento {
     display: inline-flex; align-items: center; font-size: var(--t-xs); font-weight: 600;
     padding: 3px 8px; border-radius: var(--r-xs); background: var(--surface-2); color: var(--ink-soft);
   }
 
-  /* ---------- abas do detalhe ----------
-     Sublinhado, não pílula: a seleção aqui é "onde eu estou", diferente da
-     seleção dos filtros lá em cima ("o que eu escolhi ver"), que é preenchida.
-     Dois trabalhos diferentes, dois sinais diferentes. */
-  /* Rola no celular, quando as três abas não cabem — mas sem desenhar barra,
-     que numa fileira de 38px de altura vira sujeira. */
-  .abas {
-    display: flex; gap: 2px; border-bottom: 1px solid var(--border);
-    overflow-x: auto; scrollbar-width: none;
-  }
-  .abas::-webkit-scrollbar { display: none; }
-  .aba {
-    flex: none; height: 38px; padding: 0 14px; border: none; background: none;
-    color: var(--ink-soft); font: 500 var(--t-md)/1 inherit; cursor: pointer;
-    border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap;
-    transition: color 140ms ease, border-color 140ms ease;
-  }
-  .aba[aria-selected="true"] { color: var(--ink); font-weight: 600; border-bottom-color: var(--accent); }
-  .aba:focus-visible { outline: 2px solid var(--foco); outline-offset: -2px; }
-  .aba .cont {
-    display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: var(--r-xs);
+  .secao-btn .cont {
+    margin-left: auto; padding: 1px 6px; border-radius: var(--r-xs);
     background: var(--surface-2); color: var(--ink-soft); font-size: var(--t-xs); font-weight: 600;
   }
 
@@ -451,7 +478,7 @@
      nenhuma dá a impressão de que a página quebrou e recarregou.
      ========================================================================== */
   @keyframes entrar { from { opacity: 0; transform: translateY(4px); } }
-  #viewDetalhe, #viewLista { animation: entrar 200ms var(--ease-out); }
+  #viewCliente, #viewLista { animation: entrar 200ms var(--ease-out); }
 
   /* ==========================================================================
      Estados de teclado — quem navega por Tab precisa enxergar onde está. Sem
@@ -487,7 +514,7 @@
      ajudam a entender o que mudou). Menos movimento, não zero.
      ========================================================================== */
   @media (prefers-reduced-motion: reduce) {
-    #viewDetalhe, #viewLista { animation: none; }
+    #viewCliente, #viewLista { animation: none; }
     .btn:active, .filtro:active, .doc-ind:active,
     .mes-nav button:active, .btn-hoje:active { transform: none; }
     .toast { transform: translateX(-50%); transition: opacity 200ms ease; }
@@ -523,9 +550,6 @@
       <button class="btn btn-secondary" id="logoutBtn"><i class="ph ph-sign-out"></i> Sair</button>
     </header>
 
-    <!-- As duas colunas do modo PC. Fora do .wrap direto porque o .wrap também
-         carrega o cabeçalho, que só existe no acesso direto ao arquivo. -->
-    <div id="split">
     <div id="viewLista">
       <div class="barra">
         <div class="mes-nav">
@@ -535,6 +559,14 @@
         </div>
         <button type="button" class="btn-hoje" id="btnHoje" hidden>mês atual</button>
         <input class="input busca" id="busca" type="text" placeholder="Buscar cliente ou CNPJ...">
+        <div class="visao" role="group" aria-label="Formato da lista">
+          <button type="button" class="visao-btn" id="visaoCartoes" aria-pressed="true" title="Ver em cartões">
+            <i class="ph ph-squares-four" aria-hidden="true"></i>
+          </button>
+          <button type="button" class="visao-btn" id="visaoLista" aria-pressed="false" title="Ver em lista">
+            <i class="ph ph-list" aria-hidden="true"></i>
+          </button>
+        </div>
       </div>
 
       <div class="filtros">
@@ -549,42 +581,37 @@
         </button>
       </div>
 
-      <div id="lista" class="lista" role="list" aria-label="Clientes"></div>
+      <div id="painelCartoes" class="cartoes"></div>
+      <div id="lista" class="lista" role="list" aria-label="Clientes" hidden></div>
       <div id="listaAviso" class="aviso">Carregando clientes...</div>
     </div>
 
-    <div id="viewDetalhe" hidden>
-      <div id="detalheVazio" class="detalhe-vazio">
-        <i class="ph ph-cursor-click" aria-hidden="true"></i>
-        <p>Selecione um cliente na lista para ver os documentos do mês.</p>
-      </div>
-
-      <div id="detalheConteudo" hidden>
-      <div class="detalhe-topo">
+    <!-- Tela do cliente: ocupa tudo, com as seções na lateral. -->
+    <div id="viewCliente" hidden>
+      <div class="cliente-topo">
         <button type="button" class="btn btn-secondary" id="voltarBtn"><i class="ph ph-arrow-left"></i> Voltar</button>
+        <div class="cliente-identidade">
+          <div class="cliente-nome" id="detNome"></div>
+          <div class="cliente-razao" id="detRazao" hidden></div>
+        </div>
+        <span class="cliente-doc mono" id="detDoc"></span>
         <span class="mes-label" id="detMesLabel"></span>
       </div>
 
-      <p class="fora-do-filtro" id="foraDoFiltro" hidden>Este cliente está fora do filtro atual da lista.</p>
+      <div class="cliente-corpo">
+        <nav class="cliente-menu" role="tablist" aria-label="Seções do cliente">
+          <button type="button" class="secao-btn" role="tab" id="abaDocs" data-painel="painelDocs" aria-selected="true">
+            <i class="ph ph-files" aria-hidden="true"></i><span>Documentos do mês</span>
+          </button>
+          <button type="button" class="secao-btn" role="tab" id="abaEntregas" data-painel="painelEntregas" aria-selected="false">
+            <i class="ph ph-truck" aria-hidden="true"></i><span>Entregas</span><span class="cont" id="contEntregas" hidden></span>
+          </button>
+          <button type="button" class="secao-btn" role="tab" id="abaSobre" data-painel="painelSobre" aria-selected="false">
+            <i class="ph ph-buildings" aria-hidden="true"></i><span>Sobre o cliente</span>
+          </button>
+        </nav>
 
-      <div class="detalhe-cabecalho">
-        <div class="detalhe-nome" id="detNome"></div>
-        <div class="detalhe-razao" id="detRazao" hidden></div>
-        <div class="detalhe-meta">
-          <span class="mono" id="detDocWrap"><i class="ph ph-identification-card"></i><span id="detDoc"></span></span>
-          <span id="detTelWrap" hidden><i class="ph ph-phone"></i><span id="detTel"></span></span>
-          <span id="detCidadeWrap" hidden><i class="ph ph-map-pin"></i><span id="detCidade"></span></span>
-          <span class="badge-enquadramento" id="detEnquadramento" hidden></span>
-        </div>
-      </div>
-
-      <div class="abas" role="tablist" aria-label="Informações do cliente">
-        <button type="button" class="aba" role="tab" id="abaDocs" data-painel="painelDocs" aria-selected="true">Documentos do mês</button>
-        <button type="button" class="aba" role="tab" id="abaEntregas" data-painel="painelEntregas" aria-selected="false">
-          Entregas<span class="cont" id="contEntregas" hidden></span>
-        </button>
-        <button type="button" class="aba" role="tab" id="abaSobre" data-painel="painelSobre" aria-selected="false">Sobre o cliente</button>
-      </div>
+        <div class="cliente-conteudo">
 
       <div id="painelDocs" role="tabpanel" aria-labelledby="abaDocs">
         <!-- Sem título de seção: a aba acima já se chama "Documentos do mês". -->
@@ -603,8 +630,8 @@
         </div>
         <div class="ficha" id="detFicha"></div>
       </div>
+        </div>
       </div>
-    </div>
     </div>
   </div>
 </div>
@@ -662,7 +689,12 @@
   var clienteSelecionadoId = null;
   var clientesCarregados = false;
   var idsVisiveis = [];          // ordem atual da lista, pras setas do teclado
-  var modoEstreito = 'lista';    // só vale quando NÃO está em duas colunas
+  var historicoCache = new Map();// clienteId -> { 'AAAA-MM': quantos dos 3 }
+  var MESES_NO_GRAFICO = 6;
+  var modoVisao = 'cartoes';     // 'cartoes' | 'lista'
+  var telaCliente = false;       // true = tela do cliente ocupando tudo
+  var cartoes = new Map();       // clienteId -> {cartao, numero, barras, ...}
+  var secaoAtual = 'painelDocs';
 
   function toast(msg) {
     var el = $('toast');
@@ -820,13 +852,33 @@
       });
   }
 
+  // Os 6 meses que o gráfico do cartão mostra, do mais antigo pro mês aberto.
+  function competenciasDoGrafico() {
+    var lista = [];
+    for (var i = MESES_NO_GRAFICO - 1; i >= 0; i--) {
+      var d = new Date(competenciaAtual.getFullYear(), competenciaAtual.getMonth() - i, 1);
+      lista.push(competenciaStr(d));
+    }
+    return lista;
+  }
+
   function subscribeStatus() {
     if (unsubStatus) { unsubStatus(); unsubStatus = null; }
-    var comp = competenciaStr(competenciaAtual);
-    unsubStatus = db.collection('documentosMensal').where('competencia', '==', comp)
+    var comps = competenciasDoGrafico();
+    var mesAberto = comps[comps.length - 1];
+    // Uma consulta só pros 6 meses (`in` aceita até 10 valores): o cartão
+    // precisa do histórico, e 6 buscas separadas seriam 6 assinaturas abertas.
+    unsubStatus = db.collection('documentosMensal').where('competencia', 'in', comps)
       .onSnapshot(function (snap) {
         statusCache = new Map();
-        snap.docs.forEach(function (d) { statusCache.set(d.data().clienteId, d.data()); });
+        historicoCache = new Map();
+        snap.docs.forEach(function (d) {
+          var dado = d.data();
+          if (dado.competencia === mesAberto) statusCache.set(dado.clienteId, dado);
+          var porMes = historicoCache.get(dado.clienteId);
+          if (!porMes) { porMes = {}; historicoCache.set(dado.clienteId, porMes); }
+          porMes[dado.competencia] = TIPOS.filter(function (t) { return dado[t.chave]; }).length;
+        });
         atualizarTodosStatus();
         if (clienteSelecionadoId) renderDetalhe();
       }, function (err) { toast('Erro ao carregar situação do mês: ' + err.message); });
@@ -838,6 +890,9 @@
   function recebidosDe(clienteId) {
     var st = statusDoCliente(clienteId);
     return TIPOS.filter(function (t) { return st[t.chave]; }).length;
+  }
+  function historicoDe(clienteId) {
+    return historicoCache.get(clienteId) || {};
   }
 
   // ---------- ações ----------
@@ -930,6 +985,99 @@
     return row;
   }
 
+  // ---------- cartões ----------
+  var ABREV_MES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  function rotuloCurtoDoMes(comp) {
+    var partes = String(comp).split('-');
+    return ABREV_MES[Number(partes[1]) - 1] || comp;
+  }
+
+  function criarCartao(cliente) {
+    var cartao = document.createElement('button');
+    cartao.type = 'button';
+    cartao.className = 'cartao';
+    cartao.id = 'cd-' + cliente.id;
+
+    var nome = document.createElement('div');
+    nome.className = 'cartao-nome';
+    var doc = document.createElement('div');
+    doc.className = 'cartao-doc';
+    doc.textContent = cliente.documento || 'sem CNPJ';
+
+    var resumo = document.createElement('div');
+    resumo.className = 'cartao-resumo';
+    var num = document.createElement('span');
+    num.className = 'cartao-num';
+    var rotulo = document.createElement('span');
+    rotulo.className = 'cartao-rotulo';
+    resumo.appendChild(num);
+    resumo.appendChild(rotulo);
+
+    var grafico = document.createElement('div');
+    grafico.className = 'grafico';
+    var colunas = [];
+    for (var i = 0; i < MESES_NO_GRAFICO; i++) {
+      var col = document.createElement('div');
+      col.className = 'grafico-col';
+      var trilho = document.createElement('div');
+      trilho.className = 'grafico-trilho';
+      var barra = document.createElement('div');
+      barra.className = 'grafico-barra';
+      trilho.appendChild(barra);
+      var mes = document.createElement('span');
+      mes.className = 'grafico-mes';
+      col.appendChild(trilho);
+      col.appendChild(mes);
+      grafico.appendChild(col);
+      colunas.push({ barra: barra, mes: mes, trilho: trilho });
+    }
+
+    var semEmail = document.createElement('div');
+    semEmail.className = 'cartao-sem-email';
+    var avisoIco = document.createElement('i');
+    avisoIco.className = 'ph ph-warning-circle';
+    avisoIco.setAttribute('aria-hidden', 'true');
+    semEmail.appendChild(avisoIco);
+    semEmail.appendChild(document.createTextNode('sem e-mail cadastrado'));
+
+    cartao.appendChild(nome);
+    cartao.appendChild(doc);
+    cartao.appendChild(resumo);
+    cartao.appendChild(grafico);
+    cartao.appendChild(semEmail);
+    cartao.addEventListener('click', function () { abrirDetalhe(cliente.id); });
+
+    cartoes.set(cliente.id, {
+      cartao: cartao, nome: nome, num: num, rotulo: rotulo, colunas: colunas, semEmail: semEmail
+    });
+    return cartao;
+  }
+
+  function atualizarCartao(cliente) {
+    var c = cartoes.get(cliente.id);
+    if (!c) return;
+    c.nome.textContent = clienteLabel(cliente);
+    c.semEmail.hidden = !!cliente.email;
+
+    var recebidos = recebidosDe(cliente.id);
+    c.num.textContent = recebidos + '/' + TIPOS.length;
+    c.num.className = 'cartao-num ' + (recebidos === TIPOS.length ? 'completo' : 'pendente');
+    c.rotulo.textContent = 'documentos em ' + MESES[competenciaAtual.getMonth()];
+
+    var historico = historicoDe(cliente.id);
+    var comps = competenciasDoGrafico();
+    comps.forEach(function (comp, i) {
+      var col = c.colunas[i];
+      var n = historico[comp] || 0;
+      // Altura mínima de 6% pra um mês zerado continuar sendo uma coluna
+      // visível: barra de altura zero some e vira buraco no gráfico.
+      col.barra.style.height = (n === 0 ? 6 : (n / TIPOS.length) * 100) + '%';
+      col.barra.className = 'grafico-barra' + (n === 0 ? ' vazio' : n < TIPOS.length ? ' parcial' : '');
+      col.mes.textContent = rotuloCurtoDoMes(comp);
+      col.trilho.title = rotuloCurtoDoMes(comp) + ': ' + n + ' de ' + TIPOS.length + ' documentos';
+    });
+  }
+
   function reconstruirLista() {
     var container = $('lista');
     container.innerHTML = '';
@@ -937,6 +1085,14 @@
     var frag = document.createDocumentFragment();
     clientesCache.forEach(function (cliente) { frag.appendChild(criarLinha(cliente)); });
     container.appendChild(frag);
+
+    var painel = $('painelCartoes');
+    painel.innerHTML = '';
+    cartoes.clear();
+    var fragC = document.createDocumentFragment();
+    clientesCache.forEach(function (cliente) { fragC.appendChild(criarCartao(cliente)); });
+    painel.appendChild(fragC);
+
     atualizarTodosStatus();
     marcarSelecao();
   }
@@ -956,6 +1112,7 @@
       linha.semEmail.hidden = !!cliente.email;
       preencherNomeDaLinha(linha, cliente);
       linha.sub.textContent = subDoCliente(cliente);
+      atualizarCartao(cliente);
     });
     aplicarFiltros();
   }
@@ -988,15 +1145,11 @@
         (filtroStatus === 'completos' && completo);
       var mostrar = passaStatus && combinaBusca(cliente);
       linha.row.hidden = !mostrar;
+      var c = cartoes.get(cliente.id);
+      if (c) c.cartao.hidden = !mostrar;
       if (mostrar) idsVisiveis.push(cliente.id);
     });
     var visiveis = idsVisiveis.length;
-
-    // Esconder da lista não é desmarcar: o painel da direita continua no
-    // cliente aberto, mas avisa que ele saiu do filtro — senão parece que a
-    // tela travou num cliente que "não existe mais".
-    $('foraDoFiltro').hidden = !clienteSelecionadoId ||
-      idsVisiveis.indexOf(clienteSelecionadoId) !== -1;
 
     // Os contadores descrevem o MÊS, não o resultado da busca — se mudassem a
     // cada letra digitada deixariam de ser o retrato do mês.
@@ -1027,20 +1180,28 @@
   // `hidden` e `display` já quebrou esta tela duas vezes. No modo de duas
   // colunas os dois lados ficam sempre visíveis; no estreito, um de cada vez.
   // ==========================================================================
-  var mqSplit = window.matchMedia('(min-width: 1000px)');
-  function ehSplit() { return mqSplit.matches; }
-
   function aplicarLayout() {
-    var split = ehSplit();
-    $('viewLista').hidden = !split && modoEstreito !== 'lista';
-    $('viewDetalhe').hidden = !split && modoEstreito !== 'detalhe';
-    $('voltarBtn').hidden = split;              // no split não há pra onde voltar
-    $('detalheVazio').hidden = !!clienteSelecionadoId;
-    $('detalheConteudo').hidden = !clienteSelecionadoId;
+    $('viewLista').hidden = telaCliente;
+    $('viewCliente').hidden = !telaCliente;
+    $('painelCartoes').hidden = modoVisao !== 'cartoes';
+    $('lista').hidden = modoVisao !== 'lista';
+    $('visaoCartoes').setAttribute('aria-pressed', String(modoVisao === 'cartoes'));
+    $('visaoLista').setAttribute('aria-pressed', String(modoVisao === 'lista'));
   }
 
-  if (mqSplit.addEventListener) mqSplit.addEventListener('change', aplicarLayout);
-  else mqSplit.addListener(aplicarLayout);     // Safari antigo
+  $('visaoCartoes').addEventListener('click', function () { trocarVisao('cartoes'); });
+  $('visaoLista').addEventListener('click', function () { trocarVisao('lista'); });
+  function trocarVisao(qual) {
+    if (modoVisao === qual) return;
+    modoVisao = qual;
+    try { localStorage.setItem('nilma_cobranca_visao', qual); } catch (e) {}
+    aplicarLayout();
+    aplicarFiltros();
+  }
+  try {
+    var salva = localStorage.getItem('nilma_cobranca_visao');
+    if (salva === 'lista' || salva === 'cartoes') modoVisao = salva;
+  } catch (e) {}
 
   function marcarSelecao() {
     linhas.forEach(function (linha, id) {
@@ -1048,6 +1209,9 @@
       linha.row.classList.toggle('lc-selecionada', ativo);
       if (ativo) linha.info.setAttribute('aria-current', 'true');
       else linha.info.removeAttribute('aria-current');
+    });
+    cartoes.forEach(function (c, id) {
+      c.cartao.classList.toggle('selecionado', id === clienteSelecionadoId);
     });
   }
 
@@ -1082,10 +1246,10 @@
   function abrirDetalhe(clienteId) {
     var mudouCliente = clienteId !== clienteSelecionadoId;
     clienteSelecionadoId = clienteId;
-    modoEstreito = 'detalhe';
+    telaCliente = true;
 
-    // Trocar de cliente sem sair da tela é novo: sem zerar isto, as entregas
-    // do cliente anterior ficariam na aba até a busca nova responder.
+    // Sem zerar isto, as entregas do cliente anterior ficariam na seção até a
+    // busca nova responder.
     if (mudouCliente) {
       $('entregasLista').innerHTML = '';
       $('contEntregas').hidden = true;
@@ -1095,23 +1259,18 @@
     renderDetalhe();
     marcarSelecao();
     aplicarLayout();
-    aplicarFiltros();                       // reavalia o aviso "fora do filtro"
-
-    if (ehSplit()) {
-      // O foco fica na linha clicada: o Voltar está escondido, e puxar o foco
-      // pro outro lado faria a pessoa perder o lugar na lista.
-      $('viewDetalhe').scrollTop = 0;
-    } else {
-      $('voltarBtn').focus();
-    }
+    window.scrollTo(0, 0);
+    $('voltarBtn').focus();
   }
 
   $('voltarBtn').addEventListener('click', function () {
-    // A seleção não se perde ao voltar — só o modo de exibição muda.
-    modoEstreito = 'lista';
+    // A seleção não se perde ao voltar: ao reabrir a lista, o cliente que estava
+    // aberto continua marcado, pra não perder o lugar entre 299 nomes.
+    telaCliente = false;
     aplicarLayout();
-    var alvo = clienteSelecionadoId && $('lc-' + clienteSelecionadoId);
-    if (alvo) alvo.focus();
+    var alvo = clienteSelecionadoId &&
+      (modoVisao === 'lista' ? $('lc-' + clienteSelecionadoId) : $('cd-' + clienteSelecionadoId));
+    if (alvo) { alvo.focus(); alvo.scrollIntoView({ block: 'center' }); }
   });
 
   // Setas andam pela lista. Um listener só, delegado — 300 linhas × 1 listener
@@ -1160,24 +1319,19 @@
     // exemplo). Cai no estado vazio em vez de ficar mostrando dado velho.
     if (!cliente) {
       clienteSelecionadoId = null;
-      modoEstreito = 'lista';
+      telaCliente = false;
       marcarSelecao();
       aplicarLayout();
       return;
     }
 
+    // Só identidade no topo: telefone, cidade e enquadramento vivem na seção
+    // "Sobre o cliente", que é onde alguém vai procurar por eles.
     var nomeFantasia = (cliente.nomeFantasia || '').trim();
     $('detNome').textContent = nomeFantasia || cliente.nome || '(sem nome)';
     $('detRazao').hidden = !(nomeFantasia && cliente.nome && cliente.nome !== nomeFantasia);
     $('detRazao').textContent = cliente.nome || '';
-    $('detDoc').textContent = cliente.documento || '(sem CNPJ/CPF)';
-    $('detTelWrap').hidden = !cliente.telefone;
-    $('detTel').textContent = cliente.telefone || '';
-    var localCidade = [cliente.bairro, cliente.cidade].filter(Boolean).join(', ') || cliente.endereco || '';
-    $('detCidadeWrap').hidden = !localCidade;
-    $('detCidade').textContent = localCidade;
-    $('detEnquadramento').hidden = !cliente.enquadramento;
-    $('detEnquadramento').textContent = cliente.enquadramento || '';
+    $('detDoc').textContent = cliente.documento || 'sem CNPJ/CPF';
     $('detMesLabel').textContent = competenciaLabel(competenciaAtual);
 
     var emailInput = $('detEmailInput');
