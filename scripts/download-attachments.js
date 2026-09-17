@@ -190,8 +190,19 @@ async function main() {
 
     if (tipos.length > 0) {
       const docId = cliente.id + '_' + competencia;
-      const patch = { clienteId: cliente.id, clienteNome: cliente.nome, competencia, atualizadoEm: new Date().toISOString() };
-      tipos.forEach(t => { patch[t] = true; });
+      const agora = new Date().toISOString();
+      const patch = { clienteId: cliente.id, clienteNome: cliente.nome, competencia, atualizadoEm: agora, detalhes: {} };
+      // Quem abrir a tela precisa saber se quem marcou foi uma pessoa ou este
+      // script, quando, e com base em qual anexo — sem isso, no dia em que a
+      // detecção errar (e ela já errou) ninguém consegue conferir de onde saiu
+      // a marcação. mensagemId é a âncora: leva de volta ao e-mail exato.
+      tipos.forEach(t => {
+        patch[t] = true;
+        patch.detalhes[t] = {
+          origem: 'gmail', em: agora, mensagemId: id,
+          arquivos: baixadosAnexos.map(a => a.filename)
+        };
+      });
       await db.collection('documentosMensal').doc(docId).set(patch, { merge: true });
       marcados++;
       console.log('Marcado em', competencia, 'para', cliente.nome, ':', tipos.join(', '));
