@@ -61,7 +61,7 @@
        4,5:1 que texto precisa. Mesma matiz, só mais clara — e saturada, porque
        misturar com branco desbota e a paleta perde a identidade. */
     --accent-soft: #3A2422; --accent-forte: #D9756D;   /* 5,64:1 */
-    --success-soft: #123526; --success-forte: #34A075; /* 5,40:1 */
+    --success-soft: #0C2419; --success-forte: #34A075; /* 5,40:1; pílula 5,02:1 */
     --warning-soft: #3A2E0F; --warning-forte: #BE9134; /* 6,12:1 */
     --danger-soft: #3A1F1D; --danger-forte: #E0716C;   /* 5,67:1 */
     --borda-interativa: #62666B; /* 3,05:1 contra o fundo escuro */
@@ -115,7 +115,7 @@
   }
   .input::placeholder { color: var(--ink-faint); opacity: 1; }
   .input:focus { outline: none; border-color: var(--foco); box-shadow: 0 0 0 3px var(--accent-soft); }
-  .campo-email { max-width: 420px; margin: 0; }
+  .campo-email { max-width: 420px; margin: 0 0 var(--esp-4); }
   .aviso { color: var(--ink-faint); font-size: var(--t-base); padding: 40px 0; text-align: center; }
 
   /* ==========================================================================
@@ -252,6 +252,64 @@
     font-size: var(--t-xs); font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
     color: var(--ink-faint); margin-bottom: var(--esp-2);
   }
+
+  /* ---------- abas do detalhe ----------
+     Sublinhado, não pílula: a seleção aqui é "onde eu estou", diferente da
+     seleção dos filtros lá em cima ("o que eu escolhi ver"), que é preenchida.
+     Dois trabalhos diferentes, dois sinais diferentes. */
+  /* Rola no celular, quando as três abas não cabem — mas sem desenhar barra,
+     que numa fileira de 38px de altura vira sujeira. */
+  .abas {
+    display: flex; gap: 2px; border-bottom: 1px solid var(--border);
+    overflow-x: auto; scrollbar-width: none;
+  }
+  .abas::-webkit-scrollbar { display: none; }
+  .aba {
+    flex: none; height: 38px; padding: 0 14px; border: none; background: none;
+    color: var(--ink-soft); font: 500 var(--t-md)/1 inherit; cursor: pointer;
+    border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap;
+    transition: color 140ms ease, border-color 140ms ease;
+  }
+  .aba[aria-selected="true"] { color: var(--ink); font-weight: 600; border-bottom-color: var(--accent); }
+  .aba:focus-visible { outline: 2px solid var(--foco); outline-offset: -2px; }
+  .aba .cont {
+    display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: var(--r-xs);
+    background: var(--surface-2); color: var(--ink-soft); font-size: var(--t-xs); font-weight: 600;
+  }
+
+  /* ---------- ficha do cliente (aba "Sobre") ---------- */
+  .ficha { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: var(--esp-4); }
+  .ficha-item { min-width: 0; }
+  .ficha-rotulo { font-size: var(--t-xs); color: var(--ink-faint); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+  .ficha-valor { font-size: var(--t-md); margin-top: 2px; overflow-wrap: anywhere; }
+  .ficha-valor.mono { font-family: 'JetBrains Mono', monospace; font-size: var(--t-base); }
+  .ficha-valor.vazio { color: var(--ink-faint); font-style: italic; }
+
+  /* ---------- histórico de entregas ----------
+     Mesmo vocabulário do entregas.html: agrupado por competência, e cada
+     entrega com a pílula Entregue / Não entregue / Na rota. */
+  .grupo-comp { margin-bottom: var(--esp-4); }
+  .grupo-comp-topo {
+    display: flex; align-items: baseline; justify-content: space-between; gap: var(--esp-3);
+    padding-bottom: var(--esp-1); border-bottom: 1px solid var(--border);
+  }
+  .grupo-comp-mes { font-weight: 700; font-size: var(--t-base); }
+  .grupo-comp-resumo { font-size: var(--t-sm); color: var(--ink-faint); white-space: nowrap; }
+  .entrega-item {
+    display: flex; align-items: flex-start; justify-content: space-between; gap: var(--esp-3);
+    padding: var(--esp-3) 0; border-bottom: 1px solid var(--border);
+  }
+  .entrega-corpo { flex: 1; min-width: 0; }
+  .entrega-itens { font-weight: 500; overflow-wrap: anywhere; }
+  .entrega-meta { font-size: var(--t-sm); color: var(--ink-faint); margin-top: 2px; }
+  .entrega-valor { font-size: var(--t-sm); color: var(--ink-soft); margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .pilula {
+    flex: none; display: inline-flex; align-items: center; font-size: var(--t-xs); font-weight: 600;
+    padding: 3px 8px; border-radius: var(--r-xs); white-space: nowrap;
+  }
+  .pilula.entregue { background: var(--success-soft); color: var(--success-forte); }
+  .pilula.nao-entregue { background: var(--danger-soft); color: var(--danger-forte); }
+  .pilula.rota { background: var(--warning-soft); color: var(--warning-forte); }
 
   /* Cada tipo de documento é uma linha que diz o que é, se chegou, e — o
      ponto principal — DE ONDE veio a marcação. Sem isso não dá pra saber se
@@ -420,14 +478,29 @@
         </div>
       </div>
 
-      <div class="campo campo-email">
-        <label for="detEmailInput">E-mail de cobrança</label>
-        <input class="input" id="detEmailInput" type="email" placeholder="cliente@exemplo.com">
+      <div class="abas" role="tablist" aria-label="Informações do cliente">
+        <button type="button" class="aba" role="tab" id="abaDocs" data-painel="painelDocs" aria-selected="true">Documentos do mês</button>
+        <button type="button" class="aba" role="tab" id="abaEntregas" data-painel="painelEntregas" aria-selected="false">
+          Entregas<span class="cont" id="contEntregas" hidden></span>
+        </button>
+        <button type="button" class="aba" role="tab" id="abaSobre" data-painel="painelSobre" aria-selected="false">Sobre o cliente</button>
       </div>
 
-      <div>
-        <div class="secao-titulo">Documentos do mês</div>
+      <div id="painelDocs" role="tabpanel" aria-labelledby="abaDocs">
         <div class="doc-lista" id="detDocs"></div>
+      </div>
+
+      <div id="painelEntregas" role="tabpanel" aria-labelledby="abaEntregas" hidden>
+        <div class="aviso" id="entregasAviso">Carregando entregas...</div>
+        <div id="entregasLista"></div>
+      </div>
+
+      <div id="painelSobre" role="tabpanel" aria-labelledby="abaSobre" hidden>
+        <div class="campo campo-email">
+          <label for="detEmailInput">E-mail de cobrança</label>
+          <input class="input" id="detEmailInput" type="email" placeholder="cliente@exemplo.com">
+        </div>
+        <div class="ficha" id="detFicha"></div>
       </div>
     </div>
   </div>
@@ -509,6 +582,22 @@
     if (isNaN(d.getTime())) return '';
     return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') +
       ' às ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  }
+  // O histórico atravessa anos, então aqui o ano não pode ficar de fora.
+  function dataHora(iso) {
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return 'sem data';
+    return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') +
+      '/' + d.getFullYear() + ' às ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  }
+  function moeda(n) {
+    return Number(n || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  }
+  // "2026-03" -> "março de 2026"
+  function competenciaPorExtenso(comp) {
+    var partes = String(comp || '').split('-');
+    var mes = MESES[Number(partes[1]) - 1];
+    return mes ? mes + ' de ' + partes[0] : (comp || 'sem competência');
   }
 
   var DIACRITICS_RE = /[̀-ͯ]/g;
@@ -765,11 +854,39 @@
     }
   }
 
+  // ---------- abas do detalhe ----------
+  var ABAS = ['abaDocs', 'abaEntregas', 'abaSobre'];
+
+  function selecionarAba(idAba) {
+    ABAS.forEach(function (id) {
+      var aba = $(id);
+      var ativa = id === idAba;
+      aba.setAttribute('aria-selected', String(ativa));
+      aba.tabIndex = ativa ? 0 : -1;       // o grupo de abas é UMA parada de Tab
+      $(aba.dataset.painel).hidden = !ativa;
+    });
+    if (idAba === 'abaEntregas') carregarEntregas();
+  }
+
+  ABAS.forEach(function (id, i) {
+    $(id).addEventListener('click', function () { selecionarAba(id); });
+    // Setas andam entre abas — é o que o teclado espera de um grupo de abas.
+    $(id).addEventListener('keydown', function (ev) {
+      var passo = ev.key === 'ArrowRight' ? 1 : ev.key === 'ArrowLeft' ? -1 : 0;
+      if (!passo) return;
+      ev.preventDefault();
+      var proxima = ABAS[(i + passo + ABAS.length) % ABAS.length];
+      selecionarAba(proxima);
+      $(proxima).focus();
+    });
+  });
+
   // ---------- detalhe ----------
   function abrirDetalhe(clienteId) {
     clienteSelecionadoId = clienteId;
     $('viewLista').hidden = true;
     $('viewDetalhe').hidden = false;
+    selecionarAba('abaDocs');
     renderDetalhe();
     $('voltarBtn').focus();
   }
@@ -792,8 +909,12 @@
     return { icone: 'ph-hand-pointing', texto: t.join(' · '), arquivos: [] };
   }
 
+  function clienteAtualObj() {
+    return clientesCache.filter(function (c) { return c.id === clienteSelecionadoId; })[0];
+  }
+
   function renderDetalhe() {
-    var cliente = clientesCache.filter(function (c) { return c.id === clienteSelecionadoId; })[0];
+    var cliente = clienteAtualObj();
     if (!cliente) {
       clienteSelecionadoId = null;
       $('viewDetalhe').hidden = true;
@@ -818,6 +939,7 @@
     var emailInput = $('detEmailInput');
     if (document.activeElement !== emailInput) emailInput.value = cliente.email || '';
     emailInput.onchange = function () { salvarEmail(cliente, emailInput.value, emailInput); };
+    renderFicha(cliente);
 
     var status = statusDoCliente(cliente.id);
     var detalhes = status.detalhes || {};
@@ -879,6 +1001,191 @@
 
       item.appendChild(corpo);
       container.appendChild(item);
+    });
+  }
+
+  // ---------- aba "Sobre o cliente" ----------
+  function renderFicha(cliente) {
+    // `sempre` = campo de identidade: se estiver vazio isso É a informação
+    // (alguém precisa preencher). Os outros somem quando não têm valor, em vez
+    // de encher a ficha de "não informado".
+    var campos = [
+      { rotulo: 'Razão social', valor: cliente.nome, sempre: true },
+      { rotulo: 'Nome fantasia', valor: cliente.nomeFantasia },
+      { rotulo: 'CNPJ / CPF', valor: cliente.documento, mono: true, sempre: true },
+      { rotulo: 'Telefone', valor: cliente.telefone, sempre: true },
+      { rotulo: 'Enquadramento', valor: cliente.enquadramento },
+      { rotulo: 'Cidade', valor: cliente.cidade },
+      { rotulo: 'Bairro', valor: cliente.bairro },
+      { rotulo: 'Endereço', valor: cliente.endereco },
+      { rotulo: 'Ponto de referência', valor: cliente.pontoReferencia },
+      { rotulo: 'Zona', valor: cliente.zona },
+      { rotulo: 'Grupo local', valor: cliente.grupoLocal },
+      { rotulo: 'Forma do honorário', valor: cliente.honorarioForma },
+      { rotulo: 'Dia do honorário', valor: cliente.honorarioDia }
+    ];
+
+    var ficha = $('detFicha');
+    ficha.innerHTML = '';
+    campos.forEach(function (campo) {
+      var texto = campo.valor == null ? '' : String(campo.valor).trim();
+      if (!texto && !campo.sempre) return;
+
+      var item = document.createElement('div');
+      item.className = 'ficha-item';
+      var rotulo = document.createElement('div');
+      rotulo.className = 'ficha-rotulo';
+      rotulo.textContent = campo.rotulo;
+      var valor = document.createElement('div');
+      valor.className = 'ficha-valor' + (campo.mono ? ' mono' : '') + (texto ? '' : ' vazio');
+      valor.textContent = texto || 'não informado';
+      item.appendChild(rotulo);
+      item.appendChild(valor);
+      ficha.appendChild(item);
+    });
+  }
+
+  // ---------- aba "Entregas" ----------
+  var entregasCache = new Map();  // clienteId -> entregas já ordenadas
+  var entregasBuscando = null;
+
+  function carregarEntregas() {
+    var cliente = clienteAtualObj();
+    if (!cliente) return;
+    if (entregasCache.has(cliente.id)) { renderEntregas(cliente.id); return; }
+    if (entregasBuscando === cliente.id) return;
+
+    entregasBuscando = cliente.id;
+    $('entregasLista').innerHTML = '';
+    $('entregasAviso').hidden = false;
+    $('entregasAviso').textContent = 'Carregando entregas...';
+
+    // Sem orderBy de propósito: where + orderBy exigiria índice composto e o
+    // projeto não declara nenhum (firestore.indexes.json está vazio) — a
+    // consulta simplesmente falharia em produção. Ordena aqui, como o
+    // entregas.html faz na própria tela de histórico do cliente.
+    db.collection('entregas').where('clienteId', '==', cliente.id).limit(200).get()
+      .then(function (snap) {
+        var lista = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+        lista.sort(function (a, b) {
+          return new Date(b.confirmadoEm || b.criadoEm) - new Date(a.confirmadoEm || a.criadoEm);
+        });
+        entregasCache.set(cliente.id, lista);
+        entregasBuscando = null;
+        if (clienteSelecionadoId === cliente.id) renderEntregas(cliente.id);
+      })
+      .catch(function (err) {
+        entregasBuscando = null;
+        $('entregasAviso').hidden = false;
+        $('entregasAviso').textContent = 'Erro ao carregar entregas: ' + err.message;
+      });
+  }
+
+  function situacaoDaEntrega(entrega) {
+    if (entrega.status === 'confirmada') return { classe: 'entregue', texto: 'Entregue' };
+    if (entrega.status === 'falha') return { classe: 'nao-entregue', texto: 'Não entregue' };
+    return { classe: 'rota', texto: 'Na rota' };
+  }
+
+  function somaDosItens(entrega) {
+    return (entrega.itens || []).reduce(function (soma, item) { return soma + (Number(item.valor) || 0); }, 0);
+  }
+
+  function renderEntregas(clienteId) {
+    var lista = entregasCache.get(clienteId) || [];
+    var contador = $('contEntregas');
+    contador.hidden = lista.length === 0;
+    contador.textContent = lista.length;
+
+    var caixa = $('entregasLista');
+    caixa.innerHTML = '';
+    if (lista.length === 0) {
+      $('entregasAviso').hidden = false;
+      $('entregasAviso').textContent = 'Nenhuma entrega registrada para este cliente ainda.';
+      return;
+    }
+    $('entregasAviso').hidden = true;
+
+    // A lista já vem da mais recente pra mais antiga, então a ordem em que as
+    // competências aparecem aqui já é a ordem certa.
+    var ordem = [];
+    var porCompetencia = new Map();
+    lista.forEach(function (entrega) {
+      var comp = entrega.competencia || '';
+      if (!porCompetencia.has(comp)) { porCompetencia.set(comp, []); ordem.push(comp); }
+      porCompetencia.get(comp).push(entrega);
+    });
+
+    ordem.forEach(function (comp) {
+      var doGrupo = porCompetencia.get(comp);
+      // Só entrega confirmada entra no total do mês. Somar guia que voltou sem
+      // ser entregue faria o mês parecer pago sem ter sido — e quem lê isto é
+      // contador.
+      var total = doGrupo.reduce(function (soma, e) {
+        return soma + (e.status === 'confirmada' ? somaDosItens(e) : 0);
+      }, 0);
+
+      var grupo = document.createElement('div');
+      grupo.className = 'grupo-comp';
+
+      var topo = document.createElement('div');
+      topo.className = 'grupo-comp-topo';
+      var mes = document.createElement('span');
+      mes.className = 'grupo-comp-mes';
+      mes.textContent = competenciaPorExtenso(comp);
+      var resumo = document.createElement('span');
+      resumo.className = 'grupo-comp-resumo';
+      // "entregue R$ x" e não só "R$ x": o valor do mês conta só o confirmado,
+      // então sem essa palavra o cabeçalho parece brigar com a linha de baixo,
+      // que mostra o valor de uma entrega que ainda está na rota.
+      resumo.textContent = doGrupo.length + (doGrupo.length === 1 ? ' entrega' : ' entregas') +
+        (total > 0 ? ' · entregue ' + moeda(total) : '');
+      topo.appendChild(mes);
+      topo.appendChild(resumo);
+      grupo.appendChild(topo);
+
+      doGrupo.forEach(function (entrega) {
+        var item = document.createElement('div');
+        item.className = 'entrega-item';
+
+        var corpo = document.createElement('div');
+        corpo.className = 'entrega-corpo';
+
+        var itens = document.createElement('div');
+        itens.className = 'entrega-itens';
+        var nomes = (entrega.itens || []).map(function (i) { return i.tipo; }).filter(Boolean);
+        itens.textContent = nomes.length ? nomes.join(', ') : 'Sem itens registrados';
+        corpo.appendChild(itens);
+
+        var meta = document.createElement('div');
+        meta.className = 'entrega-meta';
+        var partes = [dataHora(entrega.confirmadoEm || entrega.criadoEm)];
+        if (entrega.recebedor) partes.push('Recebido por ' + entrega.recebedor);
+        var quem = entrega.entregadoPorNome || entrega.entregadoPor;
+        if (quem) partes.push('Entregue por ' + nomeDeUsuario(quem));
+        if (entrega.falha && entrega.motivoFalha) partes.push('Motivo: ' + entrega.motivoFalha);
+        meta.textContent = partes.join(' · ');
+        corpo.appendChild(meta);
+
+        var soma = somaDosItens(entrega);
+        if (soma > 0) {
+          var valor = document.createElement('div');
+          valor.className = 'entrega-valor';
+          valor.textContent = 'Valor ' + moeda(soma);
+          corpo.appendChild(valor);
+        }
+
+        var situacao = situacaoDaEntrega(entrega);
+        var pilula = document.createElement('span');
+        pilula.className = 'pilula ' + situacao.classe;
+        pilula.textContent = situacao.texto;
+
+        item.appendChild(corpo);
+        item.appendChild(pilula);
+        grupo.appendChild(item);
+      });
+
+      caixa.appendChild(grupo);
     });
   }
 
