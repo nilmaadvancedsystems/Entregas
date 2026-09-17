@@ -220,7 +220,7 @@
 
   /* ==========================================================================
      Indicador de documento — UM componente só, usado na lista (compacto, só a
-     inicial) e no detalhe (com nome e procedência). Verde cheio = recebido,
+     ícone) e no detalhe (com nome e procedência). Verde cheio = recebido,
      vazado = em falta. É status, por isso verde/vazado; o vermelho da paleta
      fica reservado pra "selecionado" (filtro), pra não virar a mesma cor
      significando duas coisas diferentes na mesma tela.
@@ -236,6 +236,7 @@
     transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease,
                 transform 140ms var(--ease-out);
   }
+  .doc-ind i { font-size: 16px; line-height: 1; }
   /* É o elemento mais clicado da tela inteira — sem resposta ao toque a pessoa
      fica sem saber se o clique pegou antes de o Firestore responder. Num
      quadrado de 30px, 0.97 não se vê; 0.9 sim. */
@@ -300,7 +301,8 @@
   @media (max-width: 560px) {
     .linha-cliente { flex-wrap: wrap; padding-top: var(--esp-2); padding-bottom: var(--esp-2); }
     .lc-info { flex-basis: 100%; }
-    .doc-ind { width: 44px; height: 44px; font-size: var(--t-base); }
+    .doc-ind { width: 44px; height: 44px; }
+    .doc-ind i { font-size: 20px; }
     .doc-inds { gap: var(--esp-2); }
     /* Com a linha quebrada em duas alturas, o ponto centralizado fica ao lado
        dos quadradinhos em vez de ao lado do nome que ele descreve. */
@@ -639,10 +641,12 @@
   var db = firebase.firestore();
   var $ = function (id) { return document.getElementById(id); };
 
+  // Três ícones de formas bem diferentes entre si: numa lista de 300 linhas
+  // eles são lidos pela silhueta, não pelo desenho.
   var TIPOS = [
-    { chave: 'extrato', label: 'Extrato Bancário', inicial: 'E' },
-    { chave: 'comprovante', label: 'Comprovante', inicial: 'C' },
-    { chave: 'aplicacao', label: 'Aplicação', inicial: 'A' }
+    { chave: 'extrato', label: 'Extrato Bancário', icone: 'ph-bank' },
+    { chave: 'comprovante', label: 'Comprovante', icone: 'ph-receipt' },
+    { chave: 'aplicacao', label: 'Aplicação', icone: 'ph-chart-line-up' }
   ];
   var MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
 
@@ -749,6 +753,13 @@
   // justamente no topo da lista, que é onde o olho bate primeiro.
   function chaveDeOrdem(cliente) {
     return String(cliente.nome || '').replace(/^\s*[\d.\/-]+\s*-?\s*/, '').trim() || String(cliente.nome || '');
+  }
+
+  function iconeDoTipo(tipo) {
+    var i = document.createElement('i');
+    i.className = 'ph ' + tipo.icone;
+    i.setAttribute('aria-hidden', 'true');   // o rótulo vem do aria-label do botão
+    return i;
   }
 
   function nomeDeUsuario(email) {
@@ -904,7 +915,7 @@
       var b = document.createElement('button');
       b.type = 'button';
       b.className = 'doc-ind';
-      b.textContent = tipo.inicial;
+      b.appendChild(iconeDoTipo(tipo));
       b.addEventListener('click', function () {
         alternarDoc(cliente, tipo, !b.classList.contains('recebido'));
       });
@@ -1188,8 +1199,9 @@
       var botao = document.createElement('button');
       botao.type = 'button';
       botao.className = 'doc-ind' + (marcado ? ' recebido' : '');
-      botao.textContent = tipo.inicial;
+      botao.appendChild(iconeDoTipo(tipo));
       botao.title = marcado ? 'Clique para desmarcar' : 'Clique para marcar como recebido';
+      botao.setAttribute('aria-label', tipo.label + ' — ' + (marcado ? 'recebido' : 'em falta'));
       botao.addEventListener('click', function () { alternarDoc(cliente, tipo, !marcado); });
       item.appendChild(botao);
 
