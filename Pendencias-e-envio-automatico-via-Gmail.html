@@ -2,8 +2,11 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#9A2B24">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<!-- A barra de status copia a cor do TOPO da página, não a cor da marca: com o
+     vinho aqui, o topo do celular não combinava com nada da tela. -->
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#FFFFFF">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#17191A">
 <meta name="description" content="Painel de cobrança de documentos por e-mail (extrato, comprovante, aplicação).">
 <title>Pendências e envio automático via Gmail — Nilma</title>
 <script>
@@ -42,7 +45,12 @@
     --foco: var(--accent);        /* 7,65:1 no claro */
     --r-xs: 4px; --r-sm: 6px; --r-md: 8px; --r-lg: 10px;
     --esp-1: 4px; --esp-2: 8px; --esp-3: 12px; --esp-4: 16px;
-    --t-xs: 11px; --t-sm: 12px; --t-base: 13px; --t-md: 15px;
+    /* Em rem, igual ao entregas.html — eu tinha convertido pra px na cópia, e
+       com px o texto para de crescer quando alguém aumenta a fonte do
+       navegador. Os valores são os mesmos: .6875rem = 11px, e assim por diante. */
+    --font-body: 'Inter', -apple-system, 'Segoe UI', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', SFMono-Regular, Consolas, monospace;
+    --t-xs: .6875rem; --t-sm: .75rem; --t-base: .8125rem; --t-md: .9375rem; --t-lg: 1rem; --t-xl: 1.25rem;
     --linha: 52px;
     --shadow: 0 10px 28px -14px rgba(10,10,16,.45), 0 2px 6px -3px rgba(10,10,16,.18);
     /* As curvas prontas do CSS (ease, ease-out) são fracas demais — não têm o
@@ -70,17 +78,28 @@
     --foco: #CF5248;             /* 4,16:1 */
     color-scheme: dark;
   }
-  @media (min-width: 900px) { :root { --linha: 44px; --t-md: 14px; } }
+  @media (min-width: 900px) { :root { --linha: 44px; --t-md: .875rem; } }
 
   /* Qualquer elemento com o atributo hidden fica escondido de verdade, mesmo
      que outra regra defina display nele (ex: .lista usa display:flex). */
   [hidden] { display: none !important; }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
+  html {
+    /* Sem isto, todo toque nos ~960 quadradinhos da lista pisca um retângulo
+       cinza do navegador por cima — é o sinal mais alto de "isto é um site". */
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;   /* o celular não infla a fonte na horizontal */
+    overscroll-behavior: none;        /* puxar pra baixo no topo não recarrega a tela */
+  }
   body {
     background: var(--bg); color: var(--ink);
-    font: var(--t-md)/1.5 'Inter', -apple-system, 'Segoe UI', system-ui, sans-serif;
+    font: var(--t-md)/1.5 var(--font-body);
     -webkit-font-smoothing: auto;
+  }
+  button, a, [role="button"] {
+    touch-action: manipulation;       /* tira a espera de 300ms do duplo-toque */
+    user-select: none; -webkit-user-select: none;  /* segurar o dedo não seleciona o "E" do botão */
   }
   .wrap { max-width: 880px; margin: 0 auto; padding: 20px 16px 64px; }
   body.embutido .wrap { padding-top: 8px; }
@@ -90,7 +109,9 @@
     display: flex; align-items: center; justify-content: space-between; gap: var(--esp-3);
     padding-bottom: var(--esp-3); margin-bottom: var(--esp-4); border-bottom: 1px solid var(--border);
   }
-  header.topo h1 { font-size: 19px; font-weight: 700; margin: 0; letter-spacing: -.01em; }
+  /* Peso 600 e tracking negativo, como os títulos do entregas.html — 700 com
+     tracking solto era coisa minha e destoava do app. */
+  header.topo h1 { font-size: var(--t-xl); font-weight: 600; margin: 0; letter-spacing: -.018em; text-wrap: balance; }
   header.topo .sub { color: var(--ink-faint); font-size: var(--t-sm); margin-top: 2px; }
 
   /* ---------- botões (mesma forma do entregas.html: --r-sm, sem pílula) ---------- */
@@ -111,8 +132,11 @@
   .input {
     width: 100%; height: 40px; padding: 0 var(--esp-3); border-radius: var(--r-sm);
     border: 1px solid var(--borda-interativa); background: var(--surface-2); color: var(--ink);
-    font: var(--t-md) inherit;
+    font: var(--t-md) var(--font-body);
   }
+  /* Abaixo de 16px o iOS dá zoom ao focar o campo — e não desfaz depois, a
+     pessoa fica com a tela cortada e torta. Desktop continua com 15px. */
+  @media (pointer: coarse) { .input { font-size: 16px; } }
   .input::placeholder { color: var(--ink-faint); opacity: 1; }
   .input:focus { outline: none; border-color: var(--foco); box-shadow: 0 0 0 3px var(--accent-soft); }
   .campo-email { max-width: 420px; margin: 0 0 var(--esp-4); }
@@ -133,7 +157,7 @@
     transition: background-color 140ms ease, color 140ms ease, transform 140ms var(--ease-out);
   }
   .mes-nav button:active { transform: scale(.9); }
-  .mes-label { font-weight: 700; font-size: var(--t-base); min-width: 116px; text-align: center; }
+  .mes-label { font-weight: 600; font-size: var(--t-base); min-width: 116px; text-align: center; letter-spacing: -.01em; }
   .btn-hoje {
     height: 30px; padding: 0 10px; border-radius: var(--r-sm); border: 1px solid var(--border);
     background: var(--surface); color: var(--ink-soft); font: 500 var(--t-sm)/1 inherit; cursor: pointer;
@@ -153,7 +177,7 @@
                 transform 140ms var(--ease-out);
   }
   .filtro:active { transform: scale(.97); }
-  .filtro .n { font-size: var(--t-md); font-weight: 700; letter-spacing: -.02em; }
+  .filtro .n { font-size: var(--t-md); font-weight: 600; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
   .filtro[aria-pressed="true"] {
     background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600;
   }
@@ -215,7 +239,7 @@
   }
   .lc-nome .txt { overflow: hidden; text-overflow: ellipsis; }
   .lc-sem-email { flex: none; color: var(--warning-forte); font-size: .9em; }
-  .lc-doc { font-size: var(--t-xs); color: var(--ink-faint); font-family: 'JetBrains Mono', monospace; }
+  .lc-doc { font-size: var(--t-xs); color: var(--ink-faint); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 
   /* No celular os indicadores caem numa linha só pra eles, e aí cabem os
      44px que um alvo de toque precisa ter — com 8px entre eles, senão marca
@@ -237,20 +261,15 @@
   .detalhe-topo { display: flex; align-items: center; gap: var(--esp-3); flex-wrap: wrap; }
   .detalhe-topo .mes-label { min-width: 0; }
   .detalhe-cabecalho { padding-bottom: var(--esp-3); border-bottom: 1px solid var(--border); }
-  .detalhe-nome { font-size: 18px; font-weight: 700; letter-spacing: -.01em; }
+  .detalhe-nome { font-size: var(--t-lg); font-weight: 600; letter-spacing: -.018em; text-wrap: balance; }
   .detalhe-razao { color: var(--ink-faint); font-size: var(--t-sm); margin-top: 2px; }
   .detalhe-meta { display: flex; flex-wrap: wrap; gap: var(--esp-3); margin-top: var(--esp-2); align-items: center; }
   .detalhe-meta span { display: inline-flex; align-items: center; gap: 5px; font-size: var(--t-sm); color: var(--ink-soft); }
   .detalhe-meta .ph { color: var(--ink-faint); font-size: .95em; }
-  .detalhe-meta .mono { font-family: 'JetBrains Mono', monospace; }
+  .detalhe-meta .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
   .badge-enquadramento {
     display: inline-flex; align-items: center; font-size: var(--t-xs); font-weight: 600;
     padding: 3px 8px; border-radius: var(--r-xs); background: var(--surface-2); color: var(--ink-soft);
-  }
-
-  .secao-titulo {
-    font-size: var(--t-xs); font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
-    color: var(--ink-faint); margin-bottom: var(--esp-2);
   }
 
   /* ---------- abas do detalhe ----------
@@ -280,9 +299,11 @@
   /* ---------- ficha do cliente (aba "Sobre") ---------- */
   .ficha { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: var(--esp-4); }
   .ficha-item { min-width: 0; }
-  .ficha-rotulo { font-size: var(--t-xs); color: var(--ink-faint); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
-  .ficha-valor { font-size: var(--t-md); margin-top: 2px; overflow-wrap: anywhere; }
-  .ficha-valor.mono { font-family: 'JetBrains Mono', monospace; font-size: var(--t-base); }
+  /* Caixa baixa. Rótulo em versalete tracejado acima de cada valor é enfeite
+     de template — o app-mãe quase não usa caixa alta em lugar nenhum. */
+  .ficha-rotulo { font-size: var(--t-sm); color: var(--ink-faint); }
+  .ficha-valor { font-size: var(--t-md); margin-top: 1px; overflow-wrap: anywhere; }
+  .ficha-valor.mono { font-family: var(--font-mono); font-size: var(--t-base); font-variant-numeric: tabular-nums; }
   .ficha-valor.vazio { color: var(--ink-faint); font-style: italic; }
 
   /* ---------- histórico de entregas ----------
@@ -293,7 +314,7 @@
     display: flex; align-items: baseline; justify-content: space-between; gap: var(--esp-3);
     padding-bottom: var(--esp-1); border-bottom: 1px solid var(--border);
   }
-  .grupo-comp-mes { font-weight: 700; font-size: var(--t-base); }
+  .grupo-comp-mes { font-weight: 600; font-size: var(--t-base); letter-spacing: -.01em; }
   .grupo-comp-resumo { font-size: var(--t-sm); color: var(--ink-faint); white-space: nowrap; }
   .entrega-item {
     display: flex; align-items: flex-start; justify-content: space-between; gap: var(--esp-3);
@@ -332,11 +353,11 @@
     margin: var(--esp-2) 0 0; padding: 0; list-style: none;
     display: flex; flex-direction: column; gap: 2px;
   }
+  .doc-arquivos { padding-left: var(--esp-3); }
   .doc-arquivos li {
-    font-size: var(--t-xs); color: var(--ink-soft); font-family: 'JetBrains Mono', monospace;
+    font-size: var(--t-xs); color: var(--ink-soft); font-family: var(--font-mono);
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-  .doc-arquivos li::before { content: "↳ "; color: var(--ink-faint); }
 
   /* Entra subindo de onde ele mora (rodapé) em vez de brotar parado no meio
      do nada — o movimento diz de onde a mensagem veio. */
@@ -353,7 +374,7 @@
     justify-content: center; z-index: 50; padding: 20px;
   }
   #authGate form { width: 100%; max-width: 340px; }
-  #authGate h1 { font-size: 18px; text-align: center; margin-bottom: 20px; }
+  #authGate h1 { font-size: var(--t-lg); font-weight: 600; letter-spacing: -.018em; text-align: center; margin-bottom: 20px; }
   .auth-erro { color: var(--danger-forte); font-size: var(--t-base); margin: 8px 0; }
   #negado { text-align: center; padding: 60px 20px; color: var(--ink-soft); }
 
@@ -429,7 +450,7 @@
     <header class="topo">
       <div>
         <h1>Cobrança de Documentos</h1>
-        <div class="sub">Extrato · Comprovante · Aplicação — marque direto na lista o que já chegou</div>
+        <div class="sub">Marque na lista o que cada cliente já enviou no mês.</div>
       </div>
       <button class="btn btn-secondary" id="logoutBtn"><i class="ph ph-sign-out"></i> Sair</button>
     </header>
@@ -487,6 +508,7 @@
       </div>
 
       <div id="painelDocs" role="tabpanel" aria-labelledby="abaDocs">
+        <!-- Sem título de seção: a aba acima já se chama "Documentos do mês". -->
         <div class="doc-lista" id="detDocs"></div>
       </div>
 
@@ -618,7 +640,11 @@
   // Login é usuario@nilma.local, não e-mail de verdade — mostrar o domínio
   // interno na procedência só polui.
   function nomeDeUsuario(email) {
-    return String(email || '').split('@')[0] || 'alguém';
+    var nome = String(email || '').split('@')[0];
+    if (!nome) return '';
+    // Vira nome próprio: sem isto o login "nilma" aparece em minúscula ao lado
+    // de "João Pereira", que veio preenchido à mão.
+    return nome.charAt(0).toUpperCase() + nome.slice(1);
   }
 
   // ---------- navegação de mês ----------
@@ -896,17 +922,19 @@
     $('viewLista').hidden = false;
   });
 
+  // Frase inteira, não pedaços colados com ponto médio: "A · B · C" é enfeite
+  // de template e aqui a informação cabe numa linha que se lê.
   function descreverOrigem(info) {
     if (!info || !info.origem) return null;
+    var quando = info.em ? ' em ' + dataCurta(info.em) : '';
     if (info.origem === 'gmail') {
-      var partes = ['Automático — lido do Gmail'];
-      if (info.em) partes.push(dataCurta(info.em));
-      return { icone: 'ph-robot', texto: partes.join(' · '), arquivos: info.arquivos || [] };
+      return { icone: 'ph-robot', texto: 'Lido do Gmail' + quando, arquivos: info.arquivos || [] };
     }
-    var t = ['Marcado à mão'];
-    if (info.por) t.push('por ' + info.por);
-    if (info.em) t.push(dataCurta(info.em));
-    return { icone: 'ph-hand-pointing', texto: t.join(' · '), arquivos: [] };
+    return {
+      icone: 'ph-hand-pointing',
+      texto: 'Marcado' + (info.por ? ' por ' + info.por : ' à mão') + quando,
+      arquivos: []
+    };
   }
 
   function clienteAtualObj() {
@@ -929,7 +957,7 @@
     $('detDoc').textContent = cliente.documento || '(sem CNPJ/CPF)';
     $('detTelWrap').hidden = !cliente.telefone;
     $('detTel').textContent = cliente.telefone || '';
-    var localCidade = [cliente.bairro, cliente.cidade].filter(Boolean).join(' — ') || cliente.endereco || '';
+    var localCidade = [cliente.bairro, cliente.cidade].filter(Boolean).join(', ') || cliente.endereco || '';
     $('detCidadeWrap').hidden = !localCidade;
     $('detCidade').textContent = localCidade;
     $('detEnquadramento').hidden = !cliente.enquadramento;
@@ -1087,6 +1115,22 @@
     return { classe: 'rota', texto: 'Na rota' };
   }
 
+  // Uma frase por entrega, escrita como alguém contaria o que aconteceu. A
+  // pílula ao lado já diz a situação, então o texto não repete "Entregue" nem
+  // "Não entregue" — completa o que a pílula não cabe dizer.
+  function descreverEntrega(entrega) {
+    var quem = nomeDeUsuario(entrega.entregadoPorNome || entrega.entregadoPor) || 'alguém';
+    var quando = dataHora(entrega.confirmadoEm || entrega.criadoEm);
+    if (entrega.status === 'confirmada') {
+      return 'Entregue por ' + quem + (entrega.recebedor ? ' a ' + entrega.recebedor : '') + ', ' + quando;
+    }
+    if (entrega.status === 'falha') {
+      return 'Tentativa de ' + quem + ', ' + quando +
+        (entrega.motivoFalha ? '. Motivo: ' + entrega.motivoFalha : '');
+    }
+    return 'Saiu com ' + quem + ', ' + quando;
+  }
+
   function somaDosItens(entrega) {
     return (entrega.itens || []).reduce(function (soma, item) { return soma + (Number(item.valor) || 0); }, 0);
   }
@@ -1135,11 +1179,11 @@
       mes.textContent = competenciaPorExtenso(comp);
       var resumo = document.createElement('span');
       resumo.className = 'grupo-comp-resumo';
-      // "entregue R$ x" e não só "R$ x": o valor do mês conta só o confirmado,
-      // então sem essa palavra o cabeçalho parece brigar com a linha de baixo,
-      // que mostra o valor de uma entrega que ainda está na rota.
+      // "entregues" e não só o valor: o total conta só o confirmado, então sem
+      // essa palavra o cabeçalho parece brigar com a linha de baixo, que mostra
+      // o valor de uma entrega que ainda está na rota.
       resumo.textContent = doGrupo.length + (doGrupo.length === 1 ? ' entrega' : ' entregas') +
-        (total > 0 ? ' · entregue ' + moeda(total) : '');
+        (total > 0 ? ', ' + moeda(total) + ' entregues' : '');
       topo.appendChild(mes);
       topo.appendChild(resumo);
       grupo.appendChild(topo);
@@ -1159,12 +1203,7 @@
 
         var meta = document.createElement('div');
         meta.className = 'entrega-meta';
-        var partes = [dataHora(entrega.confirmadoEm || entrega.criadoEm)];
-        if (entrega.recebedor) partes.push('Recebido por ' + entrega.recebedor);
-        var quem = entrega.entregadoPorNome || entrega.entregadoPor;
-        if (quem) partes.push('Entregue por ' + nomeDeUsuario(quem));
-        if (entrega.falha && entrega.motivoFalha) partes.push('Motivo: ' + entrega.motivoFalha);
-        meta.textContent = partes.join(' · ');
+        meta.textContent = descreverEntrega(entrega);
         corpo.appendChild(meta);
 
         var soma = somaDosItens(entrega);
