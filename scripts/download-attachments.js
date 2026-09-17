@@ -13,11 +13,33 @@ const { getDb } = require('./firestore-client');
 const PASTA_DESTINO = 'G:\\Meu Drive\\Claudio Secretario';
 const PROCESSADOS_PATH = __dirname + '/gmail-processados.json';
 
+// Cada cliente/escritório chama o mesmo documento de um jeito diferente —
+// "comprovante" quase nunca aparece escrito assim; na prática vem como
+// "título(s) pago(s)", "título(s) liquidado(s)", "boleto(s) pago(s)" etc.
 const PALAVRAS = {
   extrato: ['extrato'],
-  comprovante: ['comprovante'],
+  comprovante: [
+    'comprovante', 'titulo pago', 'título pago', 'titulos pagos', 'títulos pagos',
+    'titulo liquidado', 'título liquidado', 'titulos liquidados', 'títulos liquidados',
+    'boleto pago', 'boletos pagos', 'boleto liquidado', 'boletos liquidados',
+  ],
   aplicacao: ['aplicaç', 'aplicac', 'investiment'],
 };
+
+const MESES_ABREV = { jan: 1, fev: 2, mar: 3, abr: 4, mai: 5, jun: 6, jul: 7, ago: 8, set: 9, out: 10, nov: 11, dez: 12 };
+
+// Tenta achar "AGO2026", "AGO/2026", "AGOSTO 2026" etc. no texto (assunto +
+// nomes dos anexos) — é a competência A QUE O DOCUMENTO SE REFERE, que quase
+// sempre é diferente do mês em que o e-mail chegou (o escritório manda em
+// setembro os documentos fechados de agosto).
+function competenciaDoTexto(texto) {
+  const baixo = (texto || '').toLowerCase();
+  const m = baixo.match(/\b(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)[a-zç]*[\/\-. ]?(\d{4})\b/);
+  if (!m) return null;
+  const mes = MESES_ABREV[m[1]];
+  if (!mes) return null;
+  return m[2] + '-' + String(mes).padStart(2, '0');
+}
 
 function carregarProcessados() {
   try { return new Set(JSON.parse(fs.readFileSync(PROCESSADOS_PATH, 'utf8'))); }
@@ -41,10 +63,16 @@ function detectarTipos(texto) {
   return tipos;
 }
 
-// Percorre a árvore de partes da mensagem coletando anexos reais (com filename).
+// Percorre a árvore de partes da mensagem coletando anexos reais (com
+// filename). Ignora partes "inline" (Content-Disposition: inline) — é
+// assim que logo/imagem de assinatura de e-mail chega, não é documento.
+function ehInline(part) {
+  const disp = (part.headers || []).find(h => h.name.toLowerCase() === 'content-disposition');
+  return !!(disp && disp.value.toLowerCase().startsWith('inline'));
+}
 function coletarAnexos(part, acc) {
   if (!part) return acc;
-  if (part.filename && part.body && part.body.attachmentId) {
+  if (part.filename && part.body && part.body.attachmentId && !ehInline(part)) {
     acc.push({ filename: part.filename, attachmentId: part.body.attachmentId, mimeType: part.mimeType });
   }
   (part.parts || []).forEach(p => coletarAnexos(p, acc));
@@ -94,11 +122,14 @@ async function main() {
     const cliente = clientesPorEmail.get(remetente);
     if (!cliente) { processados.add(id); continue; } // não é cliente cadastrado
 
-    const tipos = detectarTipos(subjectHeader + ' ' + (msg.data.snippet || ''));
     const anexos = coletarAnexos(msg.data.payload, []);
     if (anexos.length === 0) { processados.add(id); continue; }
 
-    const competencia = competenciaDaData(msg.data.internalDate);
+    const textoCompleto = subjectHeader + ' ' + (msg.data.snippet || '') + ' ' + anexos.map(a => a.filename).join(' ');
+    const tipos = detectarTipos(textoCompleto);
+    // Prioridade: mês citado no assunto/nome do arquivo (ex: "AGO2026") —
+    // é o mês a que o documento se refere. Sem isso, cai no mês do e-mail.
+    const competencia = competenciaDoTexto(textoCompleto) || competenciaDaData(msg.data.internalDate);
     const nomeCliente = sanitizar(cliente.nome);
     const pastaCliente = path.join(PASTA_DESTINO, competencia, nomeCliente);
     fs.mkdirSync(pastaCliente, { recursive: true });
