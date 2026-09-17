@@ -316,12 +316,13 @@ service cloud.firestore {
       allow delete: if logado();
     }
 
-    // ---------- Importador LCDPR (sem login — link aberto do GitHub Pages) ----------
-    // Publicada direto pela API por outra sessão enquanto o Importador LCDPR
-    // era construído; entrando aqui agora só pra o arquivo do repositório não
-    // ficar dessincronizado do que já está valendo em produção.
-    match /lcdpr/{doc} {
-      allow read, write: if true;
+    // ---------- Importador LCDPR ----------
+    // lcdpr.html passou a checar login e cargo (admin/fiscal) sozinho —
+    // essa regra só estava desatualizada porque tinha sido publicada direto
+    // pela API antes disso existir, e nunca foi sincronizada de volta pro
+    // repositório depois que o app ganhou o próprio portão de acesso.
+    match /lcdpr/config {
+      allow read, write: if logado() && (ehAdmin() || temPapel('fiscal'));
     }
 
     // ---------- conciliações (Contábil: conciliador.html, cheque-especial.html) ----------
