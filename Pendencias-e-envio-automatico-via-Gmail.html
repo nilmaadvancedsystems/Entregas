@@ -78,7 +78,7 @@
     --foco: #CF5248;             /* 4,16:1 */
     color-scheme: dark;
   }
-  @media (min-width: 900px) { :root { --linha: 44px; --t-md: .875rem; } }
+  @media (min-width: 900px) { :root { --linha: 40px; --t-md: .875rem; } }
 
   /* Qualquer elemento com o atributo hidden fica escondido de verdade, mesmo
      que outra regra defina display nele (ex: .lista usa display:flex). */
@@ -101,9 +101,45 @@
     touch-action: manipulation;       /* tira a espera de 300ms do duplo-toque */
     user-select: none; -webkit-user-select: none;  /* segurar o dedo não seleciona o "E" do botão */
   }
-  .wrap { max-width: 880px; margin: 0 auto; padding: 20px 16px 64px; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 20px 16px 64px; }
   body.embutido .wrap { padding-top: 8px; }
   body.embutido .topo { display: none; }
+
+  /* ==========================================================================
+     Modo PC: lista à esquerda, detalhe à direita, cada um rolando sozinho.
+     1000px e não 1200px porque dentro do <iframe> a media query mede a largura
+     do iframe (~1070px no app-mãe) — assim o embutido também entra no modo de
+     duas colunas, e fica abaixo do 1200px do app-mãe pra os dois não ligarem a
+     segunda coluna no mesmo instante.
+     ========================================================================== */
+  @media (min-width: 1000px) {
+    /* A cadeia tem que ser contínua: basta um elo sem altura (o #app) pra o
+       grid encolher até o tamanho do conteúdo e a página inteira voltar a
+       rolar junto. */
+    html, body, #app { height: 100%; }
+    .wrap {
+      max-width: 1400px; height: 100%; padding-bottom: 0;
+      display: flex; flex-direction: column;
+    }
+    /* min-height:0 é o que deixa o filho encolher e rolar dentro do flex —
+       sem isso as colunas esticam e quem rola é a página inteira. */
+    #split {
+      flex: 1; min-height: 0;
+      display: grid; grid-template-columns: minmax(0, 1fr) minmax(360px, 420px);
+      gap: var(--esp-4);
+    }
+    #viewLista, #viewDetalhe {
+      overflow-y: auto; min-height: 0; overscroll-behavior: contain;
+      padding-bottom: var(--esp-4);
+    }
+    #viewDetalhe { border-left: 1px solid var(--border); padding-left: var(--esp-4); }
+    /* A busca e os filtros ficam parados enquanto os 300 nomes rolam embaixo. */
+    #viewLista .barra, #viewLista .filtros {
+      position: sticky; top: 0; z-index: 2; background: var(--bg);
+    }
+    #viewLista .barra { padding-top: 2px; }
+    #viewLista .filtros { top: 44px; margin-top: 0; padding-bottom: var(--esp-2); }
+  }
 
   header.topo {
     display: flex; align-items: center; justify-content: space-between; gap: var(--esp-3);
@@ -218,16 +254,17 @@
   .lista { border-top: 1px solid var(--border); }
   .linha-cliente {
     display: flex; align-items: center; gap: var(--esp-3);
-    min-height: var(--linha); padding: var(--esp-1) 0 var(--esp-1) 14px;
+    min-height: var(--linha); padding: var(--esp-1) var(--esp-2) var(--esp-1) var(--esp-3);
     border-bottom: 1px solid var(--border); position: relative;
     transition: background-color 120ms ease;
   }
-  .linha-cliente::before {
-    content: ""; position: absolute; left: 0; top: 50%; margin-top: -3px;
-    width: 6px; height: 6px; border-radius: 50%; background: var(--linha-cor, var(--border-forte));
+  /* A borda esquerda é da SELEÇÃO, não do status: com os três quadradinhos
+     E/C/A na mesma linha, um ponto colorido só repetiria o que eles já dizem. */
+  .linha-cliente.lc-selecionada { background: var(--accent-soft); }
+  .linha-cliente.lc-selecionada::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+    width: 3px; background: var(--accent);
   }
-  .linha-cliente.lc-pendente { --linha-cor: var(--warning); }
-  .linha-cliente.lc-completo { --linha-cor: var(--success); }
 
   .lc-info {
     flex: 1 1 auto; min-width: 0; cursor: pointer; background: none; border: none;
@@ -238,8 +275,24 @@
     display: flex; align-items: center; gap: 6px;
   }
   .lc-nome .txt { overflow: hidden; text-overflow: ellipsis; }
+  .lc-codigo {
+    flex: none; color: var(--ink-faint); font-weight: 400;
+    font-variant-numeric: tabular-nums; font-size: var(--t-sm);
+  }
   .lc-sem-email { flex: none; color: var(--warning-forte); font-size: .9em; }
-  .lc-doc { font-size: var(--t-xs); color: var(--ink-faint); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  .lc-sub {
+    font-size: var(--t-sm); color: var(--ink-faint);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  /* No PC a linha tem UMA altura só: nome e cidade na mesma base, como as
+     linhas de cliente do entregas.html fazem a partir de 1024px. É isso que
+     preenche o vão entre o nome e os quadradinhos com informação de verdade. */
+  @media (min-width: 1000px) {
+    .lc-info { display: flex; align-items: baseline; gap: var(--esp-3); }
+    .lc-nome { flex: 1 1 auto; min-width: 0; }
+    .lc-sub { flex: 0 1 auto; max-width: 42%; }
+  }
 
   /* No celular os indicadores caem numa linha só pra eles, e aí cabem os
      44px que um alvo de toque precisa ter — com 8px entre eles, senão marca
@@ -257,7 +310,20 @@
   /* ==========================================================================
      Detalhe do cliente
      ========================================================================== */
-  #viewDetalhe { display: flex; flex-direction: column; gap: var(--esp-4); }
+  #detalheConteudo { display: flex; flex-direction: column; gap: var(--esp-4); }
+  .detalhe-vazio {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: var(--esp-2); text-align: center; color: var(--ink-faint);
+    font-size: var(--t-base); padding: 64px var(--esp-4); line-height: 1.5;
+  }
+  .detalhe-vazio i { font-size: 28px; }
+  .detalhe-vazio p { margin: 0; max-width: 24ch; }
+  /* Filtrar a lista não desmarca o cliente aberto — mas some com ele da
+     esquerda, e sem aviso parece que a tela travou num cliente que "não existe". */
+  .fora-do-filtro {
+    margin: 0; padding: var(--esp-2) var(--esp-3); border-radius: var(--r-sm);
+    background: var(--warning-soft); color: var(--warning-forte); font-size: var(--t-sm);
+  }
   .detalhe-topo { display: flex; align-items: center; gap: var(--esp-3); flex-wrap: wrap; }
   .detalhe-topo .mes-label { min-width: 0; }
   .detalhe-cabecalho { padding-bottom: var(--esp-3); border-bottom: 1px solid var(--border); }
@@ -455,6 +521,9 @@
       <button class="btn btn-secondary" id="logoutBtn"><i class="ph ph-sign-out"></i> Sair</button>
     </header>
 
+    <!-- As duas colunas do modo PC. Fora do .wrap direto porque o .wrap também
+         carrega o cabeçalho, que só existe no acesso direto ao arquivo. -->
+    <div id="split">
     <div id="viewLista">
       <div class="barra">
         <div class="mes-nav">
@@ -483,10 +552,18 @@
     </div>
 
     <div id="viewDetalhe" hidden>
+      <div id="detalheVazio" class="detalhe-vazio">
+        <i class="ph ph-cursor-click" aria-hidden="true"></i>
+        <p>Selecione um cliente na lista para ver os documentos do mês.</p>
+      </div>
+
+      <div id="detalheConteudo" hidden>
       <div class="detalhe-topo">
         <button type="button" class="btn btn-secondary" id="voltarBtn"><i class="ph ph-arrow-left"></i> Voltar</button>
         <span class="mes-label" id="detMesLabel"></span>
       </div>
+
+      <p class="fora-do-filtro" id="foraDoFiltro" hidden>Este cliente está fora do filtro atual da lista.</p>
 
       <div class="detalhe-cabecalho">
         <div class="detalhe-nome" id="detNome"></div>
@@ -524,6 +601,8 @@
         </div>
         <div class="ficha" id="detFicha"></div>
       </div>
+      </div>
+    </div>
     </div>
   </div>
 </div>
@@ -578,6 +657,8 @@
   var filtroStatus = 'todos';
   var clienteSelecionadoId = null;
   var clientesCarregados = false;
+  var idsVisiveis = [];          // ordem atual da lista, pras setas do teclado
+  var modoEstreito = 'lista';    // só vale quando NÃO está em duas colunas
 
   function toast(msg) {
     var el = $('toast');
@@ -639,6 +720,37 @@
   }
   // Login é usuario@nilma.local, não e-mail de verdade — mostrar o domínio
   // interno na procedência só polui.
+  // Mesmo rótulo do entregas.html, pra as duas telas chamarem o cliente pelo
+  // mesmo nome. Conferido na base: nenhum `nome` já começa pelo codigoOrigem,
+  // então isto não duplica o código.
+  function clienteLabel(cliente) {
+    return (cliente.codigoOrigem ? cliente.codigoOrigem + ' - ' : '') + (cliente.nome || '(sem nome)');
+  }
+
+  // Na lista o código fica em cinza e o nome em preto: 299 linhas começando com
+  // dígitos fazem o olho tropeçar antes de chegar no nome, que é o que se
+  // procura. A informação continua toda lá, só deixa de competir.
+  function preencherNomeDaLinha(linha, cliente) {
+    linha.codigo.textContent = cliente.codigoOrigem ? cliente.codigoOrigem : '';
+    linha.codigo.hidden = !cliente.codigoOrigem;
+    linha.nomeTxt.textContent = cliente.nome || '(sem nome)';
+  }
+
+  // Texto secundário da linha: o que diferencia um cliente do outro numa lista
+  // de 300 nomes parecidos.
+  function subDoCliente(cliente) {
+    var fantasia = (cliente.nomeFantasia || '').trim();
+    if (fantasia && fantasia !== (cliente.nome || '').trim()) return fantasia;
+    return (cliente.cidade || '').trim();
+  }
+
+  // Ordena pelo nome da empresa, ignorando um código digitado na frente
+  // ("207 - BMJ" entra no B, não no 2). São 4 casos na base, mas caem
+  // justamente no topo da lista, que é onde o olho bate primeiro.
+  function chaveDeOrdem(cliente) {
+    return String(cliente.nome || '').replace(/^\s*[\d.\/-]+\s*-?\s*/, '').trim() || String(cliente.nome || '');
+  }
+
   function nomeDeUsuario(email) {
     var nome = String(email || '').split('@')[0];
     if (!nome) return '';
@@ -683,7 +795,9 @@
     unsubClientes = db.collection('clientes').where('ativo', '==', true)
       .onSnapshot(function (snap) {
         clientesCache = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
-        clientesCache.sort(function (a, b) { return (a.nome || '').localeCompare(b.nome || '', 'pt-BR'); });
+        clientesCache.sort(function (a, b) {
+          return chaveDeOrdem(a).localeCompare(chaveDeOrdem(b), 'pt-BR');
+        });
         clientesCarregados = true;
         reconstruirLista();
         if (clienteSelecionadoId) renderDetalhe();
@@ -762,21 +876,24 @@
     var info = document.createElement('button');
     info.type = 'button';
     info.className = 'lc-info';
+    info.id = 'lc-' + cliente.id;
     var nome = document.createElement('div');
     nome.className = 'lc-nome';
+    var codigo = document.createElement('span');
+    codigo.className = 'lc-codigo';
     var nomeTxt = document.createElement('span');
     nomeTxt.className = 'txt';
-    nomeTxt.textContent = cliente.nome || '(sem nome)';
     var semEmail = document.createElement('i');
     semEmail.className = 'ph ph-warning-circle lc-sem-email';
     semEmail.title = 'Sem e-mail cadastrado';
+    nome.appendChild(codigo);
     nome.appendChild(nomeTxt);
     nome.appendChild(semEmail);
-    var doc = document.createElement('div');
-    doc.className = 'lc-doc';
-    doc.textContent = cliente.documento || '';
+    var sub = document.createElement('div');
+    sub.className = 'lc-sub';
+    sub.textContent = subDoCliente(cliente);
     info.appendChild(nome);
-    info.appendChild(doc);
+    info.appendChild(sub);
     info.addEventListener('click', function () { abrirDetalhe(cliente.id); });
     row.appendChild(info);
 
@@ -796,7 +913,9 @@
     });
     row.appendChild(inds);
 
-    linhas.set(cliente.id, { row: row, nomeTxt: nomeTxt, semEmail: semEmail, inds: indPorTipo });
+    var registro = { row: row, info: info, codigo: codigo, nomeTxt: nomeTxt, sub: sub, semEmail: semEmail, inds: indPorTipo };
+    linhas.set(cliente.id, registro);
+    preencherNomeDaLinha(registro, cliente);
     return row;
   }
 
@@ -808,6 +927,7 @@
     clientesCache.forEach(function (cliente) { frag.appendChild(criarLinha(cliente)); });
     container.appendChild(frag);
     atualizarTodosStatus();
+    marcarSelecao();
   }
 
   function atualizarTodosStatus() {
@@ -815,33 +935,36 @@
       var linha = linhas.get(cliente.id);
       if (!linha) return;
       var status = statusDoCliente(cliente.id);
-      var ok = 0;
       TIPOS.forEach(function (tipo) {
         var marcado = !!status[tipo.chave];
-        if (marcado) ok++;
         var b = linha.inds[tipo.chave];
         b.classList.toggle('recebido', marcado);
         b.title = tipo.label + (marcado ? ' — recebido (clique para desmarcar)' : ' — em falta (clique para marcar)');
         b.setAttribute('aria-label', b.title);
       });
-      var completo = ok === TIPOS.length;
-      linha.row.classList.toggle('lc-completo', completo);
-      linha.row.classList.toggle('lc-pendente', !completo);
       linha.semEmail.hidden = !!cliente.email;
-      linha.nomeTxt.textContent = cliente.nome || '(sem nome)';
+      preencherNomeDaLinha(linha, cliente);
+      linha.sub.textContent = subDoCliente(cliente);
     });
     aplicarFiltros();
   }
 
+  // Mesma regra de busca do entregas.html: nome, código de origem e CNPJ/CPF
+  // com ou sem pontuação — hoje digitar "12345678" não achava nada, porque só
+  // comparava com o documento formatado.
   function combinaBusca(cliente) {
     if (!termoBusca) return true;
-    return normalizarBusca(cliente.nome).indexOf(termoBusca) !== -1 ||
-      normalizarBusca(cliente.nomeFantasia).indexOf(termoBusca) !== -1 ||
-      normalizarBusca(cliente.documento).indexOf(termoBusca) !== -1;
+    if (normalizarBusca(cliente.nome).indexOf(termoBusca) !== -1) return true;
+    if (normalizarBusca(cliente.nomeFantasia).indexOf(termoBusca) !== -1) return true;
+    if (normalizarBusca(cliente.codigoOrigem).indexOf(termoBusca) !== -1) return true;
+    var soDigitos = termoBusca.replace(/\D/g, '');
+    return soDigitos.length >= 3 &&
+      String(cliente.documento || '').replace(/\D/g, '').indexOf(soDigitos) !== -1;
   }
 
   function aplicarFiltros() {
-    var totalPendentes = 0, visiveis = 0;
+    var totalPendentes = 0;
+    idsVisiveis = [];
 
     clientesCache.forEach(function (cliente) {
       var linha = linhas.get(cliente.id);
@@ -854,8 +977,15 @@
         (filtroStatus === 'completos' && completo);
       var mostrar = passaStatus && combinaBusca(cliente);
       linha.row.hidden = !mostrar;
-      if (mostrar) visiveis++;
+      if (mostrar) idsVisiveis.push(cliente.id);
     });
+    var visiveis = idsVisiveis.length;
+
+    // Esconder da lista não é desmarcar: o painel da direita continua no
+    // cliente aberto, mas avisa que ele saiu do filtro — senão parece que a
+    // tela travou num cliente que "não existe mais".
+    $('foraDoFiltro').hidden = !clienteSelecionadoId ||
+      idsVisiveis.indexOf(clienteSelecionadoId) !== -1;
 
     // Os contadores descrevem o MÊS, não o resultado da busca — se mudassem a
     // cada letra digitada deixariam de ser o retrato do mês.
@@ -878,6 +1008,36 @@
     } else {
       aviso.hidden = true;
     }
+  }
+
+  // ==========================================================================
+  // Quem aparece na tela: UMA função decide, e ela decide escrevendo `hidden`.
+  // Nenhuma regra de CSS tenta esconder view nenhuma — essa colisão entre
+  // `hidden` e `display` já quebrou esta tela duas vezes. No modo de duas
+  // colunas os dois lados ficam sempre visíveis; no estreito, um de cada vez.
+  // ==========================================================================
+  var mqSplit = window.matchMedia('(min-width: 1000px)');
+  function ehSplit() { return mqSplit.matches; }
+
+  function aplicarLayout() {
+    var split = ehSplit();
+    $('viewLista').hidden = !split && modoEstreito !== 'lista';
+    $('viewDetalhe').hidden = !split && modoEstreito !== 'detalhe';
+    $('voltarBtn').hidden = split;              // no split não há pra onde voltar
+    $('detalheVazio').hidden = !!clienteSelecionadoId;
+    $('detalheConteudo').hidden = !clienteSelecionadoId;
+  }
+
+  if (mqSplit.addEventListener) mqSplit.addEventListener('change', aplicarLayout);
+  else mqSplit.addListener(aplicarLayout);     // Safari antigo
+
+  function marcarSelecao() {
+    linhas.forEach(function (linha, id) {
+      var ativo = id === clienteSelecionadoId;
+      linha.row.classList.toggle('lc-selecionada', ativo);
+      if (ativo) linha.info.setAttribute('aria-current', 'true');
+      else linha.info.removeAttribute('aria-current');
+    });
   }
 
   // ---------- abas do detalhe ----------
@@ -909,17 +1069,59 @@
 
   // ---------- detalhe ----------
   function abrirDetalhe(clienteId) {
+    var mudouCliente = clienteId !== clienteSelecionadoId;
     clienteSelecionadoId = clienteId;
-    $('viewLista').hidden = true;
-    $('viewDetalhe').hidden = false;
-    selecionarAba('abaDocs');
+    modoEstreito = 'detalhe';
+
+    // Trocar de cliente sem sair da tela é novo: sem zerar isto, as entregas
+    // do cliente anterior ficariam na aba até a busca nova responder.
+    if (mudouCliente) {
+      $('entregasLista').innerHTML = '';
+      $('contEntregas').hidden = true;
+      selecionarAba('abaDocs');
+    }
+
     renderDetalhe();
-    $('voltarBtn').focus();
+    marcarSelecao();
+    aplicarLayout();
+    aplicarFiltros();                       // reavalia o aviso "fora do filtro"
+
+    if (ehSplit()) {
+      // O foco fica na linha clicada: o Voltar está escondido, e puxar o foco
+      // pro outro lado faria a pessoa perder o lugar na lista.
+      $('viewDetalhe').scrollTop = 0;
+    } else {
+      $('voltarBtn').focus();
+    }
   }
+
   $('voltarBtn').addEventListener('click', function () {
-    clienteSelecionadoId = null;
-    $('viewDetalhe').hidden = true;
-    $('viewLista').hidden = false;
+    // A seleção não se perde ao voltar — só o modo de exibição muda.
+    modoEstreito = 'lista';
+    aplicarLayout();
+    var alvo = clienteSelecionadoId && $('lc-' + clienteSelecionadoId);
+    if (alvo) alvo.focus();
+  });
+
+  // Setas andam pela lista. Um listener só, delegado — 300 linhas × 1 listener
+  // cada seria desperdício. A seleção NÃO segue o foco: cada parada dispararia
+  // uma busca de entregas no Firestore.
+  $('lista').addEventListener('keydown', function (ev) {
+    if (idsVisiveis.length === 0) return;
+    var atual = document.activeElement;
+    var id = atual && atual.id.indexOf('lc-') === 0 ? atual.id.slice(3) : null;
+    var i = id ? idsVisiveis.indexOf(id) : -1;
+    var destino = -1;
+
+    if (ev.key === 'ArrowDown') destino = i < 0 ? 0 : Math.min(i + 1, idsVisiveis.length - 1);
+    else if (ev.key === 'ArrowUp') destino = i < 0 ? idsVisiveis.length - 1 : Math.max(i - 1, 0);
+    else if (ev.key === 'Home') destino = 0;
+    else if (ev.key === 'End') destino = idsVisiveis.length - 1;
+    else return;
+
+    ev.preventDefault();
+    var alvo = $('lc-' + idsVisiveis[destino]);
+    if (alvo) { alvo.focus(); alvo.scrollIntoView({ block: 'nearest' }); }
   });
 
   // Frase inteira, não pedaços colados com ponto médio: "A · B · C" é enfeite
@@ -943,10 +1145,13 @@
 
   function renderDetalhe() {
     var cliente = clienteAtualObj();
+    // O cliente pode sumir debaixo da tela (inativado por outra pessoa, por
+    // exemplo). Cai no estado vazio em vez de ficar mostrando dado velho.
     if (!cliente) {
       clienteSelecionadoId = null;
-      $('viewDetalhe').hidden = true;
-      $('viewLista').hidden = false;
+      modoEstreito = 'lista';
+      marcarSelecao();
+      aplicarLayout();
       return;
     }
 
@@ -1259,6 +1464,7 @@
           '<p>Sua conta não tem acesso a este painel (precisa do papel admin ou contábil).</p></div>';
         return;
       }
+      aplicarLayout();
       aoTrocarMes();
       subscribeClientes();
     });
