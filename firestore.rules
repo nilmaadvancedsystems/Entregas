@@ -171,6 +171,16 @@ service cloud.firestore {
       // Quem registrou pode corrigir; admin corrige qualquer uma. O que
       // ninguém reescreve é a autoria e a data de criação — é isso que faz o
       // registro valer como prova numa discussão com o cliente.
+      // Exceção: confirmar (ou registrar como não realizada) uma entrega que
+      // ainda está na rota. Quem monta a rota nem sempre é quem entrega, e o
+      // app grava em entregadoPor quem de fato entregou — então aqui a
+      // autoria PODE mudar, mas só pra própria pessoa que está confirmando.
+      allow update: if logado()
+        && resource.data.status == 'pendente'
+        && request.resource.data.status in ['confirmada', 'falha']
+        && request.resource.data.entregadoPor == request.auth.token.email
+        && naoMexeuEm(['criadoEm']);
+
       allow update: if logado()
         && (resource.data.get('entregadoPor', '') == request.auth.token.email || ehAdmin())
         && naoMexeuEm(['criadoEm', 'entregadoPor']);

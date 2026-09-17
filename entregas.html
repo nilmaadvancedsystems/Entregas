@@ -5822,12 +5822,25 @@
         var nomesDaParada = Array.from(new Set(doParada.map(function (x) { return x.clienteNome || '?'; })));
         var tituloParada = nomesDaParada.join(' + ');
         if (doParada.length > 1) {
+          // no botão, o valor de cada empresa conta mais que o nome dela —
+          // é o que decide se vale a pena assinar tudo junto ou conferir
+          // uma por uma. Documento (DAS, FGTS...) já aparece na própria
+          // linha de cada entrega, não precisa repetir aqui.
+          var valorPorNomeParada_ = {};
+          doParada.forEach(function (x) {
+            var nome = x.clienteNome || '?';
+            var totalItem = (x.itens || []).reduce(function (s, i) { return s + ((i && i.valor) || 0); }, 0);
+            valorPorNomeParada_[nome] = (valorPorNomeParada_[nome] || 0) + totalItem;
+          });
+          var detalheValoresParada_ = nomesDaParada.map(function (nome) {
+            return nome + (valorPorNomeParada_[nome] > 0 ? ' ' + fmtMoney(valorPorNomeParada_[nome]) : '');
+          }).join(' + ');
           var btnLote = document.createElement('button');
           btnLote.type = 'button';
           btnLote.className = 'btn-chip accent';
           btnLote.style.cssText = 'margin:2px 0 4px 26px;';
           btnLote.innerHTML = '<i class="ph ph-signature" aria-hidden="true"></i> Assinar as ' + doParada.length + ' juntas' +
-            (nomesDaParada.length > 1 ? ' (' + escapeHtml_(tituloParada) + ')' : '');
+            (nomesDaParada.length > 1 ? ' (' + escapeHtml_(detalheValoresParada_) + ')' : '');
           btnLote.addEventListener('click', function () { openConfirmLoteModal_(tituloParada, doParada); });
           listEl.appendChild(btnLote);
         }
