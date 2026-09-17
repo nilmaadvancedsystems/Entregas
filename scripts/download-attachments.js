@@ -7,6 +7,7 @@
 // Padrão: últimos 10 dias.
 const fs = require('fs');
 const path = require('path');
+const pdfParse = require('pdf-parse');
 const { getGmail } = require('./gmail-client');
 const { getDb } = require('./firestore-client');
 
@@ -125,19 +126,53 @@ async function main() {
     const anexos = coletarAnexos(msg.data.payload, []);
     if (anexos.length === 0) { processados.add(id); continue; }
 
-    const textoCompleto = subjectHeader + ' ' + (msg.data.snippet || '') + ' ' + anexos.map(a => a.filename).join(' ');
-    const tipos = detectarTipos(textoCompleto);
-    // Prioridade: mês citado no assunto/nome do arquivo (ex: "AGO2026") —
-    // é o mês a que o documento se refere. Sem isso, cai no mês do e-mail.
-    const competencia = competenciaDoTexto(textoCompleto) || competenciaDaData(msg.data.internalDate);
-    const nomeCliente = sanitizar(cliente.nome);
-    const pastaCliente = path.join(PASTA_DESTINO, competencia, nomeCliente);
-    fs.mkdirSync(pastaCliente, { recursive: true });
-
+    // Baixa os bytes de cada anexo primeiro (precisa deles pra ler o
+    // conteúdo do PDF, não só o nome do arquivo).
+    const baixadosAnexos = [];
     for (const anexo of anexos) {
       try {
         const att = await gmail.users.messages.attachments.get({ userId: 'me', messageId: id, id: anexo.attachmentId });
         const buffer = Buffer.from(att.data.data, 'base64');
+        baixadosAnexos.push(Object.assign({ buffer }, anexo));
+      } catch (err) {
+        console.error('Falha ao baixar anexo de', cliente.nome, ':', err.message);
+      }
+    }
+
+    // Assunto + resumo + nomes dos arquivos: é o sinal mais confiável, porque
+    // quem manda escolhe essas palavras de propósito pra dizer o que é.
+    const textoNomes = subjectHeader + ' ' + (msg.data.snippet || '') + ' ' +
+      baixadosAnexos.map(a => a.filename).join(' ');
+    let tipos = detectarTipos(textoNomes);
+    let competencia = competenciaDoTexto(textoNomes);
+
+    // Só abre o PDF quando os nomes não resolveram. Ler o documento inteiro é
+    // ruim como fonte principal: um extrato bancário cita "aplicações" de
+    // passagem e isso marcaria Aplicação sem o cliente ter mandado uma.
+    if (tipos.length === 0 || !competencia) {
+      let textoPdfs = '';
+      for (const anexo of baixadosAnexos) {
+        if (anexo.mimeType === 'application/pdf') {
+          try {
+            const dados = await pdfParse(anexo.buffer);
+            textoPdfs += ' ' + dados.text;
+          } catch (err) {
+            console.error('Não consegui ler o PDF', anexo.filename, ':', err.message);
+          }
+        }
+      }
+      if (tipos.length === 0) tipos = detectarTipos(textoPdfs);
+      if (!competencia) competencia = competenciaDoTexto(textoPdfs);
+    }
+
+    // Sem nenhuma pista de mês, cai no mês em que o e-mail chegou.
+    competencia = competencia || competenciaDaData(msg.data.internalDate);
+    const nomeCliente = sanitizar(cliente.nome);
+    const pastaCliente = path.join(PASTA_DESTINO, competencia, nomeCliente);
+    fs.mkdirSync(pastaCliente, { recursive: true });
+
+    for (const anexo of baixadosAnexos) {
+      try {
         let destino = path.join(pastaCliente, sanitizar(anexo.filename));
         let n = 1;
         while (fs.existsSync(destino)) {
@@ -145,11 +180,11 @@ async function main() {
           const base = path.basename(anexo.filename, ext);
           destino = path.join(pastaCliente, sanitizar(base) + ' (' + (++n) + ')' + ext);
         }
-        fs.writeFileSync(destino, buffer);
+        fs.writeFileSync(destino, anexo.buffer);
         baixados++;
         console.log('Baixado:', cliente.nome, '->', path.basename(destino));
       } catch (err) {
-        console.error('Falha ao baixar anexo de', cliente.nome, ':', err.message);
+        console.error('Falha ao salvar anexo de', cliente.nome, ':', err.message);
       }
     }
 
