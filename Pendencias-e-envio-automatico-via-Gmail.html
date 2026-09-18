@@ -176,6 +176,10 @@
   .menu-sep { display: none; }
   .menu-pe { display: flex; align-items: center; gap: 8px; margin-left: auto; padding-left: 8px; font-size: var(--t-sm); color: var(--ink-soft); }
   .menu-pe .usuario-atual { display: none; }
+  a.menu-funcoes { text-decoration: none; }
+  /* barra do celular: só o ícone, pra caber ao lado do tema e do Sair */
+  .menu-pe .menu-funcoes { width: auto; padding: 6px 8px; }
+  .menu-pe .menu-funcoes .rot { display: none; }
   .menu-pe-linha { display: flex; align-items: center; gap: 8px; justify-content: space-between; min-width: 0; }
   /* Foto da conta, a mesma do Entregas (usuarios.fotoPerfil); sem foto,
      as iniciais — igual ao avatar de lá. */
@@ -216,6 +220,8 @@
     .menu-rotulo { display: block; font-size: var(--t-xs); color: var(--ink-faint); font-weight: 600; padding: 6px 12px 4px; letter-spacing: .01em; }
     .menu-pe { margin: auto 0 0; padding: 12px 8px 0; border-top: 1px solid var(--border); flex-direction: column; align-items: stretch; gap: 10px; }
     .menu-pe .usuario-atual { display: inline; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .menu-pe .menu-funcoes { width: 100%; padding: 0 12px; margin: -2px 0 0; }
+    .menu-pe .menu-funcoes .rot { display: inline; }
     .conteudo { padding: 0 28px 64px; }
   }
   .menu-rotulo { display: none !important; }
@@ -1059,6 +1065,10 @@
       <button type="button" class="menu-item" id="menuConfig" data-pagina="config"><i class="ph ph-sliders-horizontal" aria-hidden="true"></i><span class="rot">Configurações</span></button>
     </div>
     <div class="menu-pe">
+      <!-- Esta tela abre como página própria: sem isto, o único jeito de ir
+           pra outra função era "Sair", que desloga. O login é o mesmo do
+           Entregas, então o link cai direto na tela de escolher função. -->
+      <a class="menu-item menu-funcoes" href="entregas.html" title="Voltar pra escolher outra função"><i class="ph ph-squares-four" aria-hidden="true"></i><span class="rot">Trocar de função</span></a>
       <div class="tema-seg" role="group" aria-label="Tema">
         <button type="button" data-tema="claro" title="Tema claro" aria-label="Tema claro" aria-pressed="false"><i class="ph ph-sun" aria-hidden="true"></i></button>
         <button type="button" data-tema="escuro" title="Tema escuro" aria-label="Tema escuro" aria-pressed="false"><i class="ph ph-moon" aria-hidden="true"></i></button>
@@ -2135,7 +2145,7 @@
   });
 
   // ---------- menu principal ----------
-  document.querySelectorAll('.menu-item').forEach(function (item) {
+  document.querySelectorAll('.menu-item[data-pagina]').forEach(function (item) {
     item.addEventListener('click', function () {
       telaCliente = false;
       paginaAtual = item.dataset.pagina;
@@ -2146,7 +2156,7 @@
     });
   });
   function atualizarMenu() {
-    document.querySelectorAll('.menu-item').forEach(function (item) {
+    document.querySelectorAll('.menu-item[data-pagina]').forEach(function (item) {
       var ativo = !telaCliente && item.dataset.pagina === paginaAtual && (paginaAtual !== 'clientes' || item.dataset.filtro === 'todos');
       if (ativo) item.setAttribute('aria-current', 'page'); else item.removeAttribute('aria-current');
     });
