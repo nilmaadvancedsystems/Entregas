@@ -10918,15 +10918,38 @@
     if (melhor) return melhor;
 
     // Não achou o nome inteiro: tenta palavra a palavra, pra "entregas do
-    // volponi" achar "VOLPONI AGROPECUARIA LTDA".
-    var palavras = t.split(/[^A-Z0-9]+/).filter(function (p) { return p.length >= 4; });
+    // volponi" achar "VOLPONI AGROPECUARIA LTDA". Duas travas contra falso
+    // positivo, achadas na prática: "o robô está online?" casava "está"
+    // (4 letras) dentro de "reflor-ESTA-mento", e palavra comum de
+    // pergunta ("está", "hoje", "quantos"...) não é nome de cliente.
+    // Por isso: só conta se bater no COMEÇO de uma palavra do nome (não
+    // no meio, em qualquer lugar), e nunca considera essas palavras
+    // comuns como pista de nome.
+    var palavras = t.split(/[^A-Z0-9]+/).filter(function (p) {
+      return p.length >= 4 && CQ_PALAVRAS_COMUNS_.indexOf(p) === -1;
+    });
     var candidatos = [];
     clientesCache.forEach(function (c) {
-      var nome = normalizarTexto_(c.nome || '');
-      if (palavras.some(function (p) { return nome.indexOf(p) !== -1; })) candidatos.push(c);
+      var palavrasDoNome = normalizarTexto_(c.nome || '').split(/[^A-Z0-9]+/);
+      if (palavras.some(function (p) { return palavrasDoNome.some(function (np) { return np.indexOf(p) === 0; }); })) {
+        candidatos.push(c);
+      }
     });
     return candidatos.length === 1 ? candidatos[0] : (candidatos.length ? candidatos : null);
   }
+  // Palavras de 4+ letras comuns em pergunta, que não identificam
+  // cliente nenhum — sem isso, "está", "hoje" etc. batem por acaso
+  // dentro do nome de alguma empresa.
+  var CQ_PALAVRAS_COMUNS_ = [
+    'esta', 'esse', 'essa', 'isso', 'aqui', 'hoje', 'ainda', 'agora',
+    'onde', 'quando', 'quanto', 'quanta', 'quantos', 'quantas', 'sobre',
+    'entre', 'para', 'pela', 'pelo', 'pelos', 'pelas', 'tem', 'sera',
+    'foram', 'sao', 'nao', 'sim', 'com', 'uma', 'dos', 'das', 'que',
+    'como', 'mais', 'menos', 'algum', 'alguma', 'algo', 'tudo', 'nada',
+    'ele', 'ela', 'eles', 'elas', 'meu', 'minha', 'seu', 'sua',
+    'entrega', 'entregas', 'entregar', 'entregou', 'robo', 'online',
+    'documento', 'documentos', 'cliente', 'clientes', 'rota', 'mes'
+  ];
 
   function cqLinha_(nome, meta) {
     return '<div class="cq-linha"><span class="cq-linha-nome">' + escapeHtml_(nome) + '</span>' +
@@ -11130,15 +11153,7 @@
       cqLinha_('Entregas', 'histórico de um cliente') +
       cqLinha_('Rota', 'o que falta entregar hoje') +
       cqLinha_('Resumo', 'números de um mês') +
-      '<div class="cq-nota">Pode citar o mês ("agosto", "09/2026") e o nome do cliente na mesma frase.</div>' +
-      // O reforço de IA só é oferecido quando ele de fato responde: PC do
-      // escritório ligado E chave configurada. Botão que não funciona é pior
-      // do que botão nenhum.
-      (cqIaDisponivel_()
-        ? '<button type="button" class="cq-exemplo cq-tentar-ia" style="margin-top:var(--esp-3)">' +
-            '<i class="ph ph-sparkle" aria-hidden="true"></i> Tentar com a IA' +
-          '</button>'
-        : '')
+      '<div class="cq-nota">Pode citar o mês ("agosto", "09/2026") e o nome do cliente na mesma frase.</div>'
     );
   }
 
@@ -11328,6 +11343,17 @@
     el.scrollTop = el.scrollHeight;
   }
 
+  // O reforço de IA só é oferecido quando ele de fato responde: PC do
+  // escritório ligado E chave configurada. Botão que não funciona é pior
+  // do que botão nenhum.
+  function cqComEscapeIA_(html) {
+    if (!cqIaDisponivel_()) return html;
+    return html +
+      '<button type="button" class="cq-exemplo cq-tentar-ia" style="margin-top:var(--esp-3)">' +
+        '<i class="ph ph-sparkle" aria-hidden="true"></i> Não é isso? Tentar com a IA' +
+      '</button>';
+  }
+
   function cqPerguntar_() {
     var campo = $('cqCampo');
     var pergunta = campo.value.trim();
@@ -11341,7 +11367,12 @@
     cqRender_();
 
     cqResponder_(pergunta).then(function (html) {
-      cqHistorico[cqHistorico.length - 1] = { eu: false, html: html };
+      // A busca local é palavra-chave, não entendimento — "quantos arquivos
+      // foram baixados hoje" casa com "quant" e devolve o resumo de
+      // entregas, que não tem nada a ver. Ela não tem como saber que
+      // errou, então o escape pra IA fica sempre à mão, em toda resposta
+      // local, não só quando ela admite "não entendi".
+      cqHistorico[cqHistorico.length - 1] = { eu: false, html: cqComEscapeIA_(html) };
     }).catch(function (err) {
       cqHistorico[cqHistorico.length - 1] = {
         eu: false,
