@@ -135,6 +135,23 @@ function traduzirErro(err) {
   if (/not found|NOT_FOUND|404/i.test(m)) {
     return 'o modelo configurado não existe ou não está disponível na sua conta; troque em Perfil → Integrações';
   }
+  if (/503|UNAVAILABLE|overloaded|high demand/i.test(m)) {
+    return 'o modelo do Gemini está sobrecarregado agora (isso é do lado do Google, passa sozinho); tenta de novo em um minuto';
+  }
+  if (/500|INTERNAL/i.test(m)) {
+    return 'o Gemini teve um erro interno agora; tenta de novo';
+  }
+  // Erro que não reconhecemos: melhor mostrar só a mensagem de verdade do
+  // Google (sem o JSON inteiro por cima) do que inventar uma tradução —
+  // é o que ajuda a identificar o próximo caso a tratar aqui.
+  try {
+    var bruto = JSON.parse(m);
+    var msgDeDentro = bruto && bruto.error && bruto.error.message;
+    if (msgDeDentro) {
+      try { msgDeDentro = JSON.parse(msgDeDentro).error.message; } catch (e2) {}
+      return 'o Gemini respondeu com erro: ' + msgDeDentro;
+    }
+  } catch (e) {}
   return m;
 }
 
