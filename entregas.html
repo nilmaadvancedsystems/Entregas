@@ -1764,6 +1764,11 @@
     font-family: inherit; font-size: var(--t-md); line-height: 1.4;
   }
   .cq-enviar { flex: none; width: 42px; height: 42px; padding: 0; }
+  /* Mesmo seletor de "Entregar agora / Preparar rota", encostado no campo:
+     a escolha vale pra próxima pergunta, então mora junto de onde ela é
+     escrita, não lá no cabeçalho. */
+  .cq-modo { flex: none; margin: var(--esp-2) var(--esp-4) 0; }
+  .cq-modo .mode-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 32px; padding: 6px 8px; }
 
 </style>
 </head>
@@ -2502,6 +2507,12 @@
     <button type="button" class="icon-btn" id="cqFechar" title="Fechar"><i class="ph ph-x" aria-hidden="true"></i></button>
   </div>
   <div class="cq-conversa" id="cqConversa" aria-live="polite"></div>
+  <!-- Só aparece quando a IA de fato responde (PC do escritório ligado e
+       chave configurada); sem ela, tudo é resposta rápida mesmo. -->
+  <div class="mode-toggle cq-modo" id="cqModo" role="group" aria-label="Tipo de resposta" hidden>
+    <button type="button" class="mode-btn active" data-modo="rapida" aria-pressed="true"><i class="ph ph-lightning" aria-hidden="true"></i> Rápida · sem custo</button>
+    <button type="button" class="mode-btn" data-modo="ia" aria-pressed="false"><i class="ph ph-sparkle" aria-hidden="true"></i> Chat com IA</button>
+  </div>
   <div class="cq-rodape">
     <textarea class="input cq-campo" id="cqCampo" rows="1" placeholder="Pergunte: pendências de setembro, entregas do…" aria-label="Sua pergunta"></textarea>
     <button type="button" class="btn btn-primary cq-enviar" id="cqEnviar" title="Perguntar"><i class="ph ph-arrow-up" aria-hidden="true"></i></button>
@@ -11207,13 +11218,22 @@
       cqVigiaLigado = !!em && (Date.now() - em) < 3 * 60 * 1000;
       cqIaLigada = !!(d.ia && d.ia.ligado);
       renderIaEstado_();
+      cqRenderModo_();
     }, function () {});
   }
+
+  // Sobe a cada "Limpar" ou saída do login. Resposta que chega atrasada
+  // (a IA leva segundos) confere a geração em que foi pedida e, se a
+  // conversa já foi limpa, não escreve nada — senão cairia no meio da
+  // conversa nova, numa posição que agora é de outra pergunta.
+  var cqGeracao = 0;
 
   function cqSoltarConversaIa_() {
     if (unsubCqConversa) { unsubCqConversa(); unsubCqConversa = null; }
     if (unsubCqMensagens) { unsubCqMensagens(); unsubCqMensagens = null; }
     cqConversaId = null;
+    cqGeracao++;
+    cqOcupado = false;
   }
 
   // Markdown de pobre: negrito, lista com traço e parágrafo. O modelo escreve
@@ -11247,7 +11267,30 @@
   // resposta cresce ali dentro, em vez de virar um balão novo a cada pedaço.
   function cqPerguntarIA_(pergunta, indice) {
     var email = (auth.currentUser && auth.currentUser.email) || '';
-    if (!email) return;
+    if (!email || cqOcupado) return;
+
+    // Uma pergunta de cada vez: a escuta abaixo é uma só por conversa, e
+    // uma segunda pergunta no meio deixaria a primeira presa em
+    // "perguntando…" pra sempre.
+    cqOcupado = true;
+    var geracao = cqGeracao;
+    var ordem = Date.now();
+    var terminou = false;
+    function liberar() {
+      if (terminou) return;
+      terminou = true;
+      clearTimeout(relogio);
+      if (geracao === cqGeracao) cqOcupado = false;
+    }
+    // O vigia pode cair entre a oferta do botão e a resposta (o sinal de
+    // "ligado" tolera 3 minutos de atraso). Sem teto, o campo ficaria
+    // travado esperando uma resposta que não vem.
+    var relogio = setTimeout(function () {
+      if (terminou || geracao !== cqGeracao) return;
+      cqHistorico[indice] = { eu: false, html: '<div class="cq-erro">A IA não respondeu a tempo — o PC do escritório pode ter desligado. Tenta de novo daqui a pouco, ou use a resposta rápida.</div>' };
+      liberar();
+      cqRender_();
+    }, 120000);
 
     cqHistorico[indice] = { eu: false, html: '<div class="cq-nota" style="margin:0">perguntando à IA…</div>' };
     cqRender_();
@@ -11265,17 +11308,25 @@
     criar.then(function (ref) {
       // Escuta a subcoleção e vai pintando a última resposta do modelo no
       // lugar reservado. É o que faz o texto aparecer crescendo.
+      if (geracao !== cqGeracao) return null;
       if (unsubCqMensagens) unsubCqMensagens();
       unsubCqMensagens = ref.collection('mensagens').orderBy('ordem', 'asc').limit(200)
         .onSnapshot(function (snap) {
+          if (geracao !== cqGeracao) return;
           var msgs = snap.docs.map(function (d) { return d.data(); });
+          // Só a resposta a ESTA pergunta: numa conversa com várias, a
+          // última mensagem do modelo, logo depois de mandar a pergunta
+          // nova, ainda é a resposta da anterior — e ela aparecia repetida
+          // no lugar da nova até a IA começar a escrever.
           var ultima = null;
-          msgs.forEach(function (m) { if (m.papel === 'model') ultima = m; });
+          msgs.forEach(function (m) { if (m.papel === 'model' && (m.ordem || 0) > ordem) ultima = m; });
           if (!ultima) return;
           if (ultima.estado === 'erro') {
             cqHistorico[indice] = { eu: false, html: '<div class="cq-erro">' +
               escapeHtml_(ultima.erro || 'A IA não conseguiu responder.') + '</div>' };
+            liberar();
           } else {
+            if (ultima.estado === 'pronta') liberar();
             var corpo = ultima.texto ? cqMarkdown_(ultima.texto) : '';
             if (ultima.estado === 'gerando') {
               corpo += '<div class="cq-nota" style="margin:0">' +
@@ -11293,12 +11344,13 @@
           }
           cqRender_();
         }, function (err) {
+          if (geracao !== cqGeracao) return;
           cqHistorico[indice] = { eu: false, html: '<div class="cq-erro">' +
             escapeHtml_(errMsg(err, 'Não foi possível acompanhar a resposta.')) + '</div>' };
+          liberar();
           cqRender_();
         });
 
-      var ordem = Date.now();
       return ref.collection('mensagens').add({
         papel: 'user', texto: pergunta, ordem: ordem, criadoEm: new Date().toISOString()
       }).then(function () {
@@ -11307,8 +11359,10 @@
         return ref.update({ estado: 'pendente', atualizadoEm: new Date().toISOString() });
       });
     }).catch(function (err) {
+      if (geracao !== cqGeracao) return;
       cqHistorico[indice] = { eu: false, html: '<div class="cq-erro">' +
         escapeHtml_(errMsg(err, 'Não foi possível mandar a pergunta pra IA.')) + '</div>' };
+      liberar();
       cqRender_();
     });
   }
@@ -11322,16 +11376,57 @@
     'Quantas entregas foram feitas em agosto?',
     'O que ainda falta na rota?'
   ];
+  // No chat com IA, pergunta aberta é justamente o forte — o que a busca
+  // rápida, que só casa palavra-chave, não sabe responder.
+  var CQ_EXEMPLOS_IA = [
+    'Quais clientes estão há mais meses sem mandar extrato?',
+    'Resuma as entregas do mês passado por tipo de documento',
+    'Quem tem pendência e ainda não tem e-mail cadastrado?'
+  ];
+
+  // ---------- rápida × IA ----------
+  // A pessoa escolhe antes de perguntar: resposta rápida (busca no
+  // navegador, de graça, na hora) ou chat com o Gemini (entende pergunta
+  // aberta, mas gasta cota e leva alguns segundos). A escolha fica
+  // guardada neste aparelho — é jeito de trabalhar de cada um, não
+  // configuração do escritório. Sem IA disponível, vale sempre a rápida.
+  var CQ_MODO_CHAVE = 'nilma_cq_modo';
+  var cqModoPreferido = 'rapida';
+  try { if (localStorage.getItem(CQ_MODO_CHAVE) === 'ia') cqModoPreferido = 'ia'; } catch (e) {}
+
+  function cqModoAtual_() {
+    return cqModoPreferido === 'ia' && cqIaDisponivel_() ? 'ia' : 'rapida';
+  }
+
+  function cqRenderModo_() {
+    var box = $('cqModo');
+    if (!box) return;
+    box.hidden = !cqIaDisponivel_();
+    var modo = cqModoAtual_();
+    Array.prototype.forEach.call(box.querySelectorAll('.mode-btn'), function (b) {
+      var ativo = b.dataset.modo === modo;
+      b.classList.toggle('active', ativo);
+      b.setAttribute('aria-pressed', ativo ? 'true' : 'false');
+    });
+    $('cqCampo').placeholder = modo === 'ia'
+      ? 'Pergunte do seu jeito — a IA consulta o sistema…'
+      : 'Pergunte: pendências de setembro, entregas do…';
+    if (!cqHistorico.length) cqRender_();
+  }
 
   function cqRender_() {
     var el = $('cqConversa');
     if (!cqHistorico.length) {
+      var modoIa = cqModoAtual_() === 'ia';
       el.innerHTML =
         '<div class="cq-vazio">' +
-          '<h3>Pergunte sobre o que está no sistema</h3>' +
-          '<div>Responde na hora, com o dado do banco. Nada sai daqui.</div>' +
+          (modoIa
+            ? '<h3>Converse com a IA</h3>' +
+              '<div>Ela consulta o sistema pra responder e entende pergunta aberta. Leva alguns segundos e gasta cota do Gemini. CPF, CNPJ e telefone não saem daqui.</div>'
+            : '<h3>Pergunte sobre o que está no sistema</h3>' +
+              '<div>Responde na hora, com o dado do banco. Nada sai daqui.</div>') +
           '<div class="cq-exemplos">' +
-            CQ_EXEMPLOS.map(function (p) {
+            (modoIa ? CQ_EXEMPLOS_IA : CQ_EXEMPLOS).map(function (p) {
               return '<button type="button" class="cq-exemplo">' + escapeHtml_(p) + '</button>';
             }).join('') +
           '</div>' +
@@ -11375,29 +11470,53 @@
     if (!pergunta || cqOcupado) return;
     campo.value = '';
     campo.style.height = 'auto';
-    cqOcupado = true;
 
     cqHistorico.push({ eu: true, texto: pergunta });
+
+    // Chat com IA: direto pro Gemini, sem passar pela busca rápida — quem
+    // escolheu a IA já sabe que a pergunta não é das quatro que ela casa.
+    if (cqModoAtual_() === 'ia') {
+      cqHistorico.push({ eu: false, html: '<div class="cq-nota" style="margin:0">perguntando à IA…</div>' });
+      cqRender_();
+      cqPerguntarIA_(pergunta, cqHistorico.length - 1);
+      return;
+    }
+
+    cqOcupado = true;
+    var geracao = cqGeracao;
+    var indice = cqHistorico.length;
     cqHistorico.push({ eu: false, html: '<div class="cq-nota" style="margin:0">consultando…</div>' });
     cqRender_();
 
     cqResponder_(pergunta).then(function (html) {
+      if (geracao !== cqGeracao) return;
       // A busca local é palavra-chave, não entendimento — "quantos arquivos
       // foram baixados hoje" casa com "quant" e devolve o resumo de
       // entregas, que não tem nada a ver. Ela não tem como saber que
       // errou, então o escape pra IA fica sempre à mão, em toda resposta
       // local, não só quando ela admite "não entendi".
-      cqHistorico[cqHistorico.length - 1] = { eu: false, html: cqComEscapeIA_(html) };
+      cqHistorico[indice] = { eu: false, html: cqComEscapeIA_(html) };
     }).catch(function (err) {
-      cqHistorico[cqHistorico.length - 1] = {
+      if (geracao !== cqGeracao) return;
+      cqHistorico[indice] = {
         eu: false,
         html: '<div class="cq-erro">Deu erro ao consultar: ' + escapeHtml_(errMsg(err, 'erro desconhecido')) + '</div>'
       };
     }).finally(function () {
+      if (geracao !== cqGeracao) return;
       cqOcupado = false;
       cqRender_();
     });
   }
+
+  $('cqModo').addEventListener('click', function (e) {
+    var b = e.target.closest('.mode-btn');
+    if (!b) return;
+    cqModoPreferido = b.dataset.modo === 'ia' ? 'ia' : 'rapida';
+    try { localStorage.setItem(CQ_MODO_CHAVE, cqModoPreferido); } catch (err) {}
+    cqRenderModo_();
+    $('cqCampo').focus();
+  });
 
   function cqFechar_() {
     $('cqPainel').hidden = true;
@@ -11411,6 +11530,7 @@
     cqEscutarRobo_();
     $('cqPainel').hidden = false;
     $('cqBotao').hidden = true;
+    cqRenderModo_();
     cqRender_();
     if (!matchMedia('(hover: none)').matches) $('cqCampo').focus();
   });
