@@ -154,17 +154,41 @@ function sanitizar(nome) {
 
 // Salva sem duplicar: se já existe arquivo com o mesmo nome e o mesmo tamanho, é
 // o mesmo anexo lido de novo (--reler) e não vira "arquivo (2).pdf".
+function mesmoConteudo(caminho, buffer) {
+  try { return fs.statSync(caminho).size === buffer.length && fs.readFileSync(caminho).equals(buffer); }
+  catch (e) { return false; }
+}
 function salvarArquivo(pasta, nome, buffer) {
   const ext = path.extname(nome);
   const base = path.basename(nome, ext);
   let destino = path.join(pasta, sanitizar(nome));
   let n = 1;
   while (fs.existsSync(destino)) {
-    if (fs.statSync(destino).size === buffer.length) return null;
+    if (mesmoConteudo(destino, buffer)) return null;
     destino = path.join(pasta, sanitizar(base) + ' (' + (++n) + ')' + ext);
   }
   fs.writeFileSync(destino, buffer);
   return destino;
+}
+
+// A rotina de arquivamento (repositório "claudio") lê Claudio Secretario em
+// qualquer subpasta; duas cópias iguais na mesma rodada viram arquivo em dobro
+// no layout ("X" e "X (2)"). Então antes de gravar, procura o mesmo arquivo nas
+// outras pastas de mês deste cliente.
+function copiaJaNaOrigem(nomeCliente, nome, buffer) {
+  let meses = [];
+  try { meses = fs.readdirSync(PASTA_DESTINO).filter(d => /^\d{4}-\d{2}$/.test(d)); } catch (e) { return null; }
+  for (const mes of meses) {
+    const pasta = path.join(PASTA_DESTINO, mes, sanitizar(nomeCliente));
+    let arquivos = [];
+    try { arquivos = fs.readdirSync(pasta); } catch (e) { continue; }
+    const ext = path.extname(nome), base = sanitizar(path.basename(nome, ext));
+    for (const a of arquivos) {
+      if (a !== sanitizar(nome) && !(a.startsWith(base + ' (') && a.endsWith(ext))) continue;
+      if (mesmoConteudo(path.join(pasta, a), buffer)) return path.join(mes, sanitizar(nomeCliente));
+    }
+  }
+  return null;
 }
 
 async function textoDosPdfs(anexos) {
@@ -399,6 +423,8 @@ async function main() {
         for (const a of comBytes) {
           const compArquivo = competenciaDoTexto(a.filename, msg.data.internalDate) || competencia;
           const pasta = path.join(PASTA_DESTINO, compArquivo, sanitizar(cliente.nome));
+          const jaEsta = copiaJaNaOrigem(cliente.nome, a.filename, a.buffer);
+          if (jaEsta) { pastas.add(jaEsta); salvos++; console.log('  já estava em', jaEsta + ':', a.filename); continue; }
           pastas.add(relativa(pasta));
           if (SIMULAR) { salvos++; continue; }
           try {
