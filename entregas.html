@@ -1021,8 +1021,9 @@
   }
   .modal-close:hover { background: var(--surface-2); color: var(--ink); border-color: var(--border-forte); }
   .modal-acoes { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 var(--esp-4); }
-  .modal .itens-list { display: flex; flex-wrap: wrap; gap: 5px; margin: var(--esp-2) 0; }
-  .modal .itens-list span {
+  .modal .itens-list, .auth-form .itens-list { display: flex; flex-wrap: wrap; gap: 5px; margin: var(--esp-2) 0; }
+  .auth-form .itens-list { margin-bottom: var(--esp-4); }
+  .modal .itens-list span, .auth-form .itens-list span {
     background: var(--surface-2); border: 1px solid var(--border); color: var(--ink-soft);
     font-size: var(--t-sm); font-weight: 500; padding: 3px 9px; border-radius: var(--r-xs);
   }
@@ -1961,7 +1962,7 @@
         <div class="field-error" id="err-foto">Anexe uma foto — é obrigatória nesse caso.</div>
       </div>
 
-      <label class="field" id="assinaturaField">
+      <div class="field" id="assinaturaField">
         <span id="assinaturaLabel">Assinatura (opcional se anexar foto)</span>
         <div class="sig-wrap">
           <canvas id="sigCanvas"></canvas>
@@ -1974,7 +1975,7 @@
         </div>
         <div class="field-error" id="err-assinatura">Colha a assinatura ou anexe uma foto antes de confirmar.</div>
         <div class="geo-status" id="geoStatus"><i class="ph ph-map-pin" aria-hidden="true"></i> obtendo localização...</div>
-      </label>
+      </div>
 
       <button type="submit" class="btn btn-primary" id="submitBtn">Confirmar entrega</button>
     </form>
@@ -2582,7 +2583,7 @@
       <p class="auth-sub" id="assinaturaSub">Abrindo...</p>
       <div id="assinaturaConteudo" hidden>
         <div class="itens-list" id="assinaturaItens"></div>
-        <label class="field">
+        <div class="field">
           <span>Assinatura</span>
           <div class="sig-wrap">
             <canvas id="assinaturaCanvas"></canvas>
@@ -2592,7 +2593,7 @@
               <button type="button" class="link-btn" id="assinaturaLimpar">Limpar</button>
             </div>
           </div>
-        </label>
+        </div>
         <!-- Nome vem DEPOIS de assinar: abrir o teclado pra digitar
              antes de desenhar é o gatilho mais comum do reajuste de
              tela que apagava o traço em andamento. -->
@@ -7848,7 +7849,7 @@
             '</div>' +
             '<div class="field-error" id="err-loteFoto">Anexe uma foto — é obrigatória nesse caso.</div>' +
           '</div>' +
-          '<label class="field" id="loteAssinaturaField">' +
+          '<div class="field" id="loteAssinaturaField">' +
             '<span>Assinatura (opcional se anexar foto)</span>' +
             '<div class="sig-wrap">' +
               '<canvas id="loteSigCanvas"></canvas>' +
@@ -7860,7 +7861,7 @@
               '</div>' +
             '</div>' +
             '<div class="field-error show" id="loteSigError" hidden>Colha a assinatura ou anexe uma foto antes de confirmar.</div>' +
-          '</label>' +
+          '</div>' +
           '<button type="button" class="btn btn-primary" id="loteConfirmBtn">Confirmar todas</button>' +
         '</div>' +
       '</div>';
@@ -8066,7 +8067,7 @@
             '</div>' +
             '<div class="field-error" id="err-pendingFoto">Anexe uma foto — é obrigatória nesse caso.</div>' +
           '</div>' +
-          '<label class="field" id="pendingAssinaturaField">' +
+          '<div class="field" id="pendingAssinaturaField">' +
             '<span id="pendingAssinaturaLabel">Assinatura (opcional se anexar foto)</span>' +
             '<div class="sig-wrap">' +
               '<canvas id="pendingSigCanvas"></canvas>' +
@@ -8080,7 +8081,7 @@
             '<button type="button" class="link-btn" id="assinarNoCelularBtn" style="margin:8px 0 0;"><i class="ph ph-device-mobile" aria-hidden="true"></i> Assinar no celular do cliente</button>' +
             '<div class="field-error show" id="pendingSigError" hidden>Colha a assinatura ou anexe uma foto antes de confirmar.</div>' +
             '<div class="geo-status" id="pendingGeoStatus"><i class="ph ph-map-pin" aria-hidden="true"></i> obtendo localização...</div>' +
-          '</label>' +
+          '</div>' +
           '<button type="button" class="btn btn-primary" id="pendingConfirmBtn">Confirmar entrega</button>' +
           (podeExcluir(entrega) ? '<button type="button" class="btn-chip danger" id="excluirPendenteBtn" style="margin-top:10px;"><i class="ph ph-trash" aria-hidden="true"></i> Remover da rota</button>' : '') +
         '</div>' +
@@ -11001,15 +11002,24 @@
         }
         $('assinaturaErro').hidden = true;
         botaoOcupado_(btn);
+        // Celular do cliente sem internet: update() fica esperando pra sempre e
+        // o botão girava sem dizer nada.
+        var semResposta = setTimeout(function () {
+          $('assinaturaErroTexto').textContent = 'Sem internet neste celular. Confira a conexão e toque de novo.';
+          $('assinaturaErro').hidden = false;
+          botaoLivre_(btn);
+        }, 12000);
         ref.update({
           assinatura: pad.dataUrl(),
           recebedor: $('assinaturaNome').value.trim(),
           assinado: true,
           assinadoEm: new Date().toISOString()
         }).then(function () {
+          clearTimeout(semResposta);
           $('assinaturaConteudo').hidden = true;
-          $('assinaturaSub').textContent = 'Pronto! Recebimento assinado. Pode devolver o aparelho.';
+          $('assinaturaSub').textContent = 'Pronto! Recebimento assinado. Pode fechar esta página.';
         }).catch(function (err) {
+          clearTimeout(semResposta);
           $('assinaturaErroTexto').textContent = errMsg(err, 'Não foi possível enviar a assinatura.');
           $('assinaturaErro').hidden = false;
           botaoLivre_(btn);
