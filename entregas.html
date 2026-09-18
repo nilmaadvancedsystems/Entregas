@@ -1247,42 +1247,95 @@
   @keyframes rota-track-pulso { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
   html[data-animacao="reduzida"] .rota-track-live-dot { animation: none; }
 
-  /* ---------- escolher função ---------- */
+  /* ---------- escolher função ----------
+     Uma superfície só, como o resto do app: as funções são linhas de um menu
+     separadas por um fio, não cinco cartões iguais empilhados. A função que a
+     pessoa usou por último fica marcada NO LUGAR (a ordem nunca muda, pra mão
+     não errar) e recebe o foco: Enter entra direto. No PC, 1 a 5 também. */
   .hub-screen {
     position: fixed; inset: 0; background: var(--bg); z-index: calc(var(--z-tela) - 5);
-    display: grid; place-items: center; padding: var(--esp-5) var(--esp-4); overflow-y: auto;
+    display: grid; justify-items: center; align-content: start;
+    padding: max(var(--esp-6), 9vh) var(--esp-4) var(--esp-5); overflow-y: auto;
   }
-  .hub-inner { max-width: 520px; width: 100%; }
-  .hub-head { margin-bottom: var(--esp-5); }
+  .hub-inner { max-width: 480px; width: 100%; }
+  .hub-head { display: grid; grid-template-columns: auto 1fr; column-gap: var(--esp-3); align-items: center; margin-bottom: var(--esp-5); }
   .hub-avatar {
-    display: inline-grid; place-items: center; width: 44px; height: 44px; margin: 0 0 var(--esp-3);
-    border-radius: var(--r-md); background: var(--accent-soft); color: var(--accent-forte);
-    font-size: var(--t-md); font-weight: 600; letter-spacing: .02em;
+    display: inline-grid; place-items: center; width: 40px; height: 40px; grid-row: span 2;
+    border-radius: var(--r-pill); background: var(--surface-2); color: var(--ink-soft);
+    border: 1px solid var(--border);
+    font-size: var(--t-base); font-weight: 600; letter-spacing: .02em;
     background-size: cover; background-position: center;
   }
-  .hub-avatar.com-foto { background-color: var(--surface-2); }
-  .hub-head .brand-name { font-size: var(--t-sm); display: block; margin-bottom: 4px; color: var(--ink-faint); font-weight: 500; }
-  .hub-head h1 { font-family: var(--font-display); font-size: var(--t-xl); margin: 0 0 4px; font-weight: 600; letter-spacing: -.018em; }
-  /* Duas opções, não uma grade de cartões idênticos: linha larga, ícone ao
-     lado do texto, como item de menu. */
-  .hub-grid { display: flex; flex-direction: column; gap: var(--esp-2); }
-  /* Grade de duas colunas: o ícone ocupa as duas linhas à esquerda, nome e
-     descrição empilham à direita. Resolve sem tocar na marcação, que tem os
-     três elementos soltos como irmãos. */
+  .hub-avatar.com-foto { color: transparent; }
+  .hub-head h1 { font-family: var(--font-display); font-size: var(--t-xl); margin: 0; font-weight: 600; letter-spacing: -.018em; line-height: 1.2; text-wrap: balance; }
+  .hub-data { grid-column: 2; font-size: var(--t-sm); color: var(--ink-faint); margin: 2px 0 0; }
+  .hub-data::first-letter { text-transform: uppercase; }
+
+  .hub-grid { display: flex; flex-direction: column; border-top: 1px solid var(--border); }
   .hub-card {
-    background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md);
-    padding: var(--esp-4); text-align: left; width: 100%;
-    display: grid; grid-template-columns: auto 1fr; column-gap: var(--esp-4); align-items: center;
-    cursor: pointer; font-family: inherit; text-decoration: none; color: inherit;
-    transition: border-color var(--dur-rapido) var(--ease), background-color var(--dur-rapido) var(--ease);
+    background: transparent; border: 0; border-bottom: 1px solid var(--border); border-radius: 0;
+    padding: var(--esp-3) var(--esp-2); margin: 0; text-align: left; width: 100%; min-height: 60px;
+    display: grid; grid-template-columns: 36px 1fr auto; column-gap: var(--esp-3); align-items: center;
+    cursor: pointer; font-family: inherit; text-decoration: none; color: inherit; position: relative;
+    transition: background-color var(--dur-rapido) var(--ease);
   }
-  .hub-card:hover { border-color: var(--accent); background: var(--surface-2); }
-  .hub-card:active { transform: scale(.995); }
-  .hub-card-ico { font-size: 1.5rem; color: var(--accent-forte); grid-row: span 2; }
-  .hub-card-nome { grid-column: 2; font-family: var(--font-display); font-weight: 600; font-size: var(--t-lg); color: var(--ink); }
-  .hub-card-desc { grid-column: 2; font-size: var(--t-sm); color: var(--ink-faint); line-height: 1.35; margin-top: 2px; }
+  .hub-card:hover { background: var(--surface-2); }
+  .hub-card:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: var(--r-sm); }
+  .hub-card:active { background: var(--surface-2); }
+  .hub-card-ico {
+    grid-row: span 2; width: 36px; height: 36px; display: grid; place-items: center;
+    border-radius: var(--r-md); background: var(--surface-2); color: var(--ink-soft); font-size: 1.25rem;
+    transition: background-color var(--dur-rapido) var(--ease), color var(--dur-rapido) var(--ease);
+  }
+  .hub-card:hover .hub-card-ico { color: var(--ink); }
+  .hub-card-nome { grid-column: 2; font-family: var(--font-display); font-weight: 600; font-size: var(--t-md); color: var(--ink); }
+  .hub-card-desc { grid-column: 2; font-size: var(--t-sm); color: var(--ink-faint); line-height: 1.35; margin-top: 1px; }
+  .hub-card-fim {
+    grid-column: 3; grid-row: 1 / span 2; display: flex; align-items: center; gap: var(--esp-2);
+    color: var(--ink-faint); font-size: var(--t-sm);
+  }
+  .hub-card-fim .ph { font-size: 1rem; transition: transform var(--dur-rapido) var(--ease); }
+  .hub-card:hover .hub-card-fim .ph { transform: translateX(2px); color: var(--ink-soft); }
+  .hub-card-info { font-variant-numeric: tabular-nums; color: var(--ink-soft); }
+  .hub-card kbd {
+    display: none; font-family: var(--font-mono); font-size: var(--t-xs); color: var(--ink-faint);
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-xs);
+    min-width: 18px; padding: 1px 5px; text-align: center;
+  }
+  @media (hover: hover) and (min-width: 700px) { .hub-card kbd { display: inline-block; } }
+
+  /* última função usada: a única cor da tela */
+  .hub-card.ultima .hub-card-ico { background: var(--accent-soft); color: var(--accent-forte); }
+  .hub-card.ultima .hub-card-nome::after {
+    content: 'último usado'; margin-left: var(--esp-2); font-size: var(--t-xs); font-weight: 500;
+    color: var(--accent-forte); letter-spacing: 0;
+  }
+
+  .hub-pe { display: flex; justify-content: space-between; align-items: center; gap: var(--esp-3); margin-top: var(--esp-4); padding: 0 var(--esp-2); }
+  .hub-pe .link-btn { color: var(--ink-faint); font-size: var(--t-sm); margin-left: auto; }
+  .hub-pe .link-btn:hover { color: var(--ink); }
+  .hub-dica { font-size: var(--t-xs); color: var(--ink-faint); display: none; }
+  @media (hover: hover) and (min-width: 700px) { .hub-dica { display: block; } }
+
+  /* as linhas chegam em sequência, uma vez, quando a tela aparece */
+  @media (prefers-reduced-motion: no-preference) {
+    .hub-screen:not([hidden]) .hub-head,
+    .hub-screen:not([hidden]) .hub-card,
+    .hub-screen:not([hidden]) .hub-pe { animation: hub-chega var(--dur-lento) var(--ease) backwards; }
+    .hub-screen:not([hidden]) .hub-card:nth-child(1) { animation-delay: 40ms; }
+    .hub-screen:not([hidden]) .hub-card:nth-child(2) { animation-delay: 75ms; }
+    .hub-screen:not([hidden]) .hub-card:nth-child(3) { animation-delay: 110ms; }
+    .hub-screen:not([hidden]) .hub-card:nth-child(4) { animation-delay: 145ms; }
+    .hub-screen:not([hidden]) .hub-card:nth-child(5) { animation-delay: 180ms; }
+    .hub-screen:not([hidden]) .hub-pe { animation-delay: 220ms; }
+  }
+  @keyframes hub-chega { from { opacity: 0; transform: translateY(6px); } }
+  html[data-animacao="reduzida"] .hub-head,
+  html[data-animacao="reduzida"] .hub-card,
+  html[data-animacao="reduzida"] .hub-pe { animation: none !important; }
+
   .hub-card-em-breve { cursor: default; opacity: .5; }
-  .hub-card-em-breve:hover { border-color: var(--border); background: var(--surface); }
+  .hub-card-em-breve:hover { background: transparent; }
   .hub-card-em-breve .hub-card-ico { color: var(--ink-faint); }
 
   /* ==========================================================================
@@ -2494,35 +2547,39 @@
   <div class="hub-inner">
     <div class="hub-head">
       <span class="hub-avatar" id="hubAvatar" aria-hidden="true"></span>
-      <span class="brand-name" id="hubBrandName">Nilma</span>
-      <h1>O que você quer usar?</h1>
-      <p class="card-hint">Escolha uma função pra entrar. Dá pra trocar depois em Configurações.</p>
+      <h1 id="hubSaudacao">Olá</h1>
+      <p class="hub-data" id="hubData"></p>
     </div>
     <div class="hub-grid" id="hubGridPrincipal">
       <button type="button" class="hub-card" id="hubEntregas">
         <span class="hub-card-ico"><i class="ph ph-truck" aria-hidden="true"></i></span>
         <span class="hub-card-nome">Entregas</span>
-        <span class="hub-card-desc">Registrar e acompanhar entregas de documentos</span>
+        <span class="hub-card-desc">Registrar e acompanhar entregas</span>
+        <span class="hub-card-fim"><span class="hub-card-info" id="hubInfoEntregas" hidden></span><kbd aria-hidden="true"></kbd><i class="ph ph-caret-right" aria-hidden="true"></i></span>
       </button>
       <button type="button" class="hub-card" id="hubClientes">
         <span class="hub-card-ico"><i class="ph ph-users" aria-hidden="true"></i></span>
         <span class="hub-card-nome">Clientes</span>
         <span class="hub-card-desc">Cadastro, contatos e o link de cada cliente</span>
+        <span class="hub-card-fim"><kbd aria-hidden="true"></kbd><i class="ph ph-caret-right" aria-hidden="true"></i></span>
       </button>
       <button type="button" class="hub-card" id="hubContabil" data-cargo="contabil" hidden>
         <span class="hub-card-ico"><i class="ph ph-calculator" aria-hidden="true"></i></span>
         <span class="hub-card-nome">Contábil</span>
-        <span class="hub-card-desc">Conciliadorzinho e ajuste de cheque especial</span>
+        <span class="hub-card-desc">Conciliador e cheque especial</span>
+        <span class="hub-card-fim"><kbd aria-hidden="true"></kbd><i class="ph ph-caret-right" aria-hidden="true"></i></span>
       </button>
       <button type="button" class="hub-card" id="hubFiscal" data-cargo="fiscal" hidden>
         <span class="hub-card-ico"><i class="ph ph-file-text" aria-hidden="true"></i></span>
         <span class="hub-card-nome">Fiscal</span>
         <span class="hub-card-desc">Importador LCDPR</span>
+        <span class="hub-card-fim"><kbd aria-hidden="true"></kbd><i class="ph ph-caret-right" aria-hidden="true"></i></span>
       </button>
       <button type="button" class="hub-card" id="hubPendencias" data-cargo="contabil" hidden>
         <span class="hub-card-ico"><i class="ph ph-envelope-simple-open" aria-hidden="true"></i></span>
         <span class="hub-card-nome">Pendências</span>
         <span class="hub-card-desc">Cobrança de documentos por e-mail</span>
+        <span class="hub-card-fim"><kbd aria-hidden="true"></kbd><i class="ph ph-caret-right" aria-hidden="true"></i></span>
       </button>
     </div>
     <div class="hub-grid" id="hubGridFiscal" hidden>
@@ -2535,7 +2592,12 @@
         <span class="hub-card-ico"><i class="ph ph-tractor" aria-hidden="true"></i></span>
         <span class="hub-card-nome">Importador LCDPR</span>
         <span class="hub-card-desc">Classifica lançamentos do SIEG e gera a planilha do Alterdata</span>
+        <span class="hub-card-fim"><kbd aria-hidden="true"></kbd><i class="ph ph-caret-right" aria-hidden="true"></i></span>
       </a>
+    </div>
+    <div class="hub-pe">
+      <span class="hub-dica">Enter abre a última função · os números abrem as outras</span>
+      <button type="button" class="link-btn" id="hubSairBtn">Sair da conta</button>
     </div>
   </div>
 </div>
@@ -10738,8 +10800,56 @@
     $('hubContabil').hidden = !(temPapel('admin') || temPapel('contabil'));
     $('hubFiscal').hidden = !(temPapel('admin') || temPapel('fiscal'));
     $('hubPendencias').hidden = !(temPapel('admin') || temPapel('contabil'));
+    prepararHub_();
     $('hubScreen').hidden = false;
+    // foco na última função usada: Enter entra direto (no celular não, pra
+    // não rolar a tela nem acender contorno sem motivo)
+    var ultima = $('hubGridPrincipal').querySelector('.hub-card.ultima:not([hidden])');
+    if (ultima && !matchMedia('(hover: none)').matches) ultima.focus({ preventScroll: true });
   }
+
+  var CHAVE_ULTIMA_FUNCAO = 'nilma_ultima_funcao';
+  function linhasDoHub_() {
+    var grade = $('hubGridFiscal').hidden ? $('hubGridPrincipal') : $('hubGridFiscal');
+    return Array.from(grade.querySelectorAll('.hub-card')).filter(function (c) { return !c.hidden; });
+  }
+  function numerarHub_() {
+    linhasDoHub_().forEach(function (c, i) { var k = c.querySelector('kbd'); if (k) k.textContent = String(i + 1); });
+  }
+  function prepararHub_() {
+    var hora = new Date().getHours();
+    var primeiroNome = String(currentUserNome || '').split(/[\s@]/)[0];
+    if (primeiroNome) primeiroNome = primeiroNome.charAt(0).toUpperCase() + primeiroNome.slice(1);
+    $('hubSaudacao').textContent = (hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite') + (primeiroNome ? ', ' + primeiroNome : '');
+    $('hubData').textContent = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+
+    var ultima = '';
+    try { ultima = localStorage.getItem(CHAVE_ULTIMA_FUNCAO) || ''; } catch (e) {}
+    $('hubGridPrincipal').querySelectorAll('.hub-card').forEach(function (c) { c.classList.toggle('ultima', c.id === ultima && !c.hidden); });
+    numerarHub_();
+
+    // Uma informação só, a que decide o dia de quem entrega: quantas paradas
+    // estão na rota. Com o app já aberto sai do que está na memória; senão,
+    // uma consulta curta.
+    var info = $('hubInfoEntregas');
+    var mostrar = function (n) { info.hidden = !n; info.textContent = n ? n + ' na rota' : ''; };
+    if (appStarted) mostrar(pendentesCache.length);
+    else if (db) db.collection('entregas').where('status', '==', 'pendente').get().then(function (snap) { mostrar(snap.size); }).catch(function () {});
+  }
+  $('hubGridPrincipal').addEventListener('click', function (ev) {
+    var c = ev.target.closest('.hub-card');
+    if (!c || !c.id || c.id === 'hubFiscalVoltar') return;
+    try { localStorage.setItem(CHAVE_ULTIMA_FUNCAO, c.id); } catch (e) {}
+  }, true);
+  document.addEventListener('keydown', function (ev) {
+    if ($('hubScreen').hidden || ev.ctrlKey || ev.metaKey || ev.altKey) return;
+    if (modalAberto() || /^(INPUT|TEXTAREA|SELECT)$/.test((ev.target && ev.target.tagName) || '')) return;
+    var n = parseInt(ev.key, 10);
+    if (!n) return;
+    var alvo = linhasDoHub_()[n - 1];
+    if (alvo) { ev.preventDefault(); alvo.click(); }
+  });
+  $('hubSairBtn').addEventListener('click', function () { auth.signOut(); });
 
   function entrarNaFuncao(nomeFuncao) {
     $('hubScreen').hidden = true;
@@ -10926,10 +11036,12 @@
   $('hubFiscal').addEventListener('click', function () {
     $('hubGridPrincipal').hidden = true;
     $('hubGridFiscal').hidden = false;
+    numerarHub_();
   });
   $('hubFiscalVoltar').addEventListener('click', function () {
     $('hubGridFiscal').hidden = true;
     $('hubGridPrincipal').hidden = false;
+    numerarHub_();
   });
 
   auth.onAuthStateChanged(function (user) {
@@ -10938,7 +11050,6 @@
       $('settingsBtn').hidden = false;
       $('notasBtn').hidden = false;
       ensureUsuarioDoc(user).then(function () {
-        $('hubBrandName').textContent = currentUserNome || 'Nilma';
         aplicarFotoPerfil(fotoPerfilAtual);
         mostrarHub();
       });
