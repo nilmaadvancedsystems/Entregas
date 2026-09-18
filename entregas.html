@@ -1169,6 +1169,15 @@
   /* Celular deitado: a faixa come a tela toda. */
   @media (max-height: 460px) { .auth-side { display: none; } }
 
+  /* ---------- módulo Clientes (entrada própria no início) ---------- */
+  /* Aqui é cadastro: o que é assunto de rota fica em Entregas. */
+  body.modo-clientes #qualidadeRotaCard { display: none !important; }
+  .cadastro-grade { display: grid; gap: var(--esp-3); grid-template-columns: 1fr; }
+  @media (min-width: 560px) { .cadastro-grade { grid-template-columns: 1fr 1fr; } .cadastro-grade .inteira { grid-column: 1 / -1; } }
+  .cadastro-grade label { display: block; }
+  .cadastro-checks { display: grid; gap: 6px; margin: 6px 0 0; }
+  .cadastro-checks label { display: flex; align-items: center; gap: 8px; font-size: var(--t-base); color: var(--ink); }
+
   /* ---------- portal do cliente (tela pública, link fixo) ---------- */
   @media (min-width: 900px) { .auth-form.portal > * { max-width: 460px; } }
   .portal-faltam {
@@ -2415,6 +2424,10 @@
             <label class="sub-rotulo" for="novoClienteTel">Telefone (opcional)</label>
             <input class="input" id="novoClienteTel" type="tel" placeholder="(00) 00000-0000">
           </div>
+          <div>
+            <label class="sub-rotulo" for="novoClienteEmail">E-mail (opcional)</label>
+            <input class="input" id="novoClienteEmail" type="email" placeholder="De onde ele manda os documentos">
+          </div>
         </div>
       </div>
       <label class="field">
@@ -2490,6 +2503,11 @@
         <span class="hub-card-ico"><i class="ph ph-truck" aria-hidden="true"></i></span>
         <span class="hub-card-nome">Entregas</span>
         <span class="hub-card-desc">Registrar e acompanhar entregas de documentos</span>
+      </button>
+      <button type="button" class="hub-card" id="hubClientes">
+        <span class="hub-card-ico"><i class="ph ph-users" aria-hidden="true"></i></span>
+        <span class="hub-card-nome">Clientes</span>
+        <span class="hub-card-desc">Cadastro, contatos e o link de cada cliente</span>
       </button>
       <button type="button" class="hub-card" id="hubContabil" data-cargo="contabil" hidden>
         <span class="hub-card-ico"><i class="ph ph-calculator" aria-hidden="true"></i></span>
@@ -7534,6 +7552,7 @@
         (whatsAppNumero_(cliente.telefone)
           ? '<button type="button" class="btn-chip" id="falarClienteBtn"><i class="ph ph-whatsapp-logo" aria-hidden="true"></i> Falar no WhatsApp</button>'
           : '') +
+        (temPapel('admin') ? '<button type="button" class="btn-chip" id="editarCadastroBtn"><i class="ph ph-pencil-simple" aria-hidden="true"></i> Editar cadastro</button>' : '') +
         ((cliente.portalToken || temPapel('admin')) ? '<button type="button" class="btn-chip" id="linkClienteBtn"><i class="ph ph-link" aria-hidden="true"></i> Link do cliente</button>' : '') +
         '<button type="button" class="btn-chip" id="corrigirLocalBtn"><i class="ph ph-map-pin-line" aria-hidden="true"></i> Corrigir localização</button>' +
         '<button type="button" class="btn-chip" id="aglutinarBtn"><i class="ph ph-link-simple" aria-hidden="true"></i> Aglutinar com outra empresa</button>' +
@@ -7578,6 +7597,9 @@
         window.open(whatsAppUrl_('Olá! Aqui é da Nilma Contabilidade.', cliente.telefone), '_blank');
       });
     }
+    if ($('editarCadastroBtn')) $('editarCadastroBtn').addEventListener('click', function () {
+      abrirCadastroCliente_(cliente, function () { openClienteHistorico(clientesCache.get(cliente.id) || cliente); });
+    });
     if ($('linkClienteBtn')) $('linkClienteBtn').addEventListener('click', function () { abrirLinkDoCliente_(cliente); });
     $('corrigirLocalBtn').addEventListener('click', function () {
       abrirCorrigirLocal_(cliente, function () { renderHistoricoList(cliente, historico); });
@@ -8843,11 +8865,12 @@
       nomeFantasia: $('novoClienteFantasia').value.trim(),
       documento: $('novoClienteDoc').value.trim(),
       telefone: $('novoClienteTel').value.trim(),
+      email: $('novoClienteEmail').value.trim().toLowerCase(),
       endereco: endereco,
       ativo: true,
       criadoEm: new Date().toISOString()
     }).then(function (ref) {
-      ['novoClienteNome', 'novoClienteCodigo', 'novoClienteFantasia', 'novoClienteDoc', 'novoClienteTel', 'novoClienteEndereco']
+      ['novoClienteNome', 'novoClienteCodigo', 'novoClienteFantasia', 'novoClienteDoc', 'novoClienteTel', 'novoClienteEmail', 'novoClienteEndereco']
         .forEach(function (id) { $(id).value = ''; });
       $('cnpjStatus').textContent = '';
       showToast('Cliente cadastrado.');
@@ -10770,6 +10793,10 @@
     });
     if ($('contabilVoltarBtn')) $('contabilVoltarBtn').hidden = true;
     document.body.classList.remove('modo-secundario');
+    // saindo do módulo Clientes, a seção dele não pode ficar aberta por
+    // cima de 'Nova entrega', que volta a ser a aba ativa logo abaixo
+    if (document.body.classList.contains('modo-clientes') && $('tab-clientes')) $('tab-clientes').hidden = true;
+    document.body.classList.remove('modo-clientes');
     // restaura as abas de Entregas — as com papel (Honorários/Perfil)
     // seguem a MESMA checagem que startApp() usa, nunca "mostrar todas".
     $('tabbtn-nova').hidden = false;
@@ -10797,6 +10824,99 @@
     if ($('pageTitle')) $('pageTitle').textContent = 'Nova entrega';
   }
 
+  // ---------- módulo Clientes ----------
+  // A base de clientes é a mesma pra Entregas, Pendências e o robô do Gmail,
+  // mas só dava pra chegar nela por dentro de Entregas. Entra pelo início, com
+  // a mesma lista e o mesmo cadastro — só sem as abas de entrega em volta.
+  function entrarModoClientes_() {
+    entrarNaFuncao('entregas');   // liga os ouvintes que a lista usa (clientes, rota)
+    TABS_ENTREGAS_.forEach(function (id) { $(id).hidden = id !== 'tabbtn-clientes'; });
+    $('contabilVoltarBtn').hidden = false;
+    document.body.classList.add('modo-clientes');
+    $('tabbtn-clientes').click();
+  }
+
+  // Cadastro completo. Até aqui só dava pra criar, desativar e corrigir o
+  // ponto no mapa: telefone errado ou e-mail novo só se mudava no console do
+  // Firebase. Só admin grava (é o que a regra de `clientes` permite).
+  var DOCS_DO_CLIENTE_ = [
+    { chave: 'extrato', rotulo: 'Extrato bancário' },
+    { chave: 'comprovante', rotulo: 'Comprovantes de pagamento' },
+    { chave: 'aplicacao', rotulo: 'Extrato de aplicação' }
+  ];
+  function abrirCadastroCliente_(cliente, aoFechar) {
+    var root = $('modalRoot');
+    var naoAplica = Array.isArray(cliente.documentosNaoAplicaveis) ? cliente.documentosNaoAplicaveis : [];
+    var campo = function (id, rotulo, valor, tipo, extra) {
+      return '<label' + (extra ? ' class="' + extra + '"' : '') + '><span class="sub-rotulo">' + rotulo + '</span>' +
+        '<input class="input" id="' + id + '" type="' + (tipo || 'text') + '" value="' + escapeHtml_(valor || '') + '"></label>';
+    };
+    root.innerHTML =
+      '<div class="modal-overlay" id="overlay"><div class="modal" id="modalInner">' +
+        '<div class="modal-head"><div><h2>Cadastro</h2>' +
+          '<div class="card-hint modal-head-sub">' + escapeHtml_(clienteLabel(cliente)) + '</div>' +
+        '</div><button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button></div>' +
+        '<div class="cadastro-grade">' +
+          campo('cadNome', 'Nome', cliente.nome, 'text', 'inteira') +
+          campo('cadFantasia', 'Nome fantasia', cliente.nomeFantasia) +
+          campo('cadCodigo', 'Código do escritório', cliente.codigoOrigem) +
+          campo('cadDoc', 'CNPJ ou CPF', cliente.documento) +
+          campo('cadTel', 'Telefone', cliente.telefone, 'tel') +
+          campo('cadEmail', 'E-mail principal', cliente.email, 'email', 'inteira') +
+          '<label class="inteira"><span class="sub-rotulo">Outros e-mails de onde ele manda documentos (um por linha)</span>' +
+            '<textarea class="input" id="cadEmails" rows="2">' + escapeHtml_((cliente.emails || []).join('\n')) + '</textarea></label>' +
+          campo('cadEndereco', 'Endereço', cliente.endereco, 'text', 'inteira') +
+        '</div>' +
+        '<div class="field" style="margin-top:var(--esp-4)"><span>Documentos que este cliente manda todo mês</span>' +
+          '<div class="cadastro-checks">' + DOCS_DO_CLIENTE_.map(function (d) {
+            return '<label><input type="checkbox" data-doc="' + d.chave + '"' + (naoAplica.indexOf(d.chave) === -1 ? ' checked' : '') + '> ' + d.rotulo + '</label>';
+          }).join('') + '</div>' +
+          '<p class="card-hint" style="margin:6px 0 0">O que ficar desmarcado não aparece como pendência dele.</p></div>' +
+        '<button type="button" class="btn btn-primary" id="cadSalvarBtn">Salvar cadastro</button>' +
+      '</div></div>';
+    function fechar() { if (aoFechar) aoFechar(); else closeModal(); }
+    $('overlay').addEventListener('click', function (e) { if (e.target.id === 'overlay') fechar(); });
+    $('modalClose').addEventListener('click', fechar);
+    $('cadSalvarBtn').addEventListener('click', function () {
+      var btn = this;
+      var nome = $('cadNome').value.trim();
+      if (!nome) { $('cadNome').focus(); showToast('O nome não pode ficar vazio.', 'error'); return; }
+      var ehEmail = function (e) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e); };
+      var email = $('cadEmail').value.trim().toLowerCase();
+      var outros = $('cadEmails').value.split(/[\n,;]+/).map(function (e) { return e.trim().toLowerCase(); })
+        .filter(function (e, i, a) { return e && e !== email && a.indexOf(e) === i; });
+      var ruim = [email].concat(outros).filter(function (e) { return e && !ehEmail(e); })[0];
+      if (ruim) { showToast('Este e-mail não parece válido: ' + ruim, 'error'); return; }
+      var endereco = $('cadEndereco').value.trim();
+      var dados = {
+        nome: nome,
+        nomeFantasia: $('cadFantasia').value.trim(),
+        codigoOrigem: $('cadCodigo').value.replace(/\D/g, ''),
+        documento: $('cadDoc').value.trim(),
+        telefone: $('cadTel').value.trim(),
+        email: email,
+        emails: outros,
+        endereco: endereco,
+        documentosNaoAplicaveis: Array.from(root.querySelectorAll('[data-doc]'))
+          .filter(function (c) { return !c.checked; }).map(function (c) { return c.dataset.doc; })
+      };
+      botaoOcupado_(btn);
+      db.doc('clientes/' + cliente.id).update(dados).then(function () {
+        registrarAuditoria_('cliente_editado', clienteLabel(Object.assign({}, cliente, dados)));
+        showToast('Cadastro salvo.');
+        // endereço novo: o ponto no mapa antigo não vale mais
+        if (endereco && endereco !== (cliente.endereco || '')) geocodificarCliente_(cliente.id, endereco, nome);
+        Object.assign(cliente, dados);
+        portalMudou_(cliente.id);
+        fechar();
+      }).catch(function (err) {
+        showToast(errMsg(err, 'Não foi possível salvar o cadastro.'), 'error');
+        botaoLivre_(btn);
+      });
+    });
+  }
+
+  $('hubClientes').addEventListener('click', entrarModoClientes_);
   $('hubEntregas').addEventListener('click', function () { entrarNaFuncao('entregas'); });
   $('hubContabil').addEventListener('click', function () { entrarModoSecundario_('contabil'); });
   $('hubPendencias').addEventListener('click', function () {
