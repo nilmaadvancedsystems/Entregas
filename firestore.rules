@@ -364,6 +364,53 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // ---------- reforço de IA da Consulta rápida ----------
+    // A Consulta rápida responde sozinha no navegador o que ela conhece. O que
+    // ela não entende vai pra cá, e quem responde é o vigia no PC do
+    // escritório, pelo SDK de administrador (que não passa por estas regras).
+    //
+    // CONVERSA É COISA DE UM. Cada um lê e escreve só a sua. Não é sigilo
+    // contra o escritório — é que a pergunta que alguém faz ("o Volponi está
+    // devendo de novo?") é do jeito de trabalhar de cada um, e conversa que
+    // todo mundo lê é conversa que ninguém usa de verdade. Nem o admin lê a
+    // dos outros: admin que precisa do dado abre a tela, onde ele está.
+    //
+    // O NAVEGADOR NÃO ESCREVE RESPOSTA. Ele cria a conversa, manda a pergunta
+    // e põe a conversa em 'pendente'. Os campos que o vigia preenche — a
+    // resposta do modelo, o custo, quais consultas rodaram — ficam fora do
+    // alcance dele. Sem isso, qualquer pessoa logada forjaria uma resposta do
+    // atendente no próprio histórico.
+    function minhaConversa() {
+      return logado() && resource.data.criadoPor == request.auth.token.email;
+    }
+
+    match /conversasIA/{id} {
+      allow read: if minhaConversa();
+      allow create: if logado()
+        && request.resource.data.criadoPor == request.auth.token.email
+        && request.resource.data.estado in ['ocioso', 'pendente'];
+      // Só dá pra empurrar a conversa pra fila e mexer no título. O estado
+      // 'gerando', o erro e o carimbo de resposta são do vigia.
+      allow update: if minhaConversa()
+        && so(['estado', 'titulo', 'atualizadoEm'])
+        && request.resource.data.estado in ['ocioso', 'pendente'];
+      // Conversa a pessoa pode jogar fora — é dela, e não é prova de nada.
+      // Diferente de `entregas` e `auditoria`, que são protocolo.
+      allow delete: if minhaConversa();
+
+      match /mensagens/{msg} {
+        function conversaEhMinha() {
+          return logado() && get(/databases/$(database)/documents/conversasIA/$(id)).data.criadoPor == request.auth.token.email;
+        }
+        allow read: if conversaEhMinha();
+        // 'model' é papel do vigia, não do navegador: quem escreve pelo app só
+        // escreve pergunta.
+        allow create: if conversaEhMinha() && request.resource.data.papel == 'user';
+        allow update: if false;
+        allow delete: if conversaEhMinha();
+      }
+    }
+
     // ---------- porta fechada ----------
     // Coleção nova que apareça sem regra própria nasce trancada, em vez de
     // nascer aberta.

@@ -26,6 +26,7 @@ const { spawn } = require('child_process');
 const { FieldValue } = require('firebase-admin/firestore');
 const { getGmail } = require('./gmail-client');
 const { getDb } = require('./firestore-client');
+const { iniciarAtendenteIA } = require('./ia-atendente');
 
 const CAIXA = 'nilmacontabilidade@gmail.com';
 const ROBO = path.join(__dirname, 'download-attachments.js');
@@ -462,6 +463,12 @@ async function iniciar() {
   if (A_CADA_MIN > 0) {
     setInterval(() => { if (!lendo && !ocupado) rodarRobo(3, 'automático a cada ' + A_CADA_MIN + ' min'); }, A_CADA_MIN * 60 * 1000);
   }
+
+  // O reforço de IA pega carona no mesmo processo: já tem a trava de
+  // instância única, já tem a credencial do Firestore e já bate o ponto que
+  // diz pra tela que o PC está ligado. Sem chave do Gemini configurada, ele
+  // mesmo se desliga e loga um aviso — o robô do Gmail segue igual.
+  iniciarAtendenteIA(db);
 
   log('vigia ligado em', os.hostname() + (A_CADA_MIN ? ', lendo sozinho a cada ' + A_CADA_MIN + ' min' : '') + '. Ctrl+C para parar.');
 }

@@ -17,3 +17,6 @@ scripts/gmail_token.json
 scripts/gmail-processados.json
 scripts/gmail-sem-cliente.json
 scripts/vigia.lock
+# a chave do Gemini (o reforço de IA da Consulta rápida). Fica só no PC do
+# escritório — no repositório ou no Firestore, qualquer um gastaria a cota.
+scripts/gemini_key.json

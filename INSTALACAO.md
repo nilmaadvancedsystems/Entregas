@@ -120,6 +120,91 @@ o escritório perde a redefinição de senha e a exclusão de acesso sem aviso.
 
 ---
 
+## A Consulta rápida e o reforço de IA
+
+O botão redondo no canto da tela abre a **Consulta rápida**: a pessoa escreve
+a pergunta como fala e recebe o dado do banco.
+
+**Ela funciona sozinha, sem configurar nada, e é de graça.** Roda no próprio
+navegador, em cima do que o app já tem carregado, e responde na hora — com o
+PC do escritório desligado, inclusive. Nenhum dado de cliente sai do Firebase.
+Ela sabe quatro coisas:
+
+| Pergunta | Responde |
+|---|---|
+| "quem não mandou extrato esse mês?" | pendências de documento, pela regra da tela de Cobrança |
+| "entregas do Volponi em agosto" | histórico de um cliente |
+| "o que falta na rota?" | o que ainda está pendente de entrega |
+| "quantas entregas em 09/2026?" | números fechados do mês |
+
+Entende mês por extenso ("agosto"), abreviado ("ago"), numérico ("09/2026",
+"2026-09"), "esse mês" e "mês passado". Acha o cliente pelo nome no meio da
+frase, sem acento e sem ligar pra maiúscula.
+
+### O reforço de IA (opcional, e não precisa ligar)
+
+Quando a Consulta não entende a pergunta, ela pode oferecer um **"Tentar com a
+IA"**. Isso é opcional: sem configurar nada, o botão simplesmente não aparece
+e todo o resto continua funcionando.
+
+Quem responde é o Gemini, chamado **pelo vigia, no PC do escritório** — não
+pelo navegador. A chave da API não pode ir pro navegador: quem abrir o
+código-fonte da página leva a chave e passa a gastar a sua cota. É o mesmo
+buraco que a base de clientes em texto puro era.
+
+A ordem (busca local primeiro, IA só no resto) é de propósito: o que dá pra
+responder de graça é respondido de graça, e a cota da IA fica pro que
+realmente precisa dela.
+
+**Pra ligar:**
+
+1. Pegue uma chave em <https://aistudio.google.com/apikey>.
+2. No PC do escritório, crie `scripts/gemini_key.json`:
+   ```json
+   { "apiKey": "cole-a-chave-aqui" }
+   ```
+   (ou defina a variável de ambiente `GEMINI_API_KEY`.) O `.gitignore` barra
+   esse arquivo — ele nunca entra no repositório.
+3. Instale a dependência e reinicie o vigia:
+   ```bash
+   cd scripts && npm install
+   ```
+4. Em **Perfil → Reforço de IA da Consulta**, confira o estado. Ele diz em uma
+   linha se está no ar, se falta chave, ou se o PC está desligado.
+
+**O modelo é trocável na tela**, em Perfil → Integrações, e vale na hora — não
+precisa reiniciar o vigia. O padrão é `gemini-flash-latest`, que acompanha a
+versão atual do Flash sozinha. Dá pra cravar uma versão (`gemini-3.8-flash`)
+ou subir pro Pro (`gemini-pro-latest`), que responde melhor e gasta mais cota.
+
+**Faixa gratuita × paga.** A faixa gratuita não pede cartão e dá conta do uso
+de um escritório, mas nela **o Google pode usar o conteúdo pra melhorar os
+produtos dele**. Com nome de cliente passando pelo modelo, isso merece
+decisão consciente. Na faixa paga ele não usa os dados pra treinar, e o custo
+do uso real fica na casa de poucos dólares por mês. A cobrança do Google é
+pós-paga, no cartão: **alerta de orçamento do Google Cloud avisa, mas não
+interrompe o gasto** — confira os limites por tier no console antes de
+cadastrar cartão.
+
+**O que sobe pra API, e o que não sobe.** CPF, CNPJ, telefone, endereço e
+coordenada de GPS **não sobem**, nunca. A peneira está em
+`scripts/ia-consultas.js` (`limparCliente`) e é escrita ao contrário do
+normal: lista o que **pode** sair, em vez do que não pode — assim um campo
+novo no cadastro nasce barrado. O `teste-ia.js` confere isso a cada rodada.
+O modelo trabalha com nome e situação, que é o que a pergunta precisa.
+
+**O que a IA pode fazer:** só ler. As quatro ferramentas que ela enxerga são
+consultas. Não existe caminho pelo qual ela registre entrega, altere cadastro
+ou envie cobrança.
+
+**Testar antes de publicar:**
+
+```bash
+cd scripts
+node teste-consulta.js   # o interpretador de mês e de intenção da busca local
+node teste-ia.js         # as consultas, a peneira de dado pessoal e o laço do modelo
+```
+
 ## Limites que valem conhecer
 
 - **1 MB por documento do Firestore.** Assinatura e foto são gravadas como

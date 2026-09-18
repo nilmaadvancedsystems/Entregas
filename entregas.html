@@ -1644,6 +1644,113 @@
     .col-lado .card-hint { max-width: none; }
   }
 
+  /* ---------- consulta rápida ----------
+     Painel que passa por cima de qualquer aba, inclusive das telas que vêm em
+     iframe (Conciliador, Cheque especial, Pendências) — por isso mora na
+     moldura, e não dentro de uma .view.
+
+     É das poucas peças que de fato flutuam, então ganha --shadow. Fica em
+     --z-modal: acima do menu e das listas suspensas, abaixo do aviso e da
+     tela de assinatura, que continuam tendo que passar por cima de tudo. */
+  .cq-botao {
+    position: fixed; right: 16px; bottom: 16px; z-index: var(--z-fixo);
+    width: 48px; height: 48px; border-radius: var(--r-pill);
+    border: 1px solid var(--border); background: var(--surface);
+    color: var(--accent-forte); font-size: 1.3rem; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; box-shadow: var(--shadow);
+    transition: transform var(--dur-rapido) var(--ease), border-color var(--dur) var(--ease);
+  }
+  .cq-botao:hover { border-color: var(--border-forte); transform: translateY(-1px); }
+  .cq-botao:active { transform: translateY(0); }
+  /* No celular a barra de abas já flutua embaixo, no meio. O botão sobe pra
+     não dividir espaço com ela — e sai da zona do polegar que troca de aba. */
+  @media (max-width: 899px) { .cq-botao { bottom: 78px; } }
+
+  .cq-painel {
+    position: fixed; z-index: var(--z-modal); background: var(--surface);
+    display: flex; flex-direction: column; box-shadow: var(--shadow);
+  }
+  /* Celular: ocupa a tela. Em 375px um painel de lado vira uma fresta. */
+  @media (max-width: 899px) { .cq-painel { inset: 0; } }
+  @media (min-width: 900px) {
+    .cq-painel { top: 0; right: 0; bottom: 0; width: 400px; border-left: 1px solid var(--border); }
+  }
+
+  .cq-cabeca {
+    display: flex; align-items: center; gap: var(--esp-2);
+    padding: var(--esp-3) var(--esp-4);
+    border-bottom: 1px solid var(--border); flex: none;
+  }
+  .cq-cabeca h2 { font-size: var(--t-lg); margin: 0; flex: 1; }
+  .cq-cabeca .cq-ico { color: var(--accent-forte); font-size: 1.1rem; line-height: 1; }
+
+  .cq-conversa {
+    flex: 1; overflow-y: auto; padding: var(--esp-4);
+    display: flex; flex-direction: column; gap: var(--esp-3);
+  }
+
+  .cq-msg { max-width: 92%; font-size: var(--t-md); line-height: 1.5; }
+  /* A pergunta leva a cor cheia; a resposta fica no poço. É a mesma divisão do
+     resto do app: cor cheia preenche, e quem lê lista longa lê melhor em cinza
+     do que em cor de marca. */
+  .cq-msg-eu {
+    align-self: flex-end; background: var(--accent); color: var(--accent-ink);
+    padding: var(--esp-2) var(--esp-3); border-radius: var(--r-lg);
+    border-bottom-right-radius: var(--r-xs);
+  }
+  .cq-msg-resp {
+    align-self: stretch; background: var(--surface-2); color: var(--ink);
+    padding: var(--esp-3); border-radius: var(--r-lg);
+    border-bottom-left-radius: var(--r-xs);
+  }
+  .cq-titulo { font-weight: 600; margin-bottom: var(--esp-2); }
+  .cq-nota { font-size: var(--t-sm); color: var(--ink-faint); margin-top: var(--esp-2); }
+  .cq-erro { color: var(--danger); }
+
+  /* Uma linha de resultado: nome à esquerda, dado à direita, régua de 1px
+     entre elas — o mesmo vocabulário de .entrega-row e .client-row. */
+  .cq-linha {
+    display: flex; align-items: baseline; gap: var(--esp-2);
+    padding: 6px 0; border-top: 1px solid var(--border);
+  }
+  .cq-linha:first-of-type { border-top: none; }
+  .cq-linha-nome { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cq-linha-meta {
+    flex: none; font-size: var(--t-sm); color: var(--ink-soft);
+    font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  }
+  .cq-numeros { display: flex; flex-wrap: wrap; gap: var(--esp-4); margin-top: var(--esp-2); }
+  .cq-numero-valor {
+    font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+    font-size: var(--t-xl); font-weight: 600; display: block; line-height: 1.1;
+  }
+  .cq-numero-rotulo { font-size: var(--t-xs); color: var(--ink-faint); }
+
+  .cq-vazio { color: var(--ink-faint); font-size: var(--t-sm); margin: auto 0; text-align: center; }
+  .cq-vazio h3 { font-size: var(--t-md); color: var(--ink-soft); margin: 0 0 var(--esp-2); }
+  .cq-exemplos { display: flex; flex-direction: column; gap: var(--esp-2); margin-top: var(--esp-4); }
+  .cq-exemplo {
+    border: 1px solid var(--border); background: transparent; color: var(--ink-soft);
+    border-radius: var(--r-md); padding: var(--esp-2) var(--esp-3);
+    font-size: var(--t-sm); text-align: left; cursor: pointer;
+    transition: border-color var(--dur) var(--ease), color var(--dur) var(--ease);
+  }
+  .cq-exemplo:hover { border-color: var(--border-forte); color: var(--ink); }
+
+  .cq-rodape {
+    flex: none; border-top: 1px solid var(--border);
+    padding: var(--esp-3) var(--esp-4);
+    display: flex; gap: var(--esp-2); align-items: flex-end;
+    /* No celular o teclado some com o campo se ele encostar na borda. */
+    padding-bottom: max(var(--esp-3), env(safe-area-inset-bottom));
+  }
+  .cq-campo {
+    flex: 1; resize: none; max-height: 120px; min-height: 42px;
+    font-family: inherit; font-size: var(--t-md); line-height: 1.4;
+  }
+  .cq-enviar { flex: none; width: 42px; height: 42px; padding: 0; }
+
 </style>
 </head>
 <body>
@@ -2093,6 +2200,19 @@
       </label>
       <button type="button" class="btn-chip accent" id="salvarContasUrlBtn">Salvar endereço</button>
     </div>
+    <div class="card" id="iaCard" hidden>
+      <div class="card-head-row">
+        <h2><i class="ph ph-sparkle" aria-hidden="true"></i> Reforço de IA da Consulta</h2>
+      </div>
+      <p class="card-hint">A Consulta rápida responde sozinha, de graça, o que ela conhece: pendências, entregas de um cliente, rota e resumo do mês. Quando ela não entende a pergunta, dá pra oferecer um "Tentar com a IA" — que roda no PC do escritório, com a chave do Gemini guardada lá. Trocar o modelo aqui vale na hora, sem reiniciar nada.</p>
+      <label class="field">
+        <span>Modelo do Gemini</span>
+        <input class="input" id="iaModeloInput" type="text" placeholder="gemini-flash-latest" autocomplete="off">
+      </label>
+      <p class="card-hint"><code>gemini-flash-latest</code> acompanha a versão atual do Flash sozinho. Dá pra cravar uma versão (<code>gemini-3.8-flash</code>) ou subir pro Pro (<code>gemini-pro-latest</code>) — o Pro responde melhor e gasta mais cota.</p>
+      <div id="iaEstado"></div>
+      <button type="button" class="btn-chip accent" id="salvarIaModeloBtn">Salvar modelo</button>
+    </div>
     <div class="card" id="competenciasCard" hidden>
       <div class="card-head-row">
         <h2><i class="ph ph-lock-simple" aria-hidden="true"></i> Competências fechadas</h2>
@@ -2343,6 +2463,27 @@
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div id="modalRoot"></div>
+
+<!-- Consulta rápida. Fica na moldura (fora das .view) pra aparecer em
+     qualquer aba, inclusive por cima das telas que entram em iframe. Nasce
+     escondida: só aparece depois do login. -->
+<button type="button" class="cq-botao" id="cqBotao" hidden title="Consulta rápida" aria-label="Consulta rápida">
+  <i class="ph ph-chats-circle" aria-hidden="true"></i>
+</button>
+
+<div class="cq-painel" id="cqPainel" hidden role="dialog" aria-modal="false" aria-labelledby="cqTitulo">
+  <div class="cq-cabeca">
+    <span class="cq-ico"><i class="ph-fill ph-chats-circle" aria-hidden="true"></i></span>
+    <h2 id="cqTitulo">Consulta</h2>
+    <button type="button" class="icon-btn" id="cqLimpar" title="Limpar"><i class="ph ph-trash" aria-hidden="true"></i></button>
+    <button type="button" class="icon-btn" id="cqFechar" title="Fechar"><i class="ph ph-x" aria-hidden="true"></i></button>
+  </div>
+  <div class="cq-conversa" id="cqConversa" aria-live="polite"></div>
+  <div class="cq-rodape">
+    <textarea class="input cq-campo" id="cqCampo" rows="1" placeholder="Pergunte: pendências de setembro, entregas do…" aria-label="Sua pergunta"></textarea>
+    <button type="button" class="btn btn-primary cq-enviar" id="cqEnviar" title="Perguntar"><i class="ph ph-arrow-up" aria-hidden="true"></i></button>
+  </div>
+</div>
 
 <div class="busca-global" id="buscaGlobal" hidden>
   <div class="busca-global-caixa" role="dialog" aria-modal="true" aria-label="Busca rápida">
@@ -9812,6 +9953,10 @@
     db.doc('config/integracoes').onSnapshot(function (snap) {
       contasUrl = (snap.exists && snap.data().contasUrl) || '';
       if ($('contasUrlInput')) $('contasUrlInput').value = contasUrl;
+      var modelo = (snap.exists && snap.data().iaModelo) || '';
+      if ($('iaModeloInput') && document.activeElement !== $('iaModeloInput')) {
+        $('iaModeloInput').value = modelo;
+      }
     }, function () {});
     db.doc('config/metas').onSnapshot(function (snap) {
       metaPorPessoa = (snap.exists && snap.data().porPessoa) || 0;
@@ -9841,6 +9986,36 @@
       if (!resp || !resp.ok) throw new Error((resp && resp.erro) || 'O serviço de contas recusou a operação.');
       return resp;
     });
+  }
+
+  // ---------- modelo do reforço de IA ----------
+  // A CHAVE da API não passa por aqui — ela fica só no PC do escritório, num
+  // arquivo que o .gitignore barra. O MODELO pode ficar no Firestore porque
+  // não é segredo: saber que o escritório usa o Flash não dá acesso a nada.
+  if ($('salvarIaModeloBtn')) {
+    $('salvarIaModeloBtn').addEventListener('click', function () {
+      var modelo = $('iaModeloInput').value.trim();
+      var btn = this;
+      botaoOcupado_(btn);
+      db.doc('config/integracoes').set({ iaModelo: modelo }, { merge: true })
+        .then(function () { showToast(modelo ? 'Modelo salvo.' : 'Modelo em branco: volta pro padrão.'); })
+        .catch(function (err) { showToast(errMsg(err, 'Não foi possível salvar.'), 'error'); })
+        .finally(function () { botaoLivre_(btn); });
+    });
+  }
+
+  // Diz, em uma linha, se o reforço está de fato respondendo. É a diferença
+  // entre "configurei e não funciona" e "o PC está desligado".
+  function renderIaEstado_() {
+    var el = $('iaEstado');
+    if (!el) return;
+    if (cqIaDisponivel_()) {
+      el.innerHTML = '<span class="card-hint" style="color:var(--success)">No ar: o PC do escritório está ligado e com chave configurada.</span>';
+    } else if (cqVigiaLigado) {
+      el.innerHTML = '<span class="card-hint">O PC do escritório está ligado, mas sem chave do Gemini — veja INSTALACAO.md, seção "O reforço de IA". A Consulta rápida funciona do mesmo jeito.</span>';
+    } else {
+      el.innerHTML = '<span class="card-hint">O PC do escritório está desligado. A Consulta rápida funciona do mesmo jeito; só o "Tentar com a IA" fica fora do ar.</span>';
+    }
   }
 
   $('salvarContasUrlBtn').addEventListener('click', function () {
@@ -9978,10 +10153,15 @@
     appStarted = true;
     setupCanvas();
     captureGeo();
+    // A consulta rápida vale pra todo mundo que entra: ela só lê o que a
+    // pessoa já podia ver nas abas, e as regras do Firestore continuam
+    // valendo em cada consulta que ela faz.
+    $('cqBotao').hidden = false;
     $('form-equipe').hidden = !temPapel('admin');
     $('auditoriaCard').hidden = !temPapel('admin');
     $('competenciasCard').hidden = !temPapel('admin');
     $('integracaoCard').hidden = !temPapel('admin');
+    $('iaCard').hidden = !temPapel('admin');
     $('form-cliente').hidden = !temPapel('admin');
     $('importCard').hidden = !temPapel('admin');
     $('definirMetaBtn').hidden = !temPapel('admin');
@@ -10328,6 +10508,13 @@
       $('authGate').hidden = !$('conviteGate').hidden || !$('assinaturaGate').hidden || !$('rotaGate').hidden;
       $('settingsBtn').hidden = true;
       $('notasBtn').hidden = true;
+      // Sai a consulta rápida junto com o resto: fora do login não há o que
+      // consultar, e o histórico da conversa anterior não fica na tela.
+      $('cqBotao').hidden = true;
+      $('cqPainel').hidden = true;
+      cqHistorico = [];
+      cqSoltarConversaIa_();
+      if (unsubCqRobo) { unsubCqRobo(); unsubCqRobo = null; }
       $('brandName').textContent = 'Nilma';
       fotoPerfilAtual = '';
       aplicarFotoPerfil('');
@@ -10625,6 +10812,550 @@
       $('rotaSub').textContent = 'Não foi possível abrir este link agora. Tente de novo.';
     });
   }
+
+  // ==========================================================================
+  // Consulta rápida
+  //
+  // A pessoa escreve a pergunta como fala ("quem não mandou extrato esse
+  // mês?") e isto aqui responde com o dado do banco. Não é IA e não pretende
+  // ser: é um reconhecedor de intenção com quatro respostas possíveis, ligado
+  // nas mesmas consultas que as abas já fazem.
+  //
+  // POR QUE NÃO É IA: pra responder essas quatro perguntas, IA seria conta
+  // mensal, chave de API pra guardar e nome de cliente subindo pra servidor
+  // de terceiro. O escritório tirou a base de clientes de dentro deste
+  // arquivo justamente pra ela não circular. Aqui nada sai do Firebase, não
+  // custa nada, responde na hora e funciona com o PC do escritório desligado.
+  //
+  // O LIMITE, DITO NA CARA: ela responde o que está programado responder.
+  // Pergunta fora disso recebe "não entendi" com a lista do que dá pra
+  // perguntar — que é honesto, e melhor do que inventar resposta. Quando
+  // aparecer pergunta repetida que ela não sabe, o caminho é acrescentar um
+  // reconhecedor aqui, não trocar tudo por um modelo.
+  // ==========================================================================
+
+  // Da pergunta pro mês. Aceita "setembro", "set", "09/2026", "2026-09",
+  // "esse mês", "mês passado". Sem nada disso, é o mês corrente.
+  function cqMes_(texto) {
+    var t = normalizarTexto_(texto).toLowerCase();
+    var hoje = new Date();
+
+    var iso = t.match(/(\d{4})-(\d{2})/);
+    if (iso) return iso[1] + '-' + iso[2];
+
+    var barra = t.match(/(\d{1,2})\s*\/\s*(\d{4})/);
+    if (barra) return barra[2] + '-' + String(parseInt(barra[1], 10)).padStart(2, '0');
+
+    if (/\bmes passado\b|\bmes anterior\b/.test(t)) {
+      var ant = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
+      return ant.getFullYear() + '-' + String(ant.getMonth() + 1).padStart(2, '0');
+    }
+
+    // Nome do mês por extenso ou abreviado. Confere o mês inteiro primeiro:
+    // "marco" bate em "mar" também, e a abreviação ganharia por vir antes no
+    // laço se a ordem fosse outra.
+    for (var i = 0; i < MESES_BUSCA_.length; i++) {
+      var nome = MESES_BUSCA_[i];
+      if (new RegExp('\\b' + nome + '\\b').test(t) || new RegExp('\\b' + nome.slice(0, 3) + '\\b').test(t)) {
+        // Mês sem ano: se o mês citado ainda não chegou, é do ano passado.
+        // Em janeiro, "dezembro" quer dizer o dezembro que acabou de passar.
+        var ano = hoje.getFullYear();
+        if (i > hoje.getMonth()) ano--;
+        var anoDito = t.match(/\b(20\d{2})\b/);
+        if (anoDito) ano = parseInt(anoDito[1], 10);
+        return ano + '-' + String(i + 1).padStart(2, '0');
+      }
+    }
+    return hoje.getFullYear() + '-' + String(hoje.getMonth() + 1).padStart(2, '0');
+  }
+
+  // Acha o cliente citado na pergunta varrendo os nomes que já estão em
+  // memória, em vez de tentar entender a frase. "O Volponi tem entrega em
+  // agosto?" acha o Volponi sem precisar saber o que é artigo ou verbo.
+  // Ganha o nome mais comprido que aparece — assim "Volponi Transportes"
+  // vence "Volponi" quando os dois existem.
+  function cqCliente_(texto) {
+    var t = normalizarTexto_(texto);
+    var melhor = null;
+    clientesCache.forEach(function (c) {
+      var nome = normalizarTexto_(c.nome || '');
+      if (nome.length < 3) return;
+      if (t.indexOf(nome) === -1) return;
+      if (!melhor || nome.length > normalizarTexto_(melhor.nome || '').length) melhor = c;
+    });
+    if (melhor) return melhor;
+
+    // Não achou o nome inteiro: tenta palavra a palavra, pra "entregas do
+    // volponi" achar "VOLPONI AGROPECUARIA LTDA".
+    var palavras = t.split(/[^A-Z0-9]+/).filter(function (p) { return p.length >= 4; });
+    var candidatos = [];
+    clientesCache.forEach(function (c) {
+      var nome = normalizarTexto_(c.nome || '');
+      if (palavras.some(function (p) { return nome.indexOf(p) !== -1; })) candidatos.push(c);
+    });
+    return candidatos.length === 1 ? candidatos[0] : (candidatos.length ? candidatos : null);
+  }
+
+  function cqLinha_(nome, meta) {
+    return '<div class="cq-linha"><span class="cq-linha-nome">' + escapeHtml_(nome) + '</span>' +
+      (meta ? '<span class="cq-linha-meta">' + escapeHtml_(meta) + '</span>' : '') + '</div>';
+  }
+  function cqNumero_(valor, rotulo) {
+    return '<div><span class="cq-numero-valor">' + escapeHtml_(String(valor)) + '</span>' +
+      '<span class="cq-numero-rotulo">' + escapeHtml_(rotulo) + '</span></div>';
+  }
+  function cqTitulo_(t) { return '<div class="cq-titulo">' + escapeHtml_(t) + '</div>'; }
+
+  // ---------- as respostas ----------
+
+  var CQ_TIPOS_DOC = ['extrato', 'comprovante', 'aplicacao'];
+  var CQ_NOMES_DOC = { extrato: 'Extrato', comprovante: 'Comprovante', aplicacao: 'Aplicação' };
+
+  // "Quem não mandou extrato esse mês?" — mesma regra da tela de Cobrança:
+  // documento marcado "não se aplica" no cadastro não é falta, e mês marcado
+  // "sem movimento" não tem pendência.
+  function cqPendencias_(pergunta) {
+    var comp = cqMes_(pergunta);
+    return db.collection('documentosMensal').where('competencia', '==', comp).limit(1000).get()
+      .then(function (snap) {
+        var porCliente = new Map();
+        snap.forEach(function (d) { porCliente.set(d.data().clienteId, d.data()); });
+
+        var faltantes = [];
+        clientesCache.forEach(function (c) {
+          if (c.ativo === false) return;
+          var st = porCliente.get(c.id) || {};
+          if (st.semMovimento) return;
+          var naoAplica = Array.isArray(c.documentosNaoAplicaveis) ? c.documentosNaoAplicaveis : [];
+          var faltando = CQ_TIPOS_DOC.filter(function (t) {
+            return naoAplica.indexOf(t) === -1 && !st[t];
+          });
+          if (faltando.length) faltantes.push({ nome: clienteLabel(c), faltando: faltando });
+        });
+        faltantes.sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); });
+
+        if (!faltantes.length) {
+          return cqTitulo_('Pendências de ' + fmtCompetencia(comp)) +
+            '<div>Ninguém está devendo documento esse mês.</div>';
+        }
+        var MOSTRA = 25;
+        var html = cqTitulo_(faltantes.length + ' cliente' + (faltantes.length > 1 ? 's' : '') +
+          ' com documento em falta em ' + fmtCompetencia(comp));
+        html += faltantes.slice(0, MOSTRA).map(function (f) {
+          return cqLinha_(f.nome, f.faltando.map(function (t) { return CQ_NOMES_DOC[t]; }).join(', '));
+        }).join('');
+        if (faltantes.length > MOSTRA) {
+          html += '<div class="cq-nota">Mostrando ' + MOSTRA + ' de ' + faltantes.length +
+            '. A lista inteira está na tela de Pendências.</div>';
+        }
+        return html;
+      })
+      .catch(function (err) {
+        return '<div class="cq-erro">Não consegui ler a cobrança de documentos: ' +
+          escapeHtml_(errMsg(err, 'erro desconhecido')) + '</div>';
+      });
+  }
+
+  // "Quantas entregas esse mês?" — números fechados da competência.
+  function cqResumoMes_(pergunta) {
+    var comp = cqMes_(pergunta);
+    return db.collection('entregas').where('competencia', '==', comp).limit(3000).get()
+      .then(function (snap) {
+        var total = 0, confirmadas = 0, pendentes = 0, assinadas = 0, valor = 0;
+        var porCliente = new Map();
+        snap.forEach(function (d) {
+          var e = d.data();
+          total++;
+          if (e.status === 'confirmada') confirmadas++;
+          if (e.status === 'pendente') pendentes++;
+          if (e.temAssinatura) assinadas++;
+          (Array.isArray(e.itens) ? e.itens : []).forEach(function (i) {
+            if (i && typeof i.valor === 'number') valor += i.valor;
+          });
+          porCliente.set(e.clienteId, true);
+        });
+        if (!total) {
+          return cqTitulo_(fmtCompetencia(comp)) + '<div>Nenhuma entrega registrada nesse mês.</div>';
+        }
+        return cqTitulo_('Entregas de ' + fmtCompetencia(comp)) +
+          '<div class="cq-numeros">' +
+            cqNumero_(total, 'entregas') +
+            cqNumero_(porCliente.size, 'clientes') +
+            cqNumero_(confirmadas, 'confirmadas') +
+            cqNumero_(assinadas, 'assinadas') +
+          '</div>' +
+          (pendentes ? '<div class="cq-nota">' + pendentes + ' ainda na rota.</div>' : '') +
+          (valor ? '<div class="cq-nota">Valor somado dos documentos: ' + escapeHtml_(fmtMoney(valor)) + '</div>' : '');
+      })
+      .catch(function (err) {
+        return '<div class="cq-erro">Não consegui ler as entregas: ' +
+          escapeHtml_(errMsg(err, 'erro desconhecido')) + '</div>';
+      });
+  }
+
+  // "Entregas do Volponi" — histórico de um cliente.
+  function cqEntregasCliente_(cliente, pergunta) {
+    var temMes = /\b(20\d{2}|jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez|mes passado)/i
+      .test(normalizarTexto_(pergunta).toLowerCase());
+    var consulta = db.collection('entregas').where('clienteId', '==', cliente.id);
+    var comp = temMes ? cqMes_(pergunta) : null;
+    if (comp) consulta = consulta.where('competencia', '==', comp);
+
+    return consulta.limit(200).get().then(function (snap) {
+      var lista = snap.docs.map(function (d) { return d.data(); })
+        .sort(function (a, b) { return String(b.criadoEm).localeCompare(String(a.criadoEm)); });
+
+      var titulo = clienteLabel(cliente) + (comp ? ' · ' + fmtCompetencia(comp) : '');
+      if (!lista.length) {
+        return cqTitulo_(titulo) + '<div>Nenhuma entrega registrada' + (comp ? ' nesse mês' : '') + '.</div>';
+      }
+      var MOSTRA = 15;
+      var html = cqTitulo_(titulo) +
+        '<div class="cq-nota" style="margin-top:0">' + lista.length + ' entrega' +
+        (lista.length > 1 ? 's' : '') + (comp ? '' : ' no total') + '</div>';
+      html += lista.slice(0, MOSTRA).map(function (e) {
+        var docs = (Array.isArray(e.itens) ? e.itens : [])
+          .map(function (i) { return i && i.tipo ? i.tipo : '?'; }).join(', ');
+        var quando = e.criadoEm ? new Date(e.criadoEm).toLocaleDateString('pt-BR') : '';
+        return cqLinha_(
+          fmtCompetencia(e.competencia) + (docs ? ' · ' + docs : ''),
+          quando + (e.temAssinatura ? ' ✓' : '')
+        );
+      }).join('');
+      if (lista.length > MOSTRA) {
+        html += '<div class="cq-nota">Mostrando as ' + MOSTRA + ' mais recentes.</div>';
+      }
+      return html;
+    }).catch(function (err) {
+      return '<div class="cq-erro">Não consegui ler as entregas: ' +
+        escapeHtml_(errMsg(err, 'erro desconhecido')) + '</div>';
+    });
+  }
+
+  // "O que falta na rota?" — sai direto da memória, sem ida ao servidor.
+  function cqRota_() {
+    if (!pendentesCache.length) {
+      return Promise.resolve(cqTitulo_('Rota') + '<div>Não tem nada pendente na rota agora.</div>');
+    }
+    var html = cqTitulo_(pendentesCache.length + ' entrega' +
+      (pendentesCache.length > 1 ? 's' : '') + ' ainda na rota');
+    html += pendentesCache.slice(0, 25).map(function (e) {
+      return cqLinha_(e.clienteNome || 'sem cliente', fmtCompetencia(e.competencia));
+    }).join('');
+    if (pendentesCache.length > 25) {
+      html += '<div class="cq-nota">Mostrando 25 de ' + pendentesCache.length + '. A lista inteira está na aba Rota.</div>';
+    }
+    return Promise.resolve(html);
+  }
+
+  function cqFichaCliente_(cliente) {
+    var emails = [cliente.email].concat(Array.isArray(cliente.emails) ? cliente.emails : []).filter(Boolean);
+    var html = cqTitulo_(clienteLabel(cliente));
+    html += cqLinha_('Situação', cliente.ativo === false ? 'inativo' : 'ativo');
+    if (cliente.zona) html += cqLinha_('Zona', cliente.zona);
+    if (cliente.honorarioForma) html += cqLinha_('Honorário', cliente.honorarioForma + (cliente.honorarioDia ? ' · dia ' + cliente.honorarioDia : ''));
+    html += cqLinha_('E-mail', emails.length ? emails[0] : 'não cadastrado');
+    html += '<div class="cq-nota">A ficha completa, com documento e telefone, está na aba Clientes.</div>';
+    return Promise.resolve(html);
+  }
+
+  // ---------- reconhecer a intenção ----------
+  //
+  // A ordem importa: "pendências do Volponi" tem nome de cliente E palavra de
+  // pendência. Quem vem primeiro ganha, e pendência é a pergunta mais
+  // frequente do escritório — por isso está no topo.
+  function cqResponder_(pergunta) {
+    var t = normalizarTexto_(pergunta).toLowerCase();
+
+    if (/pendencia|nao mandou|nao entregou|nao enviou|falta|faltando|devendo|em aberto|nao recebeu/.test(t)
+        && !/rota|entregar/.test(t)) {
+      return cqPendencias_(pergunta);
+    }
+    if (/\brota\b|falta entregar|para entregar|pra entregar|pendentes? de entrega/.test(t)) {
+      return cqRota_();
+    }
+
+    var cliente = cqCliente_(pergunta);
+    if (Array.isArray(cliente)) {
+      var html = cqTitulo_('Achei ' + cliente.length + ' clientes com esse nome') +
+        cliente.slice(0, 12).map(function (c) { return cqLinha_(clienteLabel(c), ''); }).join('') +
+        '<div class="cq-nota">Pergunte de novo usando o nome mais completo.</div>';
+      return Promise.resolve(html);
+    }
+    if (cliente) {
+      if (/ficha|cadastro|dados|telefone|email|e-mail|contato/.test(t)) return cqFichaCliente_(cliente);
+      return cqEntregasCliente_(cliente, pergunta);
+    }
+
+    if (/quant|total|resumo|numeros|balanco|fechamento|como foi/.test(t)) {
+      return cqResumoMes_(pergunta);
+    }
+
+    return Promise.resolve(
+      cqTitulo_('Não entendi essa') +
+      '<div>Sei responder sobre:</div>' +
+      cqLinha_('Pendências', 'quem não mandou documento') +
+      cqLinha_('Entregas', 'histórico de um cliente') +
+      cqLinha_('Rota', 'o que falta entregar hoje') +
+      cqLinha_('Resumo', 'números de um mês') +
+      '<div class="cq-nota">Pode citar o mês ("agosto", "09/2026") e o nome do cliente na mesma frase.</div>' +
+      // O reforço de IA só é oferecido quando ele de fato responde: PC do
+      // escritório ligado E chave configurada. Botão que não funciona é pior
+      // do que botão nenhum.
+      (cqIaDisponivel_()
+        ? '<button type="button" class="cq-exemplo cq-tentar-ia" style="margin-top:var(--esp-3)">' +
+            '<i class="ph ph-sparkle" aria-hidden="true"></i> Tentar com a IA' +
+          '</button>'
+        : '')
+    );
+  }
+
+  // ---------- o reforço de IA ----------
+  //
+  // Quando a busca local não entende, a pergunta pode ir pro atendente que
+  // roda no PC do escritório (scripts/ia-atendente.js). O navegador nunca
+  // fala com o Gemini: a chave da API não pode estar aqui, pelo mesmo motivo
+  // que a base de clientes não podia — quem abre o código-fonte leva tudo.
+  //
+  // A ordem (local primeiro, IA depois) é de propósito: o que dá pra
+  // responder de graça é respondido de graça, e a cota da IA fica pro que
+  // realmente precisa dela.
+  var cqIaLigada = false;
+  var cqVigiaLigado = false;
+  var unsubCqRobo = null;
+  var cqConversaId = null;
+  var unsubCqConversa = null;
+  var unsubCqMensagens = null;
+
+  function cqIaDisponivel_() { return cqIaLigada && cqVigiaLigado; }
+
+  function cqEscutarRobo_() {
+    if (unsubCqRobo) return;
+    // robo/estado, não config/robo: é o mesmo documento que o robô do Gmail
+    // já usa pro "vigia.em" (config/* é lido por qualquer logado; este
+    // documento carrega remetente/assunto de cliente, e a regra do
+    // Firestore restringe a leitura a admin/contábil). Quem não tem esses
+    // papéis simplesmente não vê a oferta de "Tentar com a IA" — a Consulta
+    // rápida sem IA continua igual pra todo mundo.
+    unsubCqRobo = db.doc('robo/estado').onSnapshot(function (snap) {
+      var d = snap.exists ? snap.data() : {};
+      var em = d.vigia && d.vigia.em ? Date.parse(d.vigia.em) : 0;
+      // 3 minutos: o vigia bate ponto a cada 1, então duas batidas perdidas
+      // já é desligado de verdade, não lentidão de rede.
+      cqVigiaLigado = !!em && (Date.now() - em) < 3 * 60 * 1000;
+      cqIaLigada = !!(d.ia && d.ia.ligado);
+      renderIaEstado_();
+    }, function () {});
+  }
+
+  function cqSoltarConversaIa_() {
+    if (unsubCqConversa) { unsubCqConversa(); unsubCqConversa = null; }
+    if (unsubCqMensagens) { unsubCqMensagens(); unsubCqMensagens = null; }
+    cqConversaId = null;
+  }
+
+  // Markdown de pobre: negrito, lista com traço e parágrafo. O modelo escreve
+  // nesse formato, e ler "**Volponi**" na tela é pior do que não formatar.
+  // Escapa ANTES de montar a marcação — o texto vem de fora.
+  function cqMarkdown_(texto) {
+    var linhas = String(texto == null ? '' : texto).split('\n');
+    var html = '', naLista = false;
+    linhas.forEach(function (linha) {
+      var t = linha.trim();
+      var item = t.match(/^[-*]\s+(.*)$/);
+      if (item) {
+        if (!naLista) { html += '<ul style="margin:0 0 var(--esp-2);padding-left:18px">'; naLista = true; }
+        html += '<li>' + cqInline_(item[1]) + '</li>';
+        return;
+      }
+      if (naLista) { html += '</ul>'; naLista = false; }
+      if (t) html += '<p style="margin:0 0 var(--esp-2)">' + cqInline_(t) + '</p>';
+    });
+    if (naLista) html += '</ul>';
+    return html;
+  }
+  function cqInline_(t) {
+    return escapeHtml_(t)
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/(^|[\s(])_([^_]+)_(?=[\s.,;:)!?]|$)/g, '$1<em>$2</em>');
+  }
+
+  // Manda a pergunta pro PC do escritório e acompanha a resposta chegando.
+  // O índice é a posição no histórico que essa resposta vai ocupar — a
+  // resposta cresce ali dentro, em vez de virar um balão novo a cada pedaço.
+  function cqPerguntarIA_(pergunta, indice) {
+    var email = (auth.currentUser && auth.currentUser.email) || '';
+    if (!email) return;
+
+    cqHistorico[indice] = { eu: false, html: '<div class="cq-nota" style="margin:0">perguntando à IA…</div>' };
+    cqRender_();
+
+    var criar = cqConversaId
+      ? Promise.resolve(db.collection('conversasIA').doc(cqConversaId))
+      : db.collection('conversasIA').add({
+          criadoPor: email,
+          criadoEm: new Date().toISOString(),
+          atualizadoEm: new Date().toISOString(),
+          titulo: pergunta.slice(0, 60),
+          estado: 'ocioso'
+        }).then(function (ref) { cqConversaId = ref.id; return ref; });
+
+    criar.then(function (ref) {
+      // Escuta a subcoleção e vai pintando a última resposta do modelo no
+      // lugar reservado. É o que faz o texto aparecer crescendo.
+      if (unsubCqMensagens) unsubCqMensagens();
+      unsubCqMensagens = ref.collection('mensagens').orderBy('ordem', 'asc').limit(200)
+        .onSnapshot(function (snap) {
+          var msgs = snap.docs.map(function (d) { return d.data(); });
+          var ultima = null;
+          msgs.forEach(function (m) { if (m.papel === 'model') ultima = m; });
+          if (!ultima) return;
+          if (ultima.estado === 'erro') {
+            cqHistorico[indice] = { eu: false, html: '<div class="cq-erro">' +
+              escapeHtml_(ultima.erro || 'A IA não conseguiu responder.') + '</div>' };
+          } else {
+            var corpo = ultima.texto ? cqMarkdown_(ultima.texto) : '';
+            if (ultima.estado === 'gerando') {
+              corpo += '<div class="cq-nota" style="margin:0">' +
+                (ultima.consultando
+                  ? 'consultando ' + escapeHtml_(String(ultima.consultando).replace(/_/g, ' ')) + '…'
+                  : 'pensando…') + '</div>';
+            } else if (ultima.ferramentas && ultima.ferramentas.length) {
+              corpo += '<div class="cq-nota">IA · ' +
+                escapeHtml_(ultima.ferramentas.map(function (f) { return f.nome.replace(/_/g, ' '); }).join(' · ')) +
+                '</div>';
+            } else {
+              corpo += '<div class="cq-nota">IA</div>';
+            }
+            cqHistorico[indice] = { eu: false, html: corpo };
+          }
+          cqRender_();
+        }, function (err) {
+          cqHistorico[indice] = { eu: false, html: '<div class="cq-erro">' +
+            escapeHtml_(errMsg(err, 'Não foi possível acompanhar a resposta.')) + '</div>' };
+          cqRender_();
+        });
+
+      var ordem = Date.now();
+      return ref.collection('mensagens').add({
+        papel: 'user', texto: pergunta, ordem: ordem, criadoEm: new Date().toISOString()
+      }).then(function () {
+        // Só agora entra na fila. Marcar 'pendente' antes de a pergunta
+        // existir faria o vigia pegar a conversa sem ter o que responder.
+        return ref.update({ estado: 'pendente', atualizadoEm: new Date().toISOString() });
+      });
+    }).catch(function (err) {
+      cqHistorico[indice] = { eu: false, html: '<div class="cq-erro">' +
+        escapeHtml_(errMsg(err, 'Não foi possível mandar a pergunta pra IA.')) + '</div>' };
+      cqRender_();
+    });
+  }
+
+  // ---------- a tela ----------
+  var cqHistorico = [];
+  var cqOcupado = false;
+
+  var CQ_EXEMPLOS = [
+    'Quem não mandou extrato esse mês?',
+    'Quantas entregas foram feitas em agosto?',
+    'O que ainda falta na rota?'
+  ];
+
+  function cqRender_() {
+    var el = $('cqConversa');
+    if (!cqHistorico.length) {
+      el.innerHTML =
+        '<div class="cq-vazio">' +
+          '<h3>Pergunte sobre o que está no sistema</h3>' +
+          '<div>Responde na hora, com o dado do banco. Nada sai daqui.</div>' +
+          '<div class="cq-exemplos">' +
+            CQ_EXEMPLOS.map(function (p) {
+              return '<button type="button" class="cq-exemplo">' + escapeHtml_(p) + '</button>';
+            }).join('') +
+          '</div>' +
+        '</div>';
+      Array.prototype.forEach.call(el.querySelectorAll('.cq-exemplo'), function (b) {
+        b.addEventListener('click', function () { $('cqCampo').value = b.textContent; cqPerguntar_(); });
+      });
+      return;
+    }
+    el.innerHTML = cqHistorico.map(function (m, i) {
+      return m.eu
+        ? '<div class="cq-msg cq-msg-eu">' + escapeHtml_(m.texto) + '</div>'
+        : '<div class="cq-msg cq-msg-resp" data-i="' + i + '">' + m.html + '</div>';
+    }).join('');
+    // "Tentar com a IA": a pergunta é a mensagem imediatamente anterior no
+    // histórico — a mesma que a busca local não entendeu.
+    Array.prototype.forEach.call(el.querySelectorAll('.cq-tentar-ia'), function (b) {
+      b.addEventListener('click', function () {
+        var i = parseInt(b.closest('.cq-msg-resp').dataset.i, 10);
+        var pergunta = cqHistorico[i - 1] && cqHistorico[i - 1].texto;
+        if (pergunta) cqPerguntarIA_(pergunta, i);
+      });
+    });
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function cqPerguntar_() {
+    var campo = $('cqCampo');
+    var pergunta = campo.value.trim();
+    if (!pergunta || cqOcupado) return;
+    campo.value = '';
+    campo.style.height = 'auto';
+    cqOcupado = true;
+
+    cqHistorico.push({ eu: true, texto: pergunta });
+    cqHistorico.push({ eu: false, html: '<div class="cq-nota" style="margin:0">consultando…</div>' });
+    cqRender_();
+
+    cqResponder_(pergunta).then(function (html) {
+      cqHistorico[cqHistorico.length - 1] = { eu: false, html: html };
+    }).catch(function (err) {
+      cqHistorico[cqHistorico.length - 1] = {
+        eu: false,
+        html: '<div class="cq-erro">Deu erro ao consultar: ' + escapeHtml_(errMsg(err, 'erro desconhecido')) + '</div>'
+      };
+    }).finally(function () {
+      cqOcupado = false;
+      cqRender_();
+    });
+  }
+
+  function cqFechar_() {
+    $('cqPainel').hidden = true;
+    $('cqBotao').hidden = false;
+  }
+
+  $('cqBotao').addEventListener('click', function () {
+    // Só agora: quem nunca abre o painel não fica com um listener aberto no
+    // Firestore o dia inteiro. É a mesma economia que as abas já fazem com
+    // os iframes, que só carregam na primeira vez que são abertas.
+    cqEscutarRobo_();
+    $('cqPainel').hidden = false;
+    $('cqBotao').hidden = true;
+    cqRender_();
+    if (!matchMedia('(hover: none)').matches) $('cqCampo').focus();
+  });
+  $('cqFechar').addEventListener('click', cqFechar_);
+  $('cqLimpar').addEventListener('click', function () {
+    cqHistorico = [];
+    cqSoltarConversaIa_();
+    cqRender_();
+    $('cqCampo').focus();
+  });
+  $('cqEnviar').addEventListener('click', cqPerguntar_);
+  $('cqCampo').addEventListener('keydown', function (e) {
+    // Enter pergunta; Shift+Enter pula linha. É o que a mão já espera.
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); cqPerguntar_(); }
+  });
+  // O campo cresce com o texto, até o teto de 120px que o CSS põe.
+  $('cqCampo').addEventListener('input', function () {
+    this.style.height = 'auto';
+    this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !$('cqPainel').hidden) cqFechar_();
+  });
 
   (function () {
     var params = new URLSearchParams(location.search);
