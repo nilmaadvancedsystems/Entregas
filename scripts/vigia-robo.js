@@ -31,6 +31,27 @@ const args = process.argv.slice(2);
 const iA = args.indexOf('--a-cada');
 const A_CADA_MIN = iA !== -1 ? parseInt(args[iA + 1], 10) : 0;
 
+// ---------- um vigia só ----------
+// Dois vigias atendendo a mesma fila podem mandar a mesma cobrança duas vezes.
+// A trava é um arquivo com o número do processo; se esse processo ainda existe,
+// este sai com código 3 (o iniciar-vigia.cmd entende e não fica reiniciando).
+const fs = require('fs');
+const TRAVA = path.join(__dirname, 'vigia.lock');
+function processoVivo(pid) {
+  try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; }
+}
+try {
+  const pidAntigo = parseInt(fs.readFileSync(TRAVA, 'utf8'), 10);
+  if (pidAntigo && pidAntigo !== process.pid && processoVivo(pidAntigo)) {
+    console.log(new Date().toLocaleString('pt-BR'), 'já existe um vigia rodando (processo ' + pidAntigo + '); este não vai ligar.');
+    process.exit(3);
+  }
+} catch (e) { /* sem trava: ninguém rodando */ }
+fs.writeFileSync(TRAVA, String(process.pid));
+process.on('exit', () => {
+  try { if (parseInt(fs.readFileSync(TRAVA, 'utf8'), 10) === process.pid) fs.unlinkSync(TRAVA); } catch (e) {}
+});
+
 const db = getDb('entregas-2e5e2');
 const roboRef = db.collection('config').doc('robo');
 const fila = db.collection('solicitacoesEmail');

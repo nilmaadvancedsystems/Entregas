@@ -16,3 +16,4 @@ scripts/gmail_oauth_client.json
 scripts/gmail_token.json
 scripts/gmail-processados.json
 scripts/gmail-sem-cliente.json
+scripts/vigia.lock

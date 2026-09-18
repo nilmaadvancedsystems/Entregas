@@ -533,4 +533,13 @@ async function main() {
   console.log(`Duração: ${Math.round(execucao.duracaoMs / 1000)}s${SIMULAR ? ' (simulação, nada gravado)' : ''}`);
 }
 
-main().catch(err => { console.error('ERRO:', err.message); process.exit(1); });
+// Rodando direto (node download-attachments.js) faz a leitura; carregado por
+// require (teste-robo.js) só entrega as funções de detecção, sem tocar em nada.
+if (require.main === module) {
+  main().catch(err => { console.error('ERRO:', err.message); process.exit(1); });
+}
+
+module.exports = {
+  competenciaDoTexto, detectarTipos, coletarAnexos, IMAGEM_DE_ASSINATURA, AUTOMATICO,
+  desempatarPorDocumento, decodificarEntidades, extrairEmail, extrairNome, dominioDe, DOMINIOS_PUBLICOS,
+};
