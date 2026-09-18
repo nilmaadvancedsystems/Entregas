@@ -2540,7 +2540,7 @@
   <span class="brand-name" id="brandName">Nilma</span>
   <button type="button" class="icon-btn notas-btn" id="notasBtn" hidden title="Minhas anotações"><i class="ph ph-note" aria-hidden="true"></i><span class="tab-badge" id="notasBadge" hidden>0</span></button>
   <button type="button" class="icon-btn" id="settingsBtn" hidden title="Configurações"><i class="ph ph-gear" aria-hidden="true"></i></button>
-  <button type="button" class="icon-btn" id="contabilVoltarBtn" hidden title="Voltar pra escolher outra função"><i class="ph ph-arrow-left" aria-hidden="true"></i></button>
+  <button type="button" class="icon-btn" id="contabilVoltarBtn" hidden title="Trocar de função" aria-label="Trocar de função"><i class="ph ph-squares-four" aria-hidden="true"></i></button>
 </div>
 
 <div class="hub-screen" id="hubScreen" hidden>
@@ -9900,9 +9900,6 @@
             '<button type="button" class="btn btn-secondary" id="instalarAppBtn" hidden><i class="ph ph-device-mobile" aria-hidden="true"></i> Instalar na tela inicial</button>' +
             '<div class="card-hint" style="margin:6px 0 0" id="instalarAppDica"></div>' +
           '</div>' +
-          '<div class="field"><span>Função</span>' +
-            '<button type="button" class="btn btn-secondary" id="trocarFuncaoBtn"><i class="ph ph-squares-four" aria-hidden="true"></i> Trocar de função</button>' +
-          '</div>' +
           '</div>' +
           '<div class="config-painel" id="painel-conta" hidden>' +
           '<div class="field"><span>Foto de perfil</span>' +
@@ -9931,7 +9928,6 @@
     $('overlay').addEventListener('click', function (e) { if (e.target.id === 'overlay') closeModal(); });
     $('modalClose').addEventListener('click', closeModal);
     $('modalLogoutBtn').addEventListener('click', function () { closeModal(); auth.signOut(); });
-    $('trocarFuncaoBtn').addEventListener('click', function () { mostrarHub(); });
 
     // Instalar na tela inicial: o Chrome só libera depois de guardar o evento
     // beforeinstallprompt. Quando o app já está instalado o evento não vem,
@@ -10854,6 +10850,9 @@
   function entrarNaFuncao(nomeFuncao) {
     $('hubScreen').hidden = true;
     appShellEls.forEach(function (el) { if (el) el.hidden = false; });
+    // Trocar de função fica sempre à mão, ao lado da engrenagem. Antes, em
+    // Entregas, morava no fim das Configurações: três toques e uma rolagem.
+    $('contabilVoltarBtn').hidden = false;
     if (nomeFuncao === 'entregas') startApp();
   }
 
@@ -11063,6 +11062,7 @@
       $('authGate').hidden = !$('conviteGate').hidden || !$('assinaturaGate').hidden || !$('rotaGate').hidden || !$('portalGate').hidden;
       $('settingsBtn').hidden = true;
       $('notasBtn').hidden = true;
+      $('contabilVoltarBtn').hidden = true;
       // Sai a consulta rápida junto com o resto: fora do login não há o que
       // consultar, e o histórico da conversa anterior não fica na tela.
       $('cqBotao').hidden = true;
