@@ -1254,47 +1254,57 @@
      não errar) e recebe o foco: Enter entra direto. No PC, 1 a 5 também. */
   .hub-screen {
     position: fixed; inset: 0; background: var(--bg); z-index: calc(var(--z-tela) - 5);
-    display: grid; justify-items: center; align-content: start;
-    padding: max(var(--esp-6), 9vh) var(--esp-4) var(--esp-5); overflow-y: auto;
+    display: grid; justify-items: center; align-content: safe center;
+    padding: var(--esp-6) var(--esp-4); overflow-y: auto;
   }
-  .hub-inner { max-width: 480px; width: 100%; }
-  .hub-head { display: grid; grid-template-columns: auto 1fr; column-gap: var(--esp-3); align-items: center; margin-bottom: var(--esp-5); }
+  .hub-inner { max-width: 560px; width: 100%; }
+  .hub-head { display: grid; grid-template-columns: auto 1fr; column-gap: var(--esp-4); align-items: center; margin: 0 var(--esp-2) var(--esp-6); }
   .hub-avatar {
-    display: inline-grid; place-items: center; width: 40px; height: 40px; grid-row: span 2;
+    display: inline-grid; place-items: center; width: 48px; height: 48px; grid-row: span 2;
     border-radius: var(--r-pill); background: var(--surface-2); color: var(--ink-soft);
     border: 1px solid var(--border);
     font-size: var(--t-base); font-weight: 600; letter-spacing: .02em;
     background-size: cover; background-position: center;
   }
   .hub-avatar.com-foto { color: transparent; }
-  .hub-head h1 { font-family: var(--font-display); font-size: var(--t-xl); margin: 0; font-weight: 600; letter-spacing: -.018em; line-height: 1.2; text-wrap: balance; }
-  .hub-data { grid-column: 2; font-size: var(--t-sm); color: var(--ink-faint); margin: 2px 0 0; }
+  .hub-head h1 { font-family: var(--font-display); font-size: 1.5rem; margin: 0; font-weight: 600; letter-spacing: -.02em; line-height: 1.2; text-wrap: balance; }
+  .hub-data { grid-column: 2; font-size: var(--t-base); color: var(--ink-faint); margin: 3px 0 0; }
   .hub-data::first-letter { text-transform: uppercase; }
 
-  .hub-grid { display: flex; flex-direction: column; border-top: 1px solid var(--border); }
+  /* Um painel só, sólido, com as linhas dentro: é um menu, não texto solto
+     no fundo. Os fios ficam entre as linhas, recuados até o texto. */
+  .hub-grid {
+    display: flex; flex-direction: column; overflow: hidden;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg);
+  }
   .hub-card {
-    background: transparent; border: 0; border-bottom: 1px solid var(--border); border-radius: 0;
-    padding: var(--esp-3) var(--esp-2); margin: 0; text-align: left; width: 100%; min-height: 60px;
-    display: grid; grid-template-columns: 36px 1fr auto; column-gap: var(--esp-3); align-items: center;
+    background: transparent; border: 0; border-radius: 0;
+    padding: var(--esp-4) var(--esp-5); margin: 0; text-align: left; width: 100%; min-height: 76px;
+    display: grid; grid-template-columns: 44px 1fr auto; column-gap: var(--esp-4); align-items: center;
     cursor: pointer; font-family: inherit; text-decoration: none; color: inherit; position: relative;
     transition: background-color var(--dur-rapido) var(--ease);
   }
+  .hub-card + .hub-card::before {
+    content: ''; position: absolute; top: 0; right: 0; left: calc(var(--esp-5) + 44px + var(--esp-4));
+    border-top: 1px solid var(--border);
+  }
   .hub-card:hover { background: var(--surface-2); }
-  .hub-card:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: var(--r-sm); }
+  .hub-card:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; border-radius: var(--r-lg); }
   .hub-card:active { background: var(--surface-2); }
   .hub-card-ico {
-    grid-row: span 2; width: 36px; height: 36px; display: grid; place-items: center;
-    border-radius: var(--r-md); background: var(--surface-2); color: var(--ink-soft); font-size: 1.25rem;
+    grid-row: span 2; width: 44px; height: 44px; display: grid; place-items: center;
+    border-radius: var(--r-lg); background: var(--surface-2); color: var(--ink-soft); font-size: 1.5rem;
     transition: background-color var(--dur-rapido) var(--ease), color var(--dur-rapido) var(--ease);
   }
-  .hub-card:hover .hub-card-ico { color: var(--ink); }
-  .hub-card-nome { grid-column: 2; font-family: var(--font-display); font-weight: 600; font-size: var(--t-md); color: var(--ink); }
-  .hub-card-desc { grid-column: 2; font-size: var(--t-sm); color: var(--ink-faint); line-height: 1.35; margin-top: 1px; }
+  .hub-card:hover .hub-card-ico { color: var(--ink); background: var(--border); }
+  .hub-card.ultima:hover .hub-card-ico { background: var(--accent-soft); color: var(--accent-forte); }
+  .hub-card-nome { grid-column: 2; font-family: var(--font-display); font-weight: 600; font-size: var(--t-lg); color: var(--ink); }
+  .hub-card-desc { grid-column: 2; font-size: var(--t-base); color: var(--ink-faint); line-height: 1.4; margin-top: 2px; }
   .hub-card-fim {
     grid-column: 3; grid-row: 1 / span 2; display: flex; align-items: center; gap: var(--esp-2);
-    color: var(--ink-faint); font-size: var(--t-sm);
+    color: var(--ink-faint); font-size: var(--t-base);
   }
-  .hub-card-fim .ph { font-size: 1rem; transition: transform var(--dur-rapido) var(--ease); }
+  .hub-card-fim .ph { font-size: 1.125rem; transition: transform var(--dur-rapido) var(--ease); }
   .hub-card:hover .hub-card-fim .ph { transform: translateX(2px); color: var(--ink-soft); }
   .hub-card-info { font-variant-numeric: tabular-nums; color: var(--ink-soft); }
   .hub-card kbd {
@@ -1311,7 +1321,31 @@
     color: var(--accent-forte); letter-spacing: 0;
   }
 
-  .hub-pe { display: flex; justify-content: space-between; align-items: center; gap: var(--esp-3); margin-top: var(--esp-4); padding: 0 var(--esp-2); }
+  .hub-pe { display: flex; justify-content: space-between; align-items: center; gap: var(--esp-3); margin-top: var(--esp-5); padding: 0 var(--esp-2); }
+  /* PC: a tela é larga e o menu sozinho no meio deixava tudo vazio em volta.
+     Saudação e saída à esquerda, o menu grande à direita, o conjunto no centro. */
+  @media (min-width: 900px) {
+    .hub-inner {
+      max-width: 940px; display: grid; grid-template-columns: 260px 1fr;
+      column-gap: var(--esp-6); row-gap: var(--esp-5); align-items: start;
+    }
+    .hub-head { grid-column: 1; grid-row: 1; grid-template-columns: 1fr; row-gap: var(--esp-4); margin: var(--esp-2) 0 0; }
+    .hub-avatar { width: 64px; height: 64px; grid-row: auto; font-size: var(--t-lg); }
+    .hub-head h1 { font-size: 1.875rem; }
+    .hub-data { grid-column: 1; font-size: var(--t-md); margin-top: calc(var(--esp-2) - var(--esp-4)); }
+    .hub-grid { grid-column: 2; grid-row: 1 / span 2; }
+    .hub-pe { grid-column: 1; grid-row: 2; align-self: end; margin: 0; padding: 0 0 var(--esp-2); flex-direction: column; align-items: flex-start; gap: var(--esp-3); }
+    .hub-inner .hub-pe .link-btn { margin: 0; padding-left: 0; width: auto; align-self: flex-start; text-align: left; order: 2; }
+    .hub-card { min-height: 88px; padding: var(--esp-5); }
+    .hub-card + .hub-card::before { left: calc(var(--esp-5) + 44px + var(--esp-4)); }
+  }
+  /* celular: o painel usa a largura toda e a linha continua folgada pro dedo */
+  @media (max-width: 520px) {
+    .hub-card { padding: var(--esp-4); column-gap: var(--esp-3); min-height: 72px; }
+    .hub-card + .hub-card::before { left: calc(var(--esp-4) + 44px + var(--esp-3)); }
+    .hub-head { margin-bottom: var(--esp-5); }
+    .hub-card-desc { font-size: var(--t-sm); }
+  }
   .hub-pe .link-btn { color: var(--ink-faint); font-size: var(--t-sm); margin-left: auto; }
   .hub-pe .link-btn:hover { color: var(--ink); }
   .hub-dica { font-size: var(--t-xs); color: var(--ink-faint); display: none; }
