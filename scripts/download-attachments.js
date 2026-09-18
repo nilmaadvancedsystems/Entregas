@@ -289,6 +289,37 @@ async function comRetentativa(fn) {
 // documento; deixá-lo em "não reconhecidos" só enche a tabela.
 const AUTOMATICO = /no-?reply|nao-?respond|naorespond|donotreply|mailer-daemon|postmaster|notifica|newsletter|informativo|marketing/i;
 
+// ---------- portal do cliente ----------
+// Cliente com link próprio (clientes.portalToken) vê lá o que ainda deve. A
+// tela de Pendências mantém isso em dia quando está aberta; aqui o robô faz o
+// mesmo logo depois de marcar, pra o cliente que acabou de mandar o extrato
+// não continuar lendo "falta o extrato". Mesma conta da tela: os dois últimos
+// meses fechados, tirando o que não se aplica ao cliente.
+const TIPOS_DO_PORTAL = ['extrato', 'comprovante', 'aplicacao'];
+function mesesDoPortal(agora) {
+  const h = agora || new Date();
+  return [1, 2].map(i => {
+    const d = new Date(h.getFullYear(), h.getMonth() - i, 1);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  });
+}
+function faltamNoMes(cliente, dado) {
+  if (dado && dado.semMovimento) return [];
+  const na = Array.isArray(cliente.documentosNaoAplicaveis) ? cliente.documentosNaoAplicaveis : [];
+  return TIPOS_DO_PORTAL.filter(t => na.indexOf(t) === -1 && !(dado && dado[t]));
+}
+async function atualizarPortal(db, cliente) {
+  if (SIMULAR || !cliente || !cliente.portalToken) return;
+  const meses = [];
+  for (const comp of mesesDoPortal()) {
+    const snap = await db.collection('documentosMensal').doc(cliente.id + '_' + comp).get();
+    meses.push({ competencia: comp, faltam: faltamNoMes(cliente, snap.exists ? snap.data() : null) });
+  }
+  // update() e não set(): portal apagado (link trocado) não pode renascer aqui
+  await db.collection('portais').doc(cliente.portalToken)
+    .update({ documentos: { atualizadoEm: new Date().toISOString(), meses, email: 'nilmacontabilidade@gmail.com' } });
+}
+
 async function gravar(db, docId, patch) {
   if (SIMULAR) return;
   await db.collection('documentosMensal').doc(docId).set(patch, { merge: true });
@@ -329,6 +360,7 @@ async function main() {
   const comSalvos = () => (Object.keys(salvosNovos).length ? { salvos: salvosNovos } : {});
 
   const cont = { emails: 0, marcados: 0, baixados: 0, conversas: 0, erros: 0, ambiguos: 0 };
+  const portaisATocar = new Map();   // clienteId -> cliente, só quem teve documento marcado
   const naoReconhecidosNovos = [];
 
   // O controle de e-mails já lidos vai pro disco durante a leitura, não só no
@@ -477,6 +509,7 @@ async function main() {
           patch.detalhes[t] = { origem: 'gmail', em: agora, mensagemId: id, arquivos: comBytes.map(a => a.filename) };
         });
         cont.marcados++;
+        if (cliente.portalToken) portaisATocar.set(cliente.id, cliente);
         console.log(`  ${cliente.nome} (${competencia}): ${tipos.join(', ')} — ${comBytes.length} anexo(s)`);
       } else {
         console.log(`  ${cliente.nome} (${competencia}): conversa registrada${anexos.length ? ', anexo sem tipo reconhecido' : ''}`);
@@ -491,6 +524,11 @@ async function main() {
       console.error('Erro no e-mail', id, '-', err.message);
       if (UMA_MENSAGEM) resultado = { mensagemId: id, erro: err.message };
     }
+  }
+
+  for (const cliente of portaisATocar.values()) {
+    try { await atualizarPortal(db, cliente); }
+    catch (err) { console.error('  portal de', cliente.nome, 'não atualizou -', err.message); }
   }
 
   // Caixa: soma ao que já estava (a não ser no --reler), o mais novo de cada
@@ -569,6 +607,6 @@ if (require.main === module) {
 }
 
 module.exports = {
-  competenciaDoTexto, competenciaPresumida, detectarTipos, coletarAnexos, IMAGEM_DE_ASSINATURA, AUTOMATICO,
+  competenciaDoTexto, competenciaPresumida, mesesDoPortal, faltamNoMes, detectarTipos, coletarAnexos, IMAGEM_DE_ASSINATURA, AUTOMATICO,
   desempatarPorDocumento, decodificarEntidades, extrairEmail, extrairNome, dominioDe, DOMINIOS_PUBLICOS,
 };

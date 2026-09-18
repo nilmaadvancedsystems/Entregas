@@ -339,6 +339,39 @@ service cloud.firestore {
       allow delete: if logado();
     }
 
+    // ---------- portal do cliente (SEM LOGIN, link fixo) ----------
+    // Terceira porta aberta pra fora. O cliente abre um link que é sempre o
+    // mesmo e vê as guias dos últimos meses, o comprovante de cada entrega e
+    // os documentos que ainda deve. Ele NÃO ganha acesso a `entregas` nem a
+    // `documentosMensal`: lê só esta cópia, gravada por quem está logado (o
+    // app, a tela de Pendências) e pelo robô do Gmail.
+    //
+    // O token de 40 caracteres na URL é a credencial. Sem `list` pra quem
+    // não tem login: com ele, um estranho varria a coleção e lia guia e
+    // valor de todo cliente. Link vazou: o admin troca, e o documento antigo
+    // é apagado junto com as assinaturas.
+    match /portais/{token} {
+      allow get: if true;
+      allow list: if logado();
+
+      allow create: if ehAdmin()
+        && request.resource.data.clienteId is string
+        && request.resource.data.criadoEm is string;
+
+      // A equipe só regrava a projeção. De quem é o portal não muda nunca.
+      allow update: if logado() && so(['clienteNome', 'entregas', 'documentos']);
+
+      allow delete: if ehAdmin();
+
+      // A assinatura de cada entrega, baixada só quando o cliente pede.
+      match /comprovantes/{entregaId} {
+        allow get: if true;
+        allow list: if logado();
+        allow create, update: if logado();
+        allow delete: if ehAdmin();
+      }
+    }
+
     // ---------- Importador LCDPR ----------
     // lcdpr.html passou a checar login e cargo (admin/fiscal) sozinho —
     // essa regra só estava desatualizada porque tinha sido publicada direto

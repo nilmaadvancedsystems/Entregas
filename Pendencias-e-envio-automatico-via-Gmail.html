@@ -2353,6 +2353,7 @@
         clientesPorId = new Map();
         clientesCache.forEach(function (c) { clientesPorId.set(c.id, c); });
         clientesCarregados = true;
+        sincronizarPortais();
         preencherSelectsDeFiltro();
         reconstruirLista();
         if (clienteSelecionadoId) renderDetalhe();
@@ -2394,11 +2395,60 @@
           docs[dado.competencia] = dado;
         });
         statusCarregado = true;
+        sincronizarPortais();
         salvandoDoc.clear();
         atualizarTodosStatus();
         renderPaginas();
         if (clienteSelecionadoId) renderDetalhe();
       }, function (err) { toast('Erro ao carregar situação do mês: ' + err.message, 'erro'); });
+  }
+
+  // ---------- portal do cliente ----------
+  // Cliente com link próprio (clientes.portalToken, criado no app de entregas)
+  // vê lá o que ainda deve. Ele não lê documentosMensal: lê portais/{token},
+  // e a parte "documentos" dessa cópia sai daqui e do robô do Gmail. Mostra
+  // só os dois últimos meses FECHADOS — o mês corrente ainda não é devido.
+  function mesesDoPortal() {
+    var h = new Date();
+    return [1, 2].map(function (i) { return competenciaStr(new Date(h.getFullYear(), h.getMonth() - i, 1)); });
+  }
+  var portalConferido = {};   // token -> o que já está gravado, lido uma vez por sessão
+  var relogioPortais = null;
+  function sincronizarPortais() {
+    clearTimeout(relogioPortais);
+    relogioPortais = setTimeout(function () {
+      if (!clientesCarregados || !statusCarregado) return;
+      var alvo = mesesDoPortal();
+      var carregados = competenciasDoGrafico();
+      // navegando num mês antigo, os meses do portal não estão na tela: não mexe
+      if (alvo.some(function (m) { return carregados.indexOf(m) === -1; })) return;
+      clientesCache.forEach(function (c) {
+        if (!c.portalToken) return;
+        var docs = docsDe(c.id);
+        var meses = alvo.map(function (comp) {
+          var d = docs[comp] || {};
+          return {
+            competencia: comp,
+            faltam: d.semMovimento ? [] : tiposExigidos(c).filter(function (t) { return !d[t.chave]; }).map(function (t) { return t.chave; })
+          };
+        });
+        var marca = JSON.stringify(meses);
+        var ref = db.collection('portais').doc(c.portalToken);
+        var gravar = function () {
+          if (portalConferido[c.portalToken] === marca) return;
+          portalConferido[c.portalToken] = marca;
+          ref.update({ documentos: { atualizadoEm: new Date().toISOString(), meses: meses, email: CAIXA_GMAIL } })
+            .catch(function () { delete portalConferido[c.portalToken]; });
+        };
+        if (portalConferido[c.portalToken] !== undefined) { gravar(); return; }
+        ref.get().then(function (snap) {
+          if (!snap.exists) { portalConferido[c.portalToken] = marca; return; }
+          var atual = (snap.data().documentos || {}).meses;
+          portalConferido[c.portalToken] = atual ? JSON.stringify(atual) : '';
+          gravar();
+        }).catch(function () {});
+      });
+    }, 1500);
   }
 
   // ---------- ações ----------
