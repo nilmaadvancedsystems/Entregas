@@ -90,6 +90,17 @@ function competenciaDaData(dataMs) {
   const d = new Date(Number(dataMs));
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
 }
+// Documento sem mês escrito em lugar nenhum. Se o escritório definiu o dia
+// limite (config/cobranca.diaLimite: até esse dia do mês seguinte o cliente
+// manda os documentos do mês), o que chega até esse dia é do mês ANTERIOR —
+// senão o extrato de agosto que chega em 2 de setembro marcava setembro e
+// agosto continuava sendo cobrado. Sem dia limite, vale o mês do e-mail.
+function competenciaPresumida(dataMs, diaLimite) {
+  const d = new Date(Number(dataMs));
+  if (!(diaLimite >= 1) || d.getDate() > diaLimite) return competenciaDaData(dataMs);
+  const antes = new Date(d.getFullYear(), d.getMonth() - 1, 1);
+  return antes.getFullYear() + '-' + String(antes.getMonth() + 1).padStart(2, '0');
+}
 
 function carregarProcessados() {
   try { return new Set(JSON.parse(fs.readFileSync(PROCESSADOS_PATH, 'utf8'))); }
@@ -294,6 +305,9 @@ async function main() {
   console.log(`Clientes com e-mail: ${porEmail.size} endereços, ${porDominio.size} domínios próprios.`);
   if (SIMULAR) console.log('MODO SIMULAÇÃO: nada será gravado nem baixado.');
 
+  const cobrancaSnap = await db.collection('config').doc('cobranca').get();
+  const DIA_LIMITE = Number((cobrancaSnap.data() || {}).diaLimite) || 0;
+
   const processados = RELER ? new Set() : carregarProcessados();
   const jaProcessados = carregarProcessados();
   const semCliente = RELER ? {} : carregarSemCliente();
@@ -317,7 +331,18 @@ async function main() {
   const cont = { emails: 0, marcados: 0, baixados: 0, conversas: 0, erros: 0, ambiguos: 0 };
   const naoReconhecidosNovos = [];
 
+  // O controle de e-mails já lidos vai pro disco durante a leitura, não só no
+  // fim: se o PC desligar no meio, a próxima leitura não regrava (nem remarca
+  // o que alguém desmarcou na tela) tudo que esta já tinha feito.
+  let desdeUltimoSalvo = 0;
+  const guardarAndamento = () => {
+    if (SIMULAR || UMA_MENSAGEM) return;
+    try { salvarProcessados(processados); fs.writeFileSync(SEM_CLIENTE_PATH, JSON.stringify(semCliente)); } catch (e) { /* tenta de novo no fim */ }
+  };
+  process.once('SIGINT', () => { guardarAndamento(); process.exit(130); });
+
   for (const id of ids) {
+    if (++desdeUltimoSalvo >= 20) { desdeUltimoSalvo = 0; guardarAndamento(); }
     if (!UMA_MENSAGEM) {
       if (processados.has(id)) continue;
       if (semCliente[id] && !ehConhecido(semCliente[id])) continue;   // ainda sem cliente: nada mudou
@@ -359,12 +384,14 @@ async function main() {
 
       // Baixa os bytes antes de decidir: o desempate de filiais e a detecção
       // do tipo podem precisar ler o PDF.
+      let faltouAnexo = false;
       for (const a of anexos) {
         try {
           const att = await comRetentativa(() => gmail.users.messages.attachments.get({ userId: 'me', messageId: id, id: a.attachmentId }));
           a.buffer = Buffer.from(att.data.data, 'base64');
         } catch (err) {
           cont.erros++;
+          faltouAnexo = true;
           console.error('  falha ao baixar', a.filename, '-', err.message);
         }
       }
@@ -387,7 +414,7 @@ async function main() {
         if (!tipos.length) tipos = detectarTipos(t);
         if (!competencia) competencia = competenciaDoTexto(t, msg.data.internalDate);
       }
-      competencia = competencia || competenciaDaData(msg.data.internalDate);
+      competencia = competencia || competenciaPresumida(msg.data.internalDate, DIA_LIMITE);
 
       const mensagem = { mensagemId: id, em, remetente, assunto, trecho, anexos: anexos.map(a => a.filename) };
 
@@ -456,7 +483,9 @@ async function main() {
       }
 
       await gravar(db, cliente.id + '_' + competencia, patch);
-      processados.add(id);
+      // Anexo que não baixou (queda de rede): o e-mail fica de fora dos já
+      // lidos e a próxima leitura tenta de novo, em vez de nunca marcar.
+      if (!faltouAnexo) processados.add(id);
     } catch (err) {
       cont.erros++;
       console.error('Erro no e-mail', id, '-', err.message);
@@ -540,6 +569,6 @@ if (require.main === module) {
 }
 
 module.exports = {
-  competenciaDoTexto, detectarTipos, coletarAnexos, IMAGEM_DE_ASSINATURA, AUTOMATICO,
+  competenciaDoTexto, competenciaPresumida, detectarTipos, coletarAnexos, IMAGEM_DE_ASSINATURA, AUTOMATICO,
   desempatarPorDocumento, decodificarEntidades, extrairEmail, extrairNome, dominioDe, DOMINIOS_PUBLICOS,
 };

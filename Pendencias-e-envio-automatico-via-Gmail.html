@@ -2298,7 +2298,13 @@
     if (unsubRobo) { unsubRobo(); unsubRobo = null; }
     unsubRobo = db.collection('robo').doc('estado').onSnapshot(function (doc) {
       configRobo = doc.exists ? doc.data() : {};
-      if (clientesCarregados) renderPaginas();
+      // O vigia bate ponto a cada minuto neste documento. Remontar as páginas
+      // a cada batida fechava o "Vincular a" aberto no meio da escolha: só
+      // remonta quando muda algo que aparece nelas.
+      var marca = [configRobo.ultimaExecucao, configRobo.status, configRobo.statusEm,
+        (configRobo.caixa || []).length, (configRobo.naoReconhecidos || []).length,
+        (configRobo.execucoes || []).length, Object.keys(configRobo.salvos || {}).length].join('|');
+      if (clientesCarregados && marca !== subscribeRobo.marca) { subscribeRobo.marca = marca; renderPaginas(); }
       renderVigia();
     }, function () {});
   }
@@ -2981,12 +2987,29 @@
   // ==========================================================================
   // Páginas do menu: Cobranças do mês e Leitura automática do Gmail.
   // ==========================================================================
+  // Trocar o e-mail principal guarda o anterior em emails[]: é por ele que o
+  // robô reconhece o que esse cliente manda. Antes o endereço antigo sumia e
+  // os documentos dele voltavam a cair em "remetentes sem cliente".
+  function trocarEmailPrincipal(cliente, novo) {
+    var ref = db.collection('clientes').doc(cliente.id);
+    if (!cliente.email) return ref.update({ email: novo });
+    return ref.update({ email: novo, emails: firebase.firestore.FieldValue.arrayUnion(cliente.email) })
+      .catch(function (err) {
+        // regra antiga no servidor (só admin grava emails[]): troca como antes
+        if (err && err.code === 'permission-denied') return ref.update({ email: novo });
+        throw err;
+      });
+  }
   function vincularRemetente(r, c) {
     var patch = c.email ? { emails: firebase.firestore.FieldValue.arrayUnion(r.remetente) } : { email: r.remetente };
-    if (patch.emails && !souAdmin) { toast('Este cliente já tem e-mail principal. Só admin adiciona um segundo endereço.', 'erro'); return Promise.reject(new Error('sem permissão')); }
     return db.collection('clientes').doc(c.id).update(patch)
       .then(function () { registrarAuditoria('robo_vinculo', clienteLabel(c) + ' · ' + r.remetente); toast(r.remetente + ' vinculado a ' + nomeExibicao(c) + '. Na próxima leitura o robô reconhece.', 'ok'); })
-      .catch(function (err) { toast('Erro ao vincular: ' + err.message, 'erro'); throw err; });
+      .catch(function (err) {
+        toast(err && err.code === 'permission-denied' && patch.emails
+          ? 'Este cliente já tem e-mail principal. Peça a um admin pra adicionar o segundo endereço.'
+          : 'Erro ao vincular: ' + err.message, 'erro');
+        throw err;
+      });
   }
   function renderPaginas() {
     if (!clientesCarregados) return;
@@ -3071,7 +3094,15 @@
           var bP = el('button', 'btn btn-secondary btn-sm'); bP.type = 'button';
           bP.appendChild(ico('ph-link')); bP.appendChild(document.createTextNode(' ' + nomeExibicao(parecido.cliente)));
           bP.title = 'Vincular ' + r.remetente + ' a ' + clienteLabel(parecido.cliente);
-          bP.addEventListener('click', function () { vincularRemetente(r, parecido.cliente); });
+          // Vínculo errado faz o robô marcar nota de fornecedor como documento
+          // do cliente: o primeiro toque só pergunta.
+          bP.addEventListener('click', function () {
+            if (bP.dataset.certeza) { vincularRemetente(r, parecido.cliente); return; }
+            bP.dataset.certeza = '1';
+            var rotulo = bP.lastChild.nodeValue;
+            bP.lastChild.nodeValue = ' Vincular mesmo?';
+            setTimeout(function () { delete bP.dataset.certeza; bP.lastChild.nodeValue = rotulo; }, 4000);
+          });
           tdP.appendChild(bP);
         } else {
           tdP.appendChild(el('span', 'sub', 'sem palpite'));
@@ -3260,7 +3291,19 @@
       b1.addEventListener('click', function () { paginaAtual = 'robo'; aplicarLayout(); window.scrollTo(0, 0); }); ac1.appendChild(b1); a1.appendChild(ac1);
       av.appendChild(a1);
     }
-    if (!roboParado && pz && pz.vencido && pendentes.length) {
+    // Leitura que falhou (quase sempre a autorização do Gmail vencida) só
+    // aparecia na página do robô, e o alarme acima leva 3 dias úteis: nesse
+    // meio-tempo a fila fica velha sem ninguém saber. Um aviso só, aqui.
+    if (!roboParado && configRobo.status === 'erro') {
+      var a3 = el('div', 'alerta-pend bloqueio fino'); a3.appendChild(ico('ph-robot'));
+      var c3 = el('div', 'corpo'); c3.appendChild(el('div', 'titulo', 'A última leitura do Gmail falhou.'));
+      c3.appendChild(el('div', 'texto', configRobo.statusMsg || 'A fila abaixo pode estar desatualizada.'));
+      a3.appendChild(c3);
+      var ac3 = el('div', 'acoes'); var b3 = el('button', 'btn btn-ghost btn-sm', 'Ver robô'); b3.type = 'button';
+      b3.addEventListener('click', function () { paginaAtual = 'robo'; aplicarLayout(); window.scrollTo(0, 0); }); ac3.appendChild(b3); a3.appendChild(ac3);
+      av.appendChild(a3);
+    }
+    if (!roboParado && configRobo.status !== 'erro' && pz && pz.vencido && pendentes.length) {
       var a2 = el('div', 'alerta-pend fino'); a2.appendChild(ico('ph-calendar-x'));
       var c2 = el('div', 'corpo'); c2.appendChild(el('div', 'titulo', 'Prazo venceu há ' + plural(-pz.dias, 'dia', 'dias') + '.'));
       c2.appendChild(el('div', 'texto', plural(pendentes.length, 'cliente ainda deve', 'clientes ainda devem') + ' documentos.'));
@@ -4527,7 +4570,7 @@
     // Endereço novo entra no cadastro ANTES do pedido: o vigia só envia pra
     // e-mail que está no cliente.
     var salvarEmail = para !== (cliente.email || '')
-      ? db.collection('clientes').doc(cliente.id).update({ email: para })
+      ? trocarEmailPrincipal(cliente, para)
       : Promise.resolve();
     salvarEmail
       .then(function () {
@@ -4567,7 +4610,7 @@
     if (!emailValido(para)) { $('cobPara').setAttribute('aria-invalid', 'true'); $('cobPara').focus(); toast('Informe um e-mail válido.', 'erro'); return; }
     if (!abrirNovaAba('https://mail.google.com/mail/?view=cm&fs=1&to=' + encodeURIComponent(para) + '&su=' + encodeURIComponent(assunto) + '&body=' + encodeURIComponent(corpo))) return;
     var gravacoes = [registrarCobranca(cliente, 'gmail', para)];
-    if (para !== (cliente.email || '')) gravacoes.push(db.collection('clientes').doc(cliente.id).update({ email: para }));
+    if (para !== (cliente.email || '')) gravacoes.push(trocarEmailPrincipal(cliente, para));
     Promise.all(gravacoes)
       .then(function () { toast('Cobrança aberta no Gmail e registrada para ' + nomeExibicao(cliente), 'ok'); })
       .catch(function (err) { toast('O Gmail abriu, mas o registro falhou: ' + err.message, 'erro'); })
@@ -4664,11 +4707,42 @@
     return caixa;
   }
 
+  function candidatosDe(c) {
+    var nomes = Array.isArray(c.candidatos) ? c.candidatos : [];
+    return clientesCache.filter(function (cli) { return nomes.indexOf(cli.nome) !== -1; });
+  }
+  // E-mail que serve mais de um cliente: a pessoa diz de quem é, e o botão de
+  // salvar (que também marca o documento) passa a valer pra esse cliente.
+  function linhaSemDono(c) {
+    var linha = el('tr');
+    linha.appendChild(el('td', 'num', dataHora(c.em)));
+    var tdC = el('td');
+    var sel = el('select', 'select'); sel.style.cssText = 'height:30px;width:auto;max-width:240px;font-size:var(--t-sm)';
+    sel.setAttribute('aria-label', 'De qual cliente é este e-mail');
+    sel.appendChild(new Option('De qual cliente?', ''));
+    candidatosDe(c).forEach(function (cli) { sel.appendChild(new Option(nomeExibicao(cli), cli.id)); });
+    tdC.appendChild(sel); tdC.appendChild(el('div', 'sub', c.remetente || ''));
+    linha.appendChild(tdC);
+    linha.appendChild(el('td', null, c.assunto || '(sem assunto)'));
+    var tdA = el('td'); tdA.appendChild(el('span', 'mono', (c.arquivos || []).join(', '))); tdA.style.fontSize = 'var(--t-xs)';
+    linha.appendChild(tdA);
+    var tdB = el('td');
+    sel.addEventListener('change', function () {
+      tdB.innerHTML = '';
+      if (sel.value) tdB.appendChild(acaoSalvar(c.mensagemId, sel.value));
+    });
+    linha.appendChild(tdB);
+    return linha;
+  }
+
   function renderCaixaRobo() {
     var tab = $('tabCaixa');
     if (!tab) return;
     var itens = (Array.isArray(configRobo.caixa) ? configRobo.caixa : [])
-      .filter(function (c) { return c.clienteId && clientesPorId.get(c.clienteId); })
+      // Sem cliente mas com candidatos = mesmo e-mail servindo matriz e
+      // filial, e nada no texto disse qual. O robô não marca nada nesses, e
+      // a linha era descartada aqui: o documento chegava e ninguém via.
+      .filter(function (c) { return (c.clienteId && clientesPorId.get(c.clienteId)) || (!c.clienteId && candidatosDe(c).length); })
       .slice(0, 60);
     $('roboCaixaSecao').hidden = itens.length === 0;
     $('roboCaixaN').textContent = itens.length || '';
@@ -4679,6 +4753,7 @@
     th.appendChild(tr); tab.appendChild(th);
     var tb = el('tbody');
     itens.forEach(function (c) {
+      if (!c.clienteId) { tb.appendChild(linhaSemDono(c)); return; }
       var cli = clientesPorId.get(c.clienteId);
       var linha = el('tr');
       linha.appendChild(el('td', 'num', dataHora(c.em)));

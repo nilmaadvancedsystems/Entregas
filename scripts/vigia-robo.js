@@ -198,6 +198,18 @@ async function atenderLote(p) {
 
 // ---------- leitura do Gmail (roda o robô) ----------
 let lendo = false;
+// Janela da leitura automática: cobre desde a última leitura que terminou,
+// com folga. PC desligado de sexta a terça (ou uma semana de feriado) não
+// deixa e-mail pra trás; o robô pula sozinho o que já leu.
+async function diasDesdeUltimaLeitura() {
+  try {
+    const ultima = ((await roboRef.get()).data() || {}).ultimaExecucao;
+    if (!ultima) return 10;
+    const dias = Math.ceil((Date.now() - new Date(ultima).getTime()) / 864e5) + 2;
+    return Math.min(45, Math.max(3, dias));
+  } catch (e) { return 3; }
+}
+
 function rodarRobo(dias, motivo) {
   return new Promise(resolve => {
     lendo = true;
@@ -396,9 +408,13 @@ async function limparFila() {
 
 // ---------- fila ----------
 let ocupado = false;
+// Falha de rede no meio da fila não gera novo aviso do Firestore: sem isto o
+// pedido ficava "na fila" até alguém fazer outro.
+let filaFalhou = false;
 async function atenderFila() {
   if (ocupado) return;
   ocupado = true;
+  filaFalhou = false;
   try {
     for (;;) {
       const snap = await fila.where('status', '==', 'pendente').get();
@@ -436,6 +452,7 @@ async function atenderFila() {
     }
   } catch (err) {
     log('erro lendo a fila:', err.message);
+    filaFalhou = true;
   } finally {
     ocupado = false;
   }
@@ -451,7 +468,7 @@ async function iniciar() {
   if (presos.size) log(presos.size, 'pedido(s) interrompido(s) marcados como erro');
 
   baterPonto();
-  setInterval(() => { baterPonto(); talvezMandarResumo(); }, 60 * 1000);
+  setInterval(() => { baterPonto(); talvezMandarResumo(); if (filaFalhou) atenderFila(); }, 60 * 1000);
   limparFila();
   setInterval(limparFila, 24 * 36e5);
 
@@ -461,7 +478,11 @@ async function iniciar() {
   );
 
   if (A_CADA_MIN > 0) {
-    setInterval(() => { if (!lendo && !ocupado) rodarRobo(3, 'automático a cada ' + A_CADA_MIN + ' min'); }, A_CADA_MIN * 60 * 1000);
+    setInterval(async () => {
+      if (lendo || ocupado) return;
+      const dias = await diasDesdeUltimaLeitura();
+      if (!lendo && !ocupado) rodarRobo(dias, 'automático a cada ' + A_CADA_MIN + ' min');
+    }, A_CADA_MIN * 60 * 1000);
   }
 
   // O reforço de IA pega carona no mesmo processo: já tem a trava de

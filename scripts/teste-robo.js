@@ -27,6 +27,15 @@ igual('corpo do e-mail: mês por extenso ainda vale', r.competenciaDoTexto('segu
 igual('dígitos de CNPJ não viram mês', r.competenciaDoTexto('CNPJ 11426314000177', SET_18), null);
 igual('chave de NF-e não vira mês', r.competenciaDoTexto('Nfe_000155-1-31260838221501000170550010000001551192419083.xml', SET_18), null);
 
+// ---------- documento sem mês escrito: vale o dia limite do escritório ----------
+const SET_02 = new Date(2026, 8, 2, 10).getTime();
+const SET_11 = new Date(2026, 8, 11, 10).getTime();
+const JAN_05 = new Date(2027, 0, 5, 10).getTime();
+igual('chegou antes do dia limite: é do mês anterior', r.competenciaPresumida(SET_02, 10), '2026-08');
+igual('chegou depois do dia limite: é do mês do e-mail', r.competenciaPresumida(SET_11, 10), '2026-09');
+igual('janeiro antes do limite volta pra dezembro do ano anterior', r.competenciaPresumida(JAN_05, 10), '2026-12');
+igual('sem dia limite configurado, nada muda', r.competenciaPresumida(SET_02, 0), '2026-09');
+
 // ---------- tipo de documento ----------
 igual('títulos pagos = comprovante', r.detectarTipos('TITULOS PAGOS SICOOB AGO2026.pdf'), ['comprovante']);
 igual('tit liquidados = comprovante', r.detectarTipos('TIT LIQUIDADOS BBDVCM AGO2026.pdf'), ['comprovante']);
