@@ -15,6 +15,13 @@
     var t = localStorage.getItem('nilma_tema');
     if (t === 'claro') document.documentElement.dataset.theme = 'light';
     else if (t === 'escuro') document.documentElement.dataset.theme = 'dark';
+    // Mesmas chaves que o entregas.html grava ao escolher cor e tamanho de
+    // texto (mesmo site, mesmo armazenamento): aplicadas antes da primeira
+    // pintura, a tela já abre com a cor da pessoa, sem piscar o vinho.
+    var p = localStorage.getItem('nilma_paleta');
+    if (p && p !== 'padrao') document.documentElement.dataset.paleta = p;
+    var tx = localStorage.getItem('nilma_texto');
+    if (tx && tx !== 'normal') document.documentElement.dataset.texto = tx;
   } catch (e) {}
 })();
 </script>
@@ -83,6 +90,41 @@
   }
   @media (min-width: 900px) { :root { --linha: 40px; --t-md: .875rem; } }
 
+  /* Paleta e tamanho de texto escolhidos no Entregas (Configurações). Os
+     valores são os mesmos de lá — quem escolheu azul lá vê azul aqui. */
+  [data-paleta="verde"] { --accent: #235347; --accent-ink: #FFFFFF; }
+  [data-paleta="vermelho"] { --accent: #C01F29; --accent-ink: #FFFFFF; }
+  [data-paleta="laranja"] { --accent: #804012; --accent-ink: #FFFFFF; }
+  [data-paleta="azul"] { --accent: #1A3D63; --accent-ink: #F6FAFD; }
+  [data-paleta="ardosia"] { --accent: #47606A; --accent-ink: #FFFFFF; }
+  [data-paleta="nogueira"] { --accent: #5E4B43; --accent-ink: #FFFFFF; }
+  :root[data-theme="dark"][data-paleta="verde"] { --accent: #8EB69B; --accent-ink: #0B2B26; }
+  :root[data-theme="dark"][data-paleta="vermelho"] { --accent: #EF6A6A; --accent-ink: #2A0508; }
+  :root[data-theme="dark"][data-paleta="laranja"] { --accent: #DB9F75; --accent-ink: #3E2411; }
+  :root[data-theme="dark"][data-paleta="azul"] { --accent: #7FB3DC; --accent-ink: #0A1931; }
+  :root[data-theme="dark"][data-paleta="ardosia"] { --accent: #A8BAC4; --accent-ink: #191D23; }
+  :root[data-theme="dark"][data-paleta="nogueira"] { --accent: #C4A794; --accent-ink: #2E1F1B; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"])[data-paleta="verde"] { --accent: #8EB69B; --accent-ink: #0B2B26; }
+    :root:not([data-theme="light"])[data-paleta="vermelho"] { --accent: #EF6A6A; --accent-ink: #2A0508; }
+    :root:not([data-theme="light"])[data-paleta="laranja"] { --accent: #DB9F75; --accent-ink: #3E2411; }
+    :root:not([data-theme="light"])[data-paleta="azul"] { --accent: #7FB3DC; --accent-ink: #0A1931; }
+    :root:not([data-theme="light"])[data-paleta="ardosia"] { --accent: #A8BAC4; --accent-ink: #191D23; }
+    :root:not([data-theme="light"])[data-paleta="nogueira"] { --accent: #C4A794; --accent-ink: #2E1F1B; }
+  }
+  /* No escuro, esta tela tem os tons derivados da marca (forte, suave,
+     foco) cravados em vermelho. Com outra paleta, eles passam a sair da
+     cor escolhida — senão ícone ativo e contorno de foco ficavam vinho
+     no meio de uma tela azul. Vem depois dos blocos de tema de propósito:
+     mesma especificidade, ganha pela ordem. */
+  :root[data-paleta] {
+    --accent-forte: color-mix(in srgb, var(--accent) 62%, var(--ink));
+    --accent-soft: color-mix(in srgb, var(--accent) 16%, var(--bg));
+    --foco: var(--accent);
+  }
+  html[data-texto="grande"] { font-size: 17.5px; }
+  html[data-texto="maior"] { font-size: 19px; }
+
   [hidden] { display: none !important; }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
@@ -135,6 +177,16 @@
   .menu-pe { display: flex; align-items: center; gap: 8px; margin-left: auto; padding-left: 8px; font-size: var(--t-sm); color: var(--ink-soft); }
   .menu-pe .usuario-atual { display: none; }
   .menu-pe-linha { display: flex; align-items: center; gap: 8px; justify-content: space-between; min-width: 0; }
+  /* Foto da conta, a mesma do Entregas (usuarios.fotoPerfil); sem foto,
+     as iniciais — igual ao avatar de lá. */
+  .usuario-foto {
+    width: 28px; height: 28px; flex: none; border-radius: var(--r-sm);
+    display: inline-grid; place-items: center;
+    background: var(--accent-soft) center / cover no-repeat; color: var(--accent-forte);
+    font-size: var(--t-xs); font-weight: 600; letter-spacing: .02em;
+  }
+  .usuario-foto.com-foto { background-color: var(--surface-2); }
+  .menu-pe-linha .usuario-atual { flex: 1 1 auto; min-width: 0; }
   .tema-seg { display: flex; width: fit-content; gap: 2px; padding: 3px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface-2); }
   .tema-seg button {
     width: 30px; height: 26px; border: none; border-radius: var(--r-sm); background: none; color: var(--ink-faint); cursor: pointer;
@@ -1013,6 +1065,7 @@
         <button type="button" data-tema="auto" title="Seguir o sistema" aria-label="Seguir o sistema" aria-pressed="false"><i class="ph ph-circle-half" aria-hidden="true"></i></button>
       </div>
       <div class="menu-pe-linha">
+        <span class="usuario-foto" id="usuarioFoto" aria-hidden="true"></span>
         <span class="usuario-atual" id="usuarioAtual"></span>
         <button class="btn btn-ghost btn-sm" id="logoutBtn"><i class="ph ph-sign-out" aria-hidden="true"></i> Sair</button>
       </div>
@@ -2041,8 +2094,45 @@
     });
   });
   aplicarTema(temaSalvo(), false);
-  // O app principal (fora do iframe) pode trocar o tema: acompanha na hora.
-  window.addEventListener('storage', function (ev) { if (ev.key === 'nilma_tema') aplicarTema(ev.newValue || 'auto', true); });
+
+  // Cor e tamanho de texto são escolhidos no Entregas (Configurações);
+  // aqui só se aplica. Mesmas chaves e valores de lá.
+  function aplicarPaleta(paleta) {
+    var root = document.documentElement;
+    if (paleta && paleta !== 'padrao') root.dataset.paleta = paleta;
+    else delete root.dataset.paleta;
+  }
+  function aplicarTexto(texto) {
+    var root = document.documentElement;
+    if (texto && texto !== 'normal') root.dataset.texto = texto;
+    else delete root.dataset.texto;
+  }
+  function iniciaisDe(nome) {
+    var partes = String(nome || '').trim().split(/[\s.]+/).filter(Boolean);
+    if (!partes.length) return '';
+    return (partes[0][0] + (partes.length > 1 ? partes[partes.length - 1][0] : '')).toUpperCase();
+  }
+  function aplicarFoto(dataUrl, nome) {
+    var el = $('usuarioFoto');
+    if (!el) return;
+    if (dataUrl) {
+      el.style.backgroundImage = 'url("' + dataUrl + '")';
+      el.textContent = '';
+      el.classList.add('com-foto');
+    } else {
+      el.style.backgroundImage = '';
+      el.textContent = iniciaisDe(nome);
+      el.classList.remove('com-foto');
+    }
+  }
+
+  // O Entregas aberto em outra aba pode trocar tema, cor ou texto:
+  // acompanha na hora.
+  window.addEventListener('storage', function (ev) {
+    if (ev.key === 'nilma_tema') aplicarTema(ev.newValue || 'auto', true);
+    if (ev.key === 'nilma_paleta') aplicarPaleta(ev.newValue);
+    if (ev.key === 'nilma_texto') aplicarTexto(ev.newValue);
+  });
 
   // ---------- menu principal ----------
   document.querySelectorAll('.menu-item').forEach(function (item) {
@@ -4990,7 +5080,16 @@
         aplicarTema(dados.tema, false);
         try { localStorage.setItem('nilma_tema', dados.tema); } catch (e) {}
       }
+      // A conta manda: vale mesmo num aparelho onde o Entregas nunca foi
+      // aberto (e onde o armazenamento local ainda está vazio).
+      aplicarPaleta(dados.paleta);
+      aplicarTexto(dados.texto);
+      try {
+        localStorage.setItem('nilma_paleta', dados.paleta || 'padrao');
+        localStorage.setItem('nilma_texto', dados.texto || 'normal');
+      } catch (e) {}
       $('usuarioAtual').textContent = usuarioNome;
+      aplicarFoto(dados.fotoPerfil, usuarioNome);
       var podeUsar = roles.indexOf('admin') !== -1 || roles.indexOf('contabil') !== -1;
       souAdmin = roles.indexOf('admin') !== -1;
       document.body.classList.toggle('admin', souAdmin);
