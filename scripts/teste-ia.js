@@ -149,7 +149,7 @@ igual('papel do modelo vira "model"', a.montarHistorico(HIST)[1].role, 'model');
 igual('qualquer outro papel vira "user"', a.montarHistorico(HIST)[0].role, 'user');
 igual('o histórico é cortado no teto',
   a.montarHistorico(Array.from({ length: 100 }, (_, i) => ({ papel: 'user', texto: 'x' + i }))).length,
-  24);
+  a.MAX_MENSAGENS_HISTORICO);
 
 // ---------- juntar os pedaços do stream ----------
 // Texto com texto emenda; o lacre do raciocínio (thoughtSignature) nunca pode

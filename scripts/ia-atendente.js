@@ -40,9 +40,22 @@ const { FERRAMENTAS, executarFerramenta, competenciaAtual } = require('./ia-cons
 // mexer em código: `config/integracoes.iaModelo`.
 const MODELO_PADRAO = 'gemini-flash-latest';
 const INTERVALO_GRAVACAO_MS = 900;   // freio das gravações de texto parcial
-const MAX_IDAS_FERRAMENTA = 6;       // trava contra laço de ferramenta sem fim
-const MAX_TOKENS_RESPOSTA = 4096;    // painel lateral: resposta é curta por natureza
-const MAX_MENSAGENS_HISTORICO = 24;  // o que sobe de conversa passada por pergunta
+// Cada ida de ferramenta é uma chamada de verdade à API, separada da que
+// devolve a resposta final — ou seja, cada pergunta pode custar
+// (idas + 1) chamadas. As quatro ferramentas de ia-consultas.js resolvem
+// em no máximo duas idas (ex.: buscar_cliente, depois
+// entregas_do_cliente); 6 era folga generosa demais sobrando de uma
+// versão mais cautelosa, e "6 perguntas simples" bastaram pra estourar a
+// cota gratuita de um dia. 3 ainda cobre qualquer combinação real das
+// ferramentas existentes, com uma ida de sobra pro modelo se corrigir.
+const MAX_IDAS_FERRAMENTA = 3;
+// Resposta é pro painel lateral da Consulta rápida — cabe pouco texto na
+// tela mesmo, e cada token de saída também conta na cota. 4096 nunca foi
+// preciso pra esse tamanho de resposta.
+const MAX_TOKENS_RESPOSTA = 1024;
+// Menos histórico enviado de novo em cada pergunta nova da mesma
+// conversa: metade do tamanho, metade do custo de entrada por chamada.
+const MAX_MENSAGENS_HISTORICO = 12;
 
 const log = (...m) => console.log(new Date().toLocaleString('pt-BR'), '[ia]', ...m);
 
@@ -412,4 +425,5 @@ module.exports = {
   traduzirErro,
   MODELO_PADRAO,
   MAX_IDAS_FERRAMENTA,
+  MAX_MENSAGENS_HISTORICO,
 };
