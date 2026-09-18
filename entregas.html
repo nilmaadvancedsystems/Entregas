@@ -1445,6 +1445,16 @@
 
     body { padding-left: 224px; font-size: var(--t-md); }
 
+    /* Contábil e Pendências trazem o próprio menu lateral, dentro do
+       iframe — com os dois na tela, ficava um menu do lado do outro,
+       brigando pelo mesmo espaço, e a ferramenta embutida parecia colada
+       por fora do app, não uma aba dele. Enquanto uma dessas abas está
+       aberta, o menu do Entregas sai de cena e o iframe assume a largura
+       toda; o botão de voltar (sidebar-footer, fixo no canto — não faz
+       parte dessa coluna) continua à mão pra sair de lá. */
+    body.modo-secundario { padding-left: 0; }
+    body.modo-secundario .sidebar-brand, body.modo-secundario .tabs { display: none; }
+
     .user-avatar {
       display: inline-grid; place-items: center; width: 28px; height: 28px; flex: none;
       border-radius: var(--r-sm); background: var(--accent-soft); color: var(--accent-forte);
@@ -10464,6 +10474,10 @@
     $('notasBtn').hidden = true;
     $('settingsBtn').hidden = true;
     $('contabilVoltarBtn').hidden = false;
+    // A ferramenta embutida traz o próprio menu — dois menus lado a lado
+    // pareciam dois apps colados. Ver a regra "body.modo-secundario" na
+    // folha de estilo (bloco "PC — a partir de 900px").
+    document.body.classList.add('modo-secundario');
     // carrega o <iframe> só na primeira vez que a aba é aberta de verdade
     cfg.frames.forEach(function (id) {
       var frame = $(id);
@@ -10481,6 +10495,7 @@
       cfg.secoes.forEach(function (id) { if ($(id)) $(id).hidden = true; });
     });
     if ($('contabilVoltarBtn')) $('contabilVoltarBtn').hidden = true;
+    document.body.classList.remove('modo-secundario');
     // restaura as abas de Entregas — as com papel (Honorários/Perfil)
     // seguem a MESMA checagem que startApp() usa, nunca "mostrar todas".
     $('tabbtn-nova').hidden = false;
