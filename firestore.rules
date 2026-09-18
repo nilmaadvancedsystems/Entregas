@@ -156,7 +156,7 @@ service cloud.firestore {
       allow read: if logado();
       allow create, delete: if ehAdmin();
       allow update: if ehAdmin() ||
-        (logado() && so(['geo', 'zona', 'grupoLocal', 'honorarioForma', 'honorarioDia', 'pontoReferencia', 'email']));
+        (logado() && so(['geo', 'zona', 'grupoLocal', 'honorarioForma', 'honorarioDia', 'pontoReferencia', 'email', 'emails']));
     }
 
     // ---------- entregas ----------
@@ -185,12 +185,29 @@ service cloud.firestore {
         && (resource.data.get('entregadoPor', '') == request.auth.token.email || ehAdmin())
         && naoMexeuEm(['criadoEm', 'entregadoPor']);
 
-      allow delete: if ehAdmin();
+      // Mudar a ordem da rota: quem monta a rota (admin, no PC) quase nunca é
+      // quem anda com ela. Qualquer pessoa da equipe reordena parada pendente,
+      // desde que não toque em mais nada.
+      allow update: if logado()
+        && resource.data.status == 'pendente'
+        && so(['ordemRota']);
+
+      // Entrega confirmada é prova e só admin apaga. Parada que ainda está na
+      // rota não provou nada: quem a colocou pode tirar.
+      allow delete: if ehAdmin()
+        || (logado()
+          && resource.data.status == 'pendente'
+          && resource.data.get('entregadoPor', '') == request.auth.token.email);
 
       match /anexos/{anexo} {
         allow read: if logado();
         allow create: if logado();
         allow update, delete: if ehAdmin();
+        // Tirar a própria parada da rota leva o anexo junto, no mesmo lote
+        // (get() ainda enxerga a entrega como estava antes do lote).
+        allow delete: if logado()
+          && get(/databases/$(database)/documents/entregas/$(id)).data.status == 'pendente'
+          && get(/databases/$(database)/documents/entregas/$(id)).data.get('entregadoPor', '') == request.auth.token.email;
         // A assinatura vai pro comprovante no mesmo lote que confirma a
         // entrega. Se a parada já tinha comprovante (guia em PDF anexada na
         // montagem da rota), isso vira update — e sem esta linha só o admin

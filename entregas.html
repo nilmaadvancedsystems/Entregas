@@ -2723,6 +2723,9 @@
   var currentGeo = null;
   var unsubClientes = null;
   var unsubEntregasPainel = null;
+  var unsubEntregasHoje = null;
+  var entregasHojeCache = [];
+  var diaDoCacheHoje = '';
   var entregasPainelCache = [];
   var unsubPendentes = null;
   var pendentesCache = [];
@@ -2892,11 +2895,7 @@
   });
 
   function updateDashStrip() {
-    var hojeStr = new Date().toDateString();
-    var hoje = entregasPainelCache.filter(function (e) {
-      if (e.status !== 'confirmada' || !e.confirmadoEm) return false;
-      try { return new Date(e.confirmadoEm).toDateString() === hojeStr; } catch (err) { return false; }
-    }).length;
+    var hoje = confirmadasHoje_().filter(function (e) { return e.status === 'confirmada'; }).length;
     $('dashHoje').textContent = hoje;
     $('dashRota').textContent = pendentesCache.length;
     var ativos = Array.from(clientesCache.values()).filter(function (c) { return c.ativo !== false; }).length;
@@ -4510,14 +4509,52 @@
   $('form-nova').addEventListener('change', aoParar(salvarRascunho_, 700));
 
   // ---------- painel ----------
+  var LIMITE_PAINEL = 1500;
   function subscribePainel(comp) {
+    subscribePainel.avisou = false;
     if (unsubEntregasPainel) unsubEntregasPainel();
     if (!db) return;
-    unsubEntregasPainel = db.collection('entregas').where('competencia', '==', comp).limit(500).onSnapshot(function (snap) {
+    unsubEntregasPainel = db.collection('entregas').where('competencia', '==', comp).limit(LIMITE_PAINEL).onSnapshot(function (snap) {
       entregasPainelCache = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+      // Sem aviso, o que passava do teto sumia em silêncio e o Painel dizia
+      // "sem entrega registrada" pra cliente que já tinha recebido.
+      if (snap.size >= LIMITE_PAINEL && !subscribePainel.avisou) {
+        subscribePainel.avisou = true;
+        showToast('Esta competência tem mais de ' + LIMITE_PAINEL + ' entregas: o Painel pode não estar mostrando todas.', 'error');
+      }
       renderPainel();
       updateDashStrip();
     }, function (err) { showToast(errMsg(err, 'Não foi possível carregar o painel.'), 'error'); });
+  }
+
+  // Tudo que é "hoje" (fechamento do dia, contador do topo, resumo do
+  // WhatsApp) saía do cache do Painel, que só tem a competência escolhida lá.
+  // DAS de agosto entregue em setembro não contava: o office boy entregava 12
+  // e o fechamento dizia 0. Este ouvinte pega o que foi confirmado hoje, de
+  // qualquer competência. confirmadoEm é ISO em UTC, então comparar texto
+  // com o início do dia local convertido pra ISO dá certo.
+  function subscribeHoje_() {
+    if (unsubEntregasHoje) unsubEntregasHoje();
+    if (!db) return;
+    var agora = new Date();
+    diaDoCacheHoje = agora.toDateString();
+    var inicio = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate()).toISOString();
+    unsubEntregasHoje = db.collection('entregas').where('confirmadoEm', '>=', inicio).onSnapshot(function (snap) {
+      entregasHojeCache = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+      updateDashStrip();
+      if (typeof renderFechamentoDia_ === 'function') renderFechamentoDia_();
+    }, function () { /* sem isto, cai no que o Painel tiver */ });
+  }
+  // App aberto de um dia pro outro: refaz a consulta quando o dia vira.
+  function confirmadasHoje_() {
+    var hojeStr = new Date().toDateString();
+    if (diaDoCacheHoje && diaDoCacheHoje !== hojeStr) subscribeHoje_();
+    var vistos = {};
+    return entregasHojeCache.concat(entregasPainelCache).filter(function (e) {
+      if (!e.confirmadoEm || vistos[e.id]) return false;
+      vistos[e.id] = true;
+      try { return new Date(e.confirmadoEm).toDateString() === hojeStr; } catch (err) { return false; }
+    });
   }
 
   $('painelCompetencia').addEventListener('change', function () { subscribePainel(this.value); });
@@ -4645,11 +4682,7 @@
 
   // ---------- fechamento do dia ----------
   function entregasDeHoje_() {
-    var hojeStr = new Date().toDateString();
-    return entregasPainelCache.filter(function (e) {
-      if (!e.confirmadoEm) return false;
-      try { return new Date(e.confirmadoEm).toDateString() === hojeStr; } catch (err) { return false; }
-    });
+    return confirmadasHoje_();
   }
 
   function renderFechamentoDia_() {
@@ -4853,7 +4886,10 @@
   // cliente sendo confirmado em lote.
   function minutosPorParada_() {
     var porPessoaDia = {};
-    entregasPainelCache.forEach(function (e) {
+    var jaContada = {};
+    entregasHojeCache.concat(entregasPainelCache).forEach(function (e) {
+      if (jaContada[e.id]) return;
+      jaContada[e.id] = true;
       if (e.status !== 'confirmada' || !e.confirmadoEm) return;
       var t = new Date(e.confirmadoEm);
       if (isNaN(t)) return;
@@ -4903,11 +4939,7 @@
     // Só dá pra dizer a que horas termina se a rota JÁ começou — a rota
     // costuma ser montada 1 a 2 horas antes de sair, e contar a partir de
     // "agora" nesse momento daria um horário errado.
-    var jaComecou = entregasPainelCache.some(function (e) {
-      if (e.status !== 'confirmada' || !e.confirmadoEm) return false;
-      var t = new Date(e.confirmadoEm);
-      return !isNaN(t) && t.toDateString() === new Date().toDateString();
-    });
+    var jaComecou = confirmadasHoje_().some(function (e) { return e.status === 'confirmada'; });
     if (jaComecou) {
       texto += ' Terminando por volta das ' + fmtHoraCurta_(new Date(Date.now() + duracao * 60000)) + '.';
     }
@@ -4985,15 +5017,15 @@
     if (!texto) { $('recadoTexto').focus(); return; }
     var btn = $('recadoSalvarBtn');
     botaoOcupado_(btn);
-    db.collection('recados').add({
+    escritaQueNaoTrava_(db.collection('recados').add({
       texto: texto,
       criadoPor: (auth.currentUser && auth.currentUser.email) || '',
       criadoPorNome: currentUserNome || '',
       criadoEm: new Date().toISOString()
-    }).then(function () {
+    }), 'um recado').then(function (resultado) {
       $('recadoTexto').value = '';
       $('recadoForm').hidden = true;
-      showToast('Recado publicado.');
+      showToast(avisoDeEscrita_(resultado, 'Recado publicado.'));
     }).catch(function (err) {
       showToast(errMsg(err, 'Não foi possível publicar.'), 'error');
     }).finally(function () { botaoLivre_(btn); });
@@ -5579,7 +5611,7 @@
       var quando = ehMesAtual ? agora : new Date(parseInt(partes[0], 10), parseInt(partes[1], 10) - 1, 15, 12, 0, 0);
       var quandoIso = quando.toISOString();
 
-      db.collection('entregas').add({
+      escritaQueNaoTrava_(db.collection('entregas').add({
         clienteId: cliente.id,
         clienteNome: clienteLabel(cliente),
         avulso: false,
@@ -5594,9 +5626,9 @@
         entregadoPorNome: currentUserNome || (auth.currentUser && auth.currentUser.email) || '',
         criadoEm: quandoIso,
         confirmadoEm: quandoIso
-      }).then(function () {
+      }), 'marcar ' + clienteLabel(cliente) + ' como entregue').then(function (resultado) {
         registrarAuditoria_('honorario_marcado_sem_comprovante', clienteLabel(cliente) + ' · ' + fmtCompetencia(mesAno) + ' · ' + motivo);
-        showToast('Marcado como entregue.');
+        showToast(avisoDeEscrita_(resultado, 'Marcado como entregue.'));
         fechar();
       }).catch(function (err) {
         showToast(errMsg(err, 'Não foi possível marcar.'), 'error');
@@ -5785,12 +5817,29 @@
   // silêncio, toda parada que outra pessoa tivesse criado — um contorno pra
   // regra antiga do Firestore, que só deixava mexer no que era seu. Na prática
   // quem monta a rota é o admin, então o office boy arrastava, via a ordem
-  // mudar na tela e nada era gravado. A regra nova deixa qualquer pessoa da
-  // equipe reordenar parada pendente, então o filtro sai.
+  // mudar na tela e nada era gravado. A regra deixa qualquer pessoa da equipe
+  // mudar SÓ a ordem de uma parada pendente, então o filtro sai.
+  // Rede de segurança: se o servidor ainda estiver com a regra antiga, o lote
+  // inteiro é recusado — aí grava ao menos as paradas da própria pessoa, que
+  // é o que sempre funcionou, em vez de perder a ordem toda.
   function salvarOrdemIds_(idsFinais) {
-    var batch = db.batch();
-    idsFinais.forEach(function (id) { batch.update(db.doc('entregas/' + id), { ordemRota: idsFinais.indexOf(id) }); });
-    return batch.commit();
+    function gravar(ids) {
+      var batch = db.batch();
+      ids.forEach(function (id) { batch.update(db.doc('entregas/' + id), { ordemRota: idsFinais.indexOf(id) }); });
+      return batch.commit();
+    }
+    return gravar(idsFinais).catch(function (err) {
+      if (!err || err.code !== 'permission-denied' || temPapel('admin')) throw err;
+      var email = auth.currentUser && auth.currentUser.email;
+      var minhas = idsFinais.filter(function (id) {
+        var item = pendentesCache.find(function (p) { return p.id === id; });
+        return item && item.entregadoPor === email;
+      });
+      if (!minhas.length || minhas.length === idsFinais.length) throw err;
+      return gravar(minhas).then(function () {
+        showToast('Só as suas paradas mudaram de ordem; as de outras pessoas ficaram como estavam.', 'error');
+      });
+    });
   }
 
   function pontoParaMaps_(p) {
@@ -5806,10 +5855,12 @@
 
   function urlDoTrecho_(pontos, origemStr) {
     var partes = pontos.map(pontoParaMaps_);
-    var origem = origemStr || partes.shift();
+    // Uma parada só e sem GPS: ela é o destino, e o Maps parte de onde a
+    // pessoa está. Antes ela virava a origem e o destino saía "undefined".
+    var origem = origemStr || (partes.length > 1 ? partes.shift() : '');
     var destino = partes.pop();
     var url = 'https://www.google.com/maps/dir/?api=1&travelmode=driving' +
-      '&origin=' + encodeURIComponent(origem) +
+      (origem ? '&origin=' + encodeURIComponent(origem) : '') +
       '&destination=' + encodeURIComponent(destino);
     if (partes.length) url += '&waypoints=' + encodeURIComponent(partes.join('|'));
     return url;
@@ -6414,21 +6465,6 @@
   function salvarNovaOrdemRota_() {
     var ids = Array.from($('rotaList').querySelectorAll('.rota-item')).map(function (r) { return r.dataset.id; }).filter(Boolean);
     if (!ids.length) return;
-    // As regras do Firestore só deixam alterar uma entrega que é sua ou
-    // sendo admin — se a rota mistura entregas de outras pessoas (várias
-    // pessoas na rota ao mesmo tempo), grava só a parte permitida em vez
-    // de a gravação toda falhar por causa de uma entrega de outro.
-    var email = auth.currentUser && auth.currentUser.email;
-    if (!temPapel('admin')) {
-      var minhas = ids.filter(function (id) {
-        var item = pendentesCache.find(function (p) { return p.id === id; });
-        return item && item.entregadoPor === email;
-      });
-      if (minhas.length !== ids.length) {
-        showToast('Só entregas atribuídas a você foram reordenadas (as de outras pessoas exigem admin).', 'error');
-      }
-      if (!minhas.length) return;
-    }
     salvarOrdemVisivel_(ids).catch(function (err) {
       showToast(errMsg(err, 'Não foi possível salvar a nova ordem.'), 'error');
     });
@@ -7731,12 +7767,12 @@
       if (novosItens.length === 0) { showToast('Selecione ao menos um documento.', 'error'); return; }
       var btn = $('pendingSalvarEdicaoBtn');
       botaoOcupado_(btn);
-      db.doc('entregas/' + entrega.id).update({
+      escritaQueNaoTrava_(db.doc('entregas/' + entrega.id).update({
         competencia: $('pendingEditCompetencia').value,
         zona: $('pendingEditZona').value,
         itens: novosItens
-      }).then(function () {
-        showToast('Rota atualizada.');
+      }), 'a edição da parada de ' + (entrega.clienteNome || 'um cliente')).then(function (resultado) {
+        showToast(avisoDeEscrita_(resultado, 'Rota atualizada.'));
         entrega.competencia = $('pendingEditCompetencia').value;
         entrega.zona = $('pendingEditZona').value;
         entrega.itens = novosItens;
@@ -7951,14 +7987,17 @@
         });
       });
 
-      escritaQueNaoTrava_(Promise.all(gravacoes)).then(function (resultado) {
+      escritaQueNaoTrava_(Promise.all(gravacoes), 'a confirmação de ' + escolhidas.length + ' entregas de ' + (clienteNome || 'um cliente')).then(function (resultado) {
         showToast(avisoDeEscrita_(resultado, isFalha
           ? escolhidas.length + ' entregas registradas como não realizadas.'
           : escolhidas.length + ' entregas confirmadas de uma vez.'));
         if (!isFalha) avisarLocalDivergente_(avaliacaoLote, clienteNome);
         closeModal();
+        // Igual à parada única: cliente ausente com 4 guias não pode obrigar
+        // a remontar as 4 à mão amanhã.
+        if (isFalha) oferecerReagendar_(escolhidas, motivo);
       }).catch(function (err) {
-        showToast(errMsg(err, 'Não foi possível confirmar.'), 'error');
+        explicarRecusaDaConfirmacao_(err, escolhidas[0].id);
         botaoLivre_(btn);
         atualizarModoFalhaLote_();
       });
@@ -8087,14 +8126,31 @@
     var pendingPad = createSignaturePad($('pendingSigCanvas'), 200);
     var assinaturaRemota = null;
 
-    if (assinaturaInicial && assinaturaInicial.assinatura) {
-      assinaturaRemota = assinaturaInicial.assinatura;
+    function aplicarAssinaturaDoCliente_(dados) {
+      assinaturaRemota = dados.assinatura;
       pendingPad.carregar(assinaturaRemota);
       $('pendingSigStatus').textContent = 'Assinado no celular do cliente.';
       $('pendingSigStatus').classList.add('ok');
       $('pendingSigPlaceholder').classList.add('hide');
       $('pendingSigError').hidden = true;
-      if (assinaturaInicial.recebedor) $('pendingRecebedor').value = assinaturaInicial.recebedor;
+      if (dados.recebedor && !$('pendingRecebedor').value) $('pendingRecebedor').value = dados.recebedor;
+    }
+    if (assinaturaInicial && assinaturaInicial.assinatura) {
+      aplicarAssinaturaDoCliente_(assinaturaInicial);
+    } else {
+      // O cliente pode ter assinado pelo QR DEPOIS que esta tela foi fechada
+      // (app recarregado, celular bloqueado). O link já foi gasto e a entrega
+      // seguia pendente sem ninguém saber da assinatura. Procura e aplica.
+      db.collection('assinaturas').where('entregaId', '==', entrega.id).where('assinado', '==', true).get()
+        .then(function (snap) {
+          if (snap.empty || !$('pendingSigCanvas') || assinaturaRemota || pendingPad.hasSignature) return;
+          var maisNova = snap.docs.map(function (d) { return d.data(); })
+            .filter(function (d) { return d.assinatura; })
+            .sort(function (a, b) { return String(b.assinadoEm || '').localeCompare(String(a.assinadoEm || '')); })[0];
+          if (!maisNova) return;
+          aplicarAssinaturaDoCliente_(maisNova);
+          showToast('O cliente já tinha assinado pelo link. Confira e confirme a entrega.');
+        }).catch(function () { /* sem sinal: segue com a assinatura na tela */ });
     }
     pendingPad.onDraw = function () {
       $('pendingSigStatus').innerHTML = '<i class="ph ph-check-circle" aria-hidden="true"></i> Assinatura capturada.';
@@ -8231,7 +8287,7 @@
         if (!isFalha) guardarLocalDoCliente_(entrega.clienteId, pendingGeo);
       });
 
-      escritaQueNaoTrava_(gravacao).then(function (resultado) {
+      escritaQueNaoTrava_(gravacao, 'a confirmação de ' + (entrega.clienteNome || 'uma entrega')).then(function (resultado) {
         showToast(avisoDeEscrita_(resultado, isFalha ? 'Entrega não realizada registrada.'
           : (semComprovante ? 'Entrega registrada sem comprovante.' : 'Entrega confirmada.')));
         if (!isFalha) avisarLocalDivergente_(avaliacao, entrega.clienteNome);
@@ -8241,11 +8297,29 @@
         // com tudo preenchido — e guarda que é a 2ª (ou 3ª...) tentativa.
         if (isFalha) oferecerReagendar_(entrega, motivo);
       }).catch(function (err) {
-        showToast(errMsg(err, 'Não foi possível confirmar.'), 'error');
+        explicarRecusaDaConfirmacao_(err, entrega.id);
         botaoLivre_(btn);
         atualizarModoFalhaPendente();
       });
     });
+  }
+
+  // Confirmação recusada quase nunca é "regra do Firestore": é outra pessoa
+  // que confirmou (ou tirou da rota) a mesma parada um instante antes. Olha
+  // como a entrega está no servidor e diz isso com todas as letras.
+  function explicarRecusaDaConfirmacao_(err, entregaId) {
+    if (!err || err.code !== 'permission-denied') { showToast(errMsg(err, 'Não foi possível confirmar.'), 'error'); return; }
+    db.doc('entregas/' + entregaId).get({ source: 'server' }).then(function (doc) {
+      if (!doc.exists) { showToast('Essa parada já foi tirada da rota por outra pessoa.', 'error'); closeModal(); return; }
+      var d = doc.data();
+      if (d.status && d.status !== 'pendente') {
+        showToast('Essa entrega já foi ' + (d.status === 'falha' ? 'registrada como não realizada' : 'confirmada') +
+          ' por ' + (d.entregadoPorNome || 'outra pessoa') + '.', 'error');
+        closeModal();
+        return;
+      }
+      showToast(errMsg(err, 'Não foi possível confirmar.'), 'error');
+    }).catch(function () { showToast(errMsg(err, 'Não foi possível confirmar.'), 'error'); });
   }
 
   // ---------- assinatura no aparelho do próprio cliente ----------
@@ -8355,7 +8429,7 @@
         $('rotaLinkQr').innerHTML = '<p class="card-hint" style="word-break:break-all">' + escapeHtml_(link) + '</p>';
       }
       $('rotaLinkCopiarBtn').addEventListener('click', function () {
-        navigator.clipboard.writeText(link).then(function () { showToast('Link copiado.'); });
+        copiarOuMostrar_('Link de acompanhamento', link, 'Link copiado.');
       });
       $('rotaLinkWhatsBtn').addEventListener('click', function () {
         var cliente = entrega.clienteId ? clientesCache.get(entrega.clienteId) : null;
@@ -8401,6 +8475,10 @@
     $('assinVoltar').addEventListener('click', voltar);
     $('overlayAssin').addEventListener('click', function (e) { if (e.target.id === 'overlayAssin') voltar(); });
 
+    var avisoSemSinalAssin = setTimeout(function () {
+      var st = $('assinStatus');
+      if (st && /Preparando/.test(st.textContent)) st.textContent = 'Sem sinal: o link só fica pronto quando a internet voltar. Se o cliente estiver esperando, volte e colha a assinatura na tela.';
+    }, 6000);
     db.collection('assinaturas').doc(token).set({
       entregaId: entrega.id,
       clienteNome: entrega.clienteNome || '',
@@ -8416,6 +8494,8 @@
       // isoladamente, os dois falham mesmo sem tocar em dado nenhum).
       expiraEm: firebase.firestore.Timestamp.fromDate(new Date(Date.now() + MINUTOS_ASSINATURA * 60000))
     }).then(function () {
+      clearTimeout(avisoSemSinalAssin);
+      if (!$('assinStatus')) return;
       $('assinStatus').textContent = 'Esperando o cliente assinar...';
       if (typeof QRCode !== 'undefined') {
         new QRCode($('assinQr'), { text: link, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.M });
@@ -8448,8 +8528,11 @@
   }
 
   // ---------- tentar de novo depois de uma entrega não realizada ----------
-  function oferecerReagendar_(entrega, motivo) {
-    var tentativaAtual = entrega.tentativa || 1;
+  function oferecerReagendar_(umaOuVarias, motivo) {
+    var lista = Array.isArray(umaOuVarias) ? umaOuVarias : [umaOuVarias];
+    if (!lista.length) return;
+    var entrega = lista[0];
+    var tentativaAtual = lista.reduce(function (m, e) { return Math.max(m, e.tentativa || 1); }, 1);
     var root = $('modalRoot');
     root.innerHTML =
       '<div class="modal-overlay" id="overlay"><div class="modal" id="modalInner">' +
@@ -8468,21 +8551,29 @@
     $('reagendarSimBtn').addEventListener('click', function () {
       var btn = this;
       botaoOcupado_(btn);
-      db.collection('entregas').add({
-        clienteId: entrega.clienteId || '',
-        clienteNome: entrega.clienteNome || '',
-        competencia: entrega.competencia || '',
-        itens: entrega.itens || [],
-        zona: entrega.zona || '',
-        observacao: entrega.observacao || '',
-        status: 'pendente',
-        tentativa: tentativaAtual + 1,
-        motivoTentativaAnterior: motivo || '',
-        entregadoPor: (auth.currentUser && auth.currentUser.email) || '',
-        entregadoPorNome: currentUserNome || (auth.currentUser && auth.currentUser.email) || '',
-        criadoEm: new Date().toISOString()
-      }).then(function () {
-        showToast('De volta na rota como ' + (tentativaAtual + 1) + 'ª tentativa.');
+      // Lote e não add(): é logo depois de uma entrega que não deu certo,
+      // justo onde costuma não ter sinal. add() só responde com servidor, e o
+      // botão ficava girando até a pessoa tocar de novo e duplicar a parada.
+      var lote = db.batch();
+      var criadoEm = new Date().toISOString();
+      lista.forEach(function (e) {
+        lote.set(db.collection('entregas').doc(), {
+          clienteId: e.clienteId || '',
+          clienteNome: e.clienteNome || '',
+          competencia: e.competencia || '',
+          itens: e.itens || [],
+          zona: e.zona || '',
+          observacao: e.observacao || '',
+          status: 'pendente',
+          tentativa: (e.tentativa || 1) + 1,
+          motivoTentativaAnterior: motivo || '',
+          entregadoPor: (auth.currentUser && auth.currentUser.email) || '',
+          entregadoPorNome: currentUserNome || (auth.currentUser && auth.currentUser.email) || '',
+          criadoEm: criadoEm
+        });
+      });
+      escritaQueNaoTrava_(lote.commit(), 'recolocar ' + (entrega.clienteNome || 'a entrega') + ' na rota').then(function (resultado) {
+        showToast(avisoDeEscrita_(resultado, 'De volta na rota como ' + (tentativaAtual + 1) + 'ª tentativa.'));
         closeModal();
       }).catch(function (err) {
         showToast(errMsg(err, 'Não foi possível recolocar na rota.'), 'error');
@@ -8501,7 +8592,10 @@
     if (!overlay || overlay.classList.contains('modal-saindo')) return;
     if (!movimentoLigado_()) { root.innerHTML = ''; return; }
     overlay.classList.add('modal-saindo');
-    setTimeout(function () { root.innerHTML = ''; }, 180);
+    // Só limpa se o modal que está saindo ainda é o que está na tela. Quem
+    // fecha um e abre outro em seguida ("Tentar de novo?" depois de uma
+    // entrega não realizada) tinha o modal novo apagado por este relógio.
+    setTimeout(function () { if (root.contains(overlay)) root.innerHTML = ''; }, 180);
   }
 
   // ---------- comportamento comum dos modais ----------
@@ -9993,8 +10087,13 @@
     $('notaNovoInput').focus();
   }
 
+  // Entrega confirmada é prova: só admin apaga. Quem não é admin tira da rota
+  // a parada que ele mesmo pôs, enquanto ainda está pendente. Antes o botão
+  // aparecia pra qualquer entrega da pessoa e o servidor recusava sempre.
   function podeExcluir(entrega) {
-    return temPapel('admin') || (entrega.entregadoPor && auth.currentUser && entrega.entregadoPor === auth.currentUser.email);
+    if (temPapel('admin')) return true;
+    return (entrega.status || 'pendente') === 'pendente' &&
+      !!entrega.entregadoPor && !!auth.currentUser && entrega.entregadoPor === auth.currentUser.email;
   }
 
   // Cria um novo login (nome + senha) sem tirar o admin da própria sessão:
@@ -10289,13 +10388,14 @@
   // aparelho não remontava nada — herdava a tela, os caches e os botões de
   // administração de quem tinha saído.
   function desligarSessao_() {
-    [unsubClientes, unsubEntregasPainel, unsubPendentes, unsubRotaLinks,
+    [unsubClientes, unsubEntregasPainel, unsubEntregasHoje, unsubPendentes, unsubRotaLinks,
      unsubRecados, unsubHonorariosMes, unsubHonorarioNaoAplicavel,
      unsubSolicitacoes, unsubSolicitacoesEnviadas, unsubSolicitacoesConcluidas,
      unsubUsuarios, unsubNotas, unsubCompetencias].forEach(function (parar) {
       if (typeof parar === 'function') { try { parar(); } catch (e) {} }
     });
-    unsubClientes = unsubEntregasPainel = unsubPendentes = unsubRotaLinks = null;
+    unsubClientes = unsubEntregasPainel = unsubEntregasHoje = unsubPendentes = unsubRotaLinks = null;
+    entregasHojeCache = [];
     unsubRecados = unsubHonorariosMes = unsubHonorarioNaoAplicavel = null;
     unsubSolicitacoes = unsubSolicitacoesEnviadas = unsubSolicitacoesConcluidas = null;
     unsubUsuarios = unsubNotas = unsubCompetencias = null;
@@ -10352,6 +10452,7 @@
     });
 
     subscribePainel($('painelCompetencia').value);
+    subscribeHoje_();
     if (temPapel('admin') || temPapel('office_boy')) {
       subscribeHonorariosMes_($('honorariosMes').value);
       subscribeHonorarioNaoAplicavel_($('honorariosMes').value);
