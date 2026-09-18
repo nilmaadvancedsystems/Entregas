@@ -1270,6 +1270,13 @@
   .hub-head h1 { font-family: var(--font-display); font-size: 1.5rem; margin: 0; font-weight: 600; letter-spacing: -.02em; line-height: 1.2; text-wrap: balance; }
   .hub-data { grid-column: 2; font-size: var(--t-base); color: var(--ink-faint); margin: 3px 0 0; }
   .hub-data::first-letter { text-transform: uppercase; }
+  /* Sair mora junto de quem está logado, não solto no canto. No celular é
+     só o ícone, à direita do nome; no PC, botão com texto logo abaixo da data. */
+  .hub-head { grid-template-columns: auto 1fr auto; }
+  .hub-sair { grid-column: 3; grid-row: 1 / span 2; align-self: center; width: 40px; min-height: 40px; padding: 0; color: var(--ink-soft); background: transparent; }
+  .hub-sair .ph { font-size: 1.125rem; }
+  .hub-sair span { display: none; }
+  .hub-sair:hover { color: var(--ink); }
 
   /* Um painel só, sólido, com as linhas dentro: é um menu, não texto solto
      no fundo. Os fios ficam entre as linhas, recuados até o texto. */
@@ -1321,7 +1328,7 @@
     color: var(--accent-forte); letter-spacing: 0;
   }
 
-  .hub-pe { display: flex; justify-content: space-between; align-items: center; gap: var(--esp-3); margin-top: var(--esp-5); padding: 0 var(--esp-2); }
+  .hub-pe { display: flex; align-items: center; gap: var(--esp-3); margin-top: var(--esp-4); padding: 0 var(--esp-2); }
   /* PC: a tela é larga e o menu sozinho no meio deixava tudo vazio em volta.
      Saudação e saída à esquerda, o menu grande à direita, o conjunto no centro. */
   @media (min-width: 900px) {
@@ -1329,13 +1336,17 @@
       max-width: 940px; display: grid; grid-template-columns: 260px 1fr;
       column-gap: var(--esp-6); row-gap: var(--esp-5); align-items: start;
     }
-    .hub-head { grid-column: 1; grid-row: 1; grid-template-columns: 1fr; row-gap: var(--esp-4); margin: var(--esp-2) 0 0; }
+    .hub-head { grid-column: 1; grid-row: 1; align-self: center; grid-template-columns: 1fr; row-gap: var(--esp-4); margin: 0; }
     .hub-avatar { width: 64px; height: 64px; grid-row: auto; font-size: var(--t-lg); }
     .hub-head h1 { font-size: 1.875rem; }
     .hub-data { grid-column: 1; font-size: var(--t-md); margin-top: calc(var(--esp-2) - var(--esp-4)); }
-    .hub-grid { grid-column: 2; grid-row: 1 / span 2; }
-    .hub-pe { grid-column: 1; grid-row: 2; align-self: end; margin: 0; padding: 0 0 var(--esp-2); flex-direction: column; align-items: flex-start; gap: var(--esp-3); }
-    .hub-inner .hub-pe .link-btn { margin: 0; padding-left: 0; width: auto; align-self: flex-start; text-align: left; order: 2; }
+    .hub-grid { grid-column: 2; grid-row: 1; }
+    .hub-pe { grid-column: 2; grid-row: 2; margin: 0; padding: 0 var(--esp-2); }
+    .hub-sair {
+      grid-column: 1; grid-row: auto; justify-self: start; align-self: start;
+      width: auto; min-height: 34px; padding: 0 12px; gap: 8px; margin-top: var(--esp-2);
+    }
+    .hub-sair span { display: inline; }
     .hub-card { min-height: 88px; padding: var(--esp-5); }
     .hub-card + .hub-card::before { left: calc(var(--esp-5) + 44px + var(--esp-4)); }
   }
@@ -1346,8 +1357,6 @@
     .hub-head { margin-bottom: var(--esp-5); }
     .hub-card-desc { font-size: var(--t-sm); }
   }
-  .hub-pe .link-btn { color: var(--ink-faint); font-size: var(--t-sm); margin-left: auto; }
-  .hub-pe .link-btn:hover { color: var(--ink); }
   .hub-dica { font-size: var(--t-xs); color: var(--ink-faint); display: none; }
   @media (hover: hover) and (min-width: 700px) { .hub-dica { display: block; } }
 
@@ -2583,6 +2592,7 @@
       <span class="hub-avatar" id="hubAvatar" aria-hidden="true"></span>
       <h1 id="hubSaudacao">Olá</h1>
       <p class="hub-data" id="hubData"></p>
+      <button type="button" class="btn-chip hub-sair" id="hubSairBtn" title="Sair da conta" aria-label="Sair da conta"><i class="ph ph-sign-out" aria-hidden="true"></i><span>Sair da conta</span></button>
     </div>
     <div class="hub-grid" id="hubGridPrincipal">
       <button type="button" class="hub-card" id="hubEntregas">
@@ -2631,7 +2641,6 @@
     </div>
     <div class="hub-pe">
       <span class="hub-dica">Enter abre a última função · os números abrem as outras</span>
-      <button type="button" class="link-btn" id="hubSairBtn">Sair da conta</button>
     </div>
   </div>
 </div>
