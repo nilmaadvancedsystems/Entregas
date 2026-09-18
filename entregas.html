@@ -1684,6 +1684,10 @@
   }
   .cq-cabeca h2 { font-size: var(--t-lg); margin: 0; flex: 1; }
   .cq-cabeca .cq-ico { color: var(--accent-forte); font-size: 1.1rem; line-height: 1; }
+  .cq-modelo-select {
+    width: auto; min-height: 30px; padding: 4px 22px 4px 8px;
+    font-size: var(--t-xs); flex: none;
+  }
 
   .cq-conversa {
     flex: 1; overflow-y: auto; padding: var(--esp-4);
@@ -2475,6 +2479,15 @@
   <div class="cq-cabeca">
     <span class="cq-ico"><i class="ph-fill ph-chats-circle" aria-hidden="true"></i></span>
     <h2 id="cqTitulo">Consulta</h2>
+    <!-- Mesmo campo que Perfil → Reforço de IA da Consulta grava
+         (config/integracoes.iaModelo) — só num lugar mais à mão. Some pra
+         quem não é admin: é ajuste que vale pro escritório inteiro, não
+         preferência de cada um. -->
+    <select class="input cq-modelo-select" id="cqModeloSelect" hidden title="Modelo do reforço de IA" aria-label="Modelo do reforço de IA">
+      <option value="gemini-flash-latest">Flash</option>
+      <option value="gemini-3.8-flash">Flash 3.8</option>
+      <option value="gemini-pro-latest">Pro</option>
+    </select>
     <button type="button" class="icon-btn" id="cqLimpar" title="Limpar"><i class="ph ph-trash" aria-hidden="true"></i></button>
     <button type="button" class="icon-btn" id="cqFechar" title="Fechar"><i class="ph ph-x" aria-hidden="true"></i></button>
   </div>
@@ -9957,6 +9970,10 @@
       if ($('iaModeloInput') && document.activeElement !== $('iaModeloInput')) {
         $('iaModeloInput').value = modelo;
       }
+      // Se o valor salvo não é uma das opções da lista (foi digitado à mão
+      // em Perfil), o seletor simplesmente cai pro Flash — ele não inventa
+      // uma opção nova, só reflete o que dá pra escolher por aqui.
+      if ($('cqModeloSelect')) $('cqModeloSelect').value = modelo || 'gemini-flash-latest';
     }, function () {});
     db.doc('config/metas').onSnapshot(function (snap) {
       metaPorPessoa = (snap.exists && snap.data().porPessoa) || 0;
@@ -9992,15 +10009,29 @@
   // A CHAVE da API não passa por aqui — ela fica só no PC do escritório, num
   // arquivo que o .gitignore barra. O MODELO pode ficar no Firestore porque
   // não é segredo: saber que o escritório usa o Flash não dá acesso a nada.
+  function salvarIaModelo_(modelo) {
+    return db.doc('config/integracoes').set({ iaModelo: modelo }, { merge: true });
+  }
   if ($('salvarIaModeloBtn')) {
     $('salvarIaModeloBtn').addEventListener('click', function () {
       var modelo = $('iaModeloInput').value.trim();
       var btn = this;
       botaoOcupado_(btn);
-      db.doc('config/integracoes').set({ iaModelo: modelo }, { merge: true })
+      salvarIaModelo_(modelo)
         .then(function () { showToast(modelo ? 'Modelo salvo.' : 'Modelo em branco: volta pro padrão.'); })
         .catch(function (err) { showToast(errMsg(err, 'Não foi possível salvar.'), 'error'); })
         .finally(function () { botaoLivre_(btn); });
+    });
+  }
+  // Mesmo salvamento, exposto direto na Consulta rápida — troca vale na
+  // hora pro escritório inteiro, sem precisar abrir Perfil.
+  if ($('cqModeloSelect')) {
+    $('cqModeloSelect').addEventListener('change', function () {
+      var modelo = this.value;
+      var rotulo = this.options[this.selectedIndex].text;
+      salvarIaModelo_(modelo)
+        .then(function () { showToast('Modelo trocado pra ' + rotulo + '.'); })
+        .catch(function (err) { showToast(errMsg(err, 'Não foi possível trocar o modelo.'), 'error'); });
     });
   }
 
@@ -10162,6 +10193,7 @@
     $('competenciasCard').hidden = !temPapel('admin');
     $('integracaoCard').hidden = !temPapel('admin');
     $('iaCard').hidden = !temPapel('admin');
+    if ($('cqModeloSelect')) $('cqModeloSelect').hidden = !temPapel('admin');
     $('form-cliente').hidden = !temPapel('admin');
     $('importCard').hidden = !temPapel('admin');
     $('definirMetaBtn').hidden = !temPapel('admin');
