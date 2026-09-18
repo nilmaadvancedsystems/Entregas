@@ -1,7 +1,9 @@
-// Lista, para a competência informada (padrão: mês atual), os clientes
-// ativos que ainda têm algum documento (extrato/comprovante/aplicacao)
-// desmarcado na grade de Pendencias-e-envio-automatico-via-Gmail.html.
-// Uso: node list-pending.js [AAAA-MM]
+// Lista, para a competência informada (padrão: mês atual), os clientes ativos
+// que ainda têm algum documento em falta na tela de Cobrança de Documentos.
+// Segue as mesmas regras da tela: documento marcado como "não se aplica" no
+// cliente não conta como falta, e mês "sem movimento" não tem pendência.
+// Uso: node list-pending.js [AAAA-MM] [--todos]
+//   --todos  inclui também quem não tem e-mail cadastrado
 const { getDb } = require('./firestore-client');
 
 const TIPOS = ['extrato', 'comprovante', 'aplicacao'];
@@ -13,7 +15,9 @@ function competenciaAtual() {
 }
 
 async function main() {
-  const competencia = process.argv[2] || competenciaAtual();
+  const args = process.argv.slice(2);
+  const competencia = args.find(a => /^\d{4}-\d{2}$/.test(a)) || competenciaAtual();
+  const incluirSemEmail = args.includes('--todos');
   const db = getDb('entregas-2e5e2');
 
   const [clientesSnap, docsSnap] = await Promise.all([
@@ -25,23 +29,30 @@ async function main() {
   docsSnap.forEach(d => statusPorCliente.set(d.data().clienteId, d.data()));
 
   const pendentes = [];
+  let semEmail = 0;
   clientesSnap.forEach(d => {
     const cliente = Object.assign({ id: d.id }, d.data());
-    if (!cliente.email) return; // sem e-mail, não dá pra cobrar
     const status = statusPorCliente.get(cliente.id) || {};
-    const faltando = TIPOS.filter(t => !status[t]).map(t => NOMES[t]);
-    if (faltando.length === 0) return;
+    if (status.semMovimento) return;
+    const naoAplica = Array.isArray(cliente.documentosNaoAplicaveis) ? cliente.documentosNaoAplicaveis : [];
+    const faltando = TIPOS.filter(t => !naoAplica.includes(t) && !status[t]);
+    if (!faltando.length) return;
+    const emails = [cliente.email].concat(Array.isArray(cliente.emails) ? cliente.emails : []).filter(Boolean);
+    if (!emails.length) { semEmail++; if (!incluirSemEmail) return; }
     pendentes.push({
       clienteId: cliente.id,
       clienteNome: cliente.nome,
-      email: cliente.email,
-      competencia: competencia,
-      documentosPendentes: faltando,
+      email: emails[0] || null,
+      outrosEmails: emails.slice(1),
+      competencia,
+      documentosPendentes: faltando.map(t => NOMES[t]),
+      cobrancasNoMes: Array.isArray(status.cobrancas) ? status.cobrancas.length : 0,
     });
   });
 
   console.log(JSON.stringify(pendentes, null, 2));
-  console.error('Total pendentes com e-mail:', pendentes.length, '/ competência', competencia);
+  console.error(`Competência ${competencia}: ${pendentes.length} com pendência` +
+    (incluirSemEmail ? '' : ` e e-mail (mais ${semEmail} sem e-mail; use --todos)`));
 }
 
 main().catch(err => {
