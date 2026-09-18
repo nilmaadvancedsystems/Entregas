@@ -5,7 +5,7 @@
 //   2. marca Extrato/Comprovante/Aplicação em documentosMensal, com procedência;
 //   3. registra a conversa (assunto, trecho, anexos) em documentosMensal.mensagens,
 //      que aparece no Histórico e na aba Comunicação do cliente;
-//   4. guarda em config/robo os remetentes com anexo que não são de nenhum
+//   4. guarda em robo/estado os remetentes com anexo que não são de nenhum
 //      cliente (a tela sugere a quem vincular) e o histórico das execuções.
 //
 // Uso:
@@ -304,7 +304,7 @@ async function main() {
   clientesSnap.forEach(d => clientesPorId.set(d.id, Object.assign({ id: d.id }, d.data())));
 
   // O que a tela mostra como "caixa": todo e-mail com anexo que o robô viu, e o
-  // que já foi salvo no Drive (config/robo.caixa e config/robo.salvos).
+  // que já foi salvo no Drive (robo/estado.caixa e robo/estado.salvos).
   const caixaNovos = [];
   const salvosNovos = {};
   let resultado = null;
@@ -468,7 +468,7 @@ async function main() {
   // e-mail vence — é assim que um e-mail "sem cliente" passa a mostrar o cliente
   // depois que o remetente é vinculado.
   const caixaMap = new Map();
-  const roboAntes = (await db.collection('config').doc('robo').get()).data() || {};
+  const roboAntes = (await db.collection('robo').doc('estado').get()).data() || {};
   (!RELER && Array.isArray(roboAntes.caixa) ? roboAntes.caixa : []).concat(caixaNovos)
     .forEach(c => caixaMap.set(c.mensagemId, c));
   const caixa = Array.from(caixaMap.values())
@@ -477,7 +477,7 @@ async function main() {
 
   if (UMA_MENSAGEM) {
     if (!SIMULAR) {
-      await db.collection('config').doc('robo').set(Object.assign({ caixa }, comSalvos()), { merge: true });
+      await db.collection('robo').doc('estado').set(Object.assign({ caixa }, comSalvos()), { merge: true });
       salvarProcessados(processados);
       fs.writeFileSync(SEM_CLIENTE_PATH, JSON.stringify(semCliente));
     }
@@ -487,8 +487,8 @@ async function main() {
     return;
   }
 
-  // config/robo: o que a página "Robô do Gmail" mostra.
-  const roboRef = db.collection('config').doc('robo');
+  // robo/estado: o que a página "Robô do Gmail" mostra.
+  const roboRef = db.collection('robo').doc('estado');
   const roboAtual = (await roboRef.get()).data() || {};
   const reconhecido = r => porEmail.has(String(r.remetente).toLowerCase()) || porDominio.has(dominioDe(String(r.remetente).toLowerCase()));
   const porMensagem = new Map();

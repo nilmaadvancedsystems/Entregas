@@ -355,6 +355,15 @@ service cloud.firestore {
       allow delete: if ehAdmin();
     }
 
+    // ---------- robô do Gmail (robo/estado) ----------
+    // Estado do robô e do vigia do PC: remetentes, assuntos e nomes de arquivo
+    // de clientes, por isso não fica em config/ (que qualquer logado lê). Quem
+    // grava é o robô pelo Admin SDK, que não passa por estas regras.
+    match /robo/{doc} {
+      allow read: if ehAdmin() || temPapel('contabil');
+      allow write: if false;
+    }
+
     // ---------- porta fechada ----------
     // Coleção nova que apareça sem regra própria nasce trancada, em vez de
     // nascer aberta.

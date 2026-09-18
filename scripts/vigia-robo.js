@@ -6,15 +6,20 @@
 //   tipo 'lote'       envia uma cobrança só, com vários clientes em Cco
 //
 // A cobrança só é registrada no cliente (documentosMensal.cobrancas) depois
-// que o Gmail confirma o envio. A cada minuto grava config/robo.vigia, e é
+// que o Gmail confirma o envio. A cada minuto grava robo/estado.vigia, e é
 // por esse sinal que a tela sabe se o PC está ligado.
+//
+// Também manda, para a caixa do escritório (ou robo/estado.alertaPara), um
+// resumo do dia a partir das 18h e um alerta quando uma leitura ou um pedido
+// dá erro; e apaga da fila os pedidos terminados há mais de 30 dias.
 //
 // Segurança: só envia para e-mail que está no cadastro do cliente (email ou
 // emails[]). Em lote, os endereços saem do cadastro, nunca do pedido. Com isso
 // a fila não serve pra mandar e-mail pra qualquer pessoa.
 //
-// Uso: node vigia-robo.js [--a-cada MINUTOS]
+// Uso: node vigia-robo.js [--a-cada MINUTOS] [--ver-resumo]
 //   --a-cada 120   além dos pedidos, lê o Gmail sozinho a cada 120 minutos
+//   --ver-resumo   só mostra o resumo de hoje na tela (não envia, não liga o vigia)
 const path = require('path');
 const os = require('os');
 const { spawn } = require('child_process');
@@ -30,6 +35,7 @@ const MAX_CCO = 90;                    // o Gmail recusa mensagem com destinatá
 const args = process.argv.slice(2);
 const iA = args.indexOf('--a-cada');
 const A_CADA_MIN = iA !== -1 ? parseInt(args[iA + 1], 10) : 0;
+const SO_VER_RESUMO = args.includes('--ver-resumo');   // imprime o resumo de hoje e sai, sem enviar
 
 // ---------- um vigia só ----------
 // Dois vigias atendendo a mesma fila podem mandar a mesma cobrança duas vezes.
@@ -40,21 +46,27 @@ const TRAVA = path.join(__dirname, 'vigia.lock');
 function processoVivo(pid) {
   try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; }
 }
-try {
+if (!SO_VER_RESUMO) try {
   const pidAntigo = parseInt(fs.readFileSync(TRAVA, 'utf8'), 10);
   if (pidAntigo && pidAntigo !== process.pid && processoVivo(pidAntigo)) {
     console.log(new Date().toLocaleString('pt-BR'), 'já existe um vigia rodando (processo ' + pidAntigo + '); este não vai ligar.');
     process.exit(3);
   }
 } catch (e) { /* sem trava: ninguém rodando */ }
-fs.writeFileSync(TRAVA, String(process.pid));
+if (!SO_VER_RESUMO) fs.writeFileSync(TRAVA, String(process.pid));
 process.on('exit', () => {
   try { if (parseInt(fs.readFileSync(TRAVA, 'utf8'), 10) === process.pid) fs.unlinkSync(TRAVA); } catch (e) {}
 });
 
 const db = getDb('entregas-2e5e2');
-const roboRef = db.collection('config').doc('robo');
+// robo/estado: só admin e contábil leem (config/* qualquer logado lê, e aqui
+// tem remetente, assunto e nome de arquivo de cliente).
+const roboRef = db.collection('robo').doc('estado');
 const fila = db.collection('solicitacoesEmail');
+
+const HORA_DO_RESUMO = 18;              // o resumo do dia sai a partir das 18h
+const DIAS_NA_FILA = 30;                // pedido terminado some da fila depois disso
+const ALERTA_A_CADA_H = 6;              // no máximo um alerta de erro a cada 6h
 
 const agora = () => new Date().toISOString();
 const log = (...m) => console.log(new Date().toLocaleString('pt-BR'), ...m);
@@ -205,6 +217,8 @@ function rodarRobo(dias, motivo) {
         statusMsg: ok ? (robo.ultimaExecucaoResumo || '') : traduzirErro({ message: ultima.replace(/^ERRO:\s*/, '') }),
       }, { merge: true }).catch(() => {});
       log(ok ? 'leitura terminou: ' + (robo.ultimaExecucaoResumo || '') : 'leitura falhou: ' + ultima);
+      // Leitura pedida pela tela já avisa por lá (e pelo alerta do pedido).
+      if (!ok && /^automático/.test(motivo)) await alertar('a leitura automática do Gmail falhou', traduzirErro({ message: ultima.replace(/^ERRO:\s*/, '') }));
       resolve({ ok, resumo: robo.ultimaExecucaoResumo || '', erro: ok ? null : ultima });
     });
   });
@@ -232,6 +246,151 @@ function salvarMensagem(p) {
       resolve({ status: 'concluido', concluidoEm: agora(), pasta: r.pasta, arquivos: r.arquivos, cliente: r.cliente });
     });
   });
+}
+
+// ---------- avisos por e-mail ----------
+const diaLocal = d => new Date(d).toLocaleDateString('sv-SE');   // AAAA-MM-DD no fuso do PC
+const hojeLocal = () => diaLocal(Date.now());
+
+async function destinoDosAvisos() {
+  const r = (await roboRef.get()).data() || {};
+  return { estado: r, para: String(r.alertaPara || CAIXA).trim() };
+}
+
+// Erro de leitura ou de pedido. Se o erro é a própria autorização do Gmail,
+// não dá pra mandar e-mail: fica só a linha vermelha na tela do robô.
+async function alertar(titulo, detalhe) {
+  try {
+    if (/gmail-auth\.js/.test(detalhe)) return;
+    const { estado, para } = await destinoDosAvisos();
+    const ultimo = estado.ultimoAlertaEm ? Date.parse(estado.ultimoAlertaEm) : 0;
+    if (Date.now() - ultimo < ALERTA_A_CADA_H * 36e5) { log('alerta segurado (já foi um há menos de ' + ALERTA_A_CADA_H + 'h):', titulo); return; }
+    await enviar({
+      para, assunto: 'Robô do Gmail: ' + titulo,
+      corpo: titulo + '\n\n' + detalhe + '\n\nAbra a Cobrança de Documentos, página "Robô do Gmail", para ver os detalhes.\n' +
+        'Outros erros nas próximas ' + ALERTA_A_CADA_H + ' horas não geram novo e-mail; aparecem no resumo do dia.\n\n(Enviado pelo vigia do PC ' + os.hostname() + ')',
+    });
+    await roboRef.set({ ultimoAlertaEm: agora() }, { merge: true });
+    log('alerta enviado para', para + ':', titulo);
+  } catch (err) { log('não consegui mandar o alerta:', traduzirErro(err)); }
+}
+
+const TIPOS_DOC = ['extrato', 'comprovante', 'aplicacao'];
+const NOME_DOC = { extrato: 'extrato', comprovante: 'comprovante', aplicacao: 'aplicação' };
+const NOME_MES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+const plural = (n, um, varios) => n + ' ' + (n === 1 ? um : varios);
+
+// Quantos clientes ativos estão com os documentos do mês completos (mesma
+// regra da tela: "não se aplica" não conta e mês sem movimento está completo).
+async function progressoDoMes(competencia) {
+  const [clientes, docs] = await Promise.all([
+    db.collection('clientes').where('ativo', '==', true).get(),
+    db.collection('documentosMensal').where('competencia', '==', competencia).get(),
+  ]);
+  const status = new Map();
+  docs.forEach(d => status.set(d.data().clienteId, d.data()));
+  let completos = 0, comAlgum = 0;
+  clientes.forEach(d => {
+    const c = d.data(), s = status.get(d.id) || {};
+    const naoAplica = Array.isArray(c.documentosNaoAplicaveis) ? c.documentosNaoAplicaveis : [];
+    if (s.semMovimento || TIPOS_DOC.every(t => naoAplica.includes(t) || s[t])) completos++;
+    else if (TIPOS_DOC.some(t => s[t])) comAlgum++;
+  });
+  return { completos, comAlgum, total: clientes.size };
+}
+
+async function montarResumo(hoje) {
+  const { estado } = await destinoDosAvisos();
+  const deHoje = x => x && diaLocal(x) === hoje;
+
+  const leituras = (estado.execucoes || []).filter(e => deHoje(e.em));
+  const soma = k => leituras.reduce((s, e) => s + (e[k] || 0), 0);
+  const chegaram = (estado.caixa || []).filter(c => c.clienteId && deHoje(c.em));
+  const desconhecidos = (estado.naoReconhecidos || []).filter(r => deHoje(r.data));
+
+  // O que o robô marcou hoje, direto da grade (somar as leituras contaria de
+  // novo o mesmo e-mail relido).
+  const inicioDoDia = new Date(new Date().setHours(0, 0, 0, 0)).toISOString();
+  const marcados = [];
+  (await db.collection('documentosMensal').where('atualizadoEm', '>=', inicioDoDia).get()).forEach(d => {
+    const x = d.data(), det = x.detalhes || {};
+    const tipos = TIPOS_DOC.filter(t => x[t] && det[t] && det[t].origem === 'gmail' && deHoje(det[t].em));
+    if (tipos.length) marcados.push(x.clienteNome + ' (' + NOME_MES[parseInt(x.competencia.slice(5), 10) - 1] + '): ' + tipos.map(t => NOME_DOC[t]).join(', '));
+  });
+  marcados.sort();
+
+  const pedidos = (await fila.where('criadoEm', '>=', new Date(Date.now() - 2 * 864e5).toISOString()).get()).docs.map(d => d.data());
+  const enviados = pedidos.filter(p => p.status === 'enviado' && deHoje(p.enviadoEm));
+  const comErro = pedidos.filter(p => p.status === 'erro' && deHoje(p.erroEm) && !/^substitu/.test(p.erro || ''));
+
+  const d = new Date();
+  const compAtual = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  const a = new Date(d.getFullYear(), d.getMonth() - 1, 1);
+  const compAnt = a.getFullYear() + '-' + String(a.getMonth() + 1).padStart(2, '0');
+  const [pAtual, pAnt] = await Promise.all([progressoDoMes(compAtual), progressoDoMes(compAnt)]);
+  const linhaMes = (comp, p) => NOME_MES[parseInt(comp.slice(5), 10) - 1] + ': ' + p.completos + ' de ' + p.total + ' com tudo, ' + p.comAlgum + ' com parte, ' + (p.total - p.completos - p.comAlgum) + ' sem nada (' + p.total + ' clientes)';
+
+  const L = [];
+  L.push('Resumo do robô do Gmail, ' + new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }) + '.', '');
+  L.push('Leituras do Gmail: ' + (leituras.length
+    ? plural(leituras.length, 'leitura', 'leituras') + (soma('erros') ? ', ' + plural(soma('erros'), 'e-mail com erro', 'e-mails com erro') : ', sem erro')
+    : 'nenhuma hoje' + (estado.ultimaExecucao ? ' (a última foi em ' + new Date(estado.ultimaExecucao).toLocaleString('pt-BR') + ')' : '')));
+  L.push('', 'Documentos que o robô marcou hoje: ' + (marcados.length || 'nenhum'));
+  marcados.forEach(m => L.push('  ' + m));
+  L.push('');
+  L.push('E-mails de clientes com anexo que chegaram hoje: ' + (chegaram.length || 'nenhum'));
+  chegaram.slice(0, 30).forEach(c => L.push('  ' + c.clienteNome + ': ' + (c.arquivos || []).join(', ')));
+  if (chegaram.length > 30) L.push('  e mais ' + (chegaram.length - 30));
+  L.push('');
+  L.push('Cobranças enviadas pelo robô hoje: ' + (enviados.length || 'nenhuma'));
+  enviados.forEach(p => L.push('  ' + (p.tipo === 'lote' ? 'em lote, ' + plural(p.enviadosPara || 0, 'cliente', 'clientes') : (p.clienteNome || p.para)) + ' (' + (p.criadoPor || '') + ')'));
+  if (comErro.length) {
+    L.push('', 'Pedidos que deram erro hoje: ' + comErro.length);
+    comErro.forEach(p => L.push('  ' + (p.clienteNome || p.para || p.tipo) + ': ' + p.erro));
+  }
+  if (desconhecidos.length) {
+    L.push('', 'Remetentes novos com anexo que não são de nenhum cliente: ' + desconhecidos.length);
+    desconhecidos.slice(0, 15).forEach(r => L.push('  ' + (r.nome ? r.nome + ' <' + r.remetente + '>' : r.remetente) + ': ' + (r.assunto || '(sem assunto)')));
+    L.push('  Para vincular, abra a página "Robô do Gmail".');
+  }
+  L.push('', 'Andamento do mês', '  ' + linhaMes(compAtual, pAtual), '  ' + linhaMes(compAnt, pAnt));
+  L.push('', '(Enviado pelo vigia do PC ' + os.hostname() + '. Para não receber, avise quem cuida do robô.)');
+
+  const houveAlgo = leituras.length || marcados.length || chegaram.length || enviados.length || comErro.length || desconhecidos.length;
+  return { texto: L.join('\n'), houveAlgo, assunto: 'Robô do Gmail: resumo de ' + new Date().toLocaleDateString('pt-BR') +
+    (comErro.length ? ' (' + plural(comErro.length, 'erro', 'erros') + ')' : '') };
+}
+
+let resumindo = false;
+async function talvezMandarResumo() {
+  if (resumindo || new Date().getHours() < HORA_DO_RESUMO) return;
+  resumindo = true;
+  try {
+    const hoje = hojeLocal();
+    const { estado, para } = await destinoDosAvisos();
+    if (estado.resumoDia === hoje) return;
+    const r = await montarResumo(hoje);
+    const fimDeSemana = [0, 6].includes(new Date().getDay());
+    if (fimDeSemana && !r.houveAlgo) { await roboRef.set({ resumoDia: hoje }, { merge: true }); return; }
+    const gmailId = await enviar({ para, assunto: r.assunto, corpo: r.texto });
+    await roboRef.set({ resumoDia: hoje, resumoEnviadoEm: agora(), resumoGmailId: gmailId }, { merge: true });
+    log('resumo do dia enviado para', para);
+  } catch (err) {
+    log('não consegui mandar o resumo do dia:', traduzirErro(err));
+  } finally { resumindo = false; }
+}
+
+// ---------- limpeza da fila ----------
+// Pedido terminado (enviado, concluído, erro) com mais de 30 dias só pesa na
+// tela; o que foi enviado continua no histórico do cliente e na auditoria.
+async function limparFila() {
+  try {
+    const limite = new Date(Date.now() - DIAS_NA_FILA * 864e5).toISOString();
+    const velhos = await fila.where('criadoEm', '<', limite).get();
+    const apagar = velhos.docs.filter(d => ['enviado', 'concluido', 'erro'].includes(d.data().status));
+    for (const d of apagar) await d.ref.delete();
+    if (apagar.length) log('fila: apaguei', apagar.length, 'pedido(s) terminados há mais de', DIAS_NA_FILA, 'dias');
+  } catch (err) { log('não consegui limpar a fila:', err.message); }
 }
 
 // ---------- fila ----------
@@ -270,6 +429,8 @@ async function atenderFila() {
         const erro = traduzirErro(err);
         log('pedido', doc.id, 'falhou:', erro);
         await doc.ref.update({ status: 'erro', erro, erroEm: agora() }).catch(() => {});
+        const oque = { um: 'a cobrança de ' + (p.clienteNome || p.para), lote: 'a cobrança em lote', verificar: 'a verificação do Gmail', salvar: 'salvar anexo no Drive' }[p.tipo] || 'um pedido';
+        await alertar(oque + ' deu erro', 'Pedido de ' + (p.criadoPor || 'alguém') + ' em ' + new Date(p.criadoEm).toLocaleString('pt-BR') + ':\n' + erro);
       }
     }
   } catch (err) {
@@ -289,7 +450,9 @@ async function iniciar() {
   if (presos.size) log(presos.size, 'pedido(s) interrompido(s) marcados como erro');
 
   baterPonto();
-  setInterval(baterPonto, 60 * 1000);
+  setInterval(() => { baterPonto(); talvezMandarResumo(); }, 60 * 1000);
+  limparFila();
+  setInterval(limparFila, 24 * 36e5);
 
   fila.where('status', '==', 'pendente').onSnapshot(
     snap => { if (!snap.empty) atenderFila(); },
@@ -312,4 +475,9 @@ function desligar() {
 process.on('SIGINT', desligar);
 process.on('SIGTERM', desligar);
 
-iniciar().catch(err => { log('ERRO ao iniciar:', err.message); process.exit(1); });
+if (SO_VER_RESUMO) {
+  montarResumo(hojeLocal()).then(r => { console.log('Assunto: ' + r.assunto + '\n\n' + r.texto); process.exit(0); })
+    .catch(err => { console.error('ERRO:', err.message); process.exit(1); });
+} else {
+  iniciar().catch(err => { log('ERRO ao iniciar:', err.message); process.exit(1); });
+}

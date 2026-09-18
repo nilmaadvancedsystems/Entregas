@@ -1652,7 +1652,7 @@
   var hojePulados = [];           // clientes "pulados" no cartão de foco (só nesta sessão)
   var anualCache = new Map();     // ano -> Map(clienteId -> {comp: dado})
   var anualCarregando = null;
-  var configRobo = {};            // config/robo, escrito pelo script do robô
+  var configRobo = {};            // robo/estado, escrito pelo robô e pelo vigia (só admin e contábil leem)
   var unsubRobo = null;
   var secaoAtual = 'abaResumo';
   var filtroEntregas = 'todas';
@@ -2209,7 +2209,7 @@
   // ---------- dados ----------
   function subscribeRobo() {
     if (unsubRobo) { unsubRobo(); unsubRobo = null; }
-    unsubRobo = db.collection('config').doc('robo').onSnapshot(function (doc) {
+    unsubRobo = db.collection('robo').doc('estado').onSnapshot(function (doc) {
       configRobo = doc.exists ? doc.data() : {};
       if (clientesCarregados) renderPaginas();
       renderVigia();
@@ -2938,7 +2938,7 @@
     var rb = $('roboBadge');
     rb.textContent = !statusCarregado ? 'carregando' : marcados.length ? 'ativo no mês' : ultimaGeral ? 'sem leitura no mês' : 'sem registro';
 
-    // Robô parado: a última execução vem de config/robo (o script grava) ou,
+    // Robô parado: a última execução vem de robo/estado (o script grava) ou,
     // sem isso, da última marcação com origem gmail.
     var ultimaExec = configRobo.ultimaExecucao || ultimaGeral;
     var uteis = ultimaExec ? diasUteisDesde(ultimaExec) : null;
@@ -2955,7 +2955,7 @@
     }
     if (configRobo.ultimaExecucao) $('roboUltima').textContent = dataHora(configRobo.ultimaExecucao) + (configRobo.ultimaExecucaoResumo ? ' (' + configRobo.ultimaExecucaoResumo + ')' : '');
 
-    // Não reconhecidos (config/robo.naoReconhecidos, gravado pelo script).
+    // Não reconhecidos (robo/estado.naoReconhecidos, gravado pelo script).
     var naoRec = Array.isArray(configRobo.naoReconhecidos) ? configRobo.naoReconhecidos.slice() : [];
     var emailsCadastrados = {};
     clientesCache.forEach(function (c) { if (c.email) emailsCadastrados[String(c.email).toLowerCase()] = true; (c.emails || []).forEach(function (e) { emailsCadastrados[String(e).toLowerCase()] = true; }); });
@@ -3033,7 +3033,7 @@
       te.appendChild(tbE);
     }
 
-    // Execuções (config/robo.execucoes, gravado pelo script; as 30 últimas).
+    // Execuções (robo/estado.execucoes, gravado pelo script; as 30 últimas).
     var execs = Array.isArray(configRobo.execucoes) ? configRobo.execucoes.slice() : [];
     execs.sort(function (a, b) { return String(b.em).localeCompare(String(a.em)); });
     $('roboExecSecao').hidden = execs.length === 0;
