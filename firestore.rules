@@ -191,6 +191,12 @@ service cloud.firestore {
         allow read: if logado();
         allow create: if logado();
         allow update, delete: if ehAdmin();
+        // A assinatura vai pro comprovante no mesmo lote que confirma a
+        // entrega. Se a parada já tinha comprovante (guia em PDF anexada na
+        // montagem da rota), isso vira update — e sem esta linha só o admin
+        // conseguiria confirmar. No lote, get() ainda vê a entrega pendente.
+        allow update: if logado()
+          && get(/databases/$(database)/documents/entregas/$(id)).data.status == 'pendente';
       }
     }
 

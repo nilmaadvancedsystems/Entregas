@@ -2909,13 +2909,27 @@
     } catch (e) { return iso; }
   }
 
+  // Quem decide se o separador é decimal é a POSIÇÃO, não a presença de vírgula.
+  // A regra antiga só tratava o ponto como milhar quando havia vírgula; sem
+  // vírgula, o ponto virava decimal. "R$ 1.500" — o jeito normal de escrever um
+  // DAS redondo — era gravado como 1,5, e a planilha do mês fechava com o valor
+  // mil vezes menor. Dinheiro tem no máximo 2 casas: separador seguido de 1 ou
+  // 2 dígitos no fim é decimal; qualquer outro é milhar.
   function parseValor(v) {
-    if (!v) return null;
-    var cleaned = String(v).trim().replace(/[^\d,.-]/g, '');
-    if (!cleaned) return null;
-    if (cleaned.indexOf(',') !== -1) cleaned = cleaned.replace(/\./g, '').replace(',', '.');
-    var n = parseFloat(cleaned);
-    return isNaN(n) ? null : n;
+    if (v == null) return null;
+    var limpo = String(v).trim().replace(/[^\d,.-]/g, '');
+    var negativo = limpo.charAt(0) === '-';
+    limpo = limpo.replace(/-/g, '');
+    if (!/\d/.test(limpo)) return null;
+    var fim = limpo.match(/[.,](\d{1,2})$/);
+    var numero = fim
+      ? limpo.slice(0, -fim[0].length).replace(/[.,]/g, '') + '.' + fim[1]
+      : limpo.replace(/[.,]/g, '');
+    var n = parseFloat(numero);
+    if (isNaN(n)) return null;
+    // arredonda no centavo: 0,1 digitado não pode virar 0.1000000000000000055
+    n = Math.round(n * 100) / 100;
+    return negativo ? -n : n;
   }
 
   function clienteLabel(c) {
@@ -3000,11 +3014,18 @@
   // marcada como assinada, sem assinatura.
   function saveEntregaComAnexos(parentData, anexos) {
     var ref = db.collection('entregas').doc();
-    var gravacoes = [ref.set(parentData)];
+    // Lote em vez de duas gravações soltas: assim não existe o meio-termo de
+    // uma entrega gravada com o comprovante recusado (ou o contrário). O id
+    // sai do .doc() sem ida ao servidor, então isso também funciona sem sinal.
+    var lote = db.batch();
+    lote.set(ref, parentData);
     if (anexos && (anexos.assinatura || anexos.foto)) {
-      gravacoes.push(ref.collection('anexos').doc('comprovante').set(anexos));
+      var comprovante = {};
+      if (anexos.assinatura) comprovante.assinatura = anexos.assinatura;
+      if (anexos.foto) comprovante.foto = anexos.foto;
+      lote.set(ref.collection('anexos').doc('comprovante'), comprovante);
     }
-    return Promise.all(gravacoes).then(function () { return ref; });
+    return lote.commit().then(function () { return ref; });
   }
 
   function getAnexos(entregaId) {
@@ -5760,14 +5781,15 @@
 
   // Grava a ordem escolhida nas entregas. Só mexe no que a pessoa pode
   // editar: quem não é admin só reordena as próprias entregas.
+  // Reordenar vale pra rota inteira. Havia aqui um filtro que descartava, em
+  // silêncio, toda parada que outra pessoa tivesse criado — um contorno pra
+  // regra antiga do Firestore, que só deixava mexer no que era seu. Na prática
+  // quem monta a rota é o admin, então o office boy arrastava, via a ordem
+  // mudar na tela e nada era gravado. A regra nova deixa qualquer pessoa da
+  // equipe reordenar parada pendente, então o filtro sai.
   function salvarOrdemIds_(idsFinais) {
-    var email = auth.currentUser && auth.currentUser.email;
-    var permitido = temPapel('admin') ? idsFinais : idsFinais.filter(function (id) {
-      var item = pendentesCache.filter(function (p) { return p.id === id; })[0];
-      return item && item.entregadoPor === email;
-    });
     var batch = db.batch();
-    permitido.forEach(function (id) { batch.update(db.doc('entregas/' + id), { ordemRota: idsFinais.indexOf(id) }); });
+    idsFinais.forEach(function (id) { batch.update(db.doc('entregas/' + id), { ordemRota: idsFinais.indexOf(id) }); });
     return batch.commit();
   }
 
@@ -7897,9 +7919,14 @@
       // guardarLocalDoCliente_ é chamado com o clienteId de CADA entrega
       // (não um só pra todas), pra aprender o local certo mesmo quando o
       // lote mistura duas empresas aglutinadas.
+      // Mesmo raciocínio da confirmação de uma parada só: lote atômico, pra a
+      // assinatura entrar na fila junto com a entrega quando não há sinal, e
+      // pra a confirmação que chega atrasada não apagar o comprovante da que
+      // chegou primeiro.
       var gravacoes = escolhidas.map(function (e) {
         var ref = db.doc('entregas/' + e.id);
-        return ref.update({
+        var loteE = db.batch();
+        loteE.update(ref, {
           recebedor: recebedor,
           geo: loteGeo,
           temAssinatura: !isFalha && !!assinatura,
@@ -7912,9 +7939,15 @@
           entregadoPorNome: currentUserNome || (auth.currentUser && auth.currentUser.email) || '',
           status: isFalha ? 'falha' : 'confirmada',
           confirmadoEm: agora
-        }).then(function () {
+        });
+        var comprovanteE = {};
+        if (!isFalha && assinatura) comprovanteE.assinatura = assinatura;
+        if (loteFoto) comprovanteE.foto = loteFoto;
+        if (Object.keys(comprovanteE).length) {
+          loteE.set(ref.collection('anexos').doc('comprovante'), comprovanteE, { merge: true });
+        }
+        return loteE.commit().then(function () {
           if (!isFalha) guardarLocalDoCliente_(e.clienteId, loteGeo);
-          return ref.collection('anexos').doc('comprovante').set({ assinatura: isFalha ? null : assinatura, foto: loteFoto }, { merge: true });
         });
       });
 
@@ -8151,7 +8184,19 @@
       // do cliente não pode ser alterado (senão o cliente "muda" pro lugar
       // onde a confirmação foi feita, e a rota dele passa a sair errada)
       var avaliacao = avaliarLocalDaEntrega_(entrega.clienteId, pendingGeo);
-      var gravacao = entregaRef.update({
+      // Um lote só, por dois motivos.
+      //
+      // 1. SEM SINAL. O comprovante estava pendurado no .then do update(), e
+      //    update() só resolve quando o SERVIDOR confirma. Offline esse .then
+      //    nunca rodava: a entrega ia pra fila, a assinatura não. Quando o
+      //    sinal voltava, subia uma entrega marcada como assinada, sem
+      //    assinatura. Lote de gravação vai pra fila inteiro e é aplicado
+      //    inteiro (transação não serve aqui — transação exige servidor).
+      // 2. DOIS APARELHOS. O lote é tudo-ou-nada, então a confirmação que
+      //    chegar depois é recusada junto com o comprovante dela, em vez de
+      //    apagar a assinatura que o primeiro já tinha colhido.
+      var lote = db.batch();
+      lote.update(entregaRef, {
         recebedor: isFalha ? '' : $('pendingRecebedor').value.trim(),
         geo: pendingGeo,
         temAssinatura: !isFalha && !semComprovante && pendingPad.hasSignature,
@@ -8166,12 +8211,24 @@
         entregadoPorNome: currentUserNome || (auth.currentUser && auth.currentUser.email) || '',
         status: isFalha ? 'falha' : 'confirmada',
         confirmadoEm: new Date().toISOString()
-      }).then(function () {
+      });
+
+      // Só escreve o que EXISTE. Antes gravava `assinatura: null, foto: null`
+      // com merge, e isso apagava o que já estava lá: a imagem da guia,
+      // capturada do PDF quando a parada foi preparada, era destruída na
+      // confirmação sempre que o office boy colhia assinatura em vez de foto.
+      var comprovante = {};
+      var assinaturaFinal = (isFalha || semComprovante)
+        ? null
+        : (assinaturaRemota || (pendingPad.hasSignature ? pendingPad.dataUrl() : null));
+      if (assinaturaFinal) comprovante.assinatura = assinaturaFinal;
+      if (!semComprovante && pendingFoto) comprovante.foto = pendingFoto;
+      if (Object.keys(comprovante).length) {
+        lote.set(entregaRef.collection('anexos').doc('comprovante'), comprovante, { merge: true });
+      }
+
+      var gravacao = lote.commit().then(function () {
         if (!isFalha) guardarLocalDoCliente_(entrega.clienteId, pendingGeo);
-        return entregaRef.collection('anexos').doc('comprovante').set({
-          assinatura: (isFalha || semComprovante) ? null : (assinaturaRemota || (pendingPad.hasSignature ? pendingPad.dataUrl() : null)),
-          foto: semComprovante ? null : pendingFoto
-        }, { merge: true });
       });
 
       escritaQueNaoTrava_(gravacao).then(function (resultado) {
@@ -10209,15 +10266,45 @@
 
   function excluirEntrega(entrega, onDone) {
     var ref = db.doc('entregas/' + entrega.id);
-    ref.collection('anexos').doc('comprovante').delete().catch(function () {}).then(function () {
-      return ref.delete();
-    }).then(function () {
+    // Antes apagava o comprovante primeiro, engolia o erro com um .catch vazio
+    // e apagava a entrega de qualquer jeito. Se a segunda parte falhasse,
+    // sobrava uma entrega sem a prova — o pior dos dois mundos. No lote, ou
+    // os dois somem, ou nenhum some.
+    var lote = db.batch();
+    lote.delete(ref.collection('anexos').doc('comprovante'));
+    lote.delete(ref);
+    lote.commit().then(function () {
       showToast('Entrega excluída.');
       registrarAuditoria_('exclusao_entrega', (entrega.clienteNome || 'sem cliente') + ' · ' + fmtCompetencia(entrega.competencia));
       if (onDone) onDone();
     }).catch(function (err) {
       showToast(errMsg(err, 'Não foi possível excluir.'), 'error');
     });
+  }
+
+  // Sair da conta precisa desligar o que a sessão ligou. Sem isto, as 13
+  // assinaturas do Firestore continuavam vivas depois do logout: seguiam
+  // recebendo dados da conta anterior e escrevendo nas mesmas variáveis. E
+  // como `appStarted` nunca voltava a false, o próximo login no mesmo
+  // aparelho não remontava nada — herdava a tela, os caches e os botões de
+  // administração de quem tinha saído.
+  function desligarSessao_() {
+    [unsubClientes, unsubEntregasPainel, unsubPendentes, unsubRotaLinks,
+     unsubRecados, unsubHonorariosMes, unsubHonorarioNaoAplicavel,
+     unsubSolicitacoes, unsubSolicitacoesEnviadas, unsubSolicitacoesConcluidas,
+     unsubUsuarios, unsubNotas, unsubCompetencias].forEach(function (parar) {
+      if (typeof parar === 'function') { try { parar(); } catch (e) {} }
+    });
+    unsubClientes = unsubEntregasPainel = unsubPendentes = unsubRotaLinks = null;
+    unsubRecados = unsubHonorariosMes = unsubHonorarioNaoAplicavel = null;
+    unsubSolicitacoes = unsubSolicitacoesEnviadas = unsubSolicitacoesConcluidas = null;
+    unsubUsuarios = unsubNotas = unsubCompetencias = null;
+
+    appStarted = false;
+    currentUserRoles = ['staff'];
+    currentUserNome = '';
+    clientesCache = new Map();
+    pendentesCache = [];
   }
 
   function startApp() {
@@ -10582,6 +10669,7 @@
         mostrarHub();
       });
     } else {
+      desligarSessao_();
       $('hubScreen').hidden = true;
       var logo = document.querySelector('.brand-mark');
       if (logo) $('authLogo').src = logo.src;
