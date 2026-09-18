@@ -1,7 +1,7 @@
 // Robô do Gmail da tela de Cobrança de Documentos.
 //
 // Lê a caixa de entrada, reconhece e-mails de clientes cadastrados e:
-//   1. baixa os anexos de verdade pra pasta do cliente no Drive;
+//   1. lê os anexos (grava no Drive só quando alguém clica "Salvar no Drive" na tela);
 //   2. marca Extrato/Comprovante/Aplicação em documentosMensal, com procedência;
 //   3. registra a conversa (assunto, trecho, anexos) em documentosMensal.mensagens,
 //      que aparece no Histórico e na aba Comunicação do cliente;
@@ -13,6 +13,9 @@
 //   node download-attachments.js 30 --simular      mostra o que faria, não grava nada
 //   node download-attachments.js 60 --reler        reprocessa e-mails já lidos antes
 //                                                  (não baixa de novo arquivo que já está na pasta)
+//   node download-attachments.js --mensagem ID [--cliente CLIENTE_ID]
+//                                                  salva os anexos de UM e-mail no Drive agora
+//                                                  (é o que o botão "Salvar no Drive" da tela usa)
 const fs = require('fs');
 const path = require('path');
 const pdfParse = require('pdf-parse');
@@ -32,7 +35,11 @@ const MAX_EXECUCOES = 30;
 const ARGS = process.argv.slice(2);
 const SIMULAR = ARGS.includes('--simular');
 const RELER = ARGS.includes('--reler');
-const DIAS = parseInt(ARGS.find(a => /^\d+$/.test(a)), 10) || 10;
+const valorDe = flag => { const i = ARGS.indexOf(flag); return i !== -1 ? ARGS[i + 1] : null; };
+const UMA_MENSAGEM = valorDe('--mensagem');
+const CLIENTE_FORCADO = valorDe('--cliente');
+const DIAS = parseInt(ARGS.find((a, i) => /^\d+$/.test(a) && !['--mensagem', '--cliente'].includes(ARGS[i - 1])), 10) || 10;
+const MAX_CAIXA = 150;                       // e-mails com anexo que a tela lista
 
 // Cada escritório chama o mesmo documento de um jeito — "comprovante" quase nunca
 // vem escrito assim; na prática é "títulos pagos", "boletos liquidados" etc.
@@ -56,12 +63,28 @@ const DOMINIOS_PUBLICOS = new Set([
 
 const MESES_ABREV = { jan: 1, fev: 2, mar: 3, abr: 4, mai: 5, jun: 6, jul: 7, ago: 8, set: 9, out: 10, nov: 11, dez: 12 };
 
-// "AGO2026", "AGO/2026", "AGOSTO 2026": o mês A QUE O DOCUMENTO SE REFERE, que
-// quase sempre é anterior ao mês em que o e-mail chegou.
-function competenciaDoTexto(texto) {
-  const m = (texto || '').toLowerCase().match(/\b(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)[a-zç]*[\/\-. ]?(\d{4})\b/);
-  if (!m || !MESES_ABREV[m[1]]) return null;
-  return m[2] + '-' + String(MESES_ABREV[m[1]]).padStart(2, '0');
+const MESES_EXTENSO = { janeiro: 1, fevereiro: 2, marco: 3, 'março': 3, abril: 4, maio: 5, junho: 6, julho: 7, agosto: 8, setembro: 9, outubro: 10, novembro: 11, dezembro: 12 };
+
+// O mês A QUE O DOCUMENTO SE REFERE, que quase sempre é anterior ao mês em que
+// o e-mail chegou. Aceita, nesta ordem:
+//   "AGO2026", "AGO/2026", "AGOSTO 2026"
+//   "08/2026", "08.2026", "08-2026"
+//   "Extrato agosto" (só o nome inteiro do mês, sem ano): vale o agosto mais
+//   recente até a data do e-mail — em setembro, "agosto" é o agosto passado.
+// Sem ano, a abreviação não serve ("set", "mar" e "out" são palavras comuns).
+function competenciaDoTexto(texto, dataMs, semNumerico) {
+  const baixo = (texto || '').toLowerCase();
+  const m = baixo.match(/\b(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)[a-zç]*[\/\-. ]?(\d{4})\b/);
+  if (m && MESES_ABREV[m[1]]) return m[2] + '-' + String(MESES_ABREV[m[1]]).padStart(2, '0');
+  const n = semNumerico ? null : baixo.match(/(?:^|[^\d])(0[1-9]|1[0-2])[\/\-.](20\d{2})(?!\d)/);
+  if (n) return n[2] + '-' + n[1];
+  if (!dataMs) return null;
+  const e = baixo.match(/(?:^|[^a-zç])(janeiro|fevereiro|março|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)(?![a-zç])/);
+  if (!e) return null;
+  const d = new Date(Number(dataMs));
+  const mes = MESES_EXTENSO[e[1]];
+  const ano = mes > d.getMonth() + 1 ? d.getFullYear() - 1 : d.getFullYear();
+  return ano + '-' + String(mes).padStart(2, '0');
 }
 function competenciaDaData(dataMs) {
   const d = new Date(Number(dataMs));
@@ -251,15 +274,30 @@ async function main() {
   const jaProcessados = carregarProcessados();
   const semCliente = RELER ? {} : carregarSemCliente();
   const ehConhecido = email => porEmail.has(email) || porDominio.has(dominioDe(email));
-  const ids = await listarMensagens(gmail, porEmail, porDominio);
-  console.log(`E-mails na janela de ${DIAS} dias: ${ids.length}`);
+  const ids = UMA_MENSAGEM ? [UMA_MENSAGEM] : await listarMensagens(gmail, porEmail, porDominio);
+  if (!UMA_MENSAGEM) console.log(`E-mails na janela de ${DIAS} dias: ${ids.length}`);
+  const clientesPorId = new Map();
+  clientesSnap.forEach(d => clientesPorId.set(d.id, Object.assign({ id: d.id }, d.data())));
+
+  // O que a tela mostra como "caixa": todo e-mail com anexo que o robô viu, e o
+  // que já foi salvo no Drive (config/robo.caixa e config/robo.salvos).
+  const caixaNovos = [];
+  const salvosNovos = {};
+  let resultado = null;
+  const naCaixa = (id, dados) => caixaNovos.push(Object.assign({ mensagemId: id }, dados));
+  const relativa = pasta => path.relative(PASTA_DESTINO, pasta);
+  // Mapa vazio com merge APAGA o campo no Firestore: só manda "salvos" quando
+  // houver algo novo, senão uma execução sem download zerava a lista inteira.
+  const comSalvos = () => (Object.keys(salvosNovos).length ? { salvos: salvosNovos } : {});
 
   const cont = { emails: 0, marcados: 0, baixados: 0, conversas: 0, erros: 0, ambiguos: 0 };
   const naoReconhecidosNovos = [];
 
   for (const id of ids) {
-    if (processados.has(id)) continue;
-    if (semCliente[id] && !ehConhecido(semCliente[id])) continue;   // ainda sem cliente: nada mudou
+    if (!UMA_MENSAGEM) {
+      if (processados.has(id)) continue;
+      if (semCliente[id] && !ehConhecido(semCliente[id])) continue;   // ainda sem cliente: nada mudou
+    }
     cont.emails++;
     try {
       await dormir(120);
@@ -272,9 +310,15 @@ async function main() {
       const trecho = decodificarEntidades(msg.data.snippet).slice(0, 240);
       const anexos = coletarAnexos(msg.data.payload, []);
 
-      const candidatos = porEmail.get(remetente) || porDominio.get(dominioDe(remetente)) || [];
+      const forcado = CLIENTE_FORCADO ? clientesPorId.get(CLIENTE_FORCADO) : null;
+      if (CLIENTE_FORCADO && !forcado) throw new Error('cliente ' + CLIENTE_FORCADO + ' não encontrado ou inativo');
+      const candidatos = forcado ? [forcado] : (porEmail.get(remetente) || porDominio.get(dominioDe(remetente)) || []);
+      const resumoCaixa = { em, remetente, nome: extrairNome(from), assunto, arquivos: anexos.map(a => a.filename) };
 
       if (!candidatos.length) {
+        // Anexo de quem não é cliente não vai pro Drive: fica só em "remetentes
+        // sem cliente" até alguém vincular o remetente a um cliente.
+        if (UMA_MENSAGEM) throw new Error('o remetente não é de nenhum cliente; vincule o e-mail a um cliente antes de salvar');
         if (anexos.length && !AUTOMATICO.test(from)) {
           // Fica de fora de "processados": depois que alguém vincular o
           // remetente a um cliente na tela, a próxima leitura reconhece.
@@ -309,11 +353,15 @@ async function main() {
       if (!cliente && candidatos.length > 1 && anexos.length) cliente = desempatarPorDocumento(candidatos, await lerPdf());
 
       let tipos = anexos.length ? detectarTipos(textoNomes) : [];
-      let competencia = competenciaDoTexto(textoNomes);
+      // Assunto e nomes de arquivo primeiro; o corpo do e-mail só entra sem
+      // "08/2026" e afins, porque ali quase sempre é data de envio ou vencimento.
+      const nomesArquivos = anexos.map(a => a.filename).join(' ');
+      let competencia = competenciaDoTexto(assunto + ' ' + nomesArquivos, msg.data.internalDate) ||
+        competenciaDoTexto(trecho, msg.data.internalDate, true);
       if (anexos.length && (!tipos.length || !competencia)) {
         const t = await lerPdf();
         if (!tipos.length) tipos = detectarTipos(t);
-        if (!competencia) competencia = competenciaDoTexto(t);
+        if (!competencia) competencia = competenciaDoTexto(t, msg.data.internalDate);
       }
       competencia = competencia || competenciaDaData(msg.data.internalDate);
 
@@ -323,6 +371,8 @@ async function main() {
         // Mesmo e-mail pra várias filiais e nada no texto diz qual: a conversa
         // vai pra todas, mas nenhuma é marcada.
         cont.ambiguos++;
+        if (anexos.length) naCaixa(id, Object.assign({ clienteId: null, candidatos: candidatos.map(c => c.nome) }, resumoCaixa));
+        if (UMA_MENSAGEM) throw new Error('o remetente serve mais de um cliente (' + candidatos.map(c => c.codigoOrigem || c.nome).join(', ') + '); escolha o cliente na tela do cliente');
         console.log(`  ambíguo: ${remetente} serve ${candidatos.map(c => c.codigoOrigem || c.id).join(', ')} — conversa registrada, nada marcado`);
         for (const c of candidatos) {
           await gravar(db, c.id + '_' + competencia, {
@@ -339,18 +389,30 @@ async function main() {
       cont.conversas++;
 
       const comBytes = anexos.filter(a => a.buffer);
-      if (comBytes.length) {
-        const pasta = path.join(PASTA_DESTINO, competencia, sanitizar(cliente.nome));
-        if (!SIMULAR) fs.mkdirSync(pasta, { recursive: true });
+      if (anexos.length) naCaixa(id, Object.assign({ clienteId: cliente.id, clienteNome: cliente.nome }, resumoCaixa));
+      cont.baixados += comBytes.length;           // anexos lidos (o Drive só no clique)
+      if (comBytes.length && UMA_MENSAGEM) {
+        // Um e-mail pode trazer arquivos de meses diferentes (EFD de julho e
+        // PIS/Cofins de agosto juntos): cada um vai pro mês do próprio nome.
+        const pastas = new Set();
+        let salvos = 0;
         for (const a of comBytes) {
-          if (SIMULAR) { cont.baixados++; continue; }
+          const compArquivo = competenciaDoTexto(a.filename, msg.data.internalDate) || competencia;
+          const pasta = path.join(PASTA_DESTINO, compArquivo, sanitizar(cliente.nome));
+          pastas.add(relativa(pasta));
+          if (SIMULAR) { salvos++; continue; }
           try {
-            if (salvarArquivo(pasta, a.filename, a.buffer)) cont.baixados++;
+            fs.mkdirSync(pasta, { recursive: true });
+            salvarArquivo(pasta, a.filename, a.buffer);
+            salvos++;
           } catch (err) {
             cont.erros++;
             console.error('  falha ao salvar', a.filename, '-', err.message);
           }
         }
+        const listaPastas = Array.from(pastas);
+        salvosNovos[id] = { em: new Date().toISOString(), pasta: listaPastas.join(' e '), pastas: listaPastas, arquivos: salvos, clienteId: cliente.id };
+        resultado = { mensagemId: id, pasta: listaPastas.join(' e '), arquivos: salvos, cliente: cliente.nome };
       }
 
       if (tipos.length && comBytes.length) {
@@ -372,7 +434,31 @@ async function main() {
     } catch (err) {
       cont.erros++;
       console.error('Erro no e-mail', id, '-', err.message);
+      if (UMA_MENSAGEM) resultado = { mensagemId: id, erro: err.message };
     }
+  }
+
+  // Caixa: soma ao que já estava (a não ser no --reler), o mais novo de cada
+  // e-mail vence — é assim que um e-mail "sem cliente" passa a mostrar o cliente
+  // depois que o remetente é vinculado.
+  const caixaMap = new Map();
+  const roboAntes = (await db.collection('config').doc('robo').get()).data() || {};
+  (!RELER && Array.isArray(roboAntes.caixa) ? roboAntes.caixa : []).concat(caixaNovos)
+    .forEach(c => caixaMap.set(c.mensagemId, c));
+  const caixa = Array.from(caixaMap.values())
+    .sort((a, b) => String(b.em).localeCompare(String(a.em)))
+    .slice(0, MAX_CAIXA);
+
+  if (UMA_MENSAGEM) {
+    if (!SIMULAR) {
+      await db.collection('config').doc('robo').set(Object.assign({ caixa }, comSalvos()), { merge: true });
+      salvarProcessados(processados);
+      fs.writeFileSync(SEM_CLIENTE_PATH, JSON.stringify(semCliente));
+    }
+    // A última linha é lida pelo vigia pra responder à tela.
+    console.log('RESULTADO:' + JSON.stringify(resultado || { mensagemId: UMA_MENSAGEM, erro: 'e-mail não encontrado' }));
+    if (!resultado || resultado.erro) process.exitCode = 1;
+    return;
   }
 
   // config/robo: o que a página "Robô do Gmail" mostra.
@@ -405,12 +491,12 @@ async function main() {
   const execucoes = (Array.isArray(roboAtual.execucoes) ? roboAtual.execucoes : []).concat([execucao]).slice(-MAX_EXECUCOES);
   const resumo = [
     cont.marcados + (cont.marcados === 1 ? ' marcado' : ' marcados'),
-    cont.baixados + (cont.baixados === 1 ? ' anexo' : ' anexos'),
+    cont.baixados + (cont.baixados === 1 ? ' anexo lido' : ' anexos lidos'),
     cont.erros ? cont.erros + (cont.erros === 1 ? ' erro' : ' erros') : null,
   ].filter(Boolean).join(', ');
 
   if (!SIMULAR) {
-    await roboRef.set({ ultimaExecucao: execucao.em, ultimaExecucaoResumo: resumo, naoReconhecidos, execucoes }, { merge: true });
+    await roboRef.set(Object.assign({ ultimaExecucao: execucao.em, ultimaExecucaoResumo: resumo, naoReconhecidos, execucoes, caixa }, comSalvos()), { merge: true });
     salvarProcessados(processados);
     fs.writeFileSync(SEM_CLIENTE_PATH, JSON.stringify(semCliente));
   }

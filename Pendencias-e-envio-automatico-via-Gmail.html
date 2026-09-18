@@ -646,6 +646,16 @@
   .estado-item .rotulo { font-size: var(--t-xs); color: var(--ink-faint); }
   .estado-item .valor { font-size: var(--t-md); font-weight: 600; letter-spacing: -.01em; font-variant-numeric: tabular-nums; margin-top: 1px; }
   .estado-item .valor.suave { font-weight: 500; font-size: var(--t-base); }
+  /* E-mails com anexo (página do robô e tela do cliente) */
+  .anexo-acao { display: flex; align-items: center; gap: var(--esp-2); flex-wrap: wrap; justify-content: flex-end; }
+  .anexo-acao .salvo { font-size: var(--t-sm); color: var(--success-forte); display: inline-flex; align-items: center; gap: 4px; }
+  .lista-anexos { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--border); }
+  .lista-anexos li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--esp-3); align-items: center; padding: var(--esp-3) 0; border-bottom: 1px solid var(--border); }
+  .lista-anexos .assunto { font-weight: 500; overflow-wrap: anywhere; }
+  .lista-anexos .meta { font-size: var(--t-sm); color: var(--ink-faint); margin-top: 2px; }
+  .lista-anexos .arquivos { font-family: var(--font-mono); font-size: var(--t-xs); color: var(--ink-soft); margin-top: 4px; overflow-wrap: anywhere; }
+  .lista-anexos .vazio-linha { display: block; color: var(--ink-faint); font-size: var(--t-sm); }
+  @media (max-width: 560px) { .lista-anexos li { grid-template-columns: 1fr; } .anexo-acao { justify-content: flex-start; } }
   .robo-acoes { display: flex; align-items: center; gap: var(--esp-3); flex-wrap: wrap; }
   .robo-vigia { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 6px; font-size: var(--t-sm); color: var(--ink-soft); }
   .robo-vigia .ponto { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-faint); flex: none; }
@@ -1217,6 +1227,11 @@
         <div class="item" hidden><div class="rot">Sem e-mail (fora do alcance)</div><div class="val" id="roboSemEmail">–</div></div>
       </div>
       <div id="roboAviso"></div>
+      <section id="roboCaixaSecao" hidden>
+        <div class="painel-titulo"><h2>E-mails de clientes com anexo <span class="badge quieto" id="roboCaixaN"></span></h2></div>
+        <div class="pagina-sub" style="margin:-8px 0 8px">Salvar no Drive grava os anexos em Claudio Secretario, na pasta do mês e do cliente.</div>
+        <div class="tab-rolagem"><table class="tab-simples" id="tabCaixa"></table></div>
+      </section>
       <section id="roboNaoRecSecao" hidden>
         <div class="painel-titulo"><h2>Precisam de você: remetentes sem cliente <span class="badge quieto" id="roboNaoRecN"></span></h2></div>
         <div class="pagina-sub" style="margin:-8px 0 8px">Escolha o cliente e o robô passa a reconhecer.</div>
@@ -1491,6 +1506,10 @@
                 <ul class="timeline" id="comCobrancas"></ul>
               </section>
             </div>
+            <section style="margin-top:var(--esp-4)">
+              <div class="painel-titulo"><h2>E-mails com anexo</h2></div>
+              <ul class="lista-anexos" id="comAnexos"></ul>
+            </section>
           </div>
 
           <div id="painelHistorico" role="tabpanel" aria-labelledby="abaHistorico" hidden>
@@ -2945,6 +2964,7 @@
     $('roboNaoRecSecao').hidden = naoRec.length === 0;
     $('roboNaoRecN').textContent = naoRec.length;
     $('menuNumRobo').textContent = naoRec.length ? naoRec.length : '';
+    renderCaixaRobo();
     var tn = $('tabNaoRec');
     tn.innerHTML = '';
     if (naoRec.length) {
@@ -3885,6 +3905,7 @@
       linha('Último e-mail dele', 'nenhum registrado pelo robô nos últimos 6 meses');
     }
 
+    renderAnexosCliente();
     var lista = $('comCobrancas');
     lista.innerHTML = '';
     if (!cobs.length) {
@@ -3895,7 +3916,7 @@
       cobs.forEach(function (c) {
         lista.appendChild(itemTimeline({
           em: c.em, icone: 'ph-paper-plane-tilt', classe: 'accent',
-          texto: 'Cobrança aberta no Gmail para ' + (c.para || cliente.email || 'e-mail'),
+          texto: (c.enviadoPeloRobo ? 'Cobrança enviada para ' : c.canal === 'whatsapp' ? 'Cobrança por WhatsApp para ' : 'Cobrança aberta no Gmail para ') + (c.para || cliente.email || 'e-mail'),
           sub: (c.tipos || []).map(function (k) { return TIPO_POR_CHAVE[k] ? TIPO_POR_CHAVE[k].curto : k; }).join(', ') + (c.por ? ', por ' + c.por : '')
         }));
       });
@@ -4509,6 +4530,124 @@
   }
   // O vigia pode desligar sem avisar; a página percebe pelo relógio.
   setInterval(renderVigia, 30000);
+  var renderVigiaBase = renderVigia;
+  renderVigia = function () {
+    renderVigiaBase();
+    if (clientesCarregados) { renderCaixaRobo(); renderAnexosCliente(); }
+  };
+
+  // ==========================================================================
+  // E-mails com anexo. Só de cliente identificado: remetente desconhecido fica
+  // em "remetentes sem cliente" até ser vinculado. "Salvar no Drive" põe o
+  // pedido na fila; o vigia baixa pelo Gmail e grava em Claudio Secretario.
+  // ==========================================================================
+  function linkGmail(mensagemId) {
+    return 'https://mail.google.com/mail/?authuser=' + encodeURIComponent(CAIXA_GMAIL) + '#all/' + encodeURIComponent(mensagemId);
+  }
+  function acaoSalvar(mensagemId, clienteId) {
+    var caixa = el('div', 'anexo-acao');
+    var salvo = (configRobo.salvos || {})[mensagemId];
+    var salvando = filaEmail.some(function (f) { return f.tipo === 'salvar' && f.mensagemId === mensagemId; });
+    if (salvo && !salvando) {
+      var s = el('span', 'salvo');
+      s.appendChild(ico('ph-check-circle'));
+      s.appendChild(document.createTextNode(' no Drive'));
+      s.title = 'Claudio Secretario › ' + String(salvo.pasta || '').split(/[\\/]/).join(' › ') + (salvo.em ? ' (' + dataHora(salvo.em) + ')' : '');
+      caixa.appendChild(s);
+    }
+    var b = el('button', 'btn btn-sm ' + (salvo ? 'btn-ghost' : 'btn-secondary'));
+    b.type = 'button';
+    b.appendChild(ico(salvando ? 'ph-hourglass' : 'ph-cloud-arrow-up'));
+    b.appendChild(document.createTextNode(salvando ? ' Salvando...' : salvo ? ' Salvar de novo' : ' Salvar no Drive'));
+    b.disabled = salvando;
+    b.addEventListener('click', function () {
+      b.disabled = true;
+      pedirEnvio({ tipo: 'salvar', mensagemId: mensagemId, clienteId: clienteId || null }, {
+        fila: 'Pedido para salvar os anexos no Drive.',
+        ok: function (d) { return 'Salvo no Drive: ' + plural(d.arquivos || 0, 'arquivo', 'arquivos') + ' em Claudio Secretario › ' + String(d.pasta || '').split(/[\\/]/).join(' › ') + '.'; },
+        erro: 'Não foi possível salvar no Drive'
+      }).catch(function (err) { b.disabled = false; toast('Não foi possível pedir: ' + err.message, 'erro'); });
+    });
+    caixa.appendChild(b);
+    var g = el('a', 'btn btn-ghost btn-sm btn-icone');
+    g.href = linkGmail(mensagemId); g.target = '_blank'; g.rel = 'noopener';
+    g.title = 'Abrir este e-mail no Gmail'; g.setAttribute('aria-label', 'Abrir no Gmail');
+    g.appendChild(ico('ph-arrow-square-out'));
+    caixa.appendChild(g);
+    return caixa;
+  }
+
+  function renderCaixaRobo() {
+    var tab = $('tabCaixa');
+    if (!tab) return;
+    var itens = (Array.isArray(configRobo.caixa) ? configRobo.caixa : [])
+      .filter(function (c) { return c.clienteId && clientesPorId.get(c.clienteId); })
+      .slice(0, 60);
+    $('roboCaixaSecao').hidden = itens.length === 0;
+    $('roboCaixaN').textContent = itens.length || '';
+    tab.innerHTML = '';
+    if (!itens.length) return;
+    var th = el('thead'); var tr = el('tr');
+    ['Quando', 'Cliente', 'Assunto', 'Anexos', ''].forEach(function (c) { tr.appendChild(el('th', null, c)); });
+    th.appendChild(tr); tab.appendChild(th);
+    var tb = el('tbody');
+    itens.forEach(function (c) {
+      var cli = clientesPorId.get(c.clienteId);
+      var linha = el('tr');
+      linha.appendChild(el('td', 'num', dataHora(c.em)));
+      var tdC = el('td');
+      var bC = el('button', 'link'); bC.type = 'button'; bC.textContent = nomeExibicao(cli);
+      bC.addEventListener('click', function () { abrirDetalhe(cli.id, 'abaComunicacao'); });
+      tdC.appendChild(bC); tdC.appendChild(el('div', 'sub', c.remetente || ''));
+      linha.appendChild(tdC);
+      linha.appendChild(el('td', null, c.assunto || '(sem assunto)'));
+      var tdA = el('td'); tdA.appendChild(el('span', 'mono', (c.arquivos || []).join(', '))); tdA.style.fontSize = 'var(--t-xs)';
+      linha.appendChild(tdA);
+      var tdB = el('td'); tdB.appendChild(acaoSalvar(c.mensagemId, c.clienteId));
+      linha.appendChild(tdB);
+      tb.appendChild(linha);
+    });
+    tab.appendChild(tb);
+  }
+
+  function renderAnexosCliente() {
+    var lista = $('comAnexos');
+    var cliente = typeof clienteAtualObj === 'function' ? clienteAtualObj() : null;
+    if (!lista || !cliente) return;
+    // Junta o que o robô registrou na conversa do cliente (todos os meses
+    // carregados) com a caixa geral, sem repetir o mesmo e-mail.
+    var porId = {};
+    var docs = docsDe(cliente.id) || {};
+    Object.keys(docs).forEach(function (comp) {
+      (Array.isArray(docs[comp].mensagens) ? docs[comp].mensagens : []).forEach(function (m) {
+        if (m.anexos && m.anexos.length) porId[m.mensagemId] = { mensagemId: m.mensagemId, em: m.em, assunto: m.assunto, remetente: m.remetente, arquivos: m.anexos };
+      });
+    });
+    (Array.isArray(configRobo.caixa) ? configRobo.caixa : []).forEach(function (c) {
+      if (c.clienteId === cliente.id && !porId[c.mensagemId]) porId[c.mensagemId] = c;
+    });
+    var itens = Object.keys(porId).map(function (k) { return porId[k]; })
+      .sort(function (a, b) { return String(b.em).localeCompare(String(a.em)); });
+    lista.innerHTML = '';
+    if (!itens.length) {
+      var vazio = el('li');
+      vazio.appendChild(el('span', 'vazio-linha', cliente.email
+        ? 'Nenhum e-mail com anexo deste cliente nos últimos meses.'
+        : 'Sem e-mail cadastrado, o robô não reconhece os e-mails deste cliente.'));
+      lista.appendChild(vazio);
+      return;
+    }
+    itens.forEach(function (m) {
+      var li = el('li');
+      var corpo = el('div');
+      corpo.appendChild(el('div', 'assunto', m.assunto || '(sem assunto)'));
+      corpo.appendChild(el('div', 'meta', dataHora(m.em) + (m.remetente ? ', de ' + m.remetente : '')));
+      corpo.appendChild(el('div', 'arquivos', (m.arquivos || []).join(', ')));
+      li.appendChild(corpo);
+      li.appendChild(acaoSalvar(m.mensagemId, cliente.id));
+      lista.appendChild(li);
+    });
+  }
 
   $('btnVerificarGmail').addEventListener('click', function () {
     var b = $('btnVerificarGmail');

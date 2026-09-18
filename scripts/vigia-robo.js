@@ -189,6 +189,30 @@ function rodarRobo(dias, motivo) {
   });
 }
 
+// Salvar no Drive os anexos de UM e-mail de cliente (botão "Salvar no Drive").
+// Roda o próprio robô no modo --mensagem, que já sabe achar o cliente, o mês do
+// documento e a pasta; a última linha dele diz o que foi salvo.
+function salvarMensagem(p) {
+  return new Promise((resolve, reject) => {
+    const argsRobo = [ROBO, '--mensagem', String(p.mensagemId)];
+    if (p.clienteId) argsRobo.push('--cliente', String(p.clienteId));
+    const saida = [];
+    const filho = spawn(process.execPath, argsRobo, { cwd: __dirname });
+    const guardar = b => String(b).split(/\r?\n/).filter(Boolean).forEach(l => saida.push(l));
+    filho.stdout.on('data', guardar);
+    filho.stderr.on('data', guardar);
+    filho.on('close', () => {
+      const linha = saida.filter(l => l.startsWith('RESULTADO:')).pop();
+      let r = null;
+      try { r = linha ? JSON.parse(linha.slice('RESULTADO:'.length)) : null; } catch (e) { r = null; }
+      if (!r) return reject(new Error(saida.slice(-1)[0] || 'o robô não respondeu'));
+      if (r.erro) return reject(new Error(r.erro));
+      log('salvo no Drive:', r.arquivos, 'arquivo(s) em', r.pasta);
+      resolve({ status: 'concluido', concluidoEm: agora(), pasta: r.pasta, arquivos: r.arquivos, cliente: r.cliente });
+    });
+  });
+}
+
 // ---------- fila ----------
 let ocupado = false;
 async function atenderFila() {
@@ -209,9 +233,16 @@ async function atenderFila() {
         if (p.tipo === 'um') resultado = await atenderUm(p);
         else if (p.tipo === 'lote') resultado = await atenderLote(p);
         else if (p.tipo === 'verificar') {
+          while (lendo) await new Promise(r => setTimeout(r, 2000));
           const r = await rodarRobo(p.dias || 3, 'pedido por ' + (p.criadoPor || 'alguém'));
           if (!r.ok) throw new Error(r.erro || 'o robô terminou com erro');
           resultado = { status: 'concluido', concluidoEm: agora(), resumo: r.resumo };
+        } else if (p.tipo === 'salvar') {
+          // Não roda junto com uma leitura automática: as duas mexem no
+          // mesmo controle de e-mails já lidos.
+          while (lendo) await new Promise(r => setTimeout(r, 2000));
+          lendo = true;
+          try { resultado = await salvarMensagem(p); } finally { lendo = false; }
         } else throw new Error('tipo de pedido desconhecido: ' + p.tipo);
         await doc.ref.update(resultado);
       } catch (err) {
@@ -245,7 +276,7 @@ async function iniciar() {
   );
 
   if (A_CADA_MIN > 0) {
-    setInterval(() => { if (!lendo) rodarRobo(3, 'automático a cada ' + A_CADA_MIN + ' min'); }, A_CADA_MIN * 60 * 1000);
+    setInterval(() => { if (!lendo && !ocupado) rodarRobo(3, 'automático a cada ' + A_CADA_MIN + ' min'); }, A_CADA_MIN * 60 * 1000);
   }
 
   log('vigia ligado em', os.hostname() + (A_CADA_MIN ? ', lendo sozinho a cada ' + A_CADA_MIN + ' min' : '') + '. Ctrl+C para parar.');
