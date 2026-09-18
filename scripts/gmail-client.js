@@ -1,4 +1,4 @@
-// Cliente Gmail autenticado via OAuth (escopo gmail.readonly), usando o
+// Cliente Gmail autenticado via OAuth (gmail.readonly + gmail.send), usando o
 // token salvo por gmail-auth.js. Renova sozinho quando o access_token
 // expira (o google-auth-library já cuida disso usando o refresh_token).
 const fs = require('fs');

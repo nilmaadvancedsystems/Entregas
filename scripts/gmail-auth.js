@@ -1,4 +1,4 @@
-// Autoriza este PC a ler o Gmail (nilmacontabilidade@gmail.com) via OAuth,
+// Autoriza este PC a ler e ENVIAR pelo Gmail (nilmacontabilidade@gmail.com) via OAuth,
 // uma única vez. Abre um servidor local temporário só pra capturar o
 // "code" que o Google devolve depois do consentimento, troca por um
 // refresh_token e salva em gmail_token.json (nunca vai pro git).
@@ -8,7 +8,12 @@ const { google } = require('googleapis');
 
 const CLIENT_PATH = __dirname + '/gmail_oauth_client.json';
 const TOKEN_PATH = __dirname + '/gmail_token.json';
-const SCOPES = ['https://www.googleapis.com/auth/gmail.readonly'];
+// readonly: o robô lê e baixa anexos. send: o vigia envia as cobranças que a
+// tela põe na fila. Não pede permissão de apagar nem de mexer em outros e-mails.
+const SCOPES = [
+  'https://www.googleapis.com/auth/gmail.readonly',
+  'https://www.googleapis.com/auth/gmail.send',
+];
 const PORT = 51733;
 
 const creds = JSON.parse(fs.readFileSync(CLIENT_PATH, 'utf8')).installed;

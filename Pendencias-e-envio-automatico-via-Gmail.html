@@ -646,6 +646,12 @@
   .estado-item .rotulo { font-size: var(--t-xs); color: var(--ink-faint); }
   .estado-item .valor { font-size: var(--t-md); font-weight: 600; letter-spacing: -.01em; font-variant-numeric: tabular-nums; margin-top: 1px; }
   .estado-item .valor.suave { font-weight: 500; font-size: var(--t-base); }
+  .robo-acoes { display: flex; align-items: center; gap: var(--esp-3); flex-wrap: wrap; }
+  .robo-vigia { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 6px; font-size: var(--t-sm); color: var(--ink-soft); }
+  .robo-vigia .ponto { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-faint); flex: none; }
+  .robo-vigia.ligado .ponto { background: var(--success); }
+  .robo-vigia.desligado .ponto { background: var(--danger); }
+  .robo-vigia .erro { color: var(--danger-forte); }
   .robo-passos { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; font-size: var(--t-sm); color: var(--ink-soft); }
   .robo-passos li { display: flex; gap: 8px; align-items: flex-start; }
   .robo-passos i { flex: none; margin-top: 2px; color: var(--ink-faint); font-size: 14px; }
@@ -843,7 +849,8 @@
   .modal-pe .esq { flex: 1 1 100%; order: -1; font-size: var(--t-sm); color: var(--ink-faint); }
   .modal-pe #modalWhats { order: 0; margin-right: auto; }
   .modal-pe #modalCancelar { order: 1; }
-  .modal-pe #modalEnviar { order: 2; }
+  .modal-pe #modalAbrirGmail { order: 2; }
+  .modal-pe #modalEnviar { order: 3; }
   .modal-aviso { display: flex; gap: var(--esp-2); align-items: flex-start; padding: var(--esp-2) var(--esp-3); border-radius: var(--r-sm); font-size: var(--t-sm); margin-bottom: var(--esp-3); }
   .modal-aviso { background: var(--surface-3); color: var(--ink-soft); border: 1px solid var(--border); }
   .modal-aviso.warn i { color: var(--warning-forte); }
@@ -1194,8 +1201,14 @@
         <div>
           <h1>Robô do Gmail</h1>
           <div class="pagina-sub">Lê a caixa nilmacontabilidade@gmail.com e marca o que chegou.</div>
+          <!-- Quem lê o Gmail é um programa no PC do escritório, não esta página:
+               ela só pede, e mostra se esse PC está ligado pra atender. -->
+          <div class="robo-vigia" id="roboVigia" aria-live="polite"></div>
         </div>
-        <span class="badge quieto" id="roboBadge">sem leitura no mês</span>
+        <div class="robo-acoes">
+          <span class="badge quieto" id="roboBadge">sem leitura no mês</span>
+          <button type="button" class="btn btn-secondary" id="btnVerificarGmail"><i class="ph ph-arrows-clockwise" aria-hidden="true"></i> Verificar Gmail agora</button>
+        </div>
       </div>
       <div class="status-bloco">
         <div class="item"><div class="rot">Documentos marcados em <span id="roboMesLabel"></span></div><div class="val" id="roboMarcados">–</div></div>
@@ -1540,7 +1553,8 @@
       <span class="esq" id="modalRodape"></span>
       <button type="button" class="btn btn-secondary" id="modalCancelar">Cancelar</button>
       <button type="button" class="btn btn-secondary" id="modalWhats" hidden><i class="ph ph-whatsapp-logo" aria-hidden="true"></i> WhatsApp</button>
-      <button type="submit" class="btn btn-primary" id="modalEnviar"><i class="ph ph-arrow-square-out" aria-hidden="true"></i> Abrir no Gmail</button>
+      <button type="button" class="btn btn-secondary" id="modalAbrirGmail" title="Abre o rascunho no Gmail, em nova aba, sem enviar"><i class="ph ph-arrow-square-out" aria-hidden="true"></i> Abrir no Gmail</button>
+      <button type="submit" class="btn btn-primary" id="modalEnviar"><i class="ph ph-paper-plane-tilt" aria-hidden="true"></i> Enviar</button>
     </div>
   </form>
 </dialog>
@@ -2179,6 +2193,7 @@
     unsubRobo = db.collection('config').doc('robo').onSnapshot(function (doc) {
       configRobo = doc.exists ? doc.data() : {};
       if (clientesCarregados) renderPaginas();
+      renderVigia();
     }, function () {});
   }
   // Dias úteis entre duas datas (sem feriados: bom o bastante pra alarme).
@@ -4295,7 +4310,7 @@
     var msg = montarMensagem(cliente, faltando);
     $('cobAssunto').value = msg.assunto;
     $('cobCorpo').value = msg.corpo;
-    $('modalRodape').textContent = (msg.n >= 3 ? 'Modelo de 3ª cobrança (tom firme). ' : msg.n === 2 ? 'Modelo de lembrete. ' : '') + 'Abre no Gmail, em nova aba, para você revisar e enviar.';
+    $('modalRodape').textContent = textoRodapeEnvio(msg.n >= 3 ? 'Modelo de 3ª cobrança (tom firme). ' : msg.n === 2 ? 'Modelo de lembrete. ' : '');
     var dlg = $('modalCobrar');
     if (typeof dlg.showModal === 'function') dlg.showModal(); else dlg.setAttribute('open', '');
     setTimeout(function () { (cliente.email ? $('cobCorpo') : $('cobPara')).focus(); $('cobCorpo').scrollTop = 0; }, 30);
@@ -4336,22 +4351,63 @@
       .then(fecharModal);
   });
 
+  // ==========================================================================
+  // Envio direto. Esta página não fala com o Gmail: ela põe o pedido na fila
+  // (solicitacoesEmail) e o vigia no PC do escritório (scripts/vigia-robo.js)
+  // manda pela caixa do escritório. A cobrança só é registrada no cliente
+  // depois que o Gmail confirma o envio — quem grava é o vigia.
+  // ==========================================================================
+  var ESPERA_MAX_VIGIA_MS = 3 * 60 * 1000;   // o vigia bate ponto a cada minuto
+  function vigiaLigado() {
+    var v = configRobo.vigia;
+    return !!(v && v.em && (Date.now() - new Date(v.em).getTime()) < ESPERA_MAX_VIGIA_MS);
+  }
+
+  // Acompanha um pedido até o vigia terminar e avisa o resultado.
+  function acompanharPedido(ref, textos) {
+    var parar = ref.onSnapshot(function (doc) {
+      var d = doc.data() || {};
+      if (d.status === 'enviado' || d.status === 'concluido') { parar(); toast(textos.ok(d), 'ok'); }
+      else if (d.status === 'erro') { parar(); toast(textos.erro + (d.erro ? ': ' + d.erro : ''), 'erro'); }
+    }, function () { parar(); });
+    setTimeout(function () { parar(); }, 15 * 60 * 1000);
+  }
+
+  function pedirEnvio(dados, textos) {
+    var pedido = Object.assign({
+      status: 'pendente', criadoEm: new Date().toISOString(), criadoPor: quemSou(),
+      criadoPorEmail: (auth.currentUser && auth.currentUser.email) || '',
+      competencia: competenciaStr(competenciaAtual)
+    }, dados);
+    return db.collection('solicitacoesEmail').add(pedido).then(function (ref) {
+      acompanharPedido(ref, textos);
+      var ligado = vigiaLigado();
+      toast(ligado ? textos.fila : textos.fila + ' O PC do robô está desligado: sai quando ele ligar.', ligado ? 'ok' : null);
+      return ref;
+    });
+  }
+
   $('formCobrar').addEventListener('submit', function (ev) {
     ev.preventDefault();
     var assunto = $('cobAssunto').value.trim();
     var corpo = $('cobCorpo').value;
     var botao = $('modalEnviar');
+    if (!assunto) { $('cobAssunto').focus(); toast('Escreva o assunto.', 'erro'); return; }
 
     if (modalModo === 'lote') {
       var clientesLote = modalLoteIds.map(function (id) { return clientesPorId.get(id); }).filter(function (c) { return c && c.email; });
       if (!clientesLote.length) { toast('Nenhum cliente com e-mail neste lote.', 'erro'); return; }
-      var bcc = clientesLote.map(function (c) { return c.email; }).join(',');
       botao.disabled = true;
-      if (!abrirNovaAba('https://mail.google.com/mail/?view=cm&fs=1&bcc=' + encodeURIComponent(bcc) + '&su=' + encodeURIComponent(assunto) + '&body=' + encodeURIComponent(corpo))) { botao.disabled = false; return; }
-      Promise.all(clientesLote.map(function (c) { return registrarCobranca(c, 'lote', c.email); }))
-        .then(function () { toast('Gmail aberto com ' + plural(clientesLote.length, 'cliente em Cco', 'clientes em Cco') + '. Cobranças registradas.', 'ok'); })
-        .catch(function (err) { toast('O Gmail abriu, mas parte do registro falhou: ' + err.message, 'erro'); })
-        .then(function () { botao.disabled = false; fecharModal(); });
+      // Os endereços não vão no pedido: o vigia busca cada um no cadastro,
+      // pra fila nunca virar um jeito de mandar e-mail pra qualquer um.
+      pedirEnvio({ tipo: 'lote', clienteIds: clientesLote.map(function (c) { return c.id; }), assunto: assunto, corpo: corpo }, {
+        fila: 'Cobrança de ' + plural(clientesLote.length, 'cliente', 'clientes') + ' na fila de envio.',
+        ok: function (d) { return 'Enviado a ' + plural(d.enviadosPara || clientesLote.length, 'cliente em Cco', 'clientes em Cco') + '. Cobranças registradas.'; },
+        erro: 'A cobrança em lote não foi enviada'
+      })
+        .then(fecharModal)
+        .catch(function (err) { toast('Não foi possível pôr na fila: ' + err.message, 'erro'); })
+        .then(function () { botao.disabled = false; });
       return;
     }
 
@@ -4360,13 +4416,108 @@
     var para = $('cobPara').value.trim();
     if (!emailValido(para)) { $('cobPara').setAttribute('aria-invalid', 'true'); $('cobPara').focus(); toast('Informe um e-mail válido.', 'erro'); return; }
     botao.disabled = true;
-    if (!abrirNovaAba('https://mail.google.com/mail/?view=cm&fs=1&to=' + encodeURIComponent(para) + '&su=' + encodeURIComponent(assunto) + '&body=' + encodeURIComponent(corpo))) { botao.disabled = false; return; }
+    // Endereço novo entra no cadastro ANTES do pedido: o vigia só envia pra
+    // e-mail que está no cliente.
+    var salvarEmail = para !== (cliente.email || '')
+      ? db.collection('clientes').doc(cliente.id).update({ email: para })
+      : Promise.resolve();
+    salvarEmail
+      .then(function () {
+        return pedirEnvio({
+          tipo: 'um', clienteId: cliente.id, clienteNome: cliente.nome, para: para,
+          assunto: assunto, corpo: corpo,
+          tipos: faltandoDe(cliente.id).map(function (t) { return t.chave; })
+        }, {
+          fila: 'Cobrança de ' + nomeExibicao(cliente) + ' na fila de envio.',
+          ok: function () { return 'E-mail enviado para ' + nomeExibicao(cliente) + ' (' + para + ').'; },
+          erro: 'O e-mail para ' + nomeExibicao(cliente) + ' não foi enviado'
+        });
+      })
+      .then(fecharModal)
+      .catch(function (err) { toast('Não foi possível enviar: ' + err.message, 'erro'); })
+      .then(function () { botao.disabled = false; });
+  });
+
+  // Alternativa: abrir o rascunho no Gmail pra revisar e mandar à mão.
+  $('modalAbrirGmail').addEventListener('click', function () {
+    var assunto = $('cobAssunto').value.trim();
+    var corpo = $('cobCorpo').value;
+    if (modalModo === 'lote') {
+      var clientesLote = modalLoteIds.map(function (id) { return clientesPorId.get(id); }).filter(function (c) { return c && c.email; });
+      if (!clientesLote.length) { toast('Nenhum cliente com e-mail neste lote.', 'erro'); return; }
+      var bcc = clientesLote.map(function (c) { return c.email; }).join(',');
+      if (!abrirNovaAba('https://mail.google.com/mail/?view=cm&fs=1&bcc=' + encodeURIComponent(bcc) + '&su=' + encodeURIComponent(assunto) + '&body=' + encodeURIComponent(corpo))) return;
+      Promise.all(clientesLote.map(function (c) { return registrarCobranca(c, 'lote', c.email); }))
+        .then(function () { toast('Gmail aberto com ' + plural(clientesLote.length, 'cliente em Cco', 'clientes em Cco') + '. Cobranças registradas.', 'ok'); })
+        .catch(function (err) { toast('O Gmail abriu, mas parte do registro falhou: ' + err.message, 'erro'); })
+        .then(fecharModal);
+      return;
+    }
+    var cliente = clientesPorId.get(modalClienteId);
+    if (!cliente) { fecharModal(); return; }
+    var para = $('cobPara').value.trim();
+    if (!emailValido(para)) { $('cobPara').setAttribute('aria-invalid', 'true'); $('cobPara').focus(); toast('Informe um e-mail válido.', 'erro'); return; }
+    if (!abrirNovaAba('https://mail.google.com/mail/?view=cm&fs=1&to=' + encodeURIComponent(para) + '&su=' + encodeURIComponent(assunto) + '&body=' + encodeURIComponent(corpo))) return;
     var gravacoes = [registrarCobranca(cliente, 'gmail', para)];
     if (para !== (cliente.email || '')) gravacoes.push(db.collection('clientes').doc(cliente.id).update({ email: para }));
     Promise.all(gravacoes)
       .then(function () { toast('Cobrança aberta no Gmail e registrada para ' + nomeExibicao(cliente), 'ok'); })
       .catch(function (err) { toast('O Gmail abriu, mas o registro falhou: ' + err.message, 'erro'); })
-      .then(function () { botao.disabled = false; fecharModal(); });
+      .then(fecharModal);
+  });
+
+  function textoRodapeEnvio(prefixo) {
+    return (prefixo || '') + (vigiaLigado()
+      ? 'Enviar manda na hora pela caixa ' + CAIXA_GMAIL + '.'
+      : 'O PC do robô está desligado: Enviar deixa na fila e sai quando ele ligar. Para mandar agora, use Abrir no Gmail.');
+  }
+
+  // ---------- fila e vigia na página do robô ----------
+  var filaEmail = [];
+  var unsubFila = null;
+  function subscribeFila() {
+    if (unsubFila) { unsubFila(); unsubFila = null; }
+    unsubFila = db.collection('solicitacoesEmail').where('status', 'in', ['pendente', 'processando'])
+      .onSnapshot(function (snap) {
+        filaEmail = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+        renderVigia();
+      }, function () {});
+  }
+
+  function renderVigia() {
+    var caixa = $('roboVigia');
+    if (!caixa) return;
+    caixa.innerHTML = '';
+    var ligado = vigiaLigado();
+    var v = configRobo.vigia || {};
+    caixa.className = 'robo-vigia ' + (ligado ? 'ligado' : 'desligado');
+    caixa.appendChild(el('span', 'ponto'));
+    caixa.appendChild(el('span', null, ligado
+      ? 'PC do robô ligado'
+      : (v.desligadoEm || v.em ? 'PC do robô desligado desde ' + dataHora(v.desligadoEm || v.em) : 'O vigia do robô ainda não foi ligado no PC')));
+    var lendo = configRobo.status === 'lendo';
+    if (lendo) caixa.appendChild(el('span', null, '· lendo o Gmail agora'));
+    var envios = filaEmail.filter(function (f) { return f.tipo !== 'verificar'; }).length;
+    if (envios) caixa.appendChild(el('span', null, '· ' + plural(envios, 'e-mail na fila', 'e-mails na fila')));
+    if (configRobo.status === 'erro' && configRobo.statusMsg) caixa.appendChild(el('span', 'erro', '· última leitura falhou: ' + configRobo.statusMsg));
+
+    var b = $('btnVerificarGmail');
+    var pedidoAberto = filaEmail.some(function (f) { return f.tipo === 'verificar'; });
+    b.disabled = lendo || pedidoAberto;
+    b.lastChild.textContent = lendo ? ' Lendo o Gmail...' : pedidoAberto ? ' Leitura pedida...' : ' Verificar Gmail agora';
+    b.title = ligado ? 'Pede ao PC do robô que leia o Gmail agora' : 'O PC do robô está desligado: a leitura fica pedida e acontece quando ele ligar';
+  }
+  // O vigia pode desligar sem avisar; a página percebe pelo relógio.
+  setInterval(renderVigia, 30000);
+
+  $('btnVerificarGmail').addEventListener('click', function () {
+    var b = $('btnVerificarGmail');
+    b.disabled = true;
+    pedirEnvio({ tipo: 'verificar', dias: 3 }, {
+      fila: 'Leitura do Gmail pedida.',
+      ok: function (d) { return 'Gmail verificado' + (d.resumo ? ': ' + d.resumo : '') + '.'; },
+      erro: 'A leitura do Gmail falhou'
+    }).catch(function (err) { b.disabled = false; toast('Não foi possível pedir a leitura: ' + err.message, 'erro'); });
   });
 
   // ---------- cobrança em lote ----------
@@ -4395,7 +4546,7 @@
     $('cobAssunto').value = preencherModelo(configCobranca.lote.assunto, vars);
     $('cobCorpo').value = preencherModelo(configCobranca.lote.corpo, vars);
     $('modalWhats').hidden = true;
-    $('modalRodape').textContent = 'O Gmail abre com todos em Cco. Cada cliente recebe o registro de cobrança.';
+    $('modalRodape').textContent = textoRodapeEnvio('Todos em Cco, um e-mail só. ');
     var dlg = $('modalCobrar');
     if (typeof dlg.showModal === 'function') dlg.showModal(); else dlg.setAttribute('open', '');
     setTimeout(function () { $('cobCorpo').focus(); $('cobCorpo').scrollTop = 0; }, 30);
@@ -4719,6 +4870,7 @@
       aoTrocarMes();
       subscribeConfig();
       subscribeRobo();
+      subscribeFila();
       subscribeClientes();
     }).catch(function (err) {
       $('authGate').hidden = false;
