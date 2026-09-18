@@ -40,7 +40,7 @@
     --info: #2B4F8A; --info-soft: #E4EBF7; --info-forte: color-mix(in srgb, var(--info) 62%, var(--ink));
     --borda-interativa: #949494;  /* 3,03:1 — contorno de campo/botão */
     --foco: var(--accent);
-    --r-xs: 4px; --r-sm: 6px; --r-md: 8px; --r-lg: 10px;
+    --r-xs: 4px; --r-sm: 6px; --r-md: 8px; --r-lg: 10px; --r-pill: 999px;
     --esp-1: 4px; --esp-2: 8px; --esp-3: 12px; --esp-4: 16px; --esp-5: 24px; --esp-6: 32px;
     --font-body: 'Inter', -apple-system, 'Segoe UI', system-ui, sans-serif;
     --font-mono: 'JetBrains Mono', SFMono-Regular, Consolas, monospace;
@@ -108,8 +108,9 @@
      quer ver a lista inteira, não uma faixa no meio da tela.
      ========================================================================== */
   /* Moldura de aplicativo: menu fixo à esquerda, conteúdo à direita. Abaixo
-     de 1000px, e dentro do iframe do app principal (que já tem o próprio menu
-     lateral), o menu vira uma barra horizontal no topo. */
+     de 1000px o menu vira uma barra horizontal no topo — só por largura de
+     tela, igual dentro ou fora do iframe do app principal (decisão
+     explícita: esta tela roda no hub exatamente como roda sozinha). */
   .app { display: grid; grid-template-columns: minmax(0, 1fr); min-height: 100vh; }
   .menu {
     display: flex; flex-direction: row; align-items: center; gap: 2px; overflow-x: auto; scrollbar-width: none;
@@ -142,7 +143,6 @@
   }
   .tema-seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: inset 0 0 0 1px var(--border-forte); }
   .tema-seg button:focus-visible { outline: 2px solid var(--foco); outline-offset: 2px; }
-  body.embutido .tema-seg { display: none; }
   /* Na troca de tema a folha inteira muda de cor de uma vez; 220ms de
      transição só nesse instante, e em nada mais. */
   html.tema-troca, html.tema-troca *, html.tema-troca *::before, html.tema-troca *::after {
@@ -151,19 +151,19 @@
   .conteudo { min-width: 0; padding: 0 16px 64px; }
 
   @media (min-width: 1000px) {
-    body:not(.embutido) .app { grid-template-columns: 236px minmax(0, 1fr); }
-    body:not(.embutido) .menu {
+    .app { grid-template-columns: 236px minmax(0, 1fr); }
+    .menu {
       flex-direction: column; align-items: stretch; gap: 2px; overflow: visible;
       position: sticky; top: 0; height: 100vh; padding: 14px 12px;
       border-bottom: none; border-right: 1px solid var(--border);
     }
-    body:not(.embutido) .menu-marca { display: flex; align-items: center; gap: 10px; padding: 4px 8px 16px; }
-    body:not(.embutido) .menu-grupo { flex-direction: column; }
-    body:not(.embutido) .menu-item { height: 38px; }
-    body:not(.embutido) .menu-sep { display: block; height: 1px; background: var(--border); margin: 10px 8px; }
-    body:not(.embutido) .menu-rotulo { display: block; font-size: var(--t-xs); color: var(--ink-faint); font-weight: 600; padding: 6px 12px 4px; letter-spacing: .01em; }
-    body:not(.embutido) .menu-pe { margin: auto 0 0; padding: 12px 8px 0; border-top: 1px solid var(--border); flex-direction: column; align-items: stretch; gap: 10px; }
-    body:not(.embutido) .menu-pe .usuario-atual { display: inline; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .menu-marca { display: flex; align-items: center; gap: 10px; padding: 4px 8px 16px; }
+    .menu-grupo { flex-direction: column; }
+    .menu-item { height: 38px; }
+    .menu-sep { display: block; height: 1px; background: var(--border); margin: 10px 8px; }
+    .menu-rotulo { display: block; font-size: var(--t-xs); color: var(--ink-faint); font-weight: 600; padding: 6px 12px 4px; letter-spacing: .01em; }
+    .menu-pe { margin: auto 0 0; padding: 12px 8px 0; border-top: 1px solid var(--border); flex-direction: column; align-items: stretch; gap: 10px; }
+    .menu-pe .usuario-atual { display: inline; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .conteudo { padding: 0 28px 64px; }
   }
   .menu-rotulo { display: none !important; }
@@ -1596,14 +1596,11 @@
 </script>
 <script>
 (function () {
-  // Dentro do hub (entregas.html) esta página carrega num <iframe>, já embaixo
-  // do cabeçalho e da barra lateral do app principal. O cabeçalho e o botão
-  // Sair daqui ficariam duplicados, então somem quando não é acesso direto.
-  try {
-    if (window.self !== window.top) document.body.classList.add('embutido');
-  } catch (e) {
-    document.body.classList.add('embutido');
-  }
+  // Por decisão explícita: esta tela roda dentro do iframe do hub exatamente
+  // como roda sozinha, com o próprio menu lateral, cabeçalho e tudo — mesmo
+  // duplicando o menu do app principal do lado. A classe "embutido" (que
+  // fazia esconder isso e virar barra horizontal) nunca é mais aplicada;
+  // o CSS que dependia dela fica inerte, de propósito.
 
   var auth = firebase.auth();
   var db = firebase.firestore();
@@ -4989,7 +4986,7 @@
       var dados = doc.exists ? doc.data() : {};
       var roles = dados.roles || [];
       usuarioNome = dados.nome || nomeDeUsuario(user.email);
-      if (dados.tema && !document.body.classList.contains('embutido')) {
+      if (dados.tema) {
         aplicarTema(dados.tema, false);
         try { localStorage.setItem('nilma_tema', dados.tema); } catch (e) {}
       }
