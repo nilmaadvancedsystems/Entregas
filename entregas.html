@@ -1445,15 +1445,41 @@
 
     body { padding-left: 224px; font-size: var(--t-md); }
 
-    /* Contábil e Pendências trazem o próprio menu lateral, dentro do
-       iframe — com os dois na tela, ficava um menu do lado do outro,
-       brigando pelo mesmo espaço, e a ferramenta embutida parecia colada
-       por fora do app, não uma aba dele. Enquanto uma dessas abas está
-       aberta, o menu do Entregas sai de cena e o iframe assume a largura
-       toda; o botão de voltar (sidebar-footer, fixo no canto — não faz
-       parte dessa coluna) continua à mão pra sair de lá. */
+    /* ---------- modo ferramenta (Contábil) ----------
+       Essas ferramentas trazem o próprio menu, dentro do iframe. Com a
+       moldura do Entregas em volta, sobrava tudo: dois menus laterais, o
+       título da página repetindo o da ferramenta, o iframe espremido na
+       coluna centralizada e o rodapé da conta flutuando por cima do menu
+       dela. Aqui a moldura encolhe pra uma barra fina no topo — voltar à
+       esquerda e as abas da ferramenta ao lado (o Contábil tem duas, e é
+       por essa barra que se troca entre elas) — e o iframe ocupa todo o
+       resto da tela, de ponta a ponta. */
     body.modo-secundario { padding-left: 0; }
-    body.modo-secundario .sidebar-brand, body.modo-secundario .tabs { display: none; }
+    body.modo-secundario .sidebar-brand,
+    body.modo-secundario .tela-cabecalho { display: none; }
+    body.modo-secundario .tabs {
+      top: 0; left: 0; right: 0; bottom: auto; width: auto; height: 48px;
+      flex-direction: row; align-items: center; gap: 4px;
+      padding: 0 12px 0 60px;
+      border-right: none; border-bottom: 1px solid var(--border);
+    }
+    body.modo-secundario .tab { width: auto; min-height: 32px; padding: 6px 12px; }
+    body.modo-secundario .sidebar-footer {
+      top: 0; bottom: auto; left: 0; width: 52px; height: 48px;
+      padding: 0 0 0 10px; border: none; background: transparent;
+    }
+    body.modo-secundario .sidebar-footer .user-avatar,
+    body.modo-secundario .sidebar-footer .brand-name { display: none; }
+    body.modo-secundario main { padding: 0; }
+    /* !important só porque o tamanho do iframe está no style da própria
+       tag (vale fora do modo ferramenta, e no celular). */
+    body.modo-secundario #frameConciliador,
+    body.modo-secundario #frameCheque {
+      /* altura explícita: iframe não estica com top+bottom como uma div —
+         com height:auto ele volta aos 150px padrão de iframe */
+      position: fixed; top: 48px; left: 0; right: 0;
+      width: 100% !important; height: calc(100vh - 48px) !important; border-radius: 0 !important;
+    }
 
     .user-avatar {
       display: inline-grid; place-items: center; width: 28px; height: 28px; flex: none;
@@ -2400,11 +2426,6 @@
   <section id="tab-cheque" class="view" role="tabpanel" tabindex="-1" aria-labelledby="tabbtn-cheque" hidden>
     <iframe id="frameCheque" data-src="cheque-especial.html" title="Cheque especial" style="width:100%;height:calc(100vh - 16px);border:0;display:block;border-radius:var(--r-md);"></iframe>
   </section>
-  <!-- Pendências: função separada de Contábil (pedido explícito), mesmo
-       padrão de iframe sob demanda. -->
-  <section id="tab-pendencias" class="view" role="tabpanel" tabindex="-1" aria-labelledby="tabbtn-pendencias" hidden>
-    <iframe id="framePendencias" data-src="Pendencias-e-envio-automatico-via-Gmail.html" title="Pendências" style="width:100%;height:calc(100vh - 16px);border:0;display:block;border-radius:var(--r-md);"></iframe>
-  </section>
 </main>
 
 <div class="sidebar-brand" aria-hidden="true">
@@ -2424,7 +2445,6 @@
   <button class="tab" data-tab="perfil" role="tab" id="tabPerfil" aria-controls="tab-perfil" aria-selected="false" tabindex="-1" hidden><span class="tab-ico"><i class="ph ph-identification-badge" aria-hidden="true"></i></span><span class="tab-label">Perfil</span></button>
   <button class="tab" data-tab="conciliador" role="tab" id="tabbtn-conciliador" aria-controls="tab-conciliador" aria-selected="false" tabindex="-1" hidden><span class="tab-ico"><i class="ph ph-credit-card" aria-hidden="true"></i></span><span class="tab-label">Conciliadorzinho</span></button>
   <button class="tab" data-tab="cheque" role="tab" id="tabbtn-cheque" aria-controls="tab-cheque" aria-selected="false" tabindex="-1" hidden><span class="tab-ico"><i class="ph ph-bank" aria-hidden="true"></i></span><span class="tab-label">Cheque especial</span></button>
-  <button class="tab" data-tab="pendencias" role="tab" id="tabbtn-pendencias" aria-controls="tab-pendencias" aria-selected="false" tabindex="-1" hidden><span class="tab-ico"><i class="ph ph-envelope-simple-open" aria-hidden="true"></i></span><span class="tab-label">Pendências</span></button>
 </nav>
 
 <div class="sidebar-footer">
@@ -3197,11 +3217,11 @@
       marcarIconeAba_();
       var lbl = btn.querySelector('.tab-label');
       if (lbl && $('pageTitle')) $('pageTitle').textContent = lbl.textContent;
-      ['nova', 'rota', 'painel', 'solicitacoes', 'clientes', 'honorarios', 'perfil', 'conciliador', 'cheque', 'pendencias'].forEach(function (name) {
+      ['nova', 'rota', 'painel', 'solicitacoes', 'clientes', 'honorarios', 'perfil', 'conciliador', 'cheque'].forEach(function (name) {
         var el = $('tab-' + name);
         var papelPermite = name === 'perfil' ? temPapel('admin')
           : name === 'honorarios' ? (temPapel('admin') || temPapel('office_boy'))
-          : (name === 'conciliador' || name === 'cheque' || name === 'pendencias') ? (temPapel('admin') || temPapel('contabil'))
+          : (name === 'conciliador' || name === 'cheque') ? (temPapel('admin') || temPapel('contabil'))
           : true;
         el.hidden = name !== btn.dataset.tab || !papelPermite;
       });
@@ -10463,19 +10483,21 @@
     if (nomeFuncao === 'entregas') startApp();
   }
 
-  // "Aba secundária": Contábil e Pendências não são mais sub-hub de
-  // cartões que leva pra outra página — cada uma vira abas de verdade
-  // dentro da MESMA barra que Entregas usa. As ferramentas continuam
-  // sendo os arquivos que já são (conciliador.html, cheque-especial.html,
-  // Pendencias-e-envio-automatico-via-Gmail.html), só mostradas aqui
-  // dentro via <iframe>, pra não ter que fundir CSS/JS de quatro apps
-  // num só (risco de colisão de nomes de função/variável e de estilo).
+  // "Aba secundária": o Contábil não é mais sub-hub de cartões que leva
+  // pra outra página — vira abas de verdade dentro da MESMA barra que
+  // Entregas usa. As ferramentas continuam sendo os arquivos que já são
+  // (conciliador.html, cheque-especial.html), só mostradas aqui dentro via
+  // <iframe>, pra não ter que fundir CSS/JS de três apps num só (risco de
+  // colisão de nomes de função/variável e de estilo).
+  //
+  // A Pendências NÃO entra aqui, por decisão do dono: ela abre como página
+  // própria (card do hub -> Pendencias-e-envio-automatico-via-Gmail.html),
+  // exatamente como é sozinha — sem moldura do Entregas em volta.
   var TABS_ENTREGAS_ = ['tabbtn-nova', 'tabbtn-rota', 'tabbtn-painel', 'tabbtn-solicitacoes', 'tabHonorarios', 'tabbtn-clientes', 'tabPerfil'];
   // cada "aba secundária" registrada aqui: botões de aba, seções de
   // conteúdo (pra esconder ao voltar) e frames (pra carregar sob demanda)
   var ABAS_SECUNDARIAS_ = {
-    contabil: { botoes: ['tabbtn-conciliador', 'tabbtn-cheque'], secoes: ['tab-conciliador', 'tab-cheque'], frames: ['frameConciliador', 'frameCheque'], abaInicial: 'tabbtn-conciliador' },
-    pendencias: { botoes: ['tabbtn-pendencias'], secoes: ['tab-pendencias'], frames: ['framePendencias'], abaInicial: 'tabbtn-pendencias' }
+    contabil: { botoes: ['tabbtn-conciliador', 'tabbtn-cheque'], secoes: ['tab-conciliador', 'tab-cheque'], frames: ['frameConciliador', 'frameCheque'], abaInicial: 'tabbtn-conciliador' }
   };
   function entrarModoSecundario_(nome) {
     var cfg = ABAS_SECUNDARIAS_[nome];
@@ -10536,7 +10558,9 @@
 
   $('hubEntregas').addEventListener('click', function () { entrarNaFuncao('entregas'); });
   $('hubContabil').addEventListener('click', function () { entrarModoSecundario_('contabil'); });
-  $('hubPendencias').addEventListener('click', function () { entrarModoSecundario_('pendencias'); });
+  $('hubPendencias').addEventListener('click', function () {
+    location.href = 'Pendencias-e-envio-automatico-via-Gmail.html';
+  });
   $('contabilVoltarBtn').addEventListener('click', mostrarHub);
   $('hubFiscal').addEventListener('click', function () {
     $('hubGridPrincipal').hidden = true;
