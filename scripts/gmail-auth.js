@@ -54,6 +54,6 @@ server.listen(PORT, () => {
 });
 
 setTimeout(() => {
-  console.error('TIMEOUT: ninguém autorizou em 3 minutos.');
+  console.error('TIMEOUT: ninguém autorizou em 15 minutos.');
   process.exit(1);
-}, 3 * 60 * 1000);
+}, 15 * 60 * 1000);
