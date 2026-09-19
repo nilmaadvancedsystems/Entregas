@@ -1207,6 +1207,18 @@
   .tempo-linha .er-nome { font-weight: 500; font-size: var(--t-base); color: var(--ink); }
   .tempo-linha .er-sub { font-size: var(--t-sm); color: var(--ink-soft); margin-top: 1px; overflow-wrap: anywhere; }
 
+  /* motivos de não entrega em um toque */
+  .motivos-rapidos { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 var(--esp-2); }
+  .motivos-rapidos .btn-chip { min-height: 34px; font-size: var(--t-sm); }
+  .dica-cliente { display: flex; gap: 6px; align-items: flex-start; margin: 0 0 var(--esp-3); }
+  .dica-cliente .ph { margin-top: 2px; color: var(--ink-faint); }
+  .leitor-video { width: 100%; max-height: 50vh; background: #000; border-radius: var(--r-md); display: block; margin-bottom: var(--esp-2); object-fit: cover; }
+  .numeros-do-mes { margin: var(--esp-3) 0 0; }
+  .numeros-do-mes summary { cursor: pointer; }
+  .numeros-do-mes dl { display: grid; grid-template-columns: auto 1fr; gap: 6px var(--esp-3); font-size: var(--t-sm); margin: var(--esp-2) 0 0; }
+  .numeros-do-mes dt { color: var(--ink-faint); }
+  .numeros-do-mes dd { margin: 0; color: var(--ink); overflow-wrap: anywhere; }
+
   /* nomes de quem costuma receber, logo abaixo do campo */
   .recebedor-sugestoes { display: flex; flex-wrap: wrap; gap: 6px; margin: calc(var(--esp-2) - var(--esp-4)) 0 var(--esp-4); }
   .recebedor-sugestoes .btn-chip { min-height: 32px; font-size: var(--t-sm); color: var(--ink-soft); }
@@ -2228,6 +2240,7 @@
       <div class="card-head-row">
         <h2><i class="ph ph-path" aria-hidden="true"></i> Rota de entregas</h2>
         <button type="button" class="btn-chip" id="rotaProximidadeBtn"><i class="ph ph-navigation-arrow" aria-hidden="true"></i> Ordenar por proximidade</button>
+        <button type="button" class="btn-chip" id="rotaLerGuiaBtn" hidden><i class="ph ph-barcode" aria-hidden="true"></i> Ler guia</button>
         <button type="button" class="btn-chip" id="rotaMapsBtn"><i class="ph ph-map-trifold" aria-hidden="true"></i> Abrir no Maps</button>
         <button type="button" class="btn-chip" id="rotaEnviarLinkBtn"><i class="ph ph-share-network" aria-hidden="true"></i> Enviar rota pro cliente</button>
         <button type="button" class="btn-chip accent" id="rotaAddBtn">+ Adicionar à rota</button>
@@ -2361,6 +2374,10 @@
           <div class="summary-text"><span class="skeleton skeleton-linha"></span></div>
         </div>
       </div>
+      <details class="numeros-do-mes" id="numerosDoMes" hidden>
+        <summary class="card-hint">Números do mês</summary>
+        <div id="numerosDoMesCorpo"></div>
+      </details>
     </div>
   </section>
 
@@ -4534,12 +4551,13 @@
     var buscar = jaLido
       ? Promise.resolve(jaLido)
       : db.collection('entregas').where('clienteId', '==', clienteId).limit(40).get().then(function (snap) {
-          var dados = snap.docs.map(function (d) { var e = d.data(); return { recebedor: e.recebedor, confirmadoEm: e.confirmadoEm }; });
+          var dados = snap.docs.map(function (d) { var e = d.data(); return { recebedor: e.recebedor, confirmadoEm: e.confirmadoEm, status: e.status, motivoFalha: e.motivoFalha }; });
           sugerirRecebedores_.memoria[clienteId] = dados;
           return dados;
         });
     buscar.then(function (entregas) {
       if (!document.body.contains(campo)) return;
+      mostrarDicaDoCliente_(campo, entregas);
       var nomes = {};
       entregas.forEach(function (e) {
         var nome = String(e.recebedor || '').trim().replace(/\s+/g, ' ');
@@ -4572,6 +4590,46 @@
     }).catch(function () {});
   }
   sugerirRecebedores_.memoria = {};
+
+  // O que o histórico ensina sobre este cliente: a que horas costuma receber e
+  // a que horas já se deu com a cara na porta. Ninguém cadastra horário de
+  // funcionamento; sai das entregas que já aconteceram. Só fala quando tem
+  // pelo menos três entregas pra se apoiar.
+  function dicaDoCliente_(entregas) {
+    var horas = function (lista) { return lista.map(function (e) { var d = new Date(e.confirmadoEm); return isNaN(d) ? null : d.getHours() + d.getMinutes() / 60; }).filter(function (h) { return h !== null; }); };
+    var ok = horas(entregas.filter(function (e) { return e.status === 'confirmada'; }));
+    var ruins = entregas.filter(function (e) { return e.status === 'falha'; });
+    var partes = [];
+    if (ok.length >= 3) {
+      ok.sort(function (a, b) { return a - b; });
+      // o miolo (sem o quarto mais cedo e o quarto mais tarde): um dia atípico não muda a dica
+      var ini = Math.floor(ok[Math.floor(ok.length * 0.25)]), fim = Math.ceil(ok[Math.min(ok.length - 1, Math.floor(ok.length * 0.75))]);
+      if (fim <= ini) fim = ini + 1;
+      partes.push('Costuma receber entre ' + ini + 'h e ' + fim + 'h');
+    }
+    var hRuins = horas(ruins);
+    if (hRuins.length >= 2) {
+      var porFaixa = {};
+      hRuins.forEach(function (h) { var f = Math.floor(h); porFaixa[f] = (porFaixa[f] || 0) + 1; });
+      var pior = Object.keys(porFaixa).sort(function (a, b) { return porFaixa[b] - porFaixa[a]; })[0];
+      if (porFaixa[pior] >= 2) partes.push(porFaixa[pior] + ' tentativas sem sucesso por volta das ' + pior + 'h');
+    }
+    return partes.join(' · ');
+  }
+  function mostrarDicaDoCliente_(campo, entregas) {
+    var modal = campo.closest('.modal');
+    if (!modal) return;                       // só nas telas de confirmar, onde a pessoa está na porta do cliente
+    var velha = modal.querySelector('.dica-cliente');
+    if (velha) velha.remove();
+    var texto = dicaDoCliente_(entregas);
+    if (!texto) return;
+    var p = document.createElement('p');
+    p.className = 'card-hint dica-cliente';
+    p.innerHTML = '<i class="ph ph-lightbulb" aria-hidden="true"></i> ';
+    p.appendChild(document.createTextNode(texto + '.'));
+    var cabeca = modal.querySelector('.modal-head');
+    if (cabeca) cabeca.insertAdjacentElement('afterend', p);
+  }
 
   function renderSuggestions() {
     var q = clienteInput.value.trim().toLowerCase();
@@ -4724,6 +4782,41 @@
           : 'Preencha na hora, colha a assinatura ou anexe uma foto — sem protocolo de papel.');
     });
   });
+
+  // ---------- motivo de não entrega em um toque ----------
+  // Na calçada ninguém quer digitar. Os motivos que se repetem viram botões: um
+  // toque preenche o campo (que continua livre pra completar). Com o texto
+  // padronizado dá pra contar depois por que as entregas falham.
+  var MOTIVOS_DE_FALHA_ = ['Estabelecimento fechado', 'Cliente ausente', 'Ninguém atendeu', 'Recusou receber', 'Endereço errado', 'Mudou de endereço', 'Pediu pra voltar outro dia'];
+  function motivosEmUmToque_(campo) {
+    if (!campo || campo.dataset.comMotivos) return;
+    campo.dataset.comMotivos = '1';
+    var caixa = document.createElement('div');
+    caixa.className = 'motivos-rapidos';
+    MOTIVOS_DE_FALHA_.forEach(function (m) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn-chip';
+      b.textContent = m;
+      b.addEventListener('click', function () {
+        // troca o motivo padrão que estiver no começo e mantém o que a pessoa escreveu depois
+        var resto = campo.value;
+        MOTIVOS_DE_FALHA_.forEach(function (x) { if (resto.indexOf(x) === 0) resto = resto.slice(x.length).replace(/^[\s.,;:–-]+/, ''); });
+        campo.value = m + (resto ? '. ' + resto : '');
+        campo.dispatchEvent(new Event('input', { bubbles: true }));
+        caixa.querySelectorAll('.btn-chip').forEach(function (o) { o.classList.toggle('accent', o === b); });
+      });
+      caixa.appendChild(b);
+    });
+    campo.parentNode.insertBefore(caixa, campo);
+  }
+  // o motivo padronizado de um texto livre (pra estatística); '' se não for nenhum
+  function motivoPadrao_(texto) {
+    var t = String(texto || '');
+    for (var i = 0; i < MOTIVOS_DE_FALHA_.length; i++) { if (t.indexOf(MOTIVOS_DE_FALHA_[i]) === 0) return MOTIVOS_DE_FALHA_[i]; }
+    return t ? 'Outro motivo' : '';
+  }
+  motivosEmUmToque_($('falhaMotivo'));
 
   // ---------- cliente ausente / entrega não realizada ----------
   function atualizarModoFalha() {
@@ -5159,6 +5252,79 @@
     document.querySelector('#modeToggle .mode-btn[data-mode="rota"]').click();
   });
   $('rotaProximidadeBtn').addEventListener('click', ordenarRotaPorProximidade_);
+
+  // ---------- ler o código de barras da guia com a câmera ----------
+  // Com dez guias na mão, achar a parada certa na lista é o que toma tempo. A
+  // câmera lê o código de barras (ou o QR do PIX) da guia de papel e o app abre
+  // a confirmação daquela guia. Só existe onde o navegador sabe ler código de
+  // barras (Chrome no Android) e só acha guia montada com PDF, que é de onde o
+  // código pra pagar foi lido.
+  //
+  // O que está impresso em barras tem 44 dígitos; o que a gente guarda é a
+  // linha digitável (47 ou 48). Esta função desfaz a linha nas barras.
+  function barrasDaLinha_(linha) {
+    var d = String(linha || '').replace(/\D/g, '');
+    if (d.length === 48) return d.slice(0, 11) + d.slice(12, 23) + d.slice(24, 35) + d.slice(36, 47);      // arrecadação: tira o verificador de cada bloco
+    if (d.length === 47) return d.slice(0, 4) + d.slice(32, 33) + d.slice(33, 47) + d.slice(4, 9) + d.slice(10, 20) + d.slice(21, 31);   // boleto de banco
+    return '';
+  }
+  function paradaDoCodigo_(lido) {
+    var bruto = String(lido || '').trim();
+    var digitos = bruto.replace(/\D/g, '');
+    return pendentesCache.filter(function (e) {
+      var c = e.codigoPagamento && e.codigoPagamento.codigo;
+      if (!c) return false;
+      if (/^000201/.test(c)) return c === bruto;
+      return digitos.length >= 44 && (barrasDaLinha_(c) === digitos || String(c).replace(/\D/g, '') === digitos);
+    })[0] || null;
+  }
+  if ('BarcodeDetector' in window && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) $('rotaLerGuiaBtn').hidden = false;
+  $('rotaLerGuiaBtn').addEventListener('click', function () {
+    var root = $('modalRoot');
+    root.innerHTML =
+      '<div class="modal-overlay" id="overlay"><div class="modal" id="modalInner">' +
+        '<div class="modal-head"><div><h2>Ler guia</h2><div class="card-hint modal-head-sub">Aponte pro código de barras ou pro QR do PIX da guia.</div></div>' +
+        '<button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button></div>' +
+        '<video id="leitorVideo" class="leitor-video" playsinline muted></video>' +
+        '<p class="card-hint" id="leitorStatus">Abrindo a câmera…</p>' +
+      '</div></div>';
+    var fluxo = null, relogio = null, fechado = false;
+    function parar() {
+      fechado = true;
+      clearInterval(relogio);
+      if (fluxo) fluxo.getTracks().forEach(function (t) { t.stop(); });
+    }
+    function fechar() { parar(); closeModal(); }
+    $('overlay').addEventListener('click', function (e) { if (e.target.id === 'overlay') fechar(); });
+    $('modalClose').addEventListener('click', fechar);
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then(function (f) {
+      if (fechado) { f.getTracks().forEach(function (t) { t.stop(); }); return; }
+      fluxo = f;
+      var video = $('leitorVideo');
+      video.srcObject = f;
+      video.play();
+      $('leitorStatus').textContent = 'Procurando o código…';
+      var leitor = new BarcodeDetector({ formats: ['itf', 'qr_code'] });
+      var ocupado = false;
+      relogio = setInterval(function () {
+        // a tela pode ter sido trocada por outro modal: a câmera não pode ficar ligada por trás
+        if (!document.body.contains(video)) { parar(); return; }
+        if (ocupado || video.readyState < 2) return;
+        ocupado = true;
+        leitor.detect(video).then(function (achados) {
+          ocupado = false;
+          if (!achados.length || fechado) return;
+          var entrega = paradaDoCodigo_(achados[0].rawValue);
+          if (!entrega) { $('leitorStatus').textContent = 'Li o código, mas essa guia não está na rota (ou foi montada sem o PDF).'; return; }
+          parar();
+          if (navigator.vibrate) { try { navigator.vibrate(80); } catch (e) {} }
+          openConfirmPendingModal(entrega);
+        }).catch(function () { ocupado = false; });
+      }, 350);
+    }).catch(function () {
+      $('leitorStatus').textContent = 'Não consegui abrir a câmera. Confira a permissão do navegador.';
+    });
+  });
 
   // ---------- fechamento do dia ----------
   function entregasDeHoje_() {
@@ -7379,6 +7545,43 @@
     setTimeout(function () { if (painelMap) painelMap.invalidateSize(); }, 150);
   }
 
+  // Números do mês: o que o dono quer saber sem abrir planilha. Sai do que o
+  // Painel já tem carregado (a competência escolhida), sem nenhuma leitura a
+  // mais no banco. Fica dobrado: quem quer, abre.
+  function numerosDoMes_(entregas) {
+    var feitas = entregas.filter(function (e) { return e.status === 'confirmada'; });
+    var falhas = entregas.filter(function (e) { return e.status === 'falha'; });
+    var conta = function (lista, chaveDe) { var m = {}; lista.forEach(function (e) { var k = chaveDe(e); if (k) m[k] = (m[k] || 0) + 1; }); return Object.keys(m).map(function (k) { return { nome: k, n: m[k] }; }).sort(function (a, b) { return b.n - a.n; }); };
+    return {
+      feitas: feitas.length, falhas: falhas.length, noLink: entregas.filter(function (e) { return e.status === 'link'; }).length,
+      porPessoa: conta(feitas, function (e) { return e.entregadoPorNome || e.entregadoPor; }),
+      comAssinatura: feitas.filter(function (e) { return e.temAssinatura; }).length,
+      soFoto: feitas.filter(function (e) { return !e.temAssinatura && e.temFoto && !e.recebidoPeloLink; }).length,
+      peloLink: feitas.filter(function (e) { return e.recebidoPeloLink; }).length,
+      semComprovante: feitas.filter(function (e) { return e.semComprovante; }).length,
+      porMotivo: conta(falhas, function (e) { return motivoPadrao_(e.motivoFalha); }),
+      quemMaisFalha: conta(falhas, function (e) { return e.clienteNome; }).filter(function (x) { return x.n >= 2; }).slice(0, 3)
+    };
+  }
+  function renderNumerosDoMes_() {
+    var caixa = $('numerosDoMes');
+    if (!caixa) return;
+    var n = numerosDoMes_(entregasPainelCache);
+    caixa.hidden = !(n.feitas + n.falhas);
+    if (caixa.hidden) return;
+    var ritmo = minutosPorParada_();
+    var linha = function (rotulo, valor) { return valor ? '<dt>' + escapeHtml_(rotulo) + '</dt><dd>' + escapeHtml_(String(valor)) + '</dd>' : ''; };
+    var lista = function (itens) { return itens.map(function (x) { return x.nome + ' ' + x.n; }).join(' · '); };
+    $('numerosDoMesCorpo').innerHTML = '<dl>' +
+      linha('Entregas', n.feitas + ' feitas' + (n.falhas ? ', ' + n.falhas + ' não realizadas' : '') + (n.noLink ? ', ' + n.noLink + ' esperando no link' : '')) +
+      linha('Por pessoa', lista(n.porPessoa)) +
+      linha('Comprovante', [n.comAssinatura ? n.comAssinatura + ' com assinatura' : '', n.soFoto ? n.soFoto + ' só com foto' : '', n.peloLink ? n.peloLink + ' pelo link' : '', n.semComprovante ? n.semComprovante + ' sem comprovante' : ''].filter(Boolean).join(' · ')) +
+      linha('Ritmo', ritmo && ritmo.minutos ? 'perto de ' + ritmo.minutos + ' min por parada' : '') +
+      linha('Por que falhou', lista(n.porMotivo)) +
+      linha('Quem mais falha', lista(n.quemMaisFalha)) +
+      '</dl>';
+  }
+
   function renderPainel() {
     var busca = $('painelBusca').value.trim().toLowerCase();
     // sem busca: só quem é do Entregas. Com busca: qualquer cliente carregado.
@@ -7405,6 +7608,7 @@
       var list = byCliente.get(c.id);
       return list && list[0].status === 'confirmada';
     }).length;
+    renderNumerosDoMes_();
     var pct = totalAtivos ? Math.round((entreguesCount / totalAtivos) * 100) : 0;
     $('summaryRing').style.setProperty('--pct', pct);
     $('summaryPct').textContent = pct + '%';
@@ -8453,6 +8657,7 @@
     // realizada esconde assinatura/recebedor (não fazem sentido pra quem
     // não foi entregue) e passa a exigir foto, como prova de que a
     // tentativa aconteceu de verdade.
+    motivosEmUmToque_($('loteFalhaMotivo'));
     function atualizarModoFalhaLote_() {
       var isFalha = $('loteFalhaToggle').checked;
       $('loteFalhaMotivoField').hidden = !isFalha;
@@ -8746,6 +8951,7 @@
     var soNotas = soDoTipo_('Notas');
     if (soHonorario) $('pendingHonorarioPixField').hidden = false;
 
+    motivosEmUmToque_($('pendingFalhaMotivo'));
     function atualizarModoFalhaPendente() {
       var isFalha = $('pendingFalhaToggle').checked;
       var semComprovante = $('pendingSemComprovanteToggle').checked;
