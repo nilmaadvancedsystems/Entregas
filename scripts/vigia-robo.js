@@ -485,6 +485,13 @@ async function iniciar() {
       avisos.enviar('admin', '', titulo, graves.slice(0, 2).join(' · '), 'receita').catch(err => log('aviso da Receita não saiu:', err.message));
     });
   } catch (err) { log('vigia de CNPJ desligado:', err.message); }
+
+  // Lembrete de vencimento no celular do cliente e backup de todo dia. Cada um
+  // no seu try: nenhum deles pode derrubar o robô do Gmail.
+  try { require('./avisos-vencimento').iniciarAvisosDeVencimento(db, log); }
+  catch (err) { log('lembrete de vencimento desligado:', err.message); }
+  try { require('./backup-diario').iniciarBackupDiario(db, log); }
+  catch (err) { log('backup diário desligado:', err.message); }
   limparFila();
   setInterval(limparFila, 24 * 36e5);
 

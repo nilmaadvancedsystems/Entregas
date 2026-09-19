@@ -1169,6 +1169,8 @@
   /* Celular deitado: a faixa come a tela toda. */
   @media (max-height: 460px) { .auth-side { display: none; } }
 
+  .historico-mes .protocolo-btn { font-size: var(--t-xs); font-weight: 500; margin-left: 6px; padding: 0 4px; }
+
   /* o que a Receita diz do cliente */
   .receita-bloco { margin: var(--esp-3) 0; }
   .receita-bloco dl { display: grid; grid-template-columns: auto 1fr; gap: 4px var(--esp-3); font-size: var(--t-sm); margin: var(--esp-2) 0 0; }
@@ -1220,8 +1222,13 @@
   .portal-linha .er-nome { font-weight: 600; font-size: var(--t-base); color: var(--ink); }
   .portal-linha .er-sub { font-size: var(--t-sm); color: var(--ink-soft); margin-top: 2px; }
   .portal-comprovante { margin-top: var(--esp-2); }
-  .portal-pagar { margin-top: var(--esp-3); }
+  .portal-pagar { margin-top: var(--esp-3); display: flex; flex-wrap: wrap; gap: 6px; }
   .portal-pagar .btn-chip { gap: 8px; }
+  .portal-guia img { display: block; width: 100%; margin-top: var(--esp-3); background: #fff; border: 1px solid var(--border); border-radius: var(--r-sm); }
+  .portal-avisar { margin: var(--esp-4) 0 0; }
+  .portal-avisar .btn-chip { gap: 8px; width: 100%; min-height: 40px; }
+  .portal-avisar .card-hint { margin: 6px 0 0; }
+  .portal-avisar .card-hint:empty { display: none; }
   .portal-comprovante img { display: block; width: 100%; max-width: 320px; background: #fff; border: 1px solid var(--border); border-radius: var(--r-sm); }
   /* QR sempre sobre branco: em tema escuro o leitor da câmera não pega */
   .portal-qr { display: flex; justify-content: center; margin: var(--esp-3) 0; }
@@ -1373,7 +1380,8 @@
     .hub-head h1 { font-size: 1.875rem; }
     .hub-data { grid-column: 1; font-size: var(--t-md); margin-top: calc(var(--esp-2) - var(--esp-4)); }
     .hub-grid { grid-column: 2; grid-row: 1; }
-    .hub-pe { grid-column: 2; grid-row: 2; margin: 0; padding: 0 var(--esp-2); }
+    .hub-aviso { grid-column: 2; }
+    .hub-pe { grid-column: 2; margin: 0; padding: 0 var(--esp-2); }
     .hub-sair {
       grid-column: 1; grid-row: auto; justify-self: start; align-self: start;
       width: auto; min-height: 34px; padding: 0 12px; gap: 8px; margin-top: var(--esp-2);
@@ -1389,6 +1397,17 @@
     .hub-head { margin-bottom: var(--esp-5); }
     .hub-card-desc { font-size: var(--t-sm); }
   }
+  /* só aparece quando tem problema: PC do robô parado ou backup atrasado */
+  .hub-aviso {
+    display: grid; grid-template-columns: 20px 1fr; column-gap: var(--esp-3); align-items: start;
+    margin-top: var(--esp-4); padding: var(--esp-3) var(--esp-4);
+    background: var(--warning-soft); border: 1px solid var(--border); border-radius: var(--r-md);
+    font-size: var(--t-sm); color: var(--ink); line-height: 1.45;
+  }
+  .hub-aviso > .ph { font-size: 1.125rem; color: var(--warning-forte); margin-top: 1px; }
+  .hub-aviso p { margin: 0; }
+  .hub-aviso p + p { margin-top: 4px; }
+  @media (min-width: 900px) { .hub-aviso { margin-top: 0; } }
   .hub-dica { font-size: var(--t-xs); color: var(--ink-faint); display: none; }
   @media (hover: hover) and (min-width: 700px) { .hub-dica { display: block; } }
 
@@ -2678,6 +2697,10 @@
         <span class="hub-card-fim"><kbd aria-hidden="true"></kbd><i class="ph ph-caret-right" aria-hidden="true"></i></span>
       </a>
     </div>
+    <div class="hub-aviso" id="hubAviso" hidden role="status">
+      <i class="ph ph-warning" aria-hidden="true"></i>
+      <div id="hubAvisoTexto"></div>
+    </div>
     <div class="hub-pe">
       <span class="hub-dica">Enter abre a última função · os números abrem as outras</span>
     </div>
@@ -2767,6 +2790,10 @@
       <div id="portalConteudo" hidden>
         <div id="portalDocumentos"></div>
         <div id="portalEntregas"></div>
+        <div class="portal-avisar" id="portalAvisar" hidden>
+          <button type="button" class="btn-chip" id="portalAvisarBtn"></button>
+          <p class="card-hint" id="portalAvisarDica"></p>
+        </div>
         <p class="rota-track-live" id="portalAtualizadoLinha" hidden>
           <span class="rota-track-live-dot" aria-hidden="true"></span><span id="portalAtualizadoEm"></span>
         </p>
@@ -3225,6 +3252,7 @@
       lote.set(ref.collection('anexos').doc('comprovante'), comprovante);
     }
     portalMudou_(parentData.clienteId);
+    if (parentData.temGuia && anexos && anexos.foto) guardarGuiaNoPortal_({ id: ref.id, clienteId: parentData.clienteId }, anexos.foto);
     if (parentData.status === 'confirmada' && anexos && anexos.assinatura) {
       guardarComprovanteNoPortal_({ id: ref.id, clienteId: parentData.clienteId }, anexos.assinatura, parentData.recebedor, parentData.confirmadoEm);
     }
@@ -3747,10 +3775,14 @@
   }
 
   var fotoDataUrl = null;
+  // true quando a "foto" é a página do PDF da guia (vai pro link do cliente);
+  // foto tirada na hora nunca vai.
+  var fotoEhGuia_ = false;
   $('fotoInput').addEventListener('change', function (e) {
     var file = e.target.files[0];
     if (!file) return;
     compressImage(file, 900, 0.6).then(function (dataUrl) {
+      fotoEhGuia_ = false;
       fotoDataUrl = dataUrl;
       $('fotoPreview').src = dataUrl;
       $('fotoPreviewWrap').hidden = false;
@@ -3936,6 +3968,7 @@
     var achados = [];
 
     if (imagemDataUrl) {
+      fotoEhGuia_ = true;
       fotoDataUrl = imagemDataUrl;
       $('fotoPreview').src = imagemDataUrl;
       $('fotoPreviewWrap').hidden = false;
@@ -4693,6 +4726,7 @@
       competencia: competencia,
       vencimento: $('vencimentoInput').value || '',
       codigoPagamento: codigoPagamentoAtual_ || null,
+      temGuia: !!(fotoEhGuia_ && fotoDataUrl),
       itens: itens,
       recebedor: (isRota || isFalha) ? '' : recebedor,
       temAssinatura: !isRota && !isFalha && mainSigPad.hasSignature,
@@ -4761,6 +4795,7 @@
     $('recebedorInput').value = '';
     sugerirRecebedores_(null, $('recebedorInput'));
     $('vencimentoInput').value = '';
+    fotoEhGuia_ = false;
     codigoPagamentoAtual_ = null;
     ultimoVencimentoAuto_ = null;
     $('falhaToggle').checked = false;
@@ -7824,7 +7859,8 @@
             return s + (item.e.itens || []).reduce(function (t, i) { return t + ((i && i.valor) || 0); }, 0);
           }, 0);
           var cabecalho = '<div class="historico-mes mes">' +
-            '<span>' + escapeHtml_(grupo.comp === 'sem competência' ? grupo.comp : fmtCompetencia(grupo.comp)) + '</span>' +
+            '<span>' + escapeHtml_(grupo.comp === 'sem competência' ? grupo.comp : fmtCompetencia(grupo.comp)) +
+              (grupo.comp !== 'sem competência' ? ' <button type="button" class="link-btn protocolo-btn" data-protocolo="' + escapeHtml_(grupo.comp) + '" title="Documento do mês pra imprimir ou salvar em PDF">Protocolo</button>' : '') + '</span>' +
             '<span class="historico-mes-total">' + grupo.entregas.length + ' entrega(s)' + (totalMes > 0 ? ' · ' + fmtMoney(totalMes) : '') + '</span>' +
           '</div>';
           var linhas = grupo.entregas.map(function (item) {
@@ -7914,6 +7950,11 @@
         renderHistoricoList(cliente, historico);
         renderAvisosDaReceita_();
       }).catch(function (err) { showToast(errMsg(err, 'Não foi possível marcar.'), 'error'); botaoLivre_(btn); });
+    });
+    inner.querySelectorAll('[data-protocolo]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        abrirProtocoloDoMes_(cliente, btn.dataset.protocolo, historico.filter(function (e) { return e.competencia === btn.dataset.protocolo; }));
+      });
     });
     $('linhaDoTempoBtn').addEventListener('click', function () {
       abrirLinhaDoTempo_(cliente, historico, function () { renderHistoricoList(cliente, historico); });
@@ -11068,6 +11109,41 @@
     if (ultima && !matchMedia('(hover: none)').matches) ultima.focus({ preventScroll: true });
   }
 
+  // Avisos no celular, link do cliente, vigia de CNPJ, leitura do Gmail e o
+  // backup dependem todos do mesmo PC. Se ele passa um dia útil inteiro sem dar
+  // sinal, ou o backup atrasa, o admin vê aqui — em vez de descobrir na semana
+  // seguinte. Só aparece quando há problema. robo/estado só é legível por
+  // admin e contábil; pros demais a leitura falha e nada aparece.
+  function inicioDoUltimoDiaUtil_(agora) {
+    var d = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), 8, 0, 0);
+    do { d.setDate(d.getDate() - 1); } while (d.getDay() === 0 || d.getDay() === 6);
+    return d;
+  }
+  function avisarSeRoboParado_() {
+    var caixa = $('hubAviso');
+    caixa.hidden = true;
+    if (!db || !(temPapel('admin') || temPapel('contabil'))) return;
+    db.doc('robo/estado').get().then(function (snap) {
+      var e = snap.exists ? snap.data() : {};
+      var agora = new Date();
+      var frases = [];
+      var sinal = e.vigia && e.vigia.em ? new Date(e.vigia.em) : null;
+      if (sinal && !isNaN(sinal) && sinal < inicioDoUltimoDiaUtil_(agora)) {
+        frases.push('O PC do robô está sem dar sinal desde ' + fmtDateTime(e.vigia.em) +
+          '. Enquanto isso não saem avisos no celular nem lembretes de vencimento, o Gmail não é lido e o backup não roda.');
+      }
+      var b = e.backup;
+      if (b) {
+        var dias = b.em ? Math.floor((agora - new Date(b.em)) / 864e5) : null;
+        if (b.ok === false) frases.push('O backup de ' + (b.dia || 'hoje').split('-').reverse().join('/') + ' falhou' + (b.resumo ? ': ' + b.resumo : '.'));
+        else if (dias !== null && dias >= 4) frases.push('Último backup há ' + dias + ' dias.');
+      }
+      if (!frases.length) return;
+      $('hubAvisoTexto').innerHTML = frases.map(function (f) { return '<p>' + escapeHtml_(f) + '</p>'; }).join('');
+      caixa.hidden = false;
+    }).catch(function () {});
+  }
+
   var CHAVE_ULTIMA_FUNCAO = 'nilma_ultima_funcao';
   function linhasDoHub_() {
     var grade = $('hubGridFiscal').hidden ? $('hubGridPrincipal') : $('hubGridFiscal');
@@ -11091,6 +11167,7 @@
     // Uma informação só, a que decide o dia de quem entrega: quantas paradas
     // estão na rota. Com o app já aberto sai do que está na memória; senão,
     // uma consulta curta.
+    avisarSeRoboParado_();
     var info = $('hubInfoEntregas');
     var mostrar = function (n) { info.hidden = !n; info.textContent = n ? n + ' na rota' : ''; };
     if (appStarted) mostrar(pendentesCache.length);
@@ -11363,6 +11440,67 @@
     }
   }
 
+  // ---------- protocolo do mês (pra imprimir ou salvar em PDF) ----------
+  // O produto se chama Protocolos e só exportava planilha. Aqui sai o documento
+  // do mês de um cliente: cada entrega com data, quem recebeu, quem entregou,
+  // local e a assinatura. Abre numa aba própria, já pronta pra imprimir — o
+  // "Salvar como PDF" é o da própria impressão do navegador, sem biblioteca.
+  // A aba é aberta na hora do clique (senão o navegador bloqueia) e preenchida
+  // depois que as assinaturas chegam.
+  function abrirProtocoloDoMes_(cliente, comp, entregas) {
+    var aba = window.open('', '_blank');
+    if (!aba) { showToast('O navegador bloqueou a nova aba. Permita pop-ups para este site.', 'error'); return; }
+    aba.document.write('<!doctype html><meta charset="utf-8"><title>Protocolo</title><body style="font:14px system-ui;padding:24px">Preparando o protocolo...</body>');
+    var ordenadas = entregas.slice().sort(function (a, b) { return String(a.confirmadoEm || a.criadoEm).localeCompare(String(b.confirmadoEm || b.criadoEm)); });
+    Promise.all(ordenadas.map(function (e) {
+      if (e.status !== 'confirmada' || !e.temAssinatura) return Promise.resolve(null);
+      return getAnexos(e.id).then(function (a) { return a && a.assinatura ? a.assinatura : null; }).catch(function () { return null; });
+    })).then(function (assinaturas) {
+      var h = function (t) { return escapeHtml_(t == null ? '' : String(t)); };
+      var total = 0;
+      var linhas = ordenadas.map(function (e, i) {
+        var itens = (e.itens || []).map(function (it) {
+          var tipo = typeof it === 'string' ? it : it.tipo;
+          var valor = it && it.valor != null ? it.valor : null;
+          if (valor) total += valor;
+          return h(tipo) + (valor != null ? ' <span class="v">' + h(fmtMoney(valor)) + '</span>' : '');
+        }).join('<br>');
+        var situacao = e.status === 'confirmada' ? 'Entregue' : (e.status === 'falha' ? 'Não entregue' : 'Na rota');
+        var detalhe = e.status === 'confirmada'
+          ? [e.recebedor ? 'Recebido por <b>' + h(e.recebedor) + '</b>' : 'Recebedor não informado',
+             e.entregadoPorNome ? 'Entregue por ' + h(e.entregadoPorNome) : '',
+             e.semComprovante ? 'Sem comprovante: ' + h(e.motivoSemComprovante || '') : '',
+             e.geo && e.geo.lat ? 'Local: ' + Number(e.geo.lat).toFixed(5) + ', ' + Number(e.geo.lng).toFixed(5) + (e.localDivergente ? ' (longe do endereço do cliente)' : '') : '']
+          : (e.status === 'falha' ? ['Motivo: ' + h(e.motivoFalha || 'não informado'), e.entregadoPorNome ? 'Registrado por ' + h(e.entregadoPorNome) : ''] : ['Ainda não entregue']);
+        return '<tr><td class="n">' + (i + 1) + '</td><td>' + itens + (e.vencimento ? '<div class="m">vence ' + h(e.vencimento.split('-').reverse().join('/')) + '</div>' : '') + '</td>' +
+          '<td><b>' + situacao + '</b><div class="m">' + h(fmtDateTime(e.confirmadoEm || e.criadoEm)) + '</div></td>' +
+          '<td>' + detalhe.filter(Boolean).join('<br>') + '</td>' +
+          '<td class="a">' + (assinaturas[i] ? '<img src="' + h(assinaturas[i]) + '" alt="assinatura">' : (e.temFoto ? '<span class="m">comprovado por foto</span>' : '')) + '</td></tr>';
+      }).join('');
+      var entregues = ordenadas.filter(function (e) { return e.status === 'confirmada'; }).length;
+      var html = '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Protocolo ' + h(fmtCompetencia(comp)) + ' - ' + h(cliente.nome) + '</title><style>' +
+        '@page{size:A4;margin:16mm}*{box-sizing:border-box}body{font:12px/1.45 -apple-system,"Segoe UI",Inter,Arial,sans-serif;color:#111;margin:0;padding:24px;max-width:900px;margin:0 auto}' +
+        'h1{font-size:18px;margin:0 0 2px}header{display:flex;justify-content:space-between;gap:24px;border-bottom:2px solid #111;padding-bottom:10px;margin-bottom:14px}' +
+        '.m{color:#555;font-size:11px}.v{color:#555}table{width:100%;border-collapse:collapse}th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#555;border-bottom:1px solid #999;padding:6px 8px}' +
+        'td{vertical-align:top;padding:8px;border-bottom:1px solid #ddd}td.n{color:#777;width:24px}td.a{width:150px}td.a img{width:140px;border:1px solid #ccc;display:block}tr{break-inside:avoid}' +
+        'footer{margin-top:16px;display:flex;justify-content:space-between;gap:24px;font-size:11px;color:#555}.barra{margin:0 0 14px}.barra button{font:inherit;padding:8px 14px;cursor:pointer}' +
+        '@media print{.barra{display:none}body{padding:0}}</style></head><body>' +
+        '<div class="barra"><button onclick="window.print()">Imprimir ou salvar em PDF</button></div>' +
+        '<header><div><h1>Protocolo de entrega de documentos</h1><div class="m">Nilma Contabilidade</div></div>' +
+        '<div style="text-align:right"><b>' + h(cliente.nome) + '</b><div class="m">' + h([cliente.documento, cliente.codigoOrigem ? 'cód. ' + cliente.codigoOrigem : ''].filter(Boolean).join(' · ')) + '</div>' +
+        '<div class="m">Competência ' + h(fmtCompetencia(comp)) + '</div></div></header>' +
+        '<table><thead><tr><th></th><th>Documentos</th><th>Situação</th><th>Recebimento</th><th>Assinatura</th></tr></thead><tbody>' + linhas + '</tbody></table>' +
+        '<footer><div>' + ordenadas.length + ' registro(s), ' + entregues + ' entregue(s)' + (total ? ' · total das guias ' + h(fmtMoney(total)) : '') + '</div>' +
+        '<div>Emitido em ' + h(fmtDateTime(new Date().toISOString())) + ' por ' + h(currentUserNome || '') + '</div></footer>' +
+        '</body></html>';
+      aba.document.open(); aba.document.write(html); aba.document.close();
+      registrarAuditoria_('protocolo_emitido', clienteLabel(cliente) + ' · ' + fmtCompetencia(comp));
+    }).catch(function (err) {
+      aba.close();
+      showToast(errMsg(err, 'Não foi possível montar o protocolo.'), 'error');
+    });
+  }
+
   // ---------- linha do tempo do cliente ----------
   // Entregas ficam numa tela, cobranças e documentos recebidos em outra. Pra
   // responder "vocês receberam meu extrato?" ou "quando entregaram a guia?"
@@ -11446,11 +11584,26 @@
     }
 
     var daEntrega = eventosDasEntregas_(historico);
+    // o que o cliente fez no link dele (abriu, copiou o código, viu a guia)
+    var doPortal = cliente.portalToken
+      ? db.doc('portais/' + cliente.portalToken).get().then(function (snap) {
+          var v = snap.exists && snap.data().visto;
+          if (!v) return [];
+          return [
+            v.ultima ? { em: v.ultima, ico: 'ph-eye', cor: '', titulo: 'Cliente abriu o link dele', sub: v.vezes > 1 ? v.vezes + ' visitas desde ' + fmtDateTime(v.primeira).split(',')[0] : '' } : null,
+            v.copiou ? { em: v.copiou, ico: 'ph-copy', cor: '', titulo: 'Cliente copiou o código pra pagar', sub: '' } : null,
+            v.guia ? { em: v.guia, ico: 'ph-file-text', cor: '', titulo: 'Cliente abriu a guia', sub: '' } : null
+          ].filter(Boolean);
+        }).catch(function () { return []; })
+      : Promise.resolve([]);
     var podeVerDocumentos = temPapel('admin') || temPapel('contabil');
-    if (!podeVerDocumentos) { desenhar(daEntrega, true); return; }
-    db.collection('documentosMensal').where('clienteId', '==', cliente.id).get().then(function (snap) {
-      desenhar(daEntrega.concat(eventosDosDocumentos_(snap.docs.map(function (d) { return d.data(); }))), false);
-    }).catch(function () { desenhar(daEntrega, false); });
+    doPortal.then(function (visitas) {
+      var base = daEntrega.concat(visitas);
+      if (!podeVerDocumentos) { desenhar(base, true); return; }
+      db.collection('documentosMensal').where('clienteId', '==', cliente.id).get().then(function (snap) {
+        desenhar(base.concat(eventosDosDocumentos_(snap.docs.map(function (d) { return d.data(); }))), false);
+      }).catch(function () { desenhar(base, false); });
+    });
   }
 
   $('hubClientes').addEventListener('click', entrarModoClientes_);
@@ -11765,6 +11918,7 @@
         return typeof i === 'string' ? { tipo: i, valor: null } : { tipo: i.tipo || '', valor: i.valor == null ? null : i.valor };
       }),
       vencimento: e.vencimento || '',
+      temGuia: !!e.temGuia,
       pagamento: (e.codigoPagamento && e.codigoPagamento.codigo) ? { tipo: e.codigoPagamento.tipo || 'boleto', codigo: e.codigoPagamento.codigo } : null,
       status: e.status || 'pendente',
       quando: e.confirmadoEm || e.criadoEm || '',
@@ -11836,6 +11990,15 @@
       .catch(function () {});
   }
 
+  // A página da guia (tirada do PDF na hora de montar a parada) vai pra um
+  // documento à parte, igual à assinatura: só é baixada se o cliente pedir.
+  // O Firestore aceita até 1 MiB por documento; imagem maior que isso fica de fora.
+  function guardarGuiaNoPortal_(entrega, imagem) {
+    var c = entrega && entrega.clienteId && clientesCache.get(entrega.clienteId);
+    if (!db || !c || !c.portalToken || !imagem || imagem.length > 950000) return;
+    db.doc('portais/' + c.portalToken + '/guias/' + entrega.id).set({ imagem: imagem, em: new Date().toISOString() }).catch(function () {});
+  }
+
   // ---- lado da equipe: criar, copiar, mandar e trocar o link ----
   function gerarTokenPortal_() {
     var a = new Uint8Array(20);
@@ -11848,6 +12011,15 @@
   function copiarComprovantesAntigos_(cliente, token) {
     var comps = ultimasCompetencias_(MESES_NO_PORTAL);
     return db.collection('entregas').where('clienteId', '==', cliente.id).get().then(function (snap) {
+      // guia: só de parada ainda pendente — depois de confirmada, a foto do
+      // comprovante pode já ser a que o office boy tirou na entrega
+      var comGuia = snap.docs.filter(function (d) { var e = d.data(); return e.temGuia && e.status === 'pendente'; }).slice(0, 20);
+      comGuia.forEach(function (d) {
+        d.ref.collection('anexos').doc('comprovante').get().then(function (anexo) {
+          var a = anexo.exists ? anexo.data() : null;
+          if (a && a.foto && a.foto.length <= 950000) db.doc('portais/' + token + '/guias/' + d.id).set({ imagem: a.foto, em: new Date().toISOString() });
+        }).catch(function () {});
+      });
       var alvos = snap.docs.filter(function (d) {
         var e = d.data();
         return e.status === 'confirmada' && e.temAssinatura && comps.indexOf(e.competencia) !== -1;
@@ -11884,9 +12056,9 @@
       if (!antigo) return;
       // link antigo morre de verdade: some o documento e as assinaturas dele
       var refAntigo = db.doc('portais/' + antigo);
-      return refAntigo.collection('comprovantes').get().then(function (snap) {
+      return Promise.all([refAntigo.collection('comprovantes').get(), refAntigo.collection('guias').get()]).then(function (r) {
         var lote = db.batch();
-        snap.docs.forEach(function (d) { lote.delete(d.ref); });
+        r[0].docs.concat(r[1].docs).forEach(function (d) { lote.delete(d.ref); });
         lote.delete(refAntigo);
         return lote.commit();
       });
@@ -11904,6 +12076,7 @@
         '</div><button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button></div>' +
         (tem
           ? '<p class="card-hint">Página só dele, sem senha: guias dos últimos meses, comprovante de cada entrega e os documentos que ainda faltam. O link é sempre o mesmo — mande uma vez.</p>' +
+            '<p class="card-hint" id="portalVistoLinha" hidden></p>' +
             '<div class="modal-acoes">' +
               '<button type="button" class="btn-chip accent" id="portalWhatsBtn"><i class="ph ph-whatsapp-logo" aria-hidden="true"></i> Mandar no WhatsApp</button>' +
               '<button type="button" class="btn-chip" id="portalCopiarBtn"><i class="ph ph-copy" aria-hidden="true"></i> Copiar link</button>' +
@@ -11935,6 +12108,15 @@
     if ($('portalCriarBtn')) $('portalCriarBtn').addEventListener('click', function () { criar(this); });
     if ($('portalTrocarBtn')) $('portalTrocarBtn').addEventListener('click', function () { var b = this; confirmarDuplo(b, function () { criar(b); }); });
     if (!tem) return;
+    db.doc('portais/' + cliente.portalToken).get().then(function (snap) {
+      var v = snap.exists && snap.data().visto;
+      var linha = $('portalVistoLinha');
+      if (!linha) return;
+      linha.hidden = false;
+      linha.textContent = v && v.ultima
+        ? 'O cliente abriu o link pela última vez em ' + fmtDateTime(v.ultima) + (v.vezes > 1 ? ' (' + v.vezes + ' visitas)' : '') + '.'
+        : 'O cliente ainda não abriu o link.';
+    }).catch(function () {});
     var link = linkDoPortal_(cliente.portalToken);
     if (typeof QRCode !== 'undefined') new QRCode($('portalQrModal'), { text: link, width: 180, height: 180, correctLevel: QRCode.CorrectLevel.M });
     $('portalCopiarBtn').addEventListener('click', function () { copiarOuMostrar_('Link do cliente', link, 'Link copiado.'); });
@@ -11986,12 +12168,118 @@
       $('portalSub').textContent = d.clienteNome || '';
       $('portalConteudo').hidden = false;
       renderPortalDocumentos_(d.documentos);
-      renderPortalEntregas_(token, (d.entregas && d.entregas.lista) || []);
+      // "visto" e "avisar" também mudam este documento: sem isto, cada visita
+      // remontava a lista e fechava a guia ou a assinatura que estava aberta
+      var marcaLista = JSON.stringify((d.entregas && d.entregas.lista) || []);
+      if (marcaLista !== abrirTelaPortal_.marca) {
+        abrirTelaPortal_.marca = marcaLista;
+        renderPortalEntregas_(token, (d.entregas && d.entregas.lista) || []);
+      }
+      prepararAvisoDeVencimento_(token, d);
+      if (portalVisto_ === null) {
+        portalVisto_ = (d.visto && typeof d.visto === 'object') ? d.visto : {};
+        // espera o login (se houver) se resolver antes de contar a visita
+        setTimeout(function () { portalRegistrar_(token, 'abriu'); }, 2500);
+      }
       var quando = [d.entregas && d.entregas.atualizadoEm, d.documentos && d.documentos.atualizadoEm].filter(Boolean).sort().pop();
       $('portalAtualizadoLinha').hidden = !quando;
       if (quando) $('portalAtualizadoEm').textContent = 'Atualizado em ' + fmtDateTime(quando);
     }, function () {
       $('portalSub').textContent = 'Não foi possível abrir este link agora. Tente de novo.';
+    });
+  }
+
+  function hojeIsoPortal_() {
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  // ---- 5. lembrete no calendário: um arquivo .ics, que todo celular abre ----
+  function baixarLembreteDeVencimento_(e) {
+    var dia = e.vencimento.replace(/-/g, '');
+    var fim = new Date(e.vencimento + 'T12:00:00'); fim.setDate(fim.getDate() + 1);
+    var diaFim = fim.getFullYear() + String(fim.getMonth() + 1).padStart(2, '0') + String(fim.getDate()).padStart(2, '0');
+    var itens = (e.itens || []).map(function (i) { return i.tipo + (i.valor != null ? ' ' + fmtMoney(i.valor) : ''); }).join(', ');
+    var limpo = function (t) { return String(t).replace(/([,;\\])/g, '\\$1').replace(/\n/g, ' '); };
+    var ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Nilma Contabilidade//Portal//PT', 'BEGIN:VEVENT',
+      'UID:' + e.id + '@nilma-portal', 'DTSTAMP:' + new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z',
+      'DTSTART;VALUE=DATE:' + dia, 'DTEND;VALUE=DATE:' + diaFim,
+      'SUMMARY:' + limpo('Vence hoje: ' + itens),
+      'DESCRIPTION:' + limpo('Guia entregue pela Nilma Contabilidade. O código pra pagar está no seu link: ' + location.href),
+      'BEGIN:VALARM', 'TRIGGER:-PT15H', 'ACTION:DISPLAY', 'DESCRIPTION:' + limpo('Vence amanhã: ' + itens), 'END:VALARM',
+      'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([ics], { type: 'text/calendar;charset=utf-8' }));
+    a.download = 'vencimento-' + e.vencimento + '.ics';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+  }
+
+  // ---- 3. "o cliente viu" ----
+  // Guarda no próprio link quando ele foi aberto, quando o código foi copiado
+  // e quando a guia foi vista. Serve pra conversa "eu não recebi a guia". A
+  // regra só deixa quem tem o link mexer no campo `visto`, com formato fixo.
+  // Quem está logado (a equipe usando "Ver como o cliente vê") não conta.
+  var portalVisto_ = null;
+  function portalRegistrar_(token, oque) {
+    if (auth.currentUser || !portalVisto_) return;
+    var agora = new Date().toISOString();
+    var v = portalVisto_;
+    if (oque === 'abriu') {
+      // no máximo uma contagem a cada 30 min por aparelho (recarregar não infla)
+      var chave = 'nilma_portal_visto_' + token;
+      try {
+        if (Date.now() - Number(localStorage.getItem(chave) || 0) < 30 * 60000) return;
+        localStorage.setItem(chave, String(Date.now()));
+      } catch (e) {}
+      v = { primeira: v.primeira || agora, ultima: agora, vezes: Math.min((v.vezes || 0) + 1, 9999), copiou: v.copiou || '', guia: v.guia || '' };
+    } else {
+      v = { primeira: v.primeira || agora, ultima: v.ultima || agora, vezes: v.vezes || 1, copiou: oque === 'copiou' ? agora : (v.copiou || ''), guia: oque === 'guia' ? agora : (v.guia || '') };
+    }
+    portalVisto_ = v;
+    db.doc('portais/' + token).update({ visto: v }).catch(function () {});
+  }
+
+  // ---- 4. "me avise antes de vencer" ----
+  // O celular do cliente guarda um endereço de aviso no próprio link; o PC do
+  // robô manda o lembrete na véspera (scripts/avisos-vencimento.js).
+  function prepararAvisoDeVencimento_(token, dados) {
+    var caixa = $('portalAvisar');
+    if (!caixa) return;
+    var pode = typeof Notification !== 'undefined' && 'serviceWorker' in navigator && typeof firebase.messaging === 'function';
+    var temVencimento = ((dados.entregas && dados.entregas.lista) || []).some(function (e) { return e.vencimento; });
+    caixa.hidden = !pode || !temVencimento;
+    if (caixa.hidden || caixa.dataset.pronto) return;
+    caixa.dataset.pronto = '1';
+    var ligado = false;
+    try { ligado = Notification.permission === 'granted' && !!localStorage.getItem('nilma_portal_aviso_' + token); } catch (e) {}
+    var btn = $('portalAvisarBtn');
+    function pintar() {
+      btn.innerHTML = ligado
+        ? '<i class="ph ph-bell-ringing" aria-hidden="true"></i> Aviso de vencimento ligado neste celular'
+        : '<i class="ph ph-bell" aria-hidden="true"></i> Me avise um dia antes de vencer';
+      btn.disabled = ligado;
+    }
+    pintar();
+    btn.addEventListener('click', function () {
+      btn.disabled = true;
+      Notification.requestPermission().then(function (perm) {
+        if (perm !== 'granted') throw new Error('negado');
+        return navigator.serviceWorker.register('firebase-messaging-sw.js');
+      }).then(function (registro) {
+        return firebase.messaging().getToken({ vapidKey: FCM_VAPID_KEY, serviceWorkerRegistration: registro });
+      }).then(function (endereco) {
+        if (!endereco) throw new Error('sem endereço');
+        var lista = (Array.isArray(dados.avisar) ? dados.avisar : []).filter(function (t) { return t !== endereco; }).slice(-4).concat([endereco]);
+        return db.doc('portais/' + token).update({ avisar: lista });
+      }).then(function () {
+        ligado = true;
+        try { localStorage.setItem('nilma_portal_aviso_' + token, '1'); } catch (e) {}
+        pintar();
+      }).catch(function () {
+        btn.disabled = false;
+        $('portalAvisarDica').textContent = 'Não deu pra ligar o aviso neste navegador. No iPhone, adicione esta página à tela de início e tente de novo.';
+      });
     });
   }
 
@@ -12045,18 +12333,52 @@
             '<div class="portal-linha-topo"><div><div class="er-nome">' + escapeHtml_(itens || 'Documentos') + '</div>' +
             '<div class="er-sub">' + escapeHtml_(sub) + '</div></div>' +
             '<span class="status-pill ' + pill + '">' + rotulo + '</span></div>' +
-            (e.pagamento && e.pagamento.codigo && !falha
-              ? '<div class="portal-pagar"><button type="button" class="btn-chip" data-pagar="' + escapeHtml_(e.pagamento.codigo) + '"><i class="ph ph-copy" aria-hidden="true"></i> ' +
-                (e.pagamento.tipo === 'pix' ? 'Copiar código PIX' : 'Copiar código de barras') + '</button></div>'
-              : '') +
+            (function () {
+              if (falha) return '';
+              var acoes = '';
+              if (e.pagamento && e.pagamento.codigo) {
+                acoes += '<button type="button" class="btn-chip" data-pagar="' + escapeHtml_(e.pagamento.codigo) + '" data-entrega="' + escapeHtml_(e.id) + '"><i class="ph ph-copy" aria-hidden="true"></i> ' +
+                  (e.pagamento.tipo === 'pix' ? 'Copiar código PIX' : 'Copiar código de barras') + '</button>';
+              }
+              if (e.temGuia) acoes += '<button type="button" class="btn-chip" data-guia="' + escapeHtml_(e.id) + '"><i class="ph ph-file-text" aria-hidden="true"></i> Ver guia</button>';
+              if (e.vencimento && e.vencimento >= hojeIsoPortal_()) {
+                acoes += '<button type="button" class="btn-chip" data-agenda="' + escapeHtml_(e.id) + '"><i class="ph ph-calendar-plus" aria-hidden="true"></i> Pôr no calendário</button>';
+              }
+              return acoes ? '<div class="portal-pagar">' + acoes + '</div><div class="portal-guia" data-guia-caixa="' + escapeHtml_(e.id) + '"></div>' : '';
+            })() +
             (entregue && e.temAssinatura
               ? '<div class="portal-comprovante"><button type="button" class="link-btn" data-comprovante="' + escapeHtml_(e.id) + '">Ver assinatura de quem recebeu</button></div>'
               : '') +
           '</div>';
         }).join('');
     }).join('');
+    caixa.querySelectorAll('[data-guia]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var alvo = caixa.querySelector('[data-guia-caixa="' + btn.dataset.guia + '"]');
+        if (alvo.firstChild) { alvo.innerHTML = ''; return; }   // segundo toque recolhe
+        btn.disabled = true;
+        db.doc('portais/' + token + '/guias/' + btn.dataset.guia).get().then(function (snap) {
+          btn.disabled = false;
+          var g = snap.exists ? snap.data() : null;
+          if (!g || !g.imagem) { alvo.innerHTML = '<span class="er-sub">A imagem desta guia não está disponível aqui. Peça ao escritório.</span>'; return; }
+          var link = document.createElement('a');
+          link.href = g.imagem; link.download = 'guia.jpg'; link.title = 'Tocar para salvar';
+          var img = new Image(); img.alt = 'Guia'; img.src = g.imagem;
+          link.appendChild(img);
+          alvo.appendChild(link);
+          portalRegistrar_(token, 'guia');
+        }).catch(function () { btn.disabled = false; });
+      });
+    });
+    caixa.querySelectorAll('[data-agenda]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var e = lista.filter(function (x) { return x.id === btn.dataset.agenda; })[0];
+        if (e) baixarLembreteDeVencimento_(e);
+      });
+    });
     caixa.querySelectorAll('[data-pagar]').forEach(function (btn) {
       btn.addEventListener('click', function () {
+        portalRegistrar_(token, 'copiou');
         // boleto vai só com os dígitos: tem app de banco que recusa ponto e espaço
         var codigo = /^000201/.test(btn.dataset.pagar) ? btn.dataset.pagar : btn.dataset.pagar.replace(/\D/g, '');
         copiarOuMostrar_('Código pra pagar', codigo, 'Código copiado. Cole no app do seu banco.');

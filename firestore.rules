@@ -361,10 +361,41 @@ service cloud.firestore {
       // A equipe só regrava a projeção. De quem é o portal não muda nunca.
       allow update: if logado() && so(['clienteNome', 'entregas', 'documentos']);
 
+      // Quem tem o link (sem login) grava DUAS coisas, e só nesse formato:
+      //  - visto: quando abriu, quando copiou o código, quando viu a guia.
+      //    É o que responde "eu não recebi a guia".
+      //  - avisar: até 5 endereços de notificação do celular dele, pro robô
+      //    mandar o lembrete de vencimento.
+      // Nada disso dá acesso a mais dado nenhum, e o tamanho é travado pra o
+      // campo não virar depósito.
+      allow update: if so(['visto'])
+        && request.resource.data.visto is map
+        && request.resource.data.visto.keys().hasOnly(['primeira', 'ultima', 'vezes', 'copiou', 'guia'])
+        && request.resource.data.visto.primeira is string && request.resource.data.visto.primeira.size() <= 30
+        && request.resource.data.visto.ultima is string && request.resource.data.visto.ultima.size() <= 30
+        && request.resource.data.visto.copiou is string && request.resource.data.visto.copiou.size() <= 30
+        && request.resource.data.visto.guia is string && request.resource.data.visto.guia.size() <= 30
+        && request.resource.data.visto.vezes is int && request.resource.data.visto.vezes <= 9999;
+      allow update: if so(['avisar'])
+        && request.resource.data.avisar is list
+        && request.resource.data.avisar.size() <= 5
+        && (request.resource.data.avisar.size() <= 0 || (request.resource.data.avisar[0] is string && request.resource.data.avisar[0].size() <= 400))
+        && (request.resource.data.avisar.size() <= 1 || (request.resource.data.avisar[1] is string && request.resource.data.avisar[1].size() <= 400))
+        && (request.resource.data.avisar.size() <= 2 || (request.resource.data.avisar[2] is string && request.resource.data.avisar[2].size() <= 400))
+        && (request.resource.data.avisar.size() <= 3 || (request.resource.data.avisar[3] is string && request.resource.data.avisar[3].size() <= 400))
+        && (request.resource.data.avisar.size() <= 4 || (request.resource.data.avisar[4] is string && request.resource.data.avisar[4].size() <= 400));
+
       allow delete: if ehAdmin();
 
       // A assinatura de cada entrega, baixada só quando o cliente pede.
       match /comprovantes/{entregaId} {
+        allow get: if true;
+        allow list: if logado();
+        allow create, update: if logado();
+        allow delete: if ehAdmin();
+      }
+      // A página da guia (tirada do PDF), também só quando o cliente pede.
+      match /guias/{entregaId} {
         allow get: if true;
         allow list: if logado();
         allow create, update: if logado();

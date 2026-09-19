@@ -62,6 +62,21 @@ igual('troca de sócio aparece, sem ser grave', cnpj.diferencas(r1, r2).filter(m
 igual('primeira conferência de cliente ativo não avisa nada', cnpj.avisosDaPrimeiraVez(r1), []);
 igual('primeira conferência de cliente inapto avisa', cnpj.avisosDaPrimeiraVez(r2).length, 1);
 
+// ---------- lembrete de vencimento pro cliente ----------
+const venc = require('./avisos-vencimento');
+const guias = [
+  { id: 'a', vencimento: '2026-11-19', status: 'confirmada', itens: [{ tipo: 'DAS', valor: 1240.5 }] },
+  { id: 'b', vencimento: '2026-11-20', status: 'pendente', itens: [{ tipo: 'FGTS', valor: null }] },
+  { id: 'c', vencimento: '2026-11-20', status: 'falha', itens: [{ tipo: 'DARF', valor: 10 }] },
+  { id: 'd', vencimento: '2026-11-23', status: 'confirmada', itens: [{ tipo: 'INSS', valor: 99 }] },
+  { id: 'e', vencimento: '', status: 'confirmada', itens: [] },
+];
+igual('quinta avisa o de hoje e o de amanhã, sem o que falhou', venc.guiasParaAvisar(guias, new Date(2026, 10, 19, 9)).map(a => a.entrega.id + ':' + a.quando), ['a:hoje', 'b:amanhã']);
+igual('sexta olha até segunda', venc.guiasParaAvisar(guias, new Date(2026, 10, 20, 9)).map(a => a.entrega.id + ':' + a.quando), ['b:hoje', 'd:segunda']);
+igual('dia sem vencimento não avisa', venc.guiasParaAvisar(guias, new Date(2026, 10, 10, 9)), []);
+igual('texto de uma guia', venc.textoDoAviso(venc.guiasParaAvisar(guias, new Date(2026, 10, 18, 9))).titulo, 'Vence amanhã: DAS R$ 1.240,50');
+igual('texto de várias', venc.textoDoAviso(venc.guiasParaAvisar(guias, new Date(2026, 10, 19, 9))).titulo, '2 guias vencendo');
+
 // ---------- tipo de documento ----------
 igual('títulos pagos = comprovante', r.detectarTipos('TITULOS PAGOS SICOOB AGO2026.pdf'), ['comprovante']);
 igual('tit liquidados = comprovante', r.detectarTipos('TIT LIQUIDADOS BBDVCM AGO2026.pdf'), ['comprovante']);
