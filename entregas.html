@@ -4475,6 +4475,7 @@
   }
 
   // ---------- quem costuma receber ----------
+  // (sugerirRecebedores_.memoria é criada logo depois da função)
   // Em quase todo cliente é sempre a mesma pessoa que assina. Em vez de
   // digitar o nome na calçada, um toque: os nomes saem das entregas que esse
   // cliente já recebeu, o mais frequente primeiro. Sem sinal, vale o que o
@@ -4485,11 +4486,20 @@
     var velho = rotulo.nextElementSibling;
     if (velho && velho.classList.contains('recebedor-sugestoes')) velho.remove();
     if (!db || !clienteId) return;
-    db.collection('entregas').where('clienteId', '==', clienteId).limit(120).get().then(function (snap) {
+    // uma consulta por cliente por sessão, e curta: 40 entregas bastam pra
+    // saber quem costuma assinar
+    var jaLido = sugerirRecebedores_.memoria[clienteId];
+    var buscar = jaLido
+      ? Promise.resolve(jaLido)
+      : db.collection('entregas').where('clienteId', '==', clienteId).limit(40).get().then(function (snap) {
+          var dados = snap.docs.map(function (d) { var e = d.data(); return { recebedor: e.recebedor, confirmadoEm: e.confirmadoEm }; });
+          sugerirRecebedores_.memoria[clienteId] = dados;
+          return dados;
+        });
+    buscar.then(function (entregas) {
       if (!document.body.contains(campo)) return;
       var nomes = {};
-      snap.docs.forEach(function (d) {
-        var e = d.data();
+      entregas.forEach(function (e) {
         var nome = String(e.recebedor || '').trim().replace(/\s+/g, ' ');
         if (nome.length < 2) return;
         var chave = nome.toLowerCase();
@@ -4519,6 +4529,7 @@
       rotulo.insertAdjacentElement('afterend', caixa);
     }).catch(function () {});
   }
+  sugerirRecebedores_.memoria = {};
 
   function renderSuggestions() {
     var q = clienteInput.value.trim().toLowerCase();
@@ -7564,15 +7575,32 @@
   // Compara com as últimas 3 competências em vez de só a atual — pra não
   // duplicar a consulta a cada troca de filtro, guarda o resultado e só
   // recalcula quando os clientes mudam de verdade.
+  // Esta consulta lê todas as entregas de três competências: de centenas a
+  // milhares de documentos. Rodava a cada abertura do app, e foi o que mais
+  // pesou no dia em que o banco bateu o limite gratuito de leituras (50 mil
+  // por dia; depois disso o app para pra todo mundo até zerar). O resultado
+  // muda devagar, então fica guardado no aparelho por 12 horas.
+  var CHAVE_SEM_ENTREGA = 'nilma_com_entrega_v1';
   function atualizarAlertaSemEntrega_() {
     if (!db || !clientesCache.size) return;
     var comps = ultimasCompetencias_(3);
-    db.collection('entregas').where('competencia', 'in', comps).limit(3000).get().then(function (snap) {
-      var comEntrega = new Set();
-      snap.docs.forEach(function (d) {
-        var e = d.data();
-        if (e.status === 'confirmada' && e.clienteId) comEntrega.add(e.clienteId);
-      });
+    var guardado = null;
+    try { guardado = JSON.parse(localStorage.getItem(CHAVE_SEM_ENTREGA) || 'null'); } catch (e) {}
+    var valido = guardado && guardado.comps === comps.join(',') && Date.now() - guardado.em < 12 * 36e5;
+    var buscar = valido
+      ? Promise.resolve(guardado.ids)
+      : db.collection('entregas').where('competencia', 'in', comps).limit(3000).get().then(function (snap) {
+          var achados = {};
+          snap.docs.forEach(function (d) {
+            var e = d.data();
+            if (e.status === 'confirmada' && e.clienteId) achados[e.clienteId] = 1;
+          });
+          var ids = Object.keys(achados);
+          try { localStorage.setItem(CHAVE_SEM_ENTREGA, JSON.stringify({ em: Date.now(), comps: comps.join(','), ids: ids })); } catch (e) {}
+          return ids;
+        });
+    buscar.then(function (ids) {
+      var comEntrega = new Set(ids);
       clientesSemEntregaCache = Array.from(clientesCache.values())
         .filter(function (c) { return c.ativo !== false && !comEntrega.has(c.id); })
         .sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); });
@@ -11170,8 +11198,16 @@
     avisarSeRoboParado_();
     var info = $('hubInfoEntregas');
     var mostrar = function (n) { info.hidden = !n; info.textContent = n ? n + ' na rota' : ''; };
+    // fora do app, o número vale por 10 minutos: ler a rota inteira toda vez
+    // que esta tela aparece gastava leitura à toa
+    var naMemoria = null;
+    try { naMemoria = JSON.parse(sessionStorage.getItem('nilma_hub_rota') || 'null'); } catch (e) {}
     if (appStarted) mostrar(pendentesCache.length);
-    else if (db) db.collection('entregas').where('status', '==', 'pendente').get().then(function (snap) { mostrar(snap.size); }).catch(function () {});
+    else if (naMemoria && Date.now() - naMemoria.em < 10 * 60000) mostrar(naMemoria.n);
+    else if (db) db.collection('entregas').where('status', '==', 'pendente').get().then(function (snap) {
+      try { sessionStorage.setItem('nilma_hub_rota', JSON.stringify({ em: Date.now(), n: snap.size })); } catch (e) {}
+      mostrar(snap.size);
+    }).catch(function () {});
   }
   $('hubGridPrincipal').addEventListener('click', function (ev) {
     var c = ev.target.closest('.hub-card');
