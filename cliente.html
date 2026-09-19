@@ -158,6 +158,18 @@
       <p id="atualizado"></p>
     </footer>
   </div>
+
+  <!-- conferir um protocolo impresso: cliente.html?protocolo=CODIGO -->
+  <div id="conferir" hidden>
+    <div id="conferirResultado"></div>
+    <form class="bloco" id="conferirForm" hidden>
+      <label for="conferirCodigo">Código do protocolo</label>
+      <input type="text" id="conferirCodigo" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABCD-EFGH-JKLM" maxlength="20">
+      <p class="erro" id="conferirErro" hidden></p>
+      <div class="acoes"><button type="submit" class="principal">Conferir</button></div>
+      <p class="dica">O código está no pé do protocolo, ao lado do QR. Se você procurava suas guias, peça o seu endereço ao escritório.</p>
+    </form>
+  </div>
 </main>
 
 <script type="module">
@@ -211,7 +223,9 @@ const abertos = new Set();   // guia/assinatura que o cliente abriu: sobrevivem 
 function dizer(texto) { $('estado').textContent = texto; $('estado').hidden = !texto; }
 
 async function carregar() {
-  if (!ref) { $('quem').textContent = 'Endereço incompleto'; dizer('Este endereço veio cortado. Peça ao escritório para mandar de novo.'); return; }
+  // sem nada no endereço: é quem digitou o endereço impresso no protocolo
+  if (params.has('protocolo') || !params.has('portal')) return conferirProtocolo(params.get('protocolo') || '');
+  if (!ref) { $('quem').textContent = 'Endereço incompleto'; dizer('Este endereço veio cortado. Peça ao escritório para mandar de novo, ou confira um protocolo pelo código.'); mostrarFormDeConferir(); return; }
   try {
     const snap = await getDoc(ref);
     tentativa = 0;
@@ -535,6 +549,73 @@ function prepararAviso(lista) {
           : 'Não deu para ligar o aviso neste navegador. Use "Pôr o vencimento no calendário" em cada guia.');
     }
   });
+}
+
+// ---------- conferir protocolo impresso ----------
+// Quem recebe o papel (fiscal, banco, o próprio cliente) confere se ele saiu
+// do escritório como está. Lê protocolos/{codigo}: um documento, sem login.
+const limparCodigo = t => String(t || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+function mostrarFormDeConferir(erro) {
+  $('conferir').hidden = false;
+  $('conferirForm').hidden = false;
+  $('conferirErro').hidden = !erro;
+  $('conferirErro').textContent = erro || '';
+  if ($('conferirForm').dataset.pronto) return;
+  $('conferirForm').dataset.pronto = '1';
+  $('conferirForm').addEventListener('submit', ev => {
+    ev.preventDefault();
+    const c = limparCodigo($('conferirCodigo').value);
+    history.replaceState(null, '', location.pathname + '?protocolo=' + c);
+    conferirProtocolo(c);
+  });
+}
+async function conferirProtocolo(bruto) {
+  const codigo = limparCodigo(bruto);
+  document.title = 'Conferir protocolo · Nilma Contabilidade';
+  $('quem').textContent = 'Conferir protocolo';
+  $('conferirResultado').innerHTML = '';
+  if (!/^[A-HJ-NP-Z2-9]{12}$/.test(codigo)) {
+    dizer('');
+    $('conferirCodigo').value = bruto || '';
+    mostrarFormDeConferir(bruto ? 'O código tem 12 letras e números, como no pé do protocolo. Confira o que foi digitado.' : '');
+    return;
+  }
+  dizer('Conferindo…');
+  let snap;
+  try {
+    snap = await getDoc(doc(db, 'protocolos', codigo));
+  } catch (err) {
+    dizer('Não consegui conferir agora. Veja a internet e tente de novo.');
+    mostrarFormDeConferir();
+    $('conferirCodigo').value = codigo.match(/.{4}/g).join('-');
+    return;
+  }
+  dizer('');
+  $('conferir').hidden = false;
+  $('conferirForm').hidden = true;
+  const legivel = codigo.match(/.{4}/g).join('-');
+  if (!snap.exists()) {
+    $('conferirResultado').innerHTML =
+      '<div class="bloco aviso"><h2>Código não encontrado</h2><p>Não há protocolo com o código <b>' + esc(legivel) + '</b>. ' +
+      'Confira a digitação. Se o código estiver certo, este papel não saiu do escritório como está: fale com a Nilma Contabilidade.</p></div>';
+    mostrarFormDeConferir();
+    return;
+  }
+  const p = snap.data();
+  const linhas = (Array.isArray(p.entregas) ? p.entregas : []).map(e =>
+    '<div class="guia"><div class="guia-topo"><div class="nome">' + esc(e.docs || 'Documentos') + '</div>' +
+      '<span class="selo' + (e.situacao === 'Entregue' || e.situacao === 'Recebido pelo link' ? ' ok' : (e.situacao === 'Não entregue' ? ' ruim' : '')) + '">' + esc(e.situacao || '') + '</span></div>' +
+      '<p class="sub">' + [e.quando ? dataHora(e.quando) : '', e.recebedor ? 'recebido por ' + esc(e.recebedor) : '', e.por ? 'entregue por ' + esc(e.por) : ''].filter(Boolean).join(' · ') + '</p></div>'
+  ).join('');
+  $('quem').textContent = p.clienteNome || 'Protocolo';
+  $('conferirResultado').innerHTML =
+    '<div class="tudo-certo">' + ICO.certo + '<span>Protocolo registrado pelo escritório. Compare com o papel.</span></div>' +
+    '<div class="bloco"><p class="sub">Código <b>' + esc(legivel) + '</b> · competência ' + esc(mesPorExtenso(p.competencia)) +
+      (p.documento ? ' · ' + esc(p.documento) : '') + '</p>' +
+      '<p class="sub">Emitido em ' + esc(dataHora(p.emitidoEm)) + (p.emitidoPor ? ' por ' + esc(p.emitidoPor) : '') + '</p>' +
+      (p.total ? '<p class="sub">Total das guias: ' + esc(dinheiro(p.total)) + '</p>' : '') + '</div>' +
+    '<div class="bloco">' + (linhas || '<p class="sub">Nenhuma entrega neste protocolo.</p>') + '</div>' +
+    '<p class="dica">A assinatura de quem recebeu fica guardada no escritório e não aparece aqui.</p>';
 }
 
 // ---------- guardar na tela inicial ----------

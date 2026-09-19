@@ -11623,6 +11623,8 @@
       { quem: ['office_boy'], icone: 'ph-lightbulb', titulo: 'O app aprende o horário do cliente', texto: 'Na tela de confirmar aparece a faixa em que ele costuma receber e a hora em que já se deu com a cara na porta.' },
       { quem: ['admin'], icone: 'ph-chart-bar', titulo: 'Números do mês no Painel', texto: 'Entregas por pessoa, tipo de comprovante, ritmo por parada, por que falhou e quem mais falha.' },
       { quem: [], icone: 'ph-device-mobile', titulo: 'Página do cliente leve', texto: 'O link do cliente agora abre uma página própria de 30 KB, com "Para pagar" no topo e letras grandes. O endereço antigo continua valendo.' },
+      { quem: [], icone: 'ph-seal-check', titulo: 'Protocolo com código de conferência', texto: 'O protocolo do mês sai com um QR e um código. Quem recebe o papel confere na página do cliente se ele saiu do escritório como está.' },
+      { quem: ['admin'], icone: 'ph-download-simple', titulo: 'Página do cliente na tela inicial', texto: 'O cliente guarda a página dele como aplicativo e abre as guias direto pelo ícone.' },
       { quem: [], icone: 'ph-arrows-clockwise', titulo: 'Versão nova sem Ctrl+F5', texto: 'O app confere com o servidor sozinho. E este quadro passou a guardar o que veio em cada versão.' },
       { quem: ['admin'], icone: 'ph-shield-check', titulo: 'Revisão de segurança', texto: 'Entrega confirmada não pode mais ser desfeita por quem não é admin, e o robô ficou à prova de abuso pelo link do cliente.' }
     ] },
@@ -12053,6 +12055,61 @@
   // "Salvar como PDF" é o da própria impressão do navegador, sem biblioteca.
   // A aba é aberta na hora do clique (senão o navegador bloqueia) e preenchida
   // depois que as assinaturas chegam.
+  // Código de conferência do protocolo: 12 caracteres sem I e O (não se
+  // confundem com 1 e 0 quando alguém digita do papel). 32 símbolos, então o
+  // resto da divisão não puxa pra nenhum lado. Precisa bater com a regra.
+  var LETRAS_DO_PROTOCOLO_ = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  function codigoDoProtocolo_() {
+    var a = new Uint8Array(12);
+    crypto.getRandomValues(a);
+    return Array.from(a).map(function (b) { return LETRAS_DO_PROTOCOLO_[b % 32]; }).join('');
+  }
+  // Grava o retrato do que vai no papel e devolve código, QR e endereço pra
+  // imprimir. Não espera o servidor: sem sinal, a gravação sobe quando voltar
+  // e o papel já sai com o código certo. Sem assinatura nem localização.
+  function registrarProtocolo_(cliente, comp, ordenadas, total) {
+    if (!auth.currentUser) return null;
+    var codigo = codigoDoProtocolo_();
+    var situacao = function (e) {
+      return e.status === 'confirmada' ? (e.recebidoPeloLink ? 'Recebido pelo link' : 'Entregue') : (e.status === 'falha' ? 'Não entregue' : (e.status === 'link' ? 'No link, aguardando' : 'Na rota'));
+    };
+    var retrato = {
+      clienteNome: String(cliente.nome || '').slice(0, 200),
+      documento: String(cliente.documento || ''),
+      competencia: String(comp || '').slice(0, 7),
+      entregas: ordenadas.slice(0, 200).map(function (e) {
+        return {
+          docs: (e.itens || []).map(function (it) {
+            var tipo = typeof it === 'string' ? it : it.tipo;
+            return tipo + (it && it.valor != null ? ' ' + fmtMoney(it.valor) : '');
+          }).join(', '),
+          situacao: situacao(e),
+          quando: e.confirmadoEm || e.criadoEm || '',
+          recebedor: e.status === 'confirmada' ? (e.recebedor || '') : '',
+          por: e.entregadoPorNome || ''
+        };
+      }),
+      total: total || 0,
+      emitidoEm: new Date().toISOString(),
+      emitidoPor: currentUserNome || auth.currentUser.email || '',
+      emitidoPorUid: auth.currentUser.uid
+    };
+    db.collection('protocolos').doc(codigo).set(retrato).catch(function (err) {
+      showToast(errMsg(err, 'O protocolo foi montado, mas o código de conferência não foi registrado. Emita de novo.'), 'error');
+    });
+    var endereco = new URL('cliente.html?protocolo=' + codigo, location.href).href;
+    var qr = '';
+    if (typeof QRCode !== 'undefined') {
+      var caixa = document.createElement('div');
+      try {
+        new QRCode(caixa, { text: endereco, width: 192, height: 192, correctLevel: QRCode.CorrectLevel.M });
+        var tela = caixa.querySelector('canvas');
+        qr = tela ? tela.toDataURL('image/png') : '';
+      } catch (e) { qr = ''; }
+    }
+    return { codigo: codigo, legivel: codigo.match(/.{4}/g).join('-'), endereco: endereco.split('?')[0], qr: qr };
+  }
+
   function abrirProtocoloDoMes_(cliente, comp, entregas) {
     var aba = window.open('', '_blank');
     if (!aba) { showToast('O navegador bloqueou a nova aba. Permita pop-ups para este site.', 'error'); return; }
@@ -12086,12 +12143,15 @@
             : (e.recebidoPeloLink ? '<span class="m">confirmado pelo link</span>' : (e.temFoto ? '<span class="m">comprovado por foto</span>' : ''))) + '</td></tr>';
       }).join('');
       var entregues = ordenadas.filter(function (e) { return e.status === 'confirmada'; }).length;
+      var conferir = registrarProtocolo_(cliente, comp, ordenadas, total);
       var html = '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Protocolo ' + h(fmtCompetencia(comp)) + ' - ' + h(cliente.nome) + '</title><style>' +
         '@page{size:A4;margin:16mm}*{box-sizing:border-box}body{font:12px/1.45 -apple-system,"Segoe UI",Inter,Arial,sans-serif;color:#111;margin:0;padding:24px;max-width:900px;margin:0 auto}' +
         'h1{font-size:18px;margin:0 0 2px}header{display:flex;justify-content:space-between;gap:24px;border-bottom:2px solid #111;padding-bottom:10px;margin-bottom:14px}' +
         '.m{color:#555;font-size:11px}.v{color:#555}table{width:100%;border-collapse:collapse}th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#555;border-bottom:1px solid #999;padding:6px 8px}' +
         'td{vertical-align:top;padding:8px;border-bottom:1px solid #ddd}td.n{color:#777;width:24px}td.a{width:150px}td.a img{width:140px;border:1px solid #ccc;display:block}tr{break-inside:avoid}' +
         'footer{margin-top:16px;display:flex;justify-content:space-between;gap:24px;font-size:11px;color:#555}.barra{margin:0 0 14px}.barra button{font:inherit;padding:8px 14px;cursor:pointer}' +
+        '.conf{margin-top:20px;display:flex;gap:16px;align-items:center;border:1px solid #bbb;padding:12px;break-inside:avoid}.conf img{width:96px;height:96px;flex:none}' +
+        '.cod{font:600 16px/1.3 ui-monospace,Consolas,monospace;letter-spacing:.08em;margin:6px 0 2px}' +
         '@media print{.barra{display:none}body{padding:0}}</style></head><body>' +
         '<div class="barra"><button onclick="window.print()">Imprimir ou salvar em PDF</button></div>' +
         '<header><div><h1>Protocolo de entrega de documentos</h1><div class="m">Nilma Contabilidade</div></div>' +
@@ -12100,6 +12160,10 @@
         '<table><thead><tr><th></th><th>Documentos</th><th>Situação</th><th>Recebimento</th><th>Assinatura</th></tr></thead><tbody>' + linhas + '</tbody></table>' +
         '<footer><div>' + ordenadas.length + ' registro(s), ' + entregues + ' entregue(s)' + (total ? ' · total das guias ' + h(fmtMoney(total)) : '') + '</div>' +
         '<div>Emitido em ' + h(fmtDateTime(new Date().toISOString())) + ' por ' + h(currentUserNome || '') + '</div></footer>' +
+        (conferir ? '<section class="conf">' + (conferir.qr ? '<img src="' + h(conferir.qr) + '" alt="">' : '') +
+          '<div><b>Confira este protocolo</b><div class="m">Aponte a câmera para o código ao lado ou abra o endereço abaixo e digite o código. ' +
+          'A página mostra o que foi registrado no escritório; se algo aqui estiver diferente, este papel foi alterado.</div>' +
+          '<div class="cod">' + h(conferir.legivel) + '</div><div class="m">' + h(conferir.endereco) + '</div></div></section>' : '') +
         '</body></html>';
       aba.document.open(); aba.document.write(html); aba.document.close();
       registrarAuditoria_('protocolo_emitido', clienteLabel(cliente) + ' · ' + fmtCompetencia(comp));

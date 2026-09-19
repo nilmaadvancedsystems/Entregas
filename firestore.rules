@@ -287,6 +287,28 @@ service cloud.firestore {
       allow delete: if ehAdmin();
     }
 
+    // ---------- protocolos emitidos ----------
+    // Cada protocolo impresso leva um código e um QR. Quem tem o papel na mão
+    // (fiscal, banco, o próprio cliente) confere em cliente.html?protocolo=
+    // que aquilo saiu do escritório e não foi alterado. O código é a chave:
+    // 12 letras/números aleatórios, sem listagem. Guarda só o que já está
+    // impresso, sem assinatura e sem localização. Não se edita: um protocolo
+    // corrigido é outro protocolo, com outro código.
+    match /protocolos/{codigo} {
+      allow get: if codigo.matches('^[A-HJ-NP-Z2-9]{12}$');
+      allow list: if false;
+      allow create: if logado()
+        && codigo.matches('^[A-HJ-NP-Z2-9]{12}$')
+        && request.resource.data.keys().hasOnly(['clienteNome', 'documento', 'competencia', 'entregas', 'total', 'emitidoEm', 'emitidoPor', 'emitidoPorUid'])
+        && request.resource.data.emitidoPorUid == request.auth.uid
+        && request.resource.data.clienteNome is string && request.resource.data.clienteNome.size() <= 200
+        && request.resource.data.competencia is string && request.resource.data.competencia.size() <= 7
+        && request.resource.data.emitidoEm is string
+        && request.resource.data.entregas is list && request.resource.data.entregas.size() <= 200;
+      allow update: if false;
+      allow delete: if ehAdmin();
+    }
+
     // ---------- auditoria ----------
     // Trilha de quem fez o quê. Só cresce: ninguém edita, ninguém apaga —
     // nem o admin. Uma trilha que o admin consegue limpar não é trilha.
