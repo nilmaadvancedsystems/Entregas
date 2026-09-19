@@ -1,0 +1,4 @@
+Logos dos bancos usados na cobrança por e-mail (scripts/email-html.js) e no
+cadastro do cliente (entregas.html). Um PNG por banco, quadrado, até 200 KB,
+com o nome igual ao id em scripts/bancos.js: bb.png, caixa.png, sicoob.png...
+Banco sem arquivo aparece como selo com a cor e a sigla.

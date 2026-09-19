@@ -17,6 +17,7 @@
 //     do zero mandando de novo pros primeiros (os que ficaram pra trás
 //     entram no próximo dia da régua).
 const cacheDeClientes = require('./clientes-cache');
+const { htmlDaCobranca } = require('./email-html');
 
 const HORA_MINIMA = 9;
 const MAX_POR_DIA = 40;
@@ -139,7 +140,10 @@ function iniciarReguaDeCobranca({ db, log, correio }) {
         if (m.pula) { pulos[m.pula] = (pulos[m.pula] || 0) + 1; continue; }
         if (enviados >= MAX_POR_DIA || !correio.podeEnviar(1)) { pulos['limite do dia'] = (pulos['limite do dia'] || 0) + 1; continue; }
         try {
-          const gmailId = await correio.enviar({ para: m.para, assunto: m.assunto, corpo: m.corpo });
+          let visual = {};
+          try { visual = htmlDaCobranca({ corpo: m.corpo, cliente: c, bancosRecebidos: (docs.get(c.id) || {}).bancosRecebidos, assinatura: config.assinatura }); }
+          catch (e) { /* sai só em texto */ }
+          const gmailId = await correio.enviar({ para: m.para, assunto: m.assunto, corpo: m.corpo, html: visual.html, imagens: visual.imagens });
           correio.contar();
           enviados++;
           await correio.registrarCobranca(c, comp, {

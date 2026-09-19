@@ -83,23 +83,52 @@ function baterPonto() {
 function codificarCabecalho(texto) {
   return /^[\x20-\x7e]*$/.test(texto) ? texto : '=?UTF-8?B?' + Buffer.from(texto, 'utf8').toString('base64') + '?=';
 }
-function montarMensagem({ para, cco, assunto, corpo }) {
+const em76 = buf => buf.toString('base64').replace(/(.{76})/g, '$1\r\n');
+// Com html: texto puro + HTML (multipart/alternative) e, se houver, as
+// imagens embutidas por cid (multipart/related) — os logos dos bancos.
+function montarMensagem({ para, cco, assunto, corpo, html, imagens }) {
   const linhas = [
     'From: ' + CAIXA,
     'To: ' + (para || CAIXA),
   ];
   if (cco && cco.length) linhas.push('Bcc: ' + cco.join(', '));
-  linhas.push(
-    'Subject: ' + codificarCabecalho(assunto),
-    'MIME-Version: 1.0',
-    'Content-Type: text/plain; charset=UTF-8',
-    'Content-Transfer-Encoding: base64',
-    '',
-    Buffer.from(corpo || '', 'utf8').toString('base64').replace(/(.{76})/g, '$1\r\n'),
-  );
+  linhas.push('Subject: ' + codificarCabecalho(assunto), 'MIME-Version: 1.0');
+  const texto = em76(Buffer.from(corpo || '', 'utf8'));
+  if (!html) {
+    linhas.push('Content-Type: text/plain; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', texto);
+  } else {
+    const alt = 'alt-' + Date.now().toString(36);
+    const rel = 'rel-' + Date.now().toString(36);
+    const partes = [
+      '--' + alt, 'Content-Type: text/plain; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', texto,
+      '--' + alt, 'Content-Type: text/html; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', em76(Buffer.from(html, 'utf8')),
+      '--' + alt + '--',
+    ];
+    const figuras = (imagens || []).filter(i => { try { return fs.statSync(i.arquivo).size < 200 * 1024; } catch (e) { return false; } });
+    if (!figuras.length) {
+      linhas.push('Content-Type: multipart/alternative; boundary="' + alt + '"', '', ...partes);
+    } else {
+      linhas.push('Content-Type: multipart/related; boundary="' + rel + '"', '',
+        '--' + rel, 'Content-Type: multipart/alternative; boundary="' + alt + '"', '', ...partes);
+      figuras.forEach(i => linhas.push('--' + rel, 'Content-Type: ' + (i.mime || 'image/png'), 'Content-Transfer-Encoding: base64',
+        'Content-ID: <' + i.cid + '>', 'Content-Disposition: inline; filename="' + i.cid + '.png"', '', em76(fs.readFileSync(i.arquivo))));
+      linhas.push('--' + rel + '--');
+    }
+  }
   return Buffer.from(linhas.join('\r\n'), 'utf8').toString('base64')
     .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
+const { htmlDaCobranca } = require('./email-html');
+// quem assina, do config/cobranca; lido no máximo a cada 10 min
+let assinaturaCache = { em: 0, valor: '' };
+async function assinaturaDoEscritorio() {
+  if (Date.now() - assinaturaCache.em > 10 * 60 * 1000) {
+    const c = (await db.collection('config').doc('cobranca').get()).data() || {};
+    assinaturaCache = { em: Date.now(), valor: c.assinatura || 'Nilma Contabilidade' };
+  }
+  return assinaturaCache.valor;
+}
+
 async function enviar(dados) {
   const r = await getGmail().users.messages.send({ userId: 'me', requestBody: { raw: montarMensagem(dados) } });
   return r.data.id;
@@ -148,7 +177,13 @@ async function atenderUm(p) {
   if (!enderecosDoCliente(cliente).includes(para)) throw new Error(para + ' não está no cadastro deste cliente');
   if (!dentroDoLimite(1)) throw new Error('limite de ' + MAX_ENVIOS_POR_HORA + ' envios por hora atingido; tente mais tarde');
 
-  const gmailId = await enviar({ para, assunto: p.assunto, corpo: p.corpo });
+  // versão em HTML, com os bancos do cliente e o que já chegou no mês
+  let visual = {};
+  try {
+    const doMes = p.competencia ? ((await db.collection('documentosMensal').doc(cliente.id + '_' + p.competencia).get()).data() || {}) : {};
+    visual = htmlDaCobranca({ corpo: p.corpo, cliente, bancosRecebidos: doMes.bancosRecebidos, assinatura: await assinaturaDoEscritorio() });
+  } catch (err) { log('cobrança sai só em texto:', err.message); }
+  const gmailId = await enviar({ para, assunto: p.assunto, corpo: p.corpo, html: visual.html, imagens: visual.imagens });
   enviosRecentes.push(Date.now());
   const em = agora();
   await registrarCobranca(cliente, p.competencia, {

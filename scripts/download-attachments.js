@@ -217,6 +217,33 @@ function copiaJaNaOrigem(nomeCliente, nome, buffer) {
   return null;
 }
 
+// Bancos dos extratos anexados, cada PDF pelo próprio cabeçalho.
+async function bancosDosAnexos(anexos) {
+  const textos = [];
+  for (const a of anexos) {
+    if (a.mimeType !== 'application/pdf' || !a.buffer) continue;
+    try { textos.push((await pdfParse(a.buffer)).text); } catch (err) { /* PDF ilegível: sem banco */ }
+  }
+  return require('./bancos').bancosDosTextos(textos);
+}
+// Banco novo no cadastro do cliente. O que o admin tirou à mão
+// (bancosRecusados) o robô não põe de volta.
+function bancosNovos(cliente, bancos) {
+  const tem = new Set([].concat(cliente.bancos || [], cliente.bancosRecusados || []));
+  return bancos.filter(b => !tem.has(b));
+}
+async function aprenderBancos(db, cliente, bancos) {
+  const novos = bancosNovos(cliente, bancos);
+  if (!novos.length || SIMULAR) return;
+  try {
+    await db.collection('clientes').doc(cliente.id).update({
+      bancos: FieldValue.arrayUnion(...novos), bancosPeloRobo: FieldValue.arrayUnion(...novos),
+    });
+    cliente.bancos = (cliente.bancos || []).concat(novos);
+    console.log('  banco(s) aprendido(s) do extrato:', novos.join(', '));
+  } catch (err) { console.error('  não consegui guardar o banco no cadastro -', err.message); }
+}
+
 async function textoDosPdfs(anexos) {
   let texto = '';
   for (const a of anexos) {
@@ -531,12 +558,20 @@ async function main() {
 
       if (tipos.length && comBytes.length) {
         const agora = new Date().toISOString();
+        // extrato: de que banco(s). Serve pra cobrança dizer "falta o do Sicoob"
+        // e pro cadastro aprender os bancos do cliente sem ninguém digitar.
+        const bancos = tipos.includes('extrato') ? await bancosDosAnexos(comBytes) : [];
         patch.atualizadoEm = agora;
         patch.detalhes = {};
         tipos.forEach(t => {
           patch[t] = true;
-          patch.detalhes[t] = { origem: 'gmail', em: agora, mensagemId: id, arquivos: comBytes.map(a => a.filename) };
+          patch.detalhes[t] = Object.assign({ origem: 'gmail', em: agora, mensagemId: id, arquivos: comBytes.map(a => a.filename) },
+            t === 'extrato' && bancos.length ? { bancos } : {});
         });
+        if (bancos.length) {
+          patch.bancosRecebidos = FV.arrayUnion(...bancos);
+          await aprenderBancos(db, cliente, bancos);
+        }
         cont.marcados++;
         // o link que mostra este cliente: o dele ou o da empresa principal do grupo
         [cliente, clientesPorId.get(cliente.grupoLocal)].forEach(dono => {
@@ -652,5 +687,5 @@ module.exports = {
   competenciaDoTexto, competenciaPresumida, mesesDoPortal, faltamNoMes, detectarTipos, coletarAnexos, IMAGEM_DE_ASSINATURA, AUTOMATICO,
   desempatarPorDocumento, decodificarEntidades, extrairEmail, extrairNome, dominioDe, DOMINIOS_PUBLICOS,
   // usados por envios-do-portal.js (documento que o cliente manda pelo link)
-  PASTA_DESTINO, sanitizar, salvarArquivo, atualizarPortal,
+  PASTA_DESTINO, sanitizar, salvarArquivo, atualizarPortal, bancosNovos,
 };

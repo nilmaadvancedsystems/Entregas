@@ -226,5 +226,27 @@ igual('tipo fora da lista não passa', ep.conferirEnvio(Object.assign({}, envioO
 igual('arquivo disfarçado não passa', ep.conferirEnvio(Object.assign({}, envioOk, { dados: Buffer.from('MZ executável').toString('base64') })).erro, 'não é PDF nem foto');
 igual('nome no Drive sem caminho nem caractere proibido', ep.nomeNoDrive(envioOk, 'pdf', new Date(2026, 8, 19)), 'Pelo link 2026-09-19 - Extrato - extrato agosto.pdf');
 
+// ---------- bancos dos extratos ----------
+const bk = require('./bancos');
+igual('BB pelo cabeçalho', bk.bancosDoTexto('BANCO DO BRASIL S.A.\nSISBB - Sistema de Informações\nExtrato de conta corrente'), ['bb']);
+igual('Sicoob (Bancoob) pelo cabeçalho', bk.bancosDoTexto('SICOOB CREDINOR\nCooperativa de Crédito\nExtrato'), ['sicoob']);
+igual('banco citado no meio do extrato não conta', bk.bancosDoTexto('SICREDI Extrato\n' + 'x'.repeat(2000) + ' TED para BANCO DO BRASIL'), ['sicredi']);
+igual('Nu Pagamentos', bk.bancosDoTexto('Nu Pagamentos S.A. - Instituição de Pagamento\nExtrato'), ['nubank']);
+igual('vários PDFs, cada um o seu', bk.bancosDosTextos(['Banco do Nordeste do Brasil', 'CAIXA ECONOMICA FEDERAL']).sort(), ['bnb', 'caixa']);
+igual('texto sem banco', bk.bancosDoTexto('Extrato mensal'), []);
+igual('banco novo pro cadastro, sem o que o admin recusou', r.bancosNovos({ bancos: ['bb'], bancosRecusados: ['itau'] }, ['bb', 'itau', 'sicoob']), ['sicoob']);
+
+// ---------- cobrança em HTML ----------
+const eh = require('./email-html');
+const visual = eh.htmlDaCobranca({
+  corpo: 'Olá,\n\nFaltam:\n\n- Extrato Bancário\n- Comprovante\n\nVeja aqui:\nhttps://x.github.io/cliente.html?portal=t\n\nObrigado,\nNilma',
+  cliente: { bancos: ['bb', 'sicoob', 'inexistente'] }, bancosRecebidos: ['bb'], assinatura: 'Nilma <Contabilidade>',
+});
+igual('HTML: cartões, bancos com recebido/falta, botão e texto escapado', [
+  (visual.html.match(/border-radius:10px/g) || []).length, /Banco do Brasil[\s\S]*recebido/.test(visual.html), /Sicoob[\s\S]*falta/.test(visual.html),
+  /inexistente/.test(visual.html), /href="https:\/\/x\.github\.io\/cliente\.html\?portal=t"/.test(visual.html), /Nilma &lt;Contabilidade&gt;/.test(visual.html),
+], [2, true, true, false, true, true]);
+igual('HTML: sem arquivo de logo, selo com a sigla e nenhuma imagem anexada', [/>SICOOB</.test(visual.html) || visual.imagens.some(i => i.cid === 'banco-sicoob'), Array.isArray(visual.imagens)], [true, true]);
+
 console.log(falhas ? '\n' + falhas + ' de ' + total + ' testes FALHARAM' : total + ' testes, todos passaram');
 process.exit(falhas ? 1 : 0);

@@ -41,5 +41,11 @@ const n = numeros([{ status: 'confirmada', entregadoPorNome: 'João', temAssinat
 igual('números do mês', [n.feitas, n.falhas, n.noLink, n.comAssinatura, n.soFoto, n.peloLink, n.porPessoa[0], n.porMotivo[0], n.quemMaisFalha[0]],
   [3, 2, 1, 1, 1, 1, { nome: 'João', n: 2 }, { nome: 'Cliente ausente', n: 2 }, { nome: 'PADARIA', n: 2 }]);
 
+// ---------- bancos do cliente no cadastro ----------
+const ficam = new Function(pega('bancosQueFicam_') + '; return bancosQueFicam_;')();
+igual('desmarcar banco que o robô aprendeu vira recusado', ficam({ bancos: ['bb', 'itau'], bancosPeloRobo: ['itau'] }, ['bb']), { bancos: ['bb'], bancosRecusados: ['itau'] });
+igual('desmarcar banco posto à mão não vira recusado', ficam({ bancos: ['bb', 'itau'], bancosPeloRobo: [] }, ['bb']), { bancos: ['bb'], bancosRecusados: [] });
+igual('marcar de novo tira da lista de recusados', ficam({ bancos: [], bancosRecusados: ['itau'] }, ['itau']), { bancos: ['itau'], bancosRecusados: [] });
+
 console.log(falhas ? falhas + ' de ' + total + ' FALHARAM' : total + ' testes, todos passaram');
 process.exit(falhas ? 1 : 0);
