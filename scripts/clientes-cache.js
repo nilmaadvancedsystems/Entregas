@@ -41,18 +41,18 @@ function manterArquivo(db, log) {
   let lista = null;
   const gravar = () => {
     if (!lista) return;
-    try { fs.writeFileSync(ARQUIVO, JSON.stringify({ em: new Date().toISOString(), clientes: lista })); }
+    try { fs.writeFileSync(ARQUIVO + '.tmp', JSON.stringify({ em: new Date().toISOString(), clientes: lista })); fs.renameSync(ARQUIVO + '.tmp', ARQUIVO); }
     catch (e) { log('clientes: não consegui gravar o arquivo local -', e.message); }
   };
-  db.collection('clientes').where('ativo', '==', true).onSnapshot(snap => {
+  require('./ouvinte').ouvir('clientes', () => {
+    // enquanto o ouvinte não voltar não há garantia de que a lista está em dia:
+    // para de renovar e o arquivo vence sozinho em 20 minutos
+    lista = null;
+    return db.collection('clientes').where('ativo', '==', true);
+  }, snap => {
     lista = snap.docs.map(d => ({ id: d.id, dados: JSON.parse(JSON.stringify(d.data())) }));
     gravar();
-  }, err => {
-    // sem ouvinte não há garantia de que a lista está em dia: para de renovar
-    // e o arquivo vence sozinho em 20 minutos
-    lista = null;
-    log('clientes: perdi o ouvinte do cadastro -', err.message);
-  });
+  }, log);
   setInterval(gravar, 10 * 60 * 1000);
   log('lista de clientes mantida em arquivo local (a leitura do Gmail deixa de reler o cadastro)');
 }

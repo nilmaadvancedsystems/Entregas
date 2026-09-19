@@ -42,14 +42,25 @@ function buscar(cnpj) {
 
 // Só o que interessa acompanhar. De propósito fica de fora o CPF mascarado e a
 // faixa etária dos sócios que a API devolve: não servem pra nada aqui.
-function retrato(j) {
+// A fonte é de graça e às vezes responde 200 com corpo de erro ou com campos
+// vazios. Aceitar isso como retrato faria o vigia gritar "saiu do Simples" e
+// "todos os sócios saíram" pra um cliente que não mudou nada.
+function respostaValida(j, cnpjPedido) {
+  if (!j || typeof j !== 'object') return false;
+  if (soDigitos(j.cnpj) !== soDigitos(cnpjPedido)) return false;
+  return !!String(j.descricao_situacao_cadastral || '').trim();
+}
+
+function retrato(j, anterior) {
   const texto = v => (v == null || v === 'null' ? '' : String(v).trim());
+  const antes = anterior || {};
   return {
     situacao: texto(j.descricao_situacao_cadastral).toUpperCase(),
     situacaoDesde: texto(j.data_situacao_cadastral),
     motivoSituacao: texto(j.descricao_motivo_situacao_cadastral),
-    simples: j.opcao_pelo_simples === true,
-    mei: j.opcao_pelo_mei === true,
+    // campo ausente (null) não é "não": mantém o que já se sabia
+    simples: typeof j.opcao_pelo_simples === 'boolean' ? j.opcao_pelo_simples : (antes.simples === true),
+    mei: typeof j.opcao_pelo_mei === 'boolean' ? j.opcao_pelo_mei : (antes.mei === true),
     razaoSocial: texto(j.razao_social),
     naturezaJuridica: texto(j.natureza_juridica),
     porte: texto(j.porte),
@@ -58,7 +69,7 @@ function retrato(j) {
     abertura: texto(j.data_inicio_atividade),
     endereco: [[texto(j.descricao_tipo_de_logradouro), texto(j.logradouro)].filter(Boolean).join(' '), texto(j.numero), texto(j.bairro),
       [texto(j.municipio), texto(j.uf)].filter(Boolean).join('/')].filter(Boolean).join(', '),
-    socios: (Array.isArray(j.qsa) ? j.qsa : []).map(s => texto(s.nome_socio)).filter(Boolean).sort(),
+    socios: Array.isArray(j.qsa) ? j.qsa.map(s => texto(s.nome_socio)).filter(Boolean).sort() : (antes.socios || []),
   };
 }
 
@@ -86,18 +97,36 @@ function avisosDaPrimeiraVez(agora) {
     : [];
 }
 
+// Dois retratos dizem a mesma coisa? (pra não regravar o cliente à toa)
+const CAMPOS_DO_RETRATO = ['situacao', 'situacaoDesde', 'motivoSituacao', 'simples', 'mei', 'razaoSocial', 'naturezaJuridica', 'porte', 'cnae', 'cnaeDescricao', 'abertura', 'endereco', 'socios'];
+function mesmoRetrato(a, b) {
+  return CAMPOS_DO_RETRATO.every(k => JSON.stringify((a || {})[k] == null ? '' : a[k]) === JSON.stringify((b || {})[k] == null ? '' : b[k]));
+}
+
 async function conferirTodos(db, log) {
-  const snap = await db.collection('clientes').where('ativo', '==', true).get();
-  const clientes = snap.docs.map(d => Object.assign({ id: d.id }, d.data())).filter(c => soDigitos(c.documento).length === 14);
+  const { FieldValue } = require('firebase-admin/firestore');
+  // do arquivo que o vigia mantém (sem gastar leitura); senão, do banco
+  const todos = [];
+  (await require('./clientes-cache').clientesAtivos(db)).forEach(d => todos.push(Object.assign({ id: d.id }, d.data())));
+  const clientes = todos.filter(c => soDigitos(c.documento).length === 14);
   log('vigia de CNPJ: conferindo', clientes.length, 'cliente(s) com CNPJ');
   const resumo = { conferidos: 0, mudaram: 0, naoAchados: 0, erros: 0, graves: [] };
   for (const c of clientes) {
     await dormir(PAUSA_MS);
     try {
-      const j = await buscar(soDigitos(c.documento));
+      let j;
+      try { j = await buscar(soDigitos(c.documento)); }
+      catch (err) {
+        // pediram pra ir mais devagar: espera e tenta este cliente mais uma vez,
+        // em vez de deixá-lo sem conferência até a semana que vem
+        if (!/HTTP 429/.test(err.message)) throw err;
+        await dormir(30000);
+        j = await buscar(soDigitos(c.documento));
+      }
       if (!j) { resumo.naoAchados++; continue; }
-      const agora = retrato(j);
+      if (!respostaValida(j, c.documento)) throw new Error('a fonte devolveu uma resposta incompleta');
       const antes = c.receita && c.receita.situacao !== undefined ? c.receita : null;
+      const agora = retrato(j, antes);
       const novas = (antes ? diferencas(antes, agora) : avisosDaPrimeiraVez(agora))
         .map(m => Object.assign({ em: new Date().toISOString() }, m));
       resumo.conferidos++;
@@ -107,15 +136,25 @@ async function conferirTodos(db, log) {
         log('  ' + (c.nome || c.id) + ':', novas.map(m => m.texto).join(' | '));
       }
       if (SIMULAR) continue;
-      const pendentes = ((c.receita && Array.isArray(c.receita.mudancas)) ? c.receita.mudancas : []).concat(novas).slice(-MAX_MUDANCAS);
-      await db.collection('clientes').doc(c.id).update({ receita: Object.assign({}, agora, { conferidoEm: new Date().toISOString(), mudancas: pendentes }) });
+      // Só grava quando o retrato mudou (ou é o primeiro). Gravar os 320 toda
+      // semana custava 320 gravações e mais 320 leituras em cada aparelho com o
+      // app aberto, pra dizer "nada mudou". E grava campo a campo: o "Já vi" que
+      // alguém clicar durante a rodada não é desfeito por um retrato velho.
+      if (antes && !novas.length && mesmoRetrato(antes, agora)) continue;
+      const patch = { 'receita.conferidoEm': new Date().toISOString() };
+      CAMPOS_DO_RETRATO.forEach(k => { patch['receita.' + k] = agora[k]; });
+      if (novas.length) patch['receita.mudancas'] = FieldValue.arrayUnion(...novas);
+      else if (!antes) patch['receita.mudancas'] = [];
+      await db.collection('clientes').doc(c.id).update(patch);
     } catch (err) {
       resumo.erros++;
       log('  ' + (c.nome || c.id) + ': não consegui conferir -', err.message);
-      if (/HTTP 429/.test(err.message)) await dormir(30000);   // pediram pra ir mais devagar
     }
   }
-  if (!SIMULAR) {
+  // Rodada que falhou quase inteira (fonte fora do ar, sem internet) não conta
+  // como feita: senão a próxima tentativa seria só daqui a 7 dias.
+  const valeu = resumo.conferidos > 0 && resumo.erros <= resumo.conferidos;
+  if (!SIMULAR && valeu) {
     await db.collection('robo').doc('estado').set({ cnpj: { ultimaExecucao: new Date().toISOString(), conferidos: resumo.conferidos, mudaram: resumo.mudaram, erros: resumo.erros } }, { merge: true });
   }
   log('vigia de CNPJ terminou:', resumo.conferidos, 'conferidos,', resumo.mudaram, 'com mudança,', resumo.erros, 'erro(s)');
@@ -144,7 +183,7 @@ function iniciarVigiaCnpj(db, log, aoAcharGrave) {
   log('vigia de CNPJ ligado (uma conferência por semana nos dados abertos da Receita)');
 }
 
-module.exports = { retrato, diferencas, avisosDaPrimeiraVez, conferirTodos, iniciarVigiaCnpj };
+module.exports = { retrato, respostaValida, mesmoRetrato, diferencas, avisosDaPrimeiraVez, conferirTodos, iniciarVigiaCnpj };
 
 if (require.main === module) {
   const { getDb } = require('./firestore-client');

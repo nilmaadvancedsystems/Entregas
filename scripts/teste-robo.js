@@ -60,6 +60,13 @@ igual('saiu do Simples e ficou inapta são graves', cnpj.diferencas(r1, r2).filt
 igual('troca de sócio aparece, sem ser grave', cnpj.diferencas(r1, r2).filter(m => !m.grave).map(m => m.texto),
   ['Saiu do quadro de sócios: MARIA EXEMPLO', 'Entrou no quadro de sócios: JOSE NOVO']);
 igual('primeira conferência de cliente ativo não avisa nada', cnpj.avisosDaPrimeiraVez(r1), []);
+igual('resposta de outro CNPJ é recusada', cnpj.respostaValida(Object.assign({ cnpj: '11222333000181' }, daApi), '12.345.678/0001-95'), false);
+igual('resposta sem situação é recusada', cnpj.respostaValida({ cnpj: '11222333000181' }, '11222333000181'), false);
+igual('resposta boa passa', cnpj.respostaValida(Object.assign({ cnpj: '11222333000181' }, daApi), '11.222.333/0001-81'), true);
+const semCampos = cnpj.retrato(Object.assign({}, daApi, { opcao_pelo_simples: null, opcao_pelo_mei: null, qsa: null }), r1);
+igual('Simples e sócios que vieram vazios mantêm o que já se sabia (sem falso alarme)', cnpj.diferencas(r1, semCampos), []);
+igual('retrato igual não é regravado', cnpj.mesmoRetrato(r1, cnpj.retrato(daApi)), true);
+igual('retrato diferente é regravado', cnpj.mesmoRetrato(r1, r2), false);
 igual('primeira conferência de cliente inapto avisa', cnpj.avisosDaPrimeiraVez(r2).length, 1);
 
 // ---------- lembrete de vencimento pro cliente ----------
@@ -98,6 +105,9 @@ igual('sexta às 16h ainda não', sem.horaDoResumo(new Date(2026, 8, 18, 16)), f
 igual('sexta às 17h é', sem.horaDoResumo(new Date(2026, 8, 18, 17)), true);
 igual('PC desligado na sexta: sábado e domingo ainda mandam', [sem.horaDoResumo(new Date(2026, 8, 19, 9)), sem.horaDoResumo(new Date(2026, 8, 20, 9))], [true, true]);
 igual('segunda já é outra semana', sem.horaDoResumo(new Date(2026, 8, 21, 9)), false);
+igual('PC desligado de sexta a domingo: na segunda a semana devida é a ANTERIOR', sem.segundaDaSemana(sem.semanaDevida(new Date(2026, 8, 21, 9))).getDate(), 14);
+igual('na sexta às 17h a semana devida é a atual', sem.segundaDaSemana(sem.semanaDevida(new Date(2026, 8, 18, 17))).getDate(), 14);
+igual('na quinta ainda se deve a semana anterior', sem.segundaDaSemana(sem.semanaDevida(new Date(2026, 8, 17, 9))).getDate(), 7);
 igual('segunda da semana de um domingo é a anterior', sem.segundaDaSemana(new Date(2026, 8, 20, 9)).getDate(), 14);
 const textoSem = sem.montarTexto({ de: '14/09/2026', ate: '18/09/2026', mesDosDocumentos: 'agosto de 2026',
   entregas: [{ status: 'confirmada', entregadoPorNome: 'João' }, { status: 'confirmada', entregadoPorNome: 'João' }, { status: 'falha', clienteNome: 'PADARIA EXEMPLO', motivoFalha: 'Fechado' }],
@@ -113,10 +123,18 @@ igual('toque bem formado', elk.lerToque('2026-09-19T12:00:00.000Z|Maria  Souza')
 igual('toque sem nome ainda vale', elk.lerToque('2026-09-19T12:00:00.000Z|'), { em: '2026-09-19T12:00:00.000Z', nome: '' });
 igual('toque com lixo no lugar da data é recusado', elk.lerToque('ontem|Maria'), null);
 igual('nome gigante é cortado em 60', elk.lerToque('2026-09-19T12:00:00.000Z|' + 'a'.repeat(200)).nome.length, 60);
-igual('entrega esperando no link, de empresa do link: confirma', elk.podeConfirmar({ status: 'link', clienteId: 'c2' }, {}, ['c2', 'c4']), true);
-igual('entrega de outra empresa não é confirmada por este link', elk.podeConfirmar({ status: 'link', clienteId: 'c9' }, {}, ['c2', 'c4']), false);
-igual('entrega da rota (não é do link) não é confirmada por toque', elk.podeConfirmar({ status: 'pendente', clienteId: 'c2' }, {}, ['c2']), false);
-igual('entrega já confirmada não é mexida de novo', elk.podeConfirmar({ status: 'confirmada', clienteId: 'c2' }, {}, ['c2']), false);
+igual('entrega esperando no link: confirma', elk.podeConfirmar({ status: 'link' }), true);
+igual('entrega da rota não é confirmada por toque', elk.podeConfirmar({ status: 'pendente' }), false);
+igual('entrega já confirmada não é mexida de novo', elk.podeConfirmar({ status: 'confirmada' }), false);
+const linkDeTeste = { entregas: { lista: [{ id: 'abcdef1', status: 'link' }, { id: 'abcdef2', status: 'confirmada' }] },
+  recebido: { abcdef1: '2026-09-19T12:00:00.000Z|Maria', abcdef2: '2026-09-19T12:00:00.000Z|Maria', deOutroLink: '2026-09-19T12:00:00.000Z|X', 'a/b': 'lixo', abcdef9: 'sem data|X' } };
+const tri = elk.triar(linkDeTeste);
+igual('só o toque de entrega que a EQUIPE pôs no link como "link" vai pra conferência', tri.conferir.map(c => c.id), ['abcdef1']);
+igual('o resto é apagado sem ler nada do banco (entrega de fora, já confirmada, lixo)', tri.descartar.sort(), ['a/b', 'abcdef2', 'abcdef9', 'deOutroLink']);
+igual('link sem toque nenhum não faz nada', elk.triar({ entregas: { lista: [] } }), { conferir: [], descartar: [] });
+igual('hora do toque dentro da janela vale', elk.horaConfiavel('2026-09-19T12:00:00.000Z', '2026-09-18T10:00:00.000Z', '2026-09-19T12:01:00.000Z'), '2026-09-19T12:00:00.000Z');
+igual('hora do toque retrodatada vira a hora do robô', elk.horaConfiavel('2020-01-01T00:00:00.000Z', '2026-09-18T10:00:00.000Z', '2026-09-19T12:01:00.000Z'), '2026-09-19T12:01:00.000Z');
+igual('hora do toque no futuro vira a hora do robô', elk.horaConfiavel('2030-01-01T00:00:00.000Z', '2026-09-18T10:00:00.000Z', '2026-09-19T12:01:00.000Z'), '2026-09-19T12:01:00.000Z');
 
 // ---------- tipo de documento ----------
 igual('títulos pagos = comprovante', r.detectarTipos('TITULOS PAGOS SICOOB AGO2026.pdf'), ['comprovante']);

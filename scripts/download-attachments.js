@@ -106,9 +106,24 @@ function carregarProcessados() {
   try { return new Set(JSON.parse(fs.readFileSync(PROCESSADOS_PATH, 'utf8'))); }
   catch (e) { return new Set(); }
 }
-function salvarProcessados(set) {
-  fs.writeFileSync(PROCESSADOS_PATH, JSON.stringify(Array.from(set)));
+// Grava num arquivo ao lado e troca de nome no fim. Agora que o controle vai pro
+// disco várias vezes por leitura, uma queda de luz no meio de uma gravação
+// deixava o arquivo cortado: ele abria como "nenhum e-mail lido" e o robô
+// refazia a janela inteira, remarcando o que alguém tinha desmarcado.
+function gravarInteiro(caminho, texto) {
+  fs.writeFileSync(caminho + '.tmp', texto);
+  fs.renameSync(caminho + '.tmp', caminho);
 }
+function salvarProcessados(set) {
+  gravarInteiro(PROCESSADOS_PATH, JSON.stringify(Array.from(set)));
+}
+// Anexo que não baixa: tenta de novo nas próximas leituras, mas só 3 vezes.
+// Sem teto, um anexo quebrado fazia o e-mail ser refeito de 2 em 2 horas por
+// semanas, remarcando o documento toda vez que alguém desmarcava.
+const TENTATIVAS_PATH = path.join(__dirname, 'gmail-tentativas.json');
+const MAX_TENTATIVAS = 3;
+function carregarTentativas() { try { return JSON.parse(fs.readFileSync(TENTATIVAS_PATH, 'utf8')); } catch (e) { return {}; } }
+function salvarTentativas(t) { try { gravarInteiro(TENTATIVAS_PATH, JSON.stringify(t)); } catch (e) {} }
 function carregarSemCliente() {
   try { return JSON.parse(fs.readFileSync(SEM_CLIENTE_PATH, 'utf8')); }
   catch (e) { return {}; }
@@ -351,6 +366,7 @@ async function main() {
   const cobrancaSnap = await db.collection('config').doc('cobranca').get();
   const DIA_LIMITE = Number((cobrancaSnap.data() || {}).diaLimite) || 0;
 
+  const tentativas = carregarTentativas();
   const processados = RELER ? new Set() : carregarProcessados();
   const jaProcessados = carregarProcessados();
   const semCliente = RELER ? {} : carregarSemCliente();
@@ -381,17 +397,18 @@ async function main() {
   let desdeUltimoSalvo = 0;
   const guardarAndamento = () => {
     if (SIMULAR || UMA_MENSAGEM) return;
-    try { salvarProcessados(processados); fs.writeFileSync(SEM_CLIENTE_PATH, JSON.stringify(semCliente)); } catch (e) { /* tenta de novo no fim */ }
+    try { salvarProcessados(processados); gravarInteiro(SEM_CLIENTE_PATH, JSON.stringify(semCliente)); salvarTentativas(tentativas); } catch (e) { /* tenta de novo no fim */ }
   };
   process.once('SIGINT', () => { guardarAndamento(); process.exit(130); });
 
   for (const id of ids) {
-    if (++desdeUltimoSalvo >= 20) { desdeUltimoSalvo = 0; guardarAndamento(); }
+    if (desdeUltimoSalvo >= 20) { desdeUltimoSalvo = 0; guardarAndamento(); }
     if (!UMA_MENSAGEM) {
       if (processados.has(id)) continue;
       if (semCliente[id] && !ehConhecido(semCliente[id])) continue;   // ainda sem cliente: nada mudou
     }
     cont.emails++;
+    desdeUltimoSalvo++;
     try {
       await dormir(120);
       const msg = await comRetentativa(() => gmail.users.messages.get({ userId: 'me', id, format: 'full' }));
@@ -522,8 +539,9 @@ async function main() {
         });
         cont.marcados++;
         // o link que mostra este cliente: o dele ou o da empresa principal do grupo
-        const donoDoLink = cliente.portalToken ? cliente : clientesPorId.get(cliente.grupoLocal);
-        if (donoDoLink && donoDoLink.portalToken) portaisATocar.set(donoDoLink.id, donoDoLink);
+        [cliente, clientesPorId.get(cliente.grupoLocal)].forEach(dono => {
+          if (dono && dono.portalToken) portaisATocar.set(dono.id, dono);
+        });
         console.log(`  ${cliente.nome} (${competencia}): ${tipos.join(', ')} — ${comBytes.length} anexo(s)`);
       } else {
         console.log(`  ${cliente.nome} (${competencia}): conversa registrada${anexos.length ? ', anexo sem tipo reconhecido' : ''}`);
@@ -532,7 +550,17 @@ async function main() {
       await gravar(db, cliente.id + '_' + competencia, patch);
       // Anexo que não baixou (queda de rede): o e-mail fica de fora dos já
       // lidos e a próxima leitura tenta de novo, em vez de nunca marcar.
-      if (!faltouAnexo) processados.add(id);
+      if (faltouAnexo) {
+        tentativas[id] = (tentativas[id] || 0) + 1;
+        if (tentativas[id] >= MAX_TENTATIVAS) {
+          processados.add(id);
+          delete tentativas[id];
+          console.error('  desisti do anexo que não baixa (3 tentativas):', assunto);
+        }
+      } else {
+        processados.add(id);
+        delete tentativas[id];
+      }
     } catch (err) {
       cont.erros++;
       console.error('Erro no e-mail', id, '-', err.message);
@@ -560,7 +588,7 @@ async function main() {
     if (!SIMULAR) {
       await db.collection('robo').doc('estado').set(Object.assign({ caixa }, comSalvos()), { merge: true });
       salvarProcessados(processados);
-      fs.writeFileSync(SEM_CLIENTE_PATH, JSON.stringify(semCliente));
+      gravarInteiro(SEM_CLIENTE_PATH, JSON.stringify(semCliente)); salvarTentativas(tentativas);
     }
     // A última linha é lida pelo vigia pra responder à tela.
     console.log('RESULTADO:' + JSON.stringify(resultado || { mensagemId: UMA_MENSAGEM, erro: 'e-mail não encontrado' }));
@@ -605,7 +633,7 @@ async function main() {
   if (!SIMULAR) {
     await roboRef.set(Object.assign({ ultimaExecucao: execucao.em, ultimaExecucaoResumo: resumo, naoReconhecidos, execucoes, caixa }, comSalvos()), { merge: true });
     salvarProcessados(processados);
-    fs.writeFileSync(SEM_CLIENTE_PATH, JSON.stringify(semCliente));
+    gravarInteiro(SEM_CLIENTE_PATH, JSON.stringify(semCliente)); salvarTentativas(tentativas);
   }
 
   console.log('---');

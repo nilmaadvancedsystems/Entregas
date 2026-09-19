@@ -69,12 +69,14 @@ function montarTexto(d) {
 async function juntarDados(db, agora) {
   const segunda = segundaDaSemana(agora);
   const inicio = segunda.toISOString();
-  const entregasSnap = await db.collection('entregas').where('confirmadoEm', '>=', inicio).get();
+  // só a semana pedida: o resumo que sai atrasado na segunda não pode contar as entregas da própria segunda
+  const fim = new Date(segunda.getFullYear(), segunda.getMonth(), segunda.getDate() + 7).toISOString();
+  const entregasSnap = await db.collection('entregas').where('confirmadoEm', '>=', inicio).where('confirmadoEm', '<', fim).get();
   const entregas = entregasSnap.docs.map(x => x.data());
 
   const portaisSnap = await db.collection('portais').get();
   const abriram = [];
-  portaisSnap.forEach(p => { const v = p.data().visto; if (v && v.ultima && v.ultima >= inicio) abriram.push(p.data().clienteNome || 'cliente'); });
+  portaisSnap.forEach(p => { const v = p.data().visto; if (v && v.ultima && v.ultima >= inicio && v.ultima < fim) abriram.push(p.data().clienteNome || 'cliente'); });
 
   // clientes: do arquivo que o vigia mantém (sem gastar leitura); senão, do banco
   const clientes = [];
@@ -106,20 +108,34 @@ async function juntarDados(db, agora) {
   };
 }
 
+// Qual semana está devendo resumo agora? A desta semana, se já passou de sexta
+// 17h; senão a ANTERIOR (PC desligado de sexta a domingo: o resumo sai na
+// segunda, falando da semana que passou). Devolve a data de referência.
+function semanaDevida(agora) {
+  if (horaDoResumo(agora)) return agora;
+  const s = segundaDaSemana(agora);
+  return new Date(s.getFullYear(), s.getMonth(), s.getDate() - 1, 23, 0, 0);   // domingo passado, 23h
+}
+
 function iniciarResumoSemanal({ db, log, enviar, destino }) {
   const estadoRef = db.collection('robo').doc('estado');
   let rodando = false;
+  let semanaFeita = '';
   async function talvez() {
-    const agora = new Date();
-    if (rodando || !horaDoResumo(agora)) return;
+    const ref = semanaDevida(new Date());
+    const semana = iso(segundaDaSemana(ref));
+    if (rodando || semanaFeita === semana) return;
     rodando = true;
     try {
-      const semana = iso(segundaDaSemana(agora));
       const { estado, para } = await destino();
-      if (estado.resumoSemana === semana || !para) return;
-      const r = montarTexto(await juntarDados(db, agora));
+      if (!para) return;
+      if (estado.resumoSemana && estado.resumoSemana >= semana) { semanaFeita = semana; return; }
+      const r = montarTexto(await juntarDados(db, ref));
+      // marca ANTES de enviar: se a marca falhar, não sai e-mail; se o envio
+      // falhar, perde-se um resumo — melhor que o mesmo e-mail de hora em hora
+      await estadoRef.set({ resumoSemana: semana, resumoSemanaEm: new Date().toISOString() }, { merge: true });
+      semanaFeita = semana;
       await enviar({ para, assunto: r.assunto, corpo: r.texto });
-      await estadoRef.set({ resumoSemana: semana, resumoSemanaEm: agora.toISOString() }, { merge: true });
       log('resumo da semana enviado para', para);
     } catch (err) {
       log('não consegui mandar o resumo da semana:', err.message);
@@ -130,4 +146,4 @@ function iniciarResumoSemanal({ db, log, enviar, destino }) {
   log('resumo da semana ligado (sexta, a partir das ' + HORA_DO_RESUMO + 'h)');
 }
 
-module.exports = { montarTexto, horaDoResumo, segundaDaSemana, iniciarResumoSemanal };
+module.exports = { montarTexto, horaDoResumo, segundaDaSemana, semanaDevida, iniciarResumoSemanal };

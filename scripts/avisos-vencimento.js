@@ -14,7 +14,20 @@
 const { getMessaging } = require('firebase-admin/messaging');
 const { FieldValue } = require('firebase-admin/firestore');
 
-const BASE = 'https://nilmaadvancedsystems.github.io/Entregas/entregas.html';
+const fs = require('fs');
+const path = require('path');
+const BASE = 'https://nilmaadvancedsystems.github.io/Entregas/cliente.html';
+// Quem já foi avisado hoje fica num arquivo deste PC. Se o vigia cair no meio
+// da rodada e religar, os primeiros clientes não recebem o mesmo aviso de novo.
+const ARQ_FEITOS = path.join(__dirname, 'avisos-vencimento-feitos.json');
+function lerFeitos(dia) {
+  try { const j = JSON.parse(fs.readFileSync(ARQ_FEITOS, 'utf8')); return j.dia === dia ? new Set(j.tokens) : new Set(); } catch (e) { return new Set(); }
+}
+function gravarFeitos(dia, feitos) {
+  try { fs.writeFileSync(ARQ_FEITOS, JSON.stringify({ dia, tokens: Array.from(feitos) })); } catch (e) {}
+}
+// endereço de aviso que o Firebase diz que não existe mais (ou nunca existiu)
+const ENDERECO_MORTO = ['messaging/registration-token-not-registered', 'messaging/invalid-registration-token', 'messaging/invalid-argument'];
 const HORA_MINIMA = 8;
 
 const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -47,40 +60,58 @@ function textoDoAviso(achadas) {
 }
 
 async function avisarHoje(db, log, hoje) {
+  const dia = iso(hoje);
+  const feitos = lerFeitos(dia);
   const snap = await db.collection('portais').get();
-  let enviados = 0;
+  let enviados = 0, falhas = 0, primeiroErro = '';
   for (const doc of snap.docs) {
-    const p = doc.data();
-    const enderecos = Array.isArray(p.avisar) ? p.avisar.filter(t => typeof t === 'string' && t) : [];
-    if (!enderecos.length) continue;
-    const achadas = guiasParaAvisar(p.entregas && p.entregas.lista, hoje);
-    if (!achadas.length) continue;
-    const t = textoDoAviso(achadas);
-    const r = await getMessaging().sendEachForMulticast({
-      tokens: enderecos,
-      notification: { title: t.titulo, body: t.corpo },
-      data: { tag: 'vencimento' },
-      webpush: { fcmOptions: { link: BASE + '?portal=' + doc.id } },
-    });
-    enviados += r.successCount;
-    const mortos = enderecos.filter((_, i) => r.responses[i].error && r.responses[i].error.code === 'messaging/registration-token-not-registered');
-    if (mortos.length) await doc.ref.update({ avisar: FieldValue.arrayRemove(...mortos) }).catch(() => {});
+    if (feitos.has(doc.id)) continue;
+    // um cliente com problema não pode parar o aviso dos outros
+    try {
+      const p = doc.data();
+      const enderecos = Array.isArray(p.avisar) ? p.avisar.filter(t => typeof t === 'string' && t) : [];
+      if (!enderecos.length) continue;
+      const achadas = guiasParaAvisar(p.entregas && p.entregas.lista, hoje);
+      if (!achadas.length) continue;
+      const t = textoDoAviso(achadas);
+      // Só "data": quem mostra o aviso é o service worker da página, que sabe
+      // abrir o endereço do cliente no toque. Com "notification" o Firebase
+      // mostrava por conta própria e o toque abria a tela de login do escritório.
+      const r = await getMessaging().sendEachForMulticast({
+        tokens: enderecos,
+        data: { titulo: t.titulo, corpo: t.corpo, tag: 'vencimento', link: BASE + '?portal=' + doc.id },
+        webpush: { headers: { Urgency: 'high', TTL: '43200' } },
+      });
+      enviados += r.successCount;
+      falhas += r.failureCount;
+      r.responses.forEach(x => { if (x.error && !primeiroErro) primeiroErro = x.error.code || x.error.message; });
+      feitos.add(doc.id);
+      gravarFeitos(dia, feitos);
+      const mortos = enderecos.filter((_, i) => r.responses[i].error && ENDERECO_MORTO.includes(r.responses[i].error.code));
+      if (mortos.length) await doc.ref.update({ avisar: FieldValue.arrayRemove(...mortos) }).catch(() => {});
+    } catch (err) {
+      falhas++;
+      if (!primeiroErro) primeiroErro = err.message;
+    }
   }
+  if (falhas) log('lembretes de vencimento:', falhas, 'falha(s); a primeira foi:', primeiroErro);
   return enviados;
 }
 
 function iniciarAvisosDeVencimento(db, log) {
   const estadoRef = db.collection('robo').doc('estado');
   let rodando = false;
+  let feitoNoDia = '';   // na memória: não pergunta ao banco de meia em meia hora se já foi
   async function talvez() {
     const agora = new Date();
-    if (rodando || agora.getHours() < HORA_MINIMA) return;
+    if (rodando || agora.getHours() < HORA_MINIMA || feitoNoDia === iso(agora)) return;
     rodando = true;
     try {
       const estado = (await estadoRef.get()).data() || {};
-      if (estado.vencimentos && estado.vencimentos.ultimoDia === iso(agora)) return;
+      if (estado.vencimentos && estado.vencimentos.ultimoDia === iso(agora)) { feitoNoDia = iso(agora); return; }
       const enviados = await avisarHoje(db, log, agora);
       await estadoRef.set({ vencimentos: { ultimoDia: iso(agora), enviados, em: agora.toISOString() } }, { merge: true });
+      feitoNoDia = iso(agora);
       log('lembretes de vencimento pros clientes:', enviados, 'enviado(s)');
     } catch (err) {
       log('lembretes de vencimento falharam:', err.message);

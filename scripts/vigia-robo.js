@@ -220,10 +220,12 @@ function rodarRobo(dias, motivo) {
     const guardar = b => { String(b).split(/\r?\n/).filter(Boolean).forEach(l => { saida.push(l); if (saida.length > 40) saida.shift(); }); };
     filho.stdout.on('data', guardar);
     filho.stderr.on('data', guardar);
+    filho.on('error', err => { lendo = false; log('não consegui iniciar a leitura:', err.message); resolve({ ok: false, resumo: '', erro: err.message }); });
     filho.on('close', async code => {
       lendo = false;
       const ultima = saida.filter(l => !/limite de uso/.test(l)).slice(-1)[0] || '';
-      const robo = (await roboRef.get()).data() || {};
+      let robo = {};
+      try { robo = (await roboRef.get()).data() || {}; } catch (err) { log('não consegui ler o estado depois da leitura:', err.message); }
       const ok = code === 0;
       await roboRef.set({
         status: ok ? 'ok' : 'erro', statusEm: agora(),
@@ -375,13 +377,14 @@ async function montarResumo(hoje) {
 }
 
 let resumindo = false;
+let resumoFeitoNoDia = '';   // na memória: sem isto eram até 360 leituras por noite só pra ouvir "já foi"
 async function talvezMandarResumo() {
-  if (resumindo || new Date().getHours() < HORA_DO_RESUMO) return;
+  if (resumindo || new Date().getHours() < HORA_DO_RESUMO || resumoFeitoNoDia === hojeLocal()) return;
   resumindo = true;
   try {
     const hoje = hojeLocal();
     const { estado, para } = await destinoDosAvisos();
-    if (estado.resumoDia === hoje) return;
+    if (estado.resumoDia === hoje) { resumoFeitoNoDia = hoje; return; }
     const r = await montarResumo(hoje);
     const fimDeSemana = [0, 6].includes(new Date().getDay());
     if (fimDeSemana && !r.houveAlgo) { await roboRef.set({ resumoDia: hoje }, { merge: true }); return; }
@@ -532,9 +535,30 @@ function desligar() {
 process.on('SIGINT', desligar);
 process.on('SIGTERM', desligar);
 
+// ---------- freio de reinício ----------
+// O vigia-laco.cmd religa o vigia 30s depois de qualquer queda. Cada partida lê
+// os clientes, os links e a rota (umas 450 leituras). Num dia de banco fora do
+// ar — cota do plano gratuito estourada, por exemplo — o vigia cai, religa, lê
+// tudo, cai de novo: 120 vezes por hora, o que sozinho acaba com a cota do dia
+// seguinte também. Aqui, partida que acontece logo depois de outra espera cada
+// vez mais ANTES de tocar no banco: 1, 2, 4... até 30 minutos.
+const ARQ_PARTIDAS = path.join(__dirname, 'vigia-partidas.json');
+function esperaAntesDeLigar(agoraMs) {
+  let p = { ultima: 0, seguidas: 0 };
+  try { p = Object.assign(p, JSON.parse(fs.readFileSync(ARQ_PARTIDAS, 'utf8'))); } catch (e) {}
+  const seguidas = agoraMs - p.ultima < 10 * 60000 ? p.seguidas + 1 : 0;
+  try { fs.writeFileSync(ARQ_PARTIDAS, JSON.stringify({ ultima: agoraMs, seguidas })); } catch (e) {}
+  return seguidas < 2 ? 0 : Math.min(30, Math.pow(2, seguidas - 2)) * 60000;
+}
+// Promessa rejeitada sem tratamento derruba o processo no Node novo. Aqui vira
+// linha no log: um aviso que não saiu não pode levar o robô do Gmail junto.
+process.on('unhandledRejection', err => { log('erro não tratado (segui rodando):', err && err.message ? err.message : String(err)); });
+
 if (SO_VER_RESUMO) {
   montarResumo(hojeLocal()).then(r => { console.log('Assunto: ' + r.assunto + '\n\n' + r.texto); process.exit(0); })
     .catch(err => { console.error('ERRO:', err.message); process.exit(1); });
 } else {
-  iniciar().catch(err => { log('ERRO ao iniciar:', err.message); process.exit(1); });
+  const espera = esperaAntesDeLigar(Date.now());
+  if (espera) log('muitas partidas seguidas: espero', Math.round(espera / 60000), 'min antes de ligar (pra não gastar o banco à toa)');
+  setTimeout(() => { iniciar().catch(err => { log('ERRO ao iniciar:', err.message); process.exit(1); }); }, espera);
 }

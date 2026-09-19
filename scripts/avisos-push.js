@@ -17,10 +17,19 @@ const JANELA_MS = 20000;   // junta o que acontece em 20s num aviso só (rota mo
 function iniciarAvisos(db, log) {
   const ligadoEm = new Date().toISOString();
 
+  // a equipe muda pouco: uma leitura dos usuários vale por 10 minutos
+  let usuariosLidos = null, usuariosEm = 0;
+  async function usuarios() {
+    if (!usuariosLidos || Date.now() - usuariosEm > 10 * 60000) {
+      const snap = await db.collection('usuarios').get();
+      usuariosLidos = snap.docs.map(d => ({ id: d.id, data: () => d.data() }));
+      usuariosEm = Date.now();
+    }
+    return usuariosLidos;
+  }
   async function tokensDe(papel, menosEmail) {
-    const snap = await db.collection('usuarios').get();
     const alvos = [];
-    snap.forEach(d => {
+    (await usuarios()).forEach(d => {
       const u = d.data();
       const papeis = Array.isArray(u.roles) ? u.roles : [];
       if (!papeis.includes(papel)) return;
@@ -33,19 +42,21 @@ function iniciarAvisos(db, log) {
   async function enviar(papel, menosEmail, titulo, corpo, tag) {
     const alvos = await tokensDe(papel, menosEmail);
     if (!alvos.length) return;
+    // Só "data": o service worker do app monta o aviso e sabe o que abrir no toque
     const r = await getMessaging().sendEachForMulticast({
       tokens: alvos.map(a => a.token),
-      notification: { title: titulo, body: corpo },
-      data: { tag },
-      webpush: { fcmOptions: { link: 'https://nilmaadvancedsystems.github.io/Entregas/entregas.html' } },
+      data: { titulo, corpo, tag, link: 'https://nilmaadvancedsystems.github.io/Entregas/entregas.html' },
+      webpush: { headers: { Urgency: 'high' } },
     });
-    log('aviso "' + titulo + '":', r.successCount, 'entregue(s),', r.failureCount, 'falha(s)');
+    const erro = (r.responses.find(x => x.error) || {}).error;
+    log('aviso "' + titulo + '":', r.successCount, 'entregue(s),', r.failureCount, 'falha(s)' + (erro ? ' (' + (erro.code || erro.message) + ')' : ''));
     // token morto (app desinstalado, permissão tirada) sai do cadastro
     const { FieldValue } = require('firebase-admin/firestore');
     r.responses.forEach((resp, i) => {
       const codigo = resp.error && resp.error.code;
-      if (codigo === 'messaging/registration-token-not-registered') {
+      if (codigo === 'messaging/registration-token-not-registered' || codigo === 'messaging/invalid-registration-token') {
         db.collection('usuarios').doc(alvos[i].uid).update({ fcmTokens: FieldValue.arrayRemove(alvos[i].token) }).catch(() => {});
+        usuariosLidos = null;
       }
     });
   }
@@ -83,22 +94,28 @@ function iniciarAvisos(db, log) {
 
   // Só o que acontece DEPOIS de o vigia ligar: a primeira leva do ouvinte traz
   // tudo que já existia, e avisar disso seria uma rajada a cada reinício.
-  db.collection('entregas').where('status', '==', 'pendente').onSnapshot(snap => {
+  // Consulta pelo que foi CRIADO depois de o vigia ligar (e filtra "pendente"
+  // aqui): ouvir todas as pendentes lia a rota inteira a cada partida.
+  const { ouvir } = require('./ouvinte');
+  const jaAvisadas = new Set();
+  ouvir('avisos (rota)', () => db.collection('entregas').where('criadoEm', '>=', ligadoEm), snap => {
     snap.docChanges().forEach(m => {
-      if (m.type !== 'added') return;
+      if (m.type !== 'added' || jaAvisadas.has(m.doc.id)) return;
       const e = m.doc.data();
-      if (String(e.criadoEm || '') < ligadoEm) return;
+      if (e.status !== 'pendente') return;
+      jaAvisadas.add(m.doc.id);
       novaParada(e.entregadoPor || '', e);
     });
-  }, err => log('avisos: perdi o ouvinte da rota:', err.message));
-
-  db.collection('entregas').where('confirmadoEm', '>=', ligadoEm).onSnapshot(snap => {
+  }, log);
+  ouvir('avisos (entregas)', () => db.collection('entregas').where('confirmadoEm', '>=', ligadoEm), snap => {
     snap.docChanges().forEach(m => {
-      if (m.type !== 'added') return;
+      if (m.type !== 'added' || jaAvisadas.has('f:' + m.doc.id)) return;
       const e = m.doc.data();
-      if (e.status === 'falha') naoEntregue(e.entregadoPor || '', e);
+      if (e.status !== 'falha') return;
+      jaAvisadas.add('f:' + m.doc.id);
+      naoEntregue(e.entregadoPor || '', e);
     });
-  }, err => log('avisos: perdi o ouvinte das entregas:', err.message));
+  }, log);
 
   log('avisos no celular ligados (parada nova pro office boy, entrega não realizada pro admin)');
   // quem mais quiser avisar (o vigia de CNPJ) usa o mesmo envio

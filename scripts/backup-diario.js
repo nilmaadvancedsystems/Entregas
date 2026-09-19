@@ -8,7 +8,13 @@
 const path = require('path');
 const { spawn } = require('child_process');
 
+// Entre 12h e 20h: nesse intervalo a data daqui e a data UTC (que o
+// backup-firestore.js usa no nome do arquivo) são a mesma. Rodando depois das
+// 21h o arquivo saía com a data de amanhã, e o backup de amanhã respondia "já
+// existe" sem ter lido nada.
 const HORA_MINIMA = 12;
+const HORA_MAXIMA = 20;
+const MAX_TENTATIVAS = 2;     // o backup lê o banco inteiro: falhou duas vezes, fica pra amanhã
 const hojeIso = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 
 function rodarBackup() {
@@ -30,18 +36,24 @@ function rodarBackup() {
 function iniciarBackupDiario(db, log) {
   const estadoRef = db.collection('robo').doc('estado');
   let rodando = false;
+  let feitoNoDia = '', tentativasNoDia = 0, diaDasTentativas = '';
   async function talvez() {
-    if (rodando || new Date().getHours() < HORA_MINIMA) return;
+    const hora = new Date().getHours();
+    if (rodando || hora < HORA_MINIMA || hora >= HORA_MAXIMA || feitoNoDia === hojeIso()) return;
+    if (diaDasTentativas !== hojeIso()) { diaDasTentativas = hojeIso(); tentativasNoDia = 0; }
+    if (tentativasNoDia >= MAX_TENTATIVAS) return;
     rodando = true;
     try {
       const estado = (await estadoRef.get()).data() || {};
-      if (estado.backup && estado.backup.dia === hojeIso() && estado.backup.ok) return;
+      if (estado.backup && estado.backup.dia === hojeIso() && estado.backup.ok) { feitoNoDia = hojeIso(); return; }
+      tentativasNoDia++;
       log('backup do dia: começando');
       const r = await rodarBackup();
       // "em" só anda quando deu certo: é a data do último backup BOM
       const patch = { dia: hojeIso(), ok: r.ok, resumo: r.resumo, tentadoEm: new Date().toISOString() };
       if (r.ok) patch.em = patch.tentadoEm;
       await estadoRef.set({ backup: patch }, { merge: true });
+      if (r.ok) feitoNoDia = hojeIso();
       log('backup do dia:', r.ok ? 'ok' : 'FALHOU', '-', r.resumo);
     } catch (err) {
       log('backup do dia falhou:', err.message);
@@ -49,7 +61,7 @@ function iniciarBackupDiario(db, log) {
   }
   setTimeout(talvez, 10 * 60 * 1000);
   setInterval(talvez, 60 * 60 * 1000);
-  log('backup diário ligado (uma vez por dia, a partir das ' + HORA_MINIMA + 'h)');
+  log('backup diário ligado (uma vez por dia, entre ' + HORA_MINIMA + 'h e ' + HORA_MAXIMA + 'h)');
 }
 
 module.exports = { iniciarBackupDiario };

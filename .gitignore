@@ -22,3 +22,9 @@ scripts/vigia.lock
 scripts/gemini_key.json
 # lista de clientes que o vigia guarda no PC do robô (dado de cliente)
 scripts/clientes-cache.json
+
+# freio de reinício do vigia
+scripts/vigia-partidas.json
+scripts/*.tmp
+scripts/avisos-vencimento-feitos.json
+scripts/gmail-tentativas.json
