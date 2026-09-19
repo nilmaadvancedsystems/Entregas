@@ -4470,13 +4470,31 @@
   function numeroDaCobranca(clienteId) {
     return cobrancasDe(clienteId).filter(function (c) { return c.canal !== 'coleta'; }).length + 1;
   }
+  // Cliente com link próprio (clientes.portalToken) recebe o link na cobrança:
+  // lá ele vê a lista certa do que falta, e ela se atualiza sozinha quando o
+  // documento chega. Entra sem ninguém mexer nos modelos salvos; quem quiser
+  // escolher o lugar escreve {link} no modelo. Só na cobrança individual —
+  // o lote é um e-mail só pra vários clientes em cópia oculta.
+  function linkDoPortal(cliente) {
+    return cliente && cliente.portalToken ? new URL('entregas.html?portal=' + cliente.portalToken, location.href).href : '';
+  }
+  function comLinkDoPortal(modelo, texto, link, frase) {
+    if (!link || /\{link\}/.test(modelo)) return texto;
+    return texto + frase + link;
+  }
   function montarMensagem(cliente, faltando) {
     var vars = variaveisDe(cliente, faltando);
+    vars.link = linkDoPortal(cliente);
     var modelo = configCobranca.modelos[String(Math.min(vars.n, 3))] || configCobranca.modelos['1'];
-    return { assunto: preencherModelo(modelo.assunto, vars), corpo: preencherModelo(modelo.corpo, vars), n: vars.n };
+    var corpo = comLinkDoPortal(modelo.corpo, preencherModelo(modelo.corpo, vars), vars.link,
+      '\n\nO que já recebemos e o que ainda falta fica sempre atualizado aqui:\n');
+    return { assunto: preencherModelo(modelo.assunto, vars), corpo: corpo, n: vars.n };
   }
   function montarWhatsApp(cliente, faltando) {
-    return preencherModelo(configCobranca.whatsapp, variaveisDe(cliente, faltando));
+    var vars = variaveisDe(cliente, faltando);
+    vars.link = linkDoPortal(cliente);
+    return comLinkDoPortal(configCobranca.whatsapp, preencherModelo(configCobranca.whatsapp, vars), vars.link,
+      ' Veja o que falta aqui: ');
   }
   function telefoneParaWa(tel) {
     var d = String(tel || '').replace(/\D/g, '');
@@ -4963,7 +4981,7 @@
   var VARIAVEIS = [
     ['{cliente}', 'nome do cliente'], ['{mes}', 'competência por extenso'], ['{lista}', 'documentos em falta, um por linha'],
     ['{documentos}', 'documentos em falta, na mesma linha'], ['{prazo}', 'dia limite (ex.: 10/10)'], ['{n}', 'nº da cobrança, ou nº de clientes no lote'],
-    ['{assinatura}', 'quem assina'], ['{caixa}', 'e-mail que o robô lê']
+    ['{assinatura}', 'quem assina'], ['{caixa}', 'e-mail que o robô lê'], ['{link}', 'link do cliente, se ele tiver (sem isto, vai no fim da mensagem)']
   ];
   var cfgAba = 'geral';
   var cfgPreviewQual = '1';

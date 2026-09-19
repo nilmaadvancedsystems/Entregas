@@ -1169,6 +1169,10 @@
   /* Celular deitado: a faixa come a tela toda. */
   @media (max-height: 460px) { .auth-side { display: none; } }
 
+  /* nomes de quem costuma receber, logo abaixo do campo */
+  .recebedor-sugestoes { display: flex; flex-wrap: wrap; gap: 6px; margin: calc(var(--esp-2) - var(--esp-4)) 0 var(--esp-4); }
+  .recebedor-sugestoes .btn-chip { min-height: 32px; font-size: var(--t-sm); color: var(--ink-soft); }
+
   /* ---------- módulo Clientes (entrada própria no início) ---------- */
   /* Aqui é cadastro: o que é assunto de rota fica em Entregas. */
   body.modo-clientes #qualidadeRotaCard { display: none !important; }
@@ -1199,6 +1203,12 @@
   .portal-pagar { margin-top: var(--esp-3); }
   .portal-pagar .btn-chip { gap: 8px; }
   .portal-comprovante img { display: block; width: 100%; max-width: 320px; background: #fff; border: 1px solid var(--border); border-radius: var(--r-sm); }
+  /* QR sempre sobre branco: em tema escuro o leitor da câmera não pega */
+  .portal-qr { display: flex; justify-content: center; margin: var(--esp-3) 0; }
+  .portal-qr:empty { display: none; }
+  .portal-qr img, .portal-qr canvas { background: #fff; padding: 10px; border-radius: var(--r-sm); box-sizing: content-box; }
+  .portal-qr-dobra { margin-top: var(--esp-3); }
+  .portal-qr-dobra summary { cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
   .portal-vazio { font-size: var(--t-sm); color: var(--ink-soft); margin: var(--esp-3) 0; }
 
   /* ---------- acompanhar rota (tela pública do cliente) ---------- */
@@ -4378,6 +4388,53 @@
   // empresa que já mora numa parte fixa da cidade.
   function aplicarZonaDoCliente_(c) {
     if (!$('zonaField').hidden && c && c.zona) $('zonaSelect').value = c.zona;
+    sugerirRecebedores_(c && c.id, $('recebedorInput'));
+  }
+
+  // ---------- quem costuma receber ----------
+  // Em quase todo cliente é sempre a mesma pessoa que assina. Em vez de
+  // digitar o nome na calçada, um toque: os nomes saem das entregas que esse
+  // cliente já recebeu, o mais frequente primeiro. Sem sinal, vale o que o
+  // aparelho já tiver guardado.
+  function sugerirRecebedores_(clienteId, campo) {
+    if (!campo) return;
+    var rotulo = campo.closest('label') || campo;
+    var velho = rotulo.nextElementSibling;
+    if (velho && velho.classList.contains('recebedor-sugestoes')) velho.remove();
+    if (!db || !clienteId) return;
+    db.collection('entregas').where('clienteId', '==', clienteId).limit(120).get().then(function (snap) {
+      if (!document.body.contains(campo)) return;
+      var nomes = {};
+      snap.docs.forEach(function (d) {
+        var e = d.data();
+        var nome = String(e.recebedor || '').trim().replace(/\s+/g, ' ');
+        if (nome.length < 2) return;
+        var chave = nome.toLowerCase();
+        var atual = nomes[chave] || (nomes[chave] = { nome: nome, vezes: 0, ultima: '' });
+        atual.vezes++;
+        if (String(e.confirmadoEm || '') > atual.ultima) { atual.ultima = String(e.confirmadoEm || ''); atual.nome = nome; }
+      });
+      var lista = Object.keys(nomes).map(function (k) { return nomes[k]; })
+        .sort(function (a, b) { return b.vezes - a.vezes || b.ultima.localeCompare(a.ultima); })
+        .slice(0, 3);
+      if (!lista.length) return;
+      var caixa = document.createElement('div');
+      caixa.className = 'recebedor-sugestoes';
+      lista.forEach(function (r) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn-chip';
+        b.textContent = r.nome;
+        b.addEventListener('click', function () {
+          campo.value = r.nome;
+          campo.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+        caixa.appendChild(b);
+      });
+      var jaTem = rotulo.nextElementSibling;
+      if (jaTem && jaTem.classList.contains('recebedor-sugestoes')) jaTem.remove();
+      rotulo.insertAdjacentElement('afterend', caixa);
+    }).catch(function () {});
   }
 
   function renderSuggestions() {
@@ -4652,6 +4709,7 @@
       $('honorarioInfoHint').hidden = true;
     }
     $('recebedorInput').value = '';
+    sugerirRecebedores_(null, $('recebedorInput'));
     $('vencimentoInput').value = '';
     codigoPagamentoAtual_ = null;
     ultimoVencimentoAuto_ = null;
@@ -8149,6 +8207,7 @@
       $('loteFotoPreviewWrap').hidden = true;
     });
 
+    sugerirRecebedores_(entregas[0] && entregas[0].clienteId, $('loteRecebedor'));
     var lotePad = createSignaturePad($('loteSigCanvas'), 200);
     lotePad.onDraw = function () {
       $('loteSigStatus').innerHTML = '<i class="ph ph-check-circle" aria-hidden="true"></i> Assinatura capturada.';
@@ -8347,6 +8406,7 @@
             '<div class="geo-status" id="pendingGeoStatus"><i class="ph ph-map-pin" aria-hidden="true"></i> obtendo localização...</div>' +
           '</div>' +
           '<button type="button" class="btn btn-primary" id="pendingConfirmBtn">Confirmar entrega</button>' +
+          htmlQrDoPortal_(entrega.clienteId) +
           (podeExcluir(entrega) ? '<button type="button" class="btn-chip danger" id="excluirPendenteBtn" style="margin-top:10px;"><i class="ph ph-trash" aria-hidden="true"></i> Remover da rota</button>' : '') +
         '</div>' +
       '</div>';
@@ -8388,6 +8448,8 @@
       $('pendingFotoPreviewWrap').hidden = true;
     });
 
+    sugerirRecebedores_(entrega.clienteId, $('pendingRecebedor'));
+    ligarQrDoPortal_(entrega.clienteId);
     var pendingPad = createSignaturePad($('pendingSigCanvas'), 200);
     var assinaturaRemota = null;
 
@@ -11615,6 +11677,7 @@
               '<button type="button" class="btn-chip" id="portalCopiarBtn"><i class="ph ph-copy" aria-hidden="true"></i> Copiar link</button>' +
               '<button type="button" class="btn-chip" id="portalAbrirBtn"><i class="ph ph-arrow-square-out" aria-hidden="true"></i> Ver como o cliente vê</button>' +
             '</div>' +
+            '<div class="portal-qr" id="portalQrModal"></div>' +
             (admin ? '<details style="margin-top:14px"><summary class="card-hint" style="cursor:pointer">O link vazou?</summary>' +
               '<p class="card-hint">Trocar gera um link novo e o antigo para de funcionar na hora. O cliente precisa receber o novo.</p>' +
               '<button type="button" class="btn-chip danger" id="portalTrocarBtn"><i class="ph ph-arrows-clockwise" aria-hidden="true"></i> Trocar o link</button>' +
@@ -11641,11 +11704,36 @@
     if ($('portalTrocarBtn')) $('portalTrocarBtn').addEventListener('click', function () { var b = this; confirmarDuplo(b, function () { criar(b); }); });
     if (!tem) return;
     var link = linkDoPortal_(cliente.portalToken);
+    if (typeof QRCode !== 'undefined') new QRCode($('portalQrModal'), { text: link, width: 180, height: 180, correctLevel: QRCode.CorrectLevel.M });
     $('portalCopiarBtn').addEventListener('click', function () { copiarOuMostrar_('Link do cliente', link, 'Link copiado.'); });
     $('portalAbrirBtn').addEventListener('click', function () { window.open(link, '_blank'); });
     $('portalWhatsBtn').addEventListener('click', function () {
       var texto = 'Olá! Este é o seu link da Nilma Contabilidade. Nele você acompanha as guias entregues, os comprovantes e o que ainda falta enviar: ' + link;
       window.open(whatsAppUrl_(texto, cliente.telefone), '_blank');
+    });
+  }
+
+  // QR do link do cliente na hora da entrega: ele aponta a câmera, salva o
+  // link e passa a acompanhar guias e comprovantes sozinho. Só aparece pra
+  // cliente que já tem link criado. É uma dobra dentro do modal de propósito:
+  // trocar de tela ali apagaria a assinatura que já foi colhida.
+  function htmlQrDoPortal_(clienteId) {
+    var c = clienteId && clientesCache.get(clienteId);
+    if (!c || !c.portalToken) return '';
+    return '<details class="portal-qr-dobra" id="portalQrDobra"><summary class="card-hint"><i class="ph ph-qr-code" aria-hidden="true"></i> Mostrar o link do cliente</summary>' +
+      '<div class="portal-qr" id="portalQrCaixa"></div>' +
+      '<p class="card-hint" style="text-align:center;margin:0">O cliente aponta a câmera e guarda o link: guias, comprovantes e o que falta enviar.</p></details>';
+  }
+  function ligarQrDoPortal_(clienteId) {
+    var dobra = $('portalQrDobra');
+    var c = clienteId && clientesCache.get(clienteId);
+    if (!dobra || !c || !c.portalToken) return;
+    dobra.addEventListener('toggle', function () {
+      var caixa = $('portalQrCaixa');
+      if (!dobra.open || caixa.firstChild) return;
+      var link = linkDoPortal_(c.portalToken);
+      if (typeof QRCode !== 'undefined') new QRCode(caixa, { text: link, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.M });
+      else caixa.innerHTML = '<p class="card-hint" style="word-break:break-all">' + escapeHtml_(link) + '</p>';
     });
   }
 
