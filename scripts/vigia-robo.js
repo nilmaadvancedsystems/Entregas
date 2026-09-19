@@ -119,14 +119,13 @@ function montarMensagem({ para, cco, assunto, corpo, html, imagens }) {
     .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 const { htmlDaCobranca } = require('./email-html');
-// quem assina, do config/cobranca; lido no máximo a cada 10 min
-let assinaturaCache = { em: 0, valor: '' };
-async function assinaturaDoEscritorio() {
-  if (Date.now() - assinaturaCache.em > 10 * 60 * 1000) {
-    const c = (await db.collection('config').doc('cobranca').get()).data() || {};
-    assinaturaCache = { em: Date.now(), valor: c.assinatura || 'Nilma Contabilidade' };
+// assinatura e dia limite, do config/cobranca; lido no máximo a cada 10 min
+let configCache = { em: 0, valor: {} };
+async function configDaCobranca() {
+  if (Date.now() - configCache.em > 10 * 60 * 1000) {
+    configCache = { em: Date.now(), valor: (await db.collection('config').doc('cobranca').get()).data() || {} };
   }
-  return assinaturaCache.valor;
+  return configCache.valor;
 }
 
 async function enviar(dados) {
@@ -181,7 +180,9 @@ async function atenderUm(p) {
   let visual = {};
   try {
     const doMes = p.competencia ? ((await db.collection('documentosMensal').doc(cliente.id + '_' + p.competencia).get()).data() || {}) : {};
-    visual = htmlDaCobranca({ corpo: p.corpo, cliente, bancosRecebidos: doMes.bancosRecebidos, assinatura: await assinaturaDoEscritorio() });
+    const cfg = await configDaCobranca();
+    visual = htmlDaCobranca({ corpo: p.corpo, cliente, competencia: p.competencia, faltando: p.tipos, bancosRecebidos: doMes.bancosRecebidos,
+      diaLimite: cfg.diaLimite, assinatura: cfg.assinatura || 'Nilma Contabilidade', caixa: CAIXA });
   } catch (err) { log('cobrança sai só em texto:', err.message); }
   const gmailId = await enviar({ para, assunto: p.assunto, corpo: p.corpo, html: visual.html, imagens: visual.imagens });
   enviosRecentes.push(Date.now());

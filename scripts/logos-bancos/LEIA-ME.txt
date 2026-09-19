@@ -1,4 +1,7 @@
 Logos dos bancos usados na cobrança por e-mail (scripts/email-html.js) e no
-cadastro do cliente (entregas.html). Um PNG por banco, quadrado, até 200 KB,
-com o nome igual ao id em scripts/bancos.js: bb.png, caixa.png, sicoob.png...
-Banco sem arquivo aparece como selo com a cor e a sigla.
+cadastro do cliente (entregas.html). PNG 128x128, fundo branco, nome igual ao
+id em scripts/bancos.js. Banco sem arquivo aparece como selo com cor e sigla.
+
+Origem: SVGs do repositório github.com/Tgentil/Bancos-em-SVG, convertidos em
+2026-09-19. As marcas são dos próprios bancos; aqui só identificam de qual
+banco é o extrato que o cliente precisa mandar.

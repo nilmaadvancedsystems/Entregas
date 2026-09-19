@@ -240,13 +240,19 @@ igual('banco novo pro cadastro, sem o que o admin recusou', r.bancosNovos({ banc
 const eh = require('./email-html');
 const visual = eh.htmlDaCobranca({
   corpo: 'Olá,\n\nFaltam:\n\n- Extrato Bancário\n- Comprovante\n\nVeja aqui:\nhttps://x.github.io/cliente.html?portal=t\n\nObrigado,\nNilma',
-  cliente: { bancos: ['bb', 'sicoob', 'inexistente'] }, bancosRecebidos: ['bb'], assinatura: 'Nilma <Contabilidade>',
+  cliente: { bancos: ['bb', 'sicoob', 'inexistente'], documentosNaoAplicaveis: ['aplicacao'] }, competencia: '2026-08', bancosRecebidos: ['bb'],
+  diaLimite: 15, assinatura: 'Nilma <Contabilidade>', agora: new Date(2026, 8, 19),
 });
-igual('HTML: cartões, bancos com recebido/falta, botão e texto escapado', [
-  (visual.html.match(/border-radius:10px/g) || []).length, /Banco do Brasil[\s\S]*recebido/.test(visual.html), /Sicoob[\s\S]*falta/.test(visual.html),
-  /inexistente/.test(visual.html), /href="https:\/\/x\.github\.io\/cliente\.html\?portal=t"/.test(visual.html), /Nilma &lt;Contabilidade&gt;/.test(visual.html),
-], [2, true, true, false, true, true]);
-igual('HTML: sem arquivo de logo, selo com a sigla e nenhuma imagem anexada', [/>SICOOB</.test(visual.html) || visual.imagens.some(i => i.cid === 'banco-sicoob'), Array.isArray(visual.imagens)], [true, true]);
+igual('HTML: manchete, mês, bancos, botão, prazo vencido e texto escapado', [
+  /Faltam 2 documentos de agosto/.test(visual.html), />AGO 2026</.test(visual.html), /1 de 3 já chegaram/.test(visual.html),
+  /Banco do Brasil[\s\S]*?Recebido/.test(visual.html), /Sicoob[\s\S]*?Falta/.test(visual.html), /inexistente/.test(visual.html),
+  /href="https:\/\/x\.github\.io\/cliente\.html\?portal=t"/.test(visual.html), /Veja aqui:/.test(visual.html),
+  /O prazo era 15\/09 \(há 4 dias\)/.test(visual.html), /Nilma &lt;Contabilidade&gt;/.test(visual.html),
+], [true, true, true, true, true, false, true, false, true, true]);
+igual('HTML: logos e ícones anexados por cid, uma vez cada', [visual.imagens.some(i => i.cid === 'banco-bb'), visual.imagens.some(i => i.cid === 'icone-extrato'),
+  new Set(visual.imagens.map(i => i.cid)).size === visual.imagens.length], [true, true, true]);
+igual('prazo: no futuro', eh.textoDoPrazo('2026-08', 22, new Date(2026, 8, 19)).texto, 'Prazo: até 22/09 (faltam 3 dias)');
+igual('prazo: sem dia limite não aparece', eh.textoDoPrazo('2026-08', null), null);
 
 console.log(falhas ? '\n' + falhas + ' de ' + total + ' testes FALHARAM' : total + ' testes, todos passaram');
 process.exit(falhas ? 1 : 0);

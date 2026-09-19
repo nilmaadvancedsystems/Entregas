@@ -1,0 +1,3 @@
+Ícones do e-mail de cobrança (scripts/email-html.js), PNG 96x96.
+Origem: Phosphor Icons (MIT, phosphoricons.com), @phosphor-icons/core 2.1.1,
+a mesma família de ícones do app.
