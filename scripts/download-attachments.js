@@ -331,7 +331,8 @@ async function main() {
   const db = getDb('entregas-2e5e2');
   const FV = FieldValue;
 
-  const clientesSnap = await db.collection('clientes').where('ativo', '==', true).get();
+  // do arquivo que o vigia mantém, quando está fresco; senão, do banco
+  const clientesSnap = await require('./clientes-cache').clientesAtivos(db, m => console.log(m));
   const { porEmail, porDominio } = montarIndices(clientesSnap);
   console.log(`Clientes com e-mail: ${porEmail.size} endereços, ${porDominio.size} domínios próprios.`);
   if (SIMULAR) console.log('MODO SIMULAÇÃO: nada será gravado nem baixado.');

@@ -492,6 +492,8 @@ async function iniciar() {
   catch (err) { log('lembrete de vencimento desligado:', err.message); }
   try { require('./backup-diario').iniciarBackupDiario(db, log); }
   catch (err) { log('backup diário desligado:', err.message); }
+  try { require('./clientes-cache').manterArquivo(db, log); }
+  catch (err) { log('arquivo local de clientes desligado:', err.message); }
   limparFila();
   setInterval(limparFila, 24 * 36e5);
 

@@ -12757,9 +12757,32 @@
   // "Quem não mandou extrato esse mês?" — mesma regra da tela de Cobrança:
   // documento marcado "não se aplica" no cadastro não é falta, e mês marcado
   // "sem movimento" não tem pendência.
+  // A consulta rápida relia a competência inteira a cada pergunta: até 1000
+  // documentos de cobrança ou 3000 entregas por vez, e quem pergunta uma coisa
+  // pergunta outra em seguida. O mês lido fica na memória por 5 minutos, e as
+  // entregas da competência que o Painel já tem aberta nem são lidas de novo.
+  var cqMemoria_ = {};
+  function cqLerMes_(colecao, comp, limite) {
+    var chave = colecao + '|' + comp;
+    var guardado = cqMemoria_[chave];
+    if (guardado && Date.now() - guardado.em < 5 * 60000) return Promise.resolve(guardado.docs);
+    if (colecao === 'entregas' && comp === $('painelCompetencia').value && entregasPainelCache.length && entregasPainelCache.length < LIMITE_PAINEL) {
+      return Promise.resolve(entregasPainelCache.slice());
+    }
+    return db.collection(colecao).where('competencia', '==', comp).limit(limite).get().then(function (snap) {
+      var docs = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+      cqMemoria_[chave] = { em: Date.now(), docs: docs };
+      return docs;
+    });
+  }
+  // devolve algo com o mesmo forEach(d => d.data()) que o resto do código espera
+  function cqComoSnap_(docs) {
+    return { size: docs.length, empty: !docs.length, forEach: function (fn) { docs.forEach(function (x) { fn({ id: x.id, data: function () { return x; } }); }); } };
+  }
+
   function cqPendencias_(pergunta) {
     var comp = cqMes_(pergunta);
-    return db.collection('documentosMensal').where('competencia', '==', comp).limit(1000).get()
+    return cqLerMes_('documentosMensal', comp, 1000).then(cqComoSnap_)
       .then(function (snap) {
         var porCliente = new Map();
         snap.forEach(function (d) { porCliente.set(d.data().clienteId, d.data()); });
@@ -12802,7 +12825,7 @@
   // "Quantas entregas esse mês?" — números fechados da competência.
   function cqResumoMes_(pergunta) {
     var comp = cqMes_(pergunta);
-    return db.collection('entregas').where('competencia', '==', comp).limit(3000).get()
+    return cqLerMes_('entregas', comp, 3000).then(cqComoSnap_)
       .then(function (snap) {
         var total = 0, confirmadas = 0, pendentes = 0, assinadas = 0, valor = 0;
         var porCliente = new Map();

@@ -77,6 +77,20 @@ igual('dia sem vencimento não avisa', venc.guiasParaAvisar(guias, new Date(2026
 igual('texto de uma guia', venc.textoDoAviso(venc.guiasParaAvisar(guias, new Date(2026, 10, 18, 9))).titulo, 'Vence amanhã: DAS R$ 1.240,50');
 igual('texto de várias', venc.textoDoAviso(venc.guiasParaAvisar(guias, new Date(2026, 10, 19, 9))).titulo, '2 guias vencendo');
 
+// ---------- lista local de clientes (o robô não relê o cadastro a cada rodada) ----------
+const cache = require('./clientes-cache');
+const fsT = require('fs');
+const guardado = fsT.existsSync(cache.ARQUIVO) ? fsT.readFileSync(cache.ARQUIVO) : null;
+fsT.writeFileSync(cache.ARQUIVO, JSON.stringify({ em: new Date().toISOString(), clientes: [{ id: 'x', dados: { nome: 'EXEMPLO', email: 'a@exemplo.com.br' } }] }));
+igual('arquivo fresco é usado', (cache.lerDoArquivo() || []).length, 1);
+igual('arquivo com mais de 20 min é ignorado', cache.lerDoArquivo(Date.now() + cache.VALIDADE_MS + 1000), null);
+const vistos = [];
+cache.comoSnap(cache.lerDoArquivo()).forEach(d => vistos.push(d.id + ':' + d.data().email));
+igual('tem o mesmo formato que o robô espera do banco', vistos, ['x:a@exemplo.com.br']);
+fsT.writeFileSync(cache.ARQUIVO, 'lixo');
+igual('arquivo estragado é ignorado', cache.lerDoArquivo(), null);
+if (guardado) fsT.writeFileSync(cache.ARQUIVO, guardado); else fsT.unlinkSync(cache.ARQUIVO);
+
 // ---------- tipo de documento ----------
 igual('títulos pagos = comprovante', r.detectarTipos('TITULOS PAGOS SICOOB AGO2026.pdf'), ['comprovante']);
 igual('tit liquidados = comprovante', r.detectarTipos('TIT LIQUIDADOS BBDVCM AGO2026.pdf'), ['comprovante']);
