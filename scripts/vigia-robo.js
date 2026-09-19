@@ -501,6 +501,14 @@ async function iniciar() {
   catch (err) { log('entrega pelo link desligada:', err.message); }
   try { require('./resumo-semanal').iniciarResumoSemanal({ db, log, enviar, destino: destinoDosAvisos }); }
   catch (err) { log('resumo da semana desligado:', err.message); }
+  // Os dois abaixo mandam e-mail pra CLIENTE e vêm desligados: quem liga é o
+  // admin em Pendências › Configurações › Automático. Passam pelo mesmo freio
+  // por hora da fila de cobrança.
+  const correio = { enviar, podeEnviar: dentroDoLimite, contar: () => enviosRecentes.push(Date.now()), registrarCobranca };
+  try { require('./comprovante-email').iniciarComprovantePorEmail({ db, log, correio }); }
+  catch (err) { log('comprovante por e-mail desligado:', err.message); }
+  try { require('./regua-cobranca').iniciarReguaDeCobranca({ db, log, correio }); }
+  catch (err) { log('régua de cobrança desligada:', err.message); }
   limparFila();
   setInterval(limparFila, 24 * 36e5);
 

@@ -11624,6 +11624,7 @@
       { quem: ['admin'], icone: 'ph-chart-bar', titulo: 'Números do mês no Painel', texto: 'Entregas por pessoa, tipo de comprovante, ritmo por parada, por que falhou e quem mais falha.' },
       { quem: [], icone: 'ph-device-mobile', titulo: 'Página do cliente leve', texto: 'O link do cliente agora abre uma página própria de 30 KB, com "Para pagar" no topo e letras grandes. O endereço antigo continua valendo.' },
       { quem: [], icone: 'ph-seal-check', titulo: 'Protocolo com código de conferência', texto: 'O protocolo do mês sai com um QR e um código. Quem recebe o papel confere na página do cliente se ele saiu do escritório como está.' },
+      { quem: ['admin', 'contabil'], icone: 'ph-robot', titulo: 'Cobrança e comprovante automáticos', texto: 'Pendências › Configurações › Automático: o robô cobra sozinho quem não mandou os documentos nos dias escolhidos e manda o comprovante de cada entrega por e-mail. Vem desligado.' },
       { quem: ['admin'], icone: 'ph-download-simple', titulo: 'Página do cliente na tela inicial', texto: 'O cliente guarda a página dele como aplicativo e abre as guias direto pelo ícone.' },
       { quem: [], icone: 'ph-arrows-clockwise', titulo: 'Versão nova sem Ctrl+F5', texto: 'O app confere com o servidor sozinho. E este quadro passou a guardar o que veio em cada versão.' },
       { quem: ['admin'], icone: 'ph-shield-check', titulo: 'Revisão de segurança', texto: 'Entrega confirmada não pode mais ser desfeita por quem não é admin, e o robô ficou à prova de abuso pelo link do cliente.' }
@@ -12190,7 +12191,7 @@
       if (e.status === 'confirmada') {
         ev.push({ em: e.confirmadoEm || e.criadoEm, ico: 'ph-check-circle', cor: 'ok', titulo: (e.recebidoPeloLink ? 'Recebido pelo link: ' : 'Entregue: ') + itens + comp,
           sub: [e.recebedor ? 'recebido por ' + e.recebedor : '', e.entregadoPorNome ? 'entregue por ' + e.entregadoPorNome : '',
-            e.semComprovante ? 'sem comprovante' : ''].filter(Boolean).join(' · ') });
+            e.semComprovante ? 'sem comprovante' : '', e.comprovanteEmail && e.comprovanteEmail.para ? 'comprovante por e-mail' : ''].filter(Boolean).join(' · ') });
       } else if (e.status === 'falha') {
         ev.push({ em: e.confirmadoEm || e.criadoEm, ico: 'ph-x-circle', cor: 'erro', titulo: 'Não entregue: ' + itens + comp, sub: e.motivoFalha || '' });
       } else {

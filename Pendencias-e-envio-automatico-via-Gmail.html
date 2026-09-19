@@ -323,6 +323,10 @@
   .cfg-form { min-width: 0; display: flex; flex-direction: column; gap: var(--esp-4); }
   .cfg-painel { display: flex; flex-direction: column; gap: var(--esp-4); }
   .cfg-modelo { border: 1px solid var(--border); border-radius: var(--r-md); padding: var(--esp-4); }
+  .cfg-liga-linha { display: flex; gap: 12px; align-items: flex-start; cursor: pointer; }
+  .cfg-liga-linha > span { display: grid; gap: 2px; }
+  .cfg-liga { width: 18px; height: 18px; margin: 2px 0 0; flex: none; accent-color: var(--accent); cursor: pointer; }
+  .cfg-liga:disabled { cursor: default; }
   .cfg-modelo.foco { border-color: var(--border-forte); }
   .cfg-modelo-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--esp-3); margin-bottom: var(--esp-3); }
   .cfg-modelo-titulo { font-weight: 600; font-size: var(--t-base); letter-spacing: -.01em; }
@@ -1336,6 +1340,7 @@
         <button type="button" class="secao-btn" role="tab" data-cfg="email" aria-selected="false"><i class="ph ph-envelope-simple" aria-hidden="true"></i><span>E-mail: régua de cobrança</span></button>
         <button type="button" class="secao-btn" role="tab" data-cfg="whats" aria-selected="false"><i class="ph ph-whatsapp-logo" aria-hidden="true"></i><span>WhatsApp</span></button>
         <button type="button" class="secao-btn" role="tab" data-cfg="lote" aria-selected="false"><i class="ph ph-users-three" aria-hidden="true"></i><span>Cobrança em lote</span></button>
+        <button type="button" class="secao-btn" role="tab" data-cfg="auto" aria-selected="false"><i class="ph ph-robot" aria-hidden="true"></i><span>Automático</span></button>
       </nav>
 
       <div class="cfg-grid">
@@ -1406,6 +1411,29 @@
               <div class="campo"><label for="cfgLoteAssunto">Assunto</label><input class="input cfg-campo" id="cfgLoteAssunto" type="text"></div>
               <div class="campo" style="margin-bottom:0"><label for="cfgLoteCorpo">Mensagem</label><textarea class="textarea cfg-campo" id="cfgLoteCorpo"></textarea><div class="cfg-contador" data-conta="cfgLoteCorpo"></div></div>
             </div>
+          </div>
+
+          <!-- O que o PC do robô faz sozinho. Tudo vem desligado. -->
+          <div class="cfg-painel" data-cfg-painel="auto" hidden>
+            <div class="cfg-modelo">
+              <label class="cfg-liga-linha" for="cfgReguaLigada">
+                <input type="checkbox" class="cfg-liga" id="cfgReguaLigada">
+                <span><span class="cfg-modelo-titulo">Cobrar sozinho quem não mandou</span>
+                <span class="cfg-modelo-dica">Nos dias abaixo, o robô manda a cobrança do mês anterior para cada cliente com documento faltando, usando os textos da aba E-mail (1ª, 2ª, 3ª conforme já foi cobrado). Pula quem foi cobrado nos últimos 3 dias e quem está sem movimento. No máximo 40 por dia.</span></span>
+              </label>
+              <div class="campo" style="max-width:260px;margin:12px 0 0 30px">
+                <label for="cfgReguaDias">Dias do mês</label>
+                <input class="input" id="cfgReguaDias" type="text" inputmode="numeric" placeholder="ex.: 5, 10, 15">
+              </div>
+            </div>
+            <div class="cfg-modelo">
+              <label class="cfg-liga-linha" for="cfgComprovanteEmail">
+                <input type="checkbox" class="cfg-liga" id="cfgComprovanteEmail">
+                <span><span class="cfg-modelo-titulo">Comprovante de entrega por e-mail</span>
+                <span class="cfg-modelo-dica">Cada entrega confirmada na rua vira um e-mail para o cliente: o que foi entregue, quem recebeu e quando, e o link dele. Guias confirmadas juntas saem num e-mail só.</span></span>
+              </label>
+            </div>
+            <div class="cfg-meta" id="cfgAutoMeta">Só vale com o PC do robô ligado, e só para e-mail que está no cadastro do cliente.</div>
           </div>
 
         </div>
@@ -1741,7 +1769,16 @@
     lote: { assunto: 'Documentos de {mes} pendentes',
             corpo: 'Olá,\n\nEstamos fechando a contabilidade de {mes} e ainda faltam documentos (extrato bancário, comprovantes de pagamento ou aplicação financeira) da sua empresa.\n\nPode responder este e-mail com os arquivos em anexo? O recebimento é registrado automaticamente.\n\nObrigado,\n{assinatura}' }
   };
+  // o que o PC do robô faz sozinho (scripts/regua-cobranca.js e comprovante-email.js)
+  CONFIG_PADRAO.comprovanteEmail = false;
+  CONFIG_PADRAO.regua = { ligada: false, dias: [] };
   var configCobranca = JSON.parse(JSON.stringify(CONFIG_PADRAO));
+  function diasDaRegua(bruto) {
+    var lista = Array.isArray(bruto) ? bruto : String(bruto || '').split(/[^0-9]+/);
+    var vistos = {};
+    return lista.map(Number).filter(function (n) { if (!(n >= 1 && n <= 28 && n % 1 === 0) || vistos[n]) return false; vistos[n] = 1; return true; })
+      .sort(function (a, b) { return a - b; });
+  }
 
   // ---------- utilidades ----------
   var toastTimer = null;
@@ -2335,6 +2372,8 @@
       if (d.assinatura) configCobranca.assinatura = d.assinatura;
       if (d.whatsapp) configCobranca.whatsapp = d.whatsapp;
       if (d.lote) configCobranca.lote = Object.assign({}, CONFIG_PADRAO.lote, d.lote);
+      configCobranca.comprovanteEmail = d.comprovanteEmail === true;
+      if (d.regua) configCobranca.regua = { ligada: d.regua.ligada === true, dias: diasDaRegua(d.regua.dias) };
       if (d.modelos) Object.keys(d.modelos).forEach(function (k) { configCobranca.modelos[k] = Object.assign({}, CONFIG_PADRAO.modelos[k] || {}, d.modelos[k]); });
       configCobranca.atualizadoEm = d.atualizadoEm || null;
       configCobranca.atualizadoPor = d.atualizadoPor || '';
@@ -4117,7 +4156,7 @@
       cobs.forEach(function (c) {
         lista.appendChild(itemTimeline({
           em: c.em, icone: 'ph-paper-plane-tilt', classe: 'accent',
-          texto: (c.enviadoPeloRobo ? 'Cobrança enviada para ' : c.canal === 'whatsapp' ? 'Cobrança por WhatsApp para ' : 'Cobrança aberta no Gmail para ') + (c.para || cliente.email || 'e-mail'),
+          texto: (c.automatica ? 'Cobrança automática enviada para ' : c.enviadoPeloRobo ? 'Cobrança enviada para ' : c.canal === 'whatsapp' ? 'Cobrança por WhatsApp para ' : 'Cobrança aberta no Gmail para ') + (c.para || cliente.email || 'e-mail'),
           sub: (c.tipos || []).map(function (k) { return TIPO_POR_CHAVE[k] ? TIPO_POR_CHAVE[k].curto : k; }).join(', ') + (c.por ? ', por ' + c.por : '')
         }));
       });
@@ -4368,7 +4407,7 @@
       (Array.isArray(dado.cobrancas) ? dado.cobrancas : []).forEach(function (c) {
         eventos.push({
           em: c.em, tipo: 'cobranca', icone: 'ph-paper-plane-tilt', classe: 'accent',
-          texto: (c.canal === 'whatsapp' ? 'Cobrança de ' + rotuloCurtoDoMes(comp) + ' aberta no WhatsApp' : c.canal === 'coleta' ? 'Coleta de ' + rotuloCurtoDoMes(comp) + ' pedida ao office boy' : c.canal === 'lote' ? 'Cobrança em lote de ' + rotuloCurtoDoMes(comp) + ' no Gmail' : 'Cobrança de ' + rotuloCurtoDoMes(comp) + ' aberta no Gmail'),
+          texto: (c.automatica ? 'Cobrança automática de ' + rotuloCurtoDoMes(comp) + ' enviada pelo robô' : c.canal === 'whatsapp' ? 'Cobrança de ' + rotuloCurtoDoMes(comp) + ' aberta no WhatsApp' : c.canal === 'coleta' ? 'Coleta de ' + rotuloCurtoDoMes(comp) + ' pedida ao office boy' : c.canal === 'lote' ? 'Cobrança em lote de ' + rotuloCurtoDoMes(comp) + ' no Gmail' : 'Cobrança de ' + rotuloCurtoDoMes(comp) + ' aberta no Gmail'),
           curto: c.canal === 'coleta' ? 'Coleta pedida' : 'Cobrança enviada',
           sub: (c.tipos || []).map(function (k) { return TIPO_POR_CHAVE[k] ? TIPO_POR_CHAVE[k].curto : k; }).join(', ') + (c.para ? ' para ' + c.para : '') + (c.por ? ', por ' + c.por : '')
         });
@@ -5005,7 +5044,9 @@
       diaLimite: (dia >= 1 && dia <= 28) ? dia : null,
       assinatura: $('cfgAssinatura').value.trim() || CONFIG_PADRAO.assinatura,
       whatsapp: $('cfgWhats').value.trim() || CONFIG_PADRAO.whatsapp,
-      modelos: { '1': {}, '2': {}, '3': {} }, lote: {}
+      modelos: { '1': {}, '2': {}, '3': {} }, lote: {},
+      comprovanteEmail: $('cfgComprovanteEmail').checked,
+      regua: { ligada: $('cfgReguaLigada').checked, dias: diasDaRegua($('cfgReguaDias').value) }
     };
     CFG_CAMPOS.forEach(function (c) {
       var v = $(c[0]).value.trim();
@@ -5016,13 +5057,18 @@
   }
   function configIgual(a, b) {
     return a.diaLimite === b.diaLimite && a.assinatura === b.assinatura && a.whatsapp === b.whatsapp &&
-      JSON.stringify(a.modelos) === JSON.stringify(b.modelos) && JSON.stringify(a.lote) === JSON.stringify(b.lote);
+      JSON.stringify(a.modelos) === JSON.stringify(b.modelos) && JSON.stringify(a.lote) === JSON.stringify(b.lote) &&
+      !!a.comprovanteEmail === !!b.comprovanteEmail && JSON.stringify(a.regua) === JSON.stringify(b.regua);
   }
   function renderConfig() {
     if (cfgSujo) { atualizarEstadoConfig(); return; }
     $('cfgDiaLimite').value = configCobranca.diaLimite || '';
     $('cfgAssinatura').value = configCobranca.assinatura || '';
     $('cfgWhats').value = configCobranca.whatsapp || '';
+    $('cfgComprovanteEmail').checked = !!configCobranca.comprovanteEmail;
+    $('cfgReguaLigada').checked = !!configCobranca.regua.ligada;
+    $('cfgReguaDias').value = configCobranca.regua.dias.join(', ');
+    document.querySelectorAll('#viewConfig .cfg-liga').forEach(function (i) { i.disabled = !souAdmin; });
     CFG_CAMPOS.forEach(function (c) {
       var raiz = configCobranca[c[1]]; var obj = c[2] ? (raiz[c[2]] || {}) : raiz;
       $(c[0]).value = obj[c[3]] || '';
@@ -5048,7 +5094,8 @@
   }
   function atualizarEstadoConfig() {
     var atual = lerFormularioConfig();
-    var base = { diaLimite: configCobranca.diaLimite || null, assinatura: configCobranca.assinatura, whatsapp: configCobranca.whatsapp, modelos: configCobranca.modelos, lote: configCobranca.lote };
+    var base = { diaLimite: configCobranca.diaLimite || null, assinatura: configCobranca.assinatura, whatsapp: configCobranca.whatsapp, modelos: configCobranca.modelos, lote: configCobranca.lote,
+      comprovanteEmail: configCobranca.comprovanteEmail, regua: { ligada: !!configCobranca.regua.ligada, dias: configCobranca.regua.dias } };
     cfgSujo = !configIgual(atual, base);
     $('cfgEstado').hidden = !cfgSujo;
     $('btnDescartarConfig').hidden = !cfgSujo || !souAdmin;
@@ -5081,6 +5128,7 @@
     aoEditarConfig();
   }
   function aoEditarConfig() { atualizarEstadoConfig(); atualizarContadores(); renderPreviewConfig(); }
+  document.querySelectorAll('#viewConfig .cfg-liga').forEach(function (i) { i.addEventListener('change', aoEditarConfig); });
   document.querySelectorAll('#viewConfig .input, #viewConfig .textarea').forEach(function (i) {
     i.addEventListener('input', aoEditarConfig);
     ['focus', 'click'].forEach(function (evt) { i.addEventListener(evt, marcarCampoConfig); });
@@ -5153,6 +5201,7 @@
       n: cfgPreviewQual, assinatura: form.assinatura, caixa: CAIXA_GMAIL
     };
     $('cfgPreviewQual').hidden = cfgAba !== 'email';
+    $('cfgClienteExemplo').hidden = cfgAba === 'auto';
     if (cfgAba === 'geral') {
       var g = el('div');
       g.appendChild(el('div', 'de', 'O que muda com estas duas configurações'));
@@ -5166,6 +5215,21 @@
       caixa.appendChild(el('div', 'de', 'Para: ' + (cliente.email || 'cliente sem e-mail cadastrado') + ' · ' + cfgPreviewQual + 'ª cobrança'));
       var ass = el('div', 'assunto'); ass.appendChild(previewHtml(modelo.assunto, vars)); caixa.appendChild(ass);
       var corpo = el('pre'); corpo.appendChild(previewHtml(modelo.corpo, vars)); caixa.appendChild(corpo);
+    } else if (cfgAba === 'auto') {
+      var a = el('div');
+      a.appendChild(el('div', 'de', 'O que o robô vai fazer'));
+      var pa = el('pre');
+      var dias = form.regua.dias;
+      pa.textContent = (form.regua.ligada && dias.length
+          ? 'Cobrança: nos dias ' + dias.join(', ') + ' (a partir das 9h, dia útil), para quem ainda deve documentos do mês anterior.'
+          : (form.regua.ligada ? 'Cobrança: ligada, mas sem dia escolhido. Nada sai.' : 'Cobrança: desligada. Só sai quando alguém clica.')) +
+        '\n\nComprovante: ' + (form.comprovanteEmail ? 'cada entrega confirmada vira um e-mail para o cliente.' : 'desligado.');
+      a.appendChild(pa);
+      if (configRobo && configRobo.reguaUltima) {
+        var u = configRobo.reguaUltima;
+        a.appendChild(el('div', 'de', 'Última rodada: ' + dataHora(u.em) + ', ' + plural(u.enviados || 0, 'cobrança enviada', 'cobranças enviadas')));
+      }
+      caixa.appendChild(a);
     } else if (cfgAba === 'whats') {
       caixa.appendChild(el('div', 'de', 'WhatsApp para ' + (cliente.telefone || 'cliente sem telefone')));
       var bolha = el('div', 'bolha'); var pw = el('pre'); pw.appendChild(previewHtml(form.whatsapp, vars)); bolha.appendChild(pw);

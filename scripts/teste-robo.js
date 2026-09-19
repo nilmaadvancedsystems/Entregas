@@ -175,5 +175,43 @@ igual('CNPJ da filial no texto decide', (r.desempatarPorDocumento([matriz, filia
 igual('sem CNPJ no texto, não decide', r.desempatarPorDocumento([matriz, filial], 'extrato agosto'), null);
 igual('os dois CNPJs no texto, não decide', r.desempatarPorDocumento([matriz, filial], '12345678000195 e 12345678000276'), null);
 
+// ---------- régua de cobrança automática ----------
+const rg = require('./regua-cobranca');
+igual('dias da régua: texto solto, fora da faixa e repetidos', rg.diasDaRegua('15, 5; 10 5 31 0'), [5, 10, 15]);
+igual('dias da régua: lista', rg.diasDaRegua([20, '3']), [3, 20]);
+igual('competência anterior na virada do ano', rg.competenciaAnterior(new Date(2027, 0, 5)), '2026-12');
+const qui10 = new Date(2026, 8, 10, 10, 0);   // quinta, 10/09
+igual('dia marcado, ainda não rodou: roda', rg.diaDeRodar(qui10, [10], ''), true);
+igual('já rodou depois do dia marcado: não roda', rg.diaDeRodar(qui10, [10], '2026-09-10'), false);
+igual('antes das 9h: espera', rg.diaDeRodar(new Date(2026, 8, 10, 8, 0), [10], ''), false);
+igual('dia 5 caiu no sábado: roda na segunda 7', rg.diaDeRodar(new Date(2026, 8, 7, 10, 0), [5], '2026-08-20'), true);
+igual('sábado não roda', rg.diaDeRodar(new Date(2026, 8, 5, 10, 0), [5], ''), false);
+igual('antes do primeiro dia da régua: não roda', rg.diaDeRodar(new Date(2026, 8, 3, 10, 0), [5, 15], '2026-08-15'), false);
+const cli = { id: 'c1', nome: 'PADARIA SAO JORGE LTDA', email: 'Padaria@Exemplo.com', documentosNaoAplicaveis: ['aplicacao'] };
+igual('falta só o que se aplica e não chegou', rg.faltandoDo(cli, { extrato: { em: 'x' } }).map(t => t.chave), ['comprovante']);
+igual('sem movimento: nada falta', rg.faltandoDo(cli, { semMovimento: true }), []);
+const agoraMs = qui10.getTime();
+igual('sem e-mail fica de fora', rg.cobrancaDo({ id: 'x', nome: 'X' }, null, {}, '2026-08', agoraMs).pula, 'sem e-mail');
+igual('cobrado há 2 dias fica de fora', rg.cobrancaDo(cli, { cobrancas: [{ em: new Date(agoraMs - 2 * 864e5).toISOString(), canal: 'gmail' }] }, {}, '2026-08', agoraMs).pula, 'cobrado há pouco');
+const segunda = rg.cobrancaDo(Object.assign({ portalToken: 'tok' }, cli), { cobrancas: [{ em: '2026-09-01T12:00:00Z', canal: 'gmail' }, { em: '2026-09-02T12:00:00Z', canal: 'coleta' }] }, { diaLimite: 15 }, '2026-08', agoraMs);
+igual('coleta não conta: vira a 2ª cobrança, com prazo e link', [segunda.n, segunda.para, segunda.assunto, /dia 15\/09/.test(segunda.corpo), /cliente\.html\?portal=tok$/.test(segunda.corpo), segunda.tipos],
+  [2, 'padaria@exemplo.com', 'Lembrete: documentos de agosto de 2026 - PADARIA SAO JORGE LTDA', true, true, ['extrato', 'comprovante']]);
+igual('modelo do admin vale no lugar do padrão', rg.cobrancaDo(cli, null, { modelos: { '1': { assunto: 'Docs {mes}' } } }, '2026-12', agoraMs).assunto, 'Docs dezembro de 2026');
+
+// ---------- comprovante de entrega por e-mail ----------
+const ce = require('./comprovante-email');
+const agoraCe = Date.parse('2026-09-19T15:00:00Z');
+igual('entrega confirmada agora pede comprovante', ce.precisaDeComprovante({ status: 'confirmada', confirmadoEm: '2026-09-19T14:00:00Z' }, agoraCe), true);
+igual('pelo link não pede', ce.precisaDeComprovante({ status: 'confirmada', recebidoPeloLink: true, confirmadoEm: '2026-09-19T14:00:00Z' }, agoraCe), false);
+igual('já mandado não pede de novo', ce.precisaDeComprovante({ status: 'confirmada', comprovanteEmail: { em: 'x' }, confirmadoEm: '2026-09-19T14:00:00Z' }, agoraCe), false);
+igual('de anteontem não pede', ce.precisaDeComprovante({ status: 'confirmada', confirmadoEm: '2026-09-17T14:00:00Z' }, agoraCe), false);
+igual('não entregue não pede', ce.precisaDeComprovante({ status: 'falha', confirmadoEm: '2026-09-19T14:00:00Z' }, agoraCe), false);
+const comp = ce.textoDoComprovante({ nome: 'PADARIA', portalToken: 'tok' }, [
+  { itens: [{ tipo: 'DAS', valor: 1240.5 }], competencia: '2026-08', vencimento: '2026-09-22', recebedor: 'Maria', confirmadoEm: '2026-09-19T13:00:00Z' },
+  { itens: [{ tipo: 'Guia INSS', valor: null }], competencia: '2026-08', recebedor: 'Maria', confirmadoEm: '2026-09-19T13:01:00Z' }], 'Escritório');
+igual('comprovante de duas guias num e-mail só', [comp.assunto, /- DAS R\$ 1\.240,50 \(agosto de 2026, vence 22\/09\/2026\)/.test(comp.corpo), /Recebido por Maria em /.test(comp.corpo), /\?portal=tok/.test(comp.corpo), /Escritório$/.test(comp.corpo)],
+  ['Entrega registrada: 2 documentos', true, true, true, true]);
+igual('assunto de uma guia só', ce.textoDoComprovante({ nome: 'X' }, [{ itens: [{ tipo: 'DAS', valor: 50 }], competencia: '2026-08', confirmadoEm: '2026-09-19T13:00:00Z' }]).assunto, 'Entrega registrada: DAS R$ 50,00');
+
 console.log(falhas ? '\n' + falhas + ' de ' + total + ' testes FALHARAM' : total + ' testes, todos passaram');
 process.exit(falhas ? 1 : 0);
