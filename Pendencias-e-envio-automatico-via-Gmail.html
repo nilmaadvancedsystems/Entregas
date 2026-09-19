@@ -4487,7 +4487,7 @@
   // escolher o lugar escreve {link} no modelo. Só na cobrança individual —
   // o lote é um e-mail só pra vários clientes em cópia oculta.
   function linkDoPortal(cliente) {
-    return cliente && cliente.portalToken ? new URL('entregas.html?portal=' + cliente.portalToken, location.href).href : '';
+    return cliente && cliente.portalToken ? new URL('cliente.html?portal=' + cliente.portalToken, location.href).href : '';
   }
   function comLinkDoPortal(modelo, texto, link, frase) {
     if (!link || /\{link\}/.test(modelo)) return texto;

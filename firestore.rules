@@ -179,14 +179,20 @@ service cloud.firestore {
       // app grava em entregadoPor quem de fato entregou — então aqui a
       // autoria PODE mudar, mas só pra própria pessoa que está confirmando.
       allow update: if logado()
-        && resource.data.status == 'pendente'
+        && resource.data.status in ['pendente', 'link']
         && request.resource.data.status in ['confirmada', 'falha']
         && request.resource.data.entregadoPor == request.auth.token.email
         && naoMexeuEm(['criadoEm']);
 
+      // Quem registrou corrige, mas não DESFAZ entrega concluída: se desse pra
+      // voltar uma confirmada pra 'pendente', a regra de "tirar a própria parada
+      // da rota", logo abaixo, viraria um jeito de apagar prova de entrega.
       allow update: if logado()
         && (resource.data.get('entregadoPor', '') == request.auth.token.email || ehAdmin())
-        && naoMexeuEm(['criadoEm', 'entregadoPor']);
+        && naoMexeuEm(['criadoEm', 'entregadoPor'])
+        && (ehAdmin()
+          || !(resource.data.status in ['confirmada', 'falha'])
+          || request.resource.data.status in ['confirmada', 'falha']);
 
       // Mudar a ordem da rota: quem monta a rota (admin, no PC) quase nunca é
       // quem anda com ela. Qualquer pessoa da equipe reordena parada pendente,
@@ -209,14 +215,14 @@ service cloud.firestore {
         // Tirar a própria parada da rota leva o anexo junto, no mesmo lote
         // (get() ainda enxerga a entrega como estava antes do lote).
         allow delete: if logado()
-          && get(/databases/$(database)/documents/entregas/$(id)).data.status == 'pendente'
+          && get(/databases/$(database)/documents/entregas/$(id)).data.status in ['pendente', 'link']
           && get(/databases/$(database)/documents/entregas/$(id)).data.get('entregadoPor', '') == request.auth.token.email;
         // A assinatura vai pro comprovante no mesmo lote que confirma a
         // entrega. Se a parada já tinha comprovante (guia em PDF anexada na
         // montagem da rota), isso vira update — e sem esta linha só o admin
         // conseguiria confirmar. No lote, get() ainda vê a entrega pendente.
         allow update: if logado()
-          && get(/databases/$(database)/documents/entregas/$(id)).data.status == 'pendente';
+          && get(/databases/$(database)/documents/entregas/$(id)).data.status in ['pendente', 'link'];
       }
     }
 
@@ -382,9 +388,14 @@ service cloud.firestore {
       //  - recebido: o toque em "Recebi" de uma guia entregue pelo link
       //    (entregaId -> "data|nome"). Não confirma nada sozinho: quem vira a
       //    entrega pra confirmada é o PC do robô, conferindo que ela estava no link.
+      // Só dá pra ACRESCENTAR uma confirmação por vez: quem tem o link não
+      // apaga nem troca as anteriores, e o campo não vira depósito.
       allow update: if so(['recebido'])
         && request.resource.data.recebido is map
-        && request.resource.data.recebido.size() <= 80;
+        && request.resource.data.recebido.size() <= 40
+        && request.resource.data.recebido.diff(resource.data.get('recebido', {})).addedKeys().size() == 1
+        && request.resource.data.recebido.diff(resource.data.get('recebido', {})).removedKeys().size() == 0
+        && request.resource.data.recebido.diff(resource.data.get('recebido', {})).changedKeys().size() == 0;
       allow update: if so(['avisar'])
         && request.resource.data.avisar is list
         && request.resource.data.avisar.size() <= 5
