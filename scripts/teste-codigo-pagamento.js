@@ -35,7 +35,7 @@ const semEspaco = '00020126360014BR.GOV.BCB.PIX0114+5538999999999520400005303986
 const limpo = semEspaco.replace(/\s/g, '');
 igual('PIX quebrado em pedaços pelo PDF volta inteiro', extrair((limpo + crc(limpo)).replace(/(.{30})/g, '$1 ')), { tipo: 'pix', codigo: limpo + crc(limpo) });
 
-igual('texto sem código', extrair('CNPJ 11.426.314/0001-77 competência 08/2026 valor 1.234,56'), null);
-igual('CNPJ e chave de NF-e não viram código', extrair('31260838221501000170550010000001551192419083 11426314000177'), null);
+igual('texto sem código', extrair('CNPJ 11.222.333/0001-81 competência 08/2026 valor 1.234,56'), null);
+igual('CNPJ e chave de NF-e não viram código', extrair('31260811222333000181550010000001551192419083 11222333000181'), null);
 console.log(falhas ? falhas + ' de ' + total + ' FALHARAM' : total + ' testes, todos passaram');
 process.exit(falhas ? 1 : 0);

@@ -17,15 +17,15 @@ const JAN_10 = Date.parse('2027-01-10T12:00:00Z');
 // ---------- mês a que o documento se refere ----------
 igual('abreviação + ano', r.competenciaDoTexto('EXTRATOS BANCÁRIOS EMPRESAS VOLPONI AGO2026', SET_15), '2026-08');
 igual('mês inteiro + ano colado', r.competenciaDoTexto('TÍTULOS PAGOS VOLPONI REF AGOSTO2026', SET_15), '2026-08');
-igual('mm.aaaa no nome do arquivo', r.competenciaDoTexto('ArqEFD-11426314000177-07.2026.txt', SET_18), '2026-07');
+igual('mm.aaaa no nome do arquivo', r.competenciaDoTexto('ArqEFD-11222333000181-07.2026.txt', SET_18), '2026-07');
 igual('mês por extenso sem ano vale o mais recente', r.competenciaDoTexto('Extrato agosto', SET_15), '2026-08');
 igual('dezembro visto em janeiro é do ano anterior', r.competenciaDoTexto('extrato dezembro', JAN_10), '2026-12');
 igual('sem mês nenhum', r.competenciaDoTexto('bom dia, segue em anexo', SET_15), null);
 igual('abreviação solta sem ano não conta ("mar", "out")', r.competenciaDoTexto('boleto mar aberto out', SET_15), null);
 igual('corpo do e-mail: data de envio não define mês', r.competenciaDoTexto('Bom dia, enviado em 18/09/2026, segue', SET_18, true), null);
 igual('corpo do e-mail: mês por extenso ainda vale', r.competenciaDoTexto('segue o extrato de agosto', SET_18, true), '2026-08');
-igual('dígitos de CNPJ não viram mês', r.competenciaDoTexto('CNPJ 11426314000177', SET_18), null);
-igual('chave de NF-e não vira mês', r.competenciaDoTexto('Nfe_000155-1-31260838221501000170550010000001551192419083.xml', SET_18), null);
+igual('dígitos de CNPJ não viram mês', r.competenciaDoTexto('CNPJ 11222333000181', SET_18), null);
+igual('chave de NF-e não vira mês', r.competenciaDoTexto('Nfe_000155-1-31260811222333000181550010000001551192419083.xml', SET_18), null);
 
 // ---------- documento sem mês escrito: vale o dia limite do escritório ----------
 const SET_02 = new Date(2026, 8, 2, 10).getTime();
@@ -76,11 +76,11 @@ igual('gmail é domínio público', r.DOMINIOS_PUBLICOS.has('gmail.com'), true);
 igual('entidades do trecho do Gmail', r.decodificarEntidades('Olá &#39;teste&#39; &amp; &quot;mais&quot;'), 'Olá \'teste\' & "mais"');
 
 // ---------- filiais no mesmo e-mail ----------
-const matriz = { id: 'a', documento: '07.676.248/0001-16' };
-const filial = { id: 'b', documento: '07.676.248/0002-05' };
-igual('CNPJ da filial no texto decide', (r.desempatarPorDocumento([matriz, filial], 'extrato filial 07.676.248/0002-05 agosto') || {}).id, 'b');
+const matriz = { id: 'a', documento: '12.345.678/0001-95' };
+const filial = { id: 'b', documento: '12.345.678/0002-76' };
+igual('CNPJ da filial no texto decide', (r.desempatarPorDocumento([matriz, filial], 'extrato filial 12.345.678/0002-76 agosto') || {}).id, 'b');
 igual('sem CNPJ no texto, não decide', r.desempatarPorDocumento([matriz, filial], 'extrato agosto'), null);
-igual('os dois CNPJs no texto, não decide', r.desempatarPorDocumento([matriz, filial], '07676248000116 e 07676248000205'), null);
+igual('os dois CNPJs no texto, não decide', r.desempatarPorDocumento([matriz, filial], '12345678000195 e 12345678000276'), null);
 
 console.log(falhas ? '\n' + falhas + ' de ' + total + ' testes FALHARAM' : total + ' testes, todos passaram');
 process.exit(falhas ? 1 : 0);
