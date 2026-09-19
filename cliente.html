@@ -1,0 +1,524 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="color-scheme" content="light dark">
+<title>Suas guias · Nilma Contabilidade</title>
+<meta name="description" content="Suas guias, comprovantes de entrega e o que ainda falta enviar ao escritório.">
+<link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22Minhas%20guias%22%2C%22display%22%3A%22standalone%22%7D">
+<!--
+  Página do cliente. É o que abre no celular de quem recebe o link pelo
+  WhatsApp: gente que não é de tecnologia, em aparelho simples e internet de
+  dados. Por isso este arquivo é separado do app do escritório, que tem perto
+  de 1 MB e carrega planilha, mapa e leitor de PDF que aqui não servem pra
+  nada. Esta página:
+    - não depende de fonte, ícone nem biblioteca de fora, só do Firebase;
+    - usa o Firestore "Lite" (lê e grava, sem ouvinte ao vivo) e só busca o
+      módulo de notificação se o cliente tocar em "Me avise";
+    - lê UM documento: portais/{token}. O token na URL é a credencial.
+  O que o cliente pode gravar está travado nas regras (firestore.rules):
+  visto, avisar e recebido.
+-->
+<style>
+  :root {
+    --bg: #F6F6F6; --surface: #FFFFFF; --surface-2: #EFEFEF; --border: #DCDCDC;
+    --ink: #161616; --ink-soft: #4A4A4A; --ink-faint: #6A6A6A;
+    --accent: #9A2B24; --accent-ink: #FFFFFF;
+    --ok-bg: #E4F3EA; --ok: #17603A; --ruim-bg: #FBE7E5; --ruim: #94231C; --aviso-bg: #FFF3D6; --aviso: #6B4A00;
+    --r: 12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #121212; --surface: #1B1B1B; --surface-2: #262626; --border: #333333;
+      --ink: #F2F2F2; --ink-soft: #C2C2C2; --ink-faint: #9A9A9A;
+      --accent: #E0796F; --accent-ink: #26100E;
+      --ok-bg: #16301F; --ok: #7FD3A0; --ruim-bg: #3A1B18; --ruim: #F0A39B; --aviso-bg: #33290F; --aviso: #EBCB7A;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    padding: max(20px, env(safe-area-inset-top)) 16px max(28px, env(safe-area-inset-bottom));
+  }
+  main { max-width: 560px; margin: 0 auto; }
+  h1 { font-size: 1.375rem; line-height: 1.25; margin: 0; letter-spacing: -.01em; text-wrap: balance; }
+  h2 { font-size: 1.0625rem; margin: 28px 0 10px; }
+  p { margin: 0; }
+  .de { color: var(--ink-faint); font-size: .875rem; margin-bottom: 2px; }
+  .estado { margin-top: 18px; color: var(--ink-soft); }
+  [hidden] { display: none !important; }
+
+  .bloco { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 16px; margin-top: 12px; }
+  .bloco.aviso { background: var(--aviso-bg); border-color: transparent; color: var(--aviso); }
+  .bloco.aviso h2 { margin: 0 0 6px; color: inherit; }
+  .bloco.aviso ul { margin: 6px 0 0; padding-left: 20px; }
+  .bloco.aviso .mes { font-weight: 600; margin-top: 8px; }
+  .tudo-certo { display: flex; gap: 8px; align-items: center; color: var(--ok); margin-top: 16px; font-size: .9375rem; }
+
+  .guia { padding: 16px 0; border-top: 1px solid var(--border); }
+  .guia:first-child { border-top: 0; padding-top: 4px; }
+  .guia-topo { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+  .empresa { font-size: .8125rem; font-weight: 600; color: var(--ink-faint); }
+  .nome { font-weight: 600; }
+  .sub { color: var(--ink-soft); font-size: .9375rem; margin-top: 2px; }
+  .prazo { font-weight: 600; }
+  .prazo.urgente { color: var(--ruim); }
+  .selo { flex: none; font-size: .8125rem; font-weight: 600; padding: 3px 10px; border-radius: 999px; background: var(--surface-2); color: var(--ink-soft); white-space: nowrap; }
+  .selo.ok { background: var(--ok-bg); color: var(--ok); }
+  .selo.ruim { background: var(--ruim-bg); color: var(--ruim); }
+
+  .acoes { display: grid; gap: 8px; margin-top: 12px; }
+  button, .botao {
+    font: inherit; font-weight: 600; min-height: 48px; width: 100%; padding: 10px 14px; cursor: pointer;
+    border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--ink);
+    display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; text-align: center;
+  }
+  button:active, .botao:active { background: var(--surface-2); }
+  button.principal { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+  button:disabled { opacity: .6; cursor: default; }
+  button:focus-visible, .botao:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  svg { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+  label { display: block; font-weight: 600; font-size: .9375rem; margin-bottom: 4px; }
+  input[type=text] {
+    font: inherit; width: 100%; min-height: 48px; padding: 10px 12px; border-radius: 10px;
+    border: 1px solid var(--border); background: var(--surface); color: var(--ink);
+  }
+  input[readonly] { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .8125rem; background: var(--surface-2); }
+  .erro { color: var(--ruim); font-size: .875rem; margin-top: 4px; }
+  .dica { color: var(--ink-faint); font-size: .875rem; margin-top: 6px; }
+  .caixa-img img { display: block; width: 100%; background: #fff; border: 1px solid var(--border); border-radius: 8px; margin-top: 10px; }
+
+  details { border-top: 1px solid var(--border); }
+  details:first-of-type { border-top: 0; }
+  summary { cursor: pointer; padding: 14px 0; font-weight: 600; min-height: 48px; display: flex; justify-content: space-between; align-items: center; gap: 12px; list-style: none; }
+  summary::-webkit-details-marker { display: none; }
+  summary span { color: var(--ink-faint); font-weight: 400; font-size: .875rem; }
+
+  footer { margin-top: 32px; color: var(--ink-faint); font-size: .875rem; }
+  footer p + p { margin-top: 8px; }
+  footer a { color: inherit; }
+</style>
+</head>
+<body>
+<main>
+  <p class="de" id="de">Nilma Contabilidade</p>
+  <h1 id="quem">Abrindo…</h1>
+  <p class="estado" id="estado" role="status" aria-live="polite">Buscando suas guias.</p>
+
+  <div id="conteudo" hidden>
+    <section id="secAPagar" hidden aria-labelledby="tAPagar">
+      <h2 id="tAPagar">Para pagar</h2>
+      <div class="bloco" id="aPagar"></div>
+    </section>
+
+    <section id="secDocs" hidden></section>
+
+    <section id="secAviso" hidden>
+      <div class="bloco">
+        <button type="button" id="avisarBtn"></button>
+        <p class="dica" id="avisarDica"></p>
+      </div>
+    </section>
+
+    <section aria-labelledby="tGuias">
+      <h2 id="tGuias">Suas guias</h2>
+      <div class="bloco" id="guias"></div>
+    </section>
+
+    <footer>
+      <p>Esta página é da <span id="pe-escritorio">Nilma Contabilidade</span> para <span id="pe-cliente">você</span>. Quem tem este endereço vê estas guias, então não repasse a quem não deve ver.</p>
+      <p>Guardamos quando a página é aberta e quando um código é copiado, para o escritório saber que a guia chegou. <a href="privacidade.html">Como cuidamos dos seus dados</a>.</p>
+      <p id="pe-contato" hidden></p>
+      <p id="atualizado"></p>
+    </footer>
+  </div>
+</main>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
+import { getFirestore, doc, getDoc, updateDoc } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-lite.js';
+
+const CONFIG = {
+  apiKey: 'AIzaSyD6xg7XhX8dKTKmaYup4hRX5k9XFHEkb98', authDomain: 'entregas-2e5e2.firebaseapp.com', projectId: 'entregas-2e5e2',
+  storageBucket: 'entregas-2e5e2.firebasestorage.app', messagingSenderId: '1009094556836', appId: '1:1009094556836:web:d3b6a9283e934db064fa31'
+};
+// chave pública de notificação (não é segredo)
+const VAPID = 'BPSiqKKKrLipFLe-AwrGaCrNLqANd2YcA1wk-sniuxxA2mUCdSRTzKdEaxkpMzf6I8mdE6ucfVJyurGwgKZ_inQ';
+const NOMES_DOC = { extrato: 'Extrato do banco', comprovante: 'Comprovantes de pagamento', aplicacao: 'Extrato de aplicação' };
+
+const $ = id => document.getElementById(id);
+const params = new URLSearchParams(location.search);
+const token = (params.get('portal') || '').replace(/[^A-Za-z0-9_-]/g, '');
+// "Ver como o cliente vê", aberto pela equipe, não conta como visita do cliente
+const ehEquipe = params.has('equipe');
+
+const app = initializeApp(CONFIG);
+const db = getFirestore(app);
+const ref = token ? doc(db, 'portais', token) : null;
+
+// ---------- texto ----------
+const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const dinheiro = v => Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+const mesPorExtenso = comp => { const p = String(comp || '').split('-'); return p.length === 2 && MESES[p[1] - 1] ? MESES[p[1] - 1] + ' de ' + p[0] : 'Sem mês'; };
+const diaMes = isoDia => { const p = String(isoDia).split('-'); return p[2] + '/' + p[1]; };
+const dataHora = iso => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString('pt-BR') + ' às ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }); };
+const hojeIso = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+const diasAte = isoDia => Math.round((new Date(isoDia + 'T12:00:00') - new Date(hojeIso() + 'T12:00:00')) / 864e5);
+const nomeDaGuia = e => (e.itens || []).map(i => i.tipo + (i.valor != null ? ' · ' + dinheiro(i.valor) : '')).join(', ') || 'Documentos';
+const valorDaGuia = e => (e.itens || []).reduce((s, i) => s + (Number(i.valor) || 0), 0);
+
+const ICO = {
+  copiar: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>',
+  guia: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/></svg>',
+  agenda: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4M12 13v4M10 15h4"/></svg>',
+  sino: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 17V11a6 6 0 0 1 12 0v6l2 2H4zM10 21h4"/></svg>',
+  enviar: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M8 8l4-4 4 4M5 14v5h14v-5"/></svg>',
+  certo: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>',
+};
+
+// ---------- estado ----------
+let dados = null;
+let tentativa = 0;
+const abertos = new Set();   // guia/assinatura que o cliente abriu: sobrevivem a uma releitura
+
+function dizer(texto) { $('estado').textContent = texto; $('estado').hidden = !texto; }
+
+async function carregar() {
+  if (!ref) { $('quem').textContent = 'Endereço incompleto'; dizer('Este endereço veio cortado. Peça ao escritório para mandar de novo.'); return; }
+  try {
+    const snap = await getDoc(ref);
+    tentativa = 0;
+    if (!snap.exists()) {
+      $('conteudo').hidden = true;
+      $('quem').textContent = 'Este endereço não funciona mais';
+      dizer('O escritório trocou o seu endereço. Peça o novo pelo WhatsApp.');
+      return;
+    }
+    dados = snap.data();
+    desenhar();
+    registrar('abriu');
+  } catch (err) {
+    // Sem internet ou servidor ocupado NÃO é "link morto": dizer isso faria o
+    // cliente ligar pro escritório à toa. Tenta de novo sozinho.
+    tentativa++;
+    if (!dados) $('quem').textContent = 'Sem internet agora';
+    dizer(dados ? '' : 'Não consegui buscar suas guias. Tentando de novo…');
+    setTimeout(carregar, Math.min(30000, 2000 * tentativa));
+  }
+}
+// voltou pra página depois de um tempo (pagou a guia, voltou do WhatsApp): relê
+let ultimaLeitura = Date.now();
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && Date.now() - ultimaLeitura > 60000) { ultimaLeitura = Date.now(); carregar(); }
+});
+
+// ---------- desenho ----------
+function desenhar() {
+  const d = dados;
+  $('quem').textContent = d.clienteNome || 'Suas guias';
+  $('pe-cliente').textContent = d.clienteNome || 'você';
+  document.title = 'Suas guias · Nilma Contabilidade';
+  dizer('');
+  $('conteudo').hidden = false;
+
+  const lista = (d.entregas && Array.isArray(d.entregas.lista)) ? d.entregas.lista : [];
+  const recebidos = d.recebido && typeof d.recebido === 'object' ? d.recebido : {};
+  desenharAPagar(lista, recebidos);
+  desenharDocumentos(d.documentos);
+  desenharGuias(lista, recebidos);
+  prepararAviso(lista);
+
+  const email = d.documentos && d.documentos.email;
+  $('pe-contato').hidden = !email;
+  if (email) $('pe-contato').innerHTML = 'Dúvidas: <a href="mailto:' + esc(email) + '">' + esc(email) + '</a>';
+  const quando = [d.entregas && d.entregas.atualizadoEm, d.documentos && d.documentos.atualizadoEm].filter(Boolean).sort().pop();
+  $('atualizado').textContent = quando ? 'Atualizado em ' + dataHora(quando) + '.' : '';
+}
+
+function textoDoPrazo(e) {
+  if (!e.vencimento) return null;
+  const n = diasAte(e.vencimento);
+  if (n < 0) return { texto: 'Venceu dia ' + diaMes(e.vencimento), urgente: true, vencida: true };
+  if (n === 0) return { texto: 'Vence hoje', urgente: true };
+  if (n === 1) return { texto: 'Vence amanhã', urgente: true };
+  return { texto: 'Vence dia ' + diaMes(e.vencimento) + (n <= 7 ? ' (em ' + n + ' dias)' : ''), urgente: false };
+}
+
+function cartaoDaGuia(e, recebidos, comMes) {
+  const toque = recebidos[e.id] ? String(recebidos[e.id]).split('|') : null;
+  const noLink = e.status === 'link' && !toque;
+  const entregue = e.status === 'confirmada' || !!toque;
+  const falha = e.status === 'falha';
+  const prazo = falha ? null : textoDoPrazo(e);
+  const selo = entregue ? ['ok', (e.peloLink || toque) ? 'Recebida' : 'Entregue'] : falha ? ['ruim', 'Não entregue'] : noLink ? ['', 'Nova'] : ['', 'Vamos levar até você'];
+  let sub = '';
+  if (toque) sub = 'Você confirmou em ' + dataHora(toque[0]) + (toque[1] ? ', ' + toque[1] : '') + '.';
+  else if (entregue) sub = (e.peloLink ? 'Confirmada por aqui em ' : 'Entregue em ') + dataHora(e.quando) + (e.recebedor ? ', recebida por ' + e.recebedor : '') + '.';
+  else if (falha) sub = 'Tentamos entregar em ' + dataHora(e.quando) + (e.motivoFalha ? ': ' + e.motivoFalha : '') + '.';
+  else if (noLink) sub = 'Confira a guia e confirme abaixo que recebeu.';
+
+  let h = '<article class="guia" data-id="' + esc(e.id) + '"><div class="guia-topo"><div>' +
+    (e.empresa ? '<div class="empresa">' + esc(e.empresa) + '</div>' : '') +
+    '<div class="nome">' + esc(nomeDaGuia(e)) + '</div>' +
+    (comMes ? '<div class="sub">' + esc(mesPorExtenso(e.competencia)) + '</div>' : '') +
+    (prazo ? '<div class="sub prazo' + (prazo.urgente ? ' urgente' : '') + '">' + esc(prazo.texto) + '</div>' : '') +
+    (sub ? '<div class="sub">' + esc(sub) + '</div>' : '') +
+    '</div><span class="selo ' + selo[0] + '">' + selo[1] + '</span></div>';
+
+  if (prazo && prazo.vencida && e.pagamento) h += '<p class="dica">Se ainda não pagou, peça a guia atualizada ao escritório: depois do vencimento o código costuma não passar no banco.</p>';
+
+  if (!falha) {
+    h += '<div class="acoes">';
+    if (e.pagamento && e.pagamento.codigo) {
+      h += '<button type="button" data-acao="copiar">' + ICO.copiar + '<span>' + (e.pagamento.tipo === 'pix' ? 'Copiar código PIX' : 'Copiar código de barras') + '</span></button>' +
+        '<div data-caixa="codigo" hidden><label for="cod-' + esc(e.id) + '">Código para pagar</label><input id="cod-' + esc(e.id) + '" type="text" readonly value="' + esc(codigoLimpo(e)) + '">' +
+        '<p class="dica">Se não copiou sozinho, segure o dedo no código e toque em Copiar.</p></div>';
+    }
+    if (e.temGuia) h += '<button type="button" data-acao="guia" aria-expanded="false">' + ICO.guia + '<span>Ver a guia</span></button><div class="caixa-img" data-caixa="guia"></div>';
+    if (e.vencimento && diasAte(e.vencimento) >= 0) h += '<button type="button" data-acao="agenda">' + ICO.agenda + '<span>Pôr o vencimento no calendário</span></button>';
+    if (entregue && e.temAssinatura) h += '<button type="button" data-acao="assinatura" aria-expanded="false">' + ICO.certo + '<span>Ver a assinatura de quem recebeu</span></button><div class="caixa-img" data-caixa="assinatura"></div>';
+    h += '</div>';
+  }
+  if (noLink) {
+    h += '<div class="acoes"><div><label for="nome-' + esc(e.id) + '">Seu nome</label><input id="nome-' + esc(e.id) + '" type="text" maxlength="60" autocomplete="name" data-campo="nome">' +
+      '<p class="erro" data-erro hidden>Escreva seu nome.</p></div>' +
+      '<button type="button" class="principal" data-acao="recebi">Confirmar que recebi</button>' +
+      '<p class="dica">Ao confirmar, fica registrado que ' + esc(e.empresa || dados.clienteNome || 'a empresa') + ' recebeu esta guia hoje, no lugar da assinatura no papel.</p></div>';
+  }
+  return h + '</article>';
+}
+const codigoLimpo = e => (e.pagamento.tipo === 'pix' || /^000201/.test(e.pagamento.codigo)) ? e.pagamento.codigo : String(e.pagamento.codigo).replace(/\D/g, '');
+
+function desenharAPagar(lista, recebidos) {
+  // o que ainda vai vencer, mais o que venceu há pouco: é o que o cliente veio ver
+  const alvo = lista.filter(e => e.status !== 'falha' && e.vencimento && diasAte(e.vencimento) >= -10)
+    .sort((a, b) => a.vencimento.localeCompare(b.vencimento));
+  $('secAPagar').hidden = !alvo.length;
+  if (!alvo.length) return;
+  const aVencer = alvo.filter(e => diasAte(e.vencimento) >= 0);
+  const total = aVencer.reduce((s, e) => s + valorDaGuia(e), 0);
+  $('tAPagar').textContent = 'Para pagar' + (total ? ' · ' + dinheiro(total) : '');
+  $('aPagar').innerHTML = alvo.map(e => cartaoDaGuia(e, recebidos, true)).join('');
+}
+
+function desenharDocumentos(docs) {
+  const sec = $('secDocs');
+  let meses = (docs && Array.isArray(docs.meses)) ? docs.meses.map(m => Object.assign({ empresa: '' }, m)) : [];
+  if (docs && Array.isArray(docs.empresas) && docs.empresas.length > 1) {
+    meses = [];
+    docs.empresas.forEach(emp => (emp.meses || []).forEach(m => meses.push({ competencia: m.competencia, faltam: m.faltam || [], empresa: emp.nome || '' })));
+  }
+  if (!meses.length) { sec.hidden = true; return; }
+  const devendo = meses.filter(m => (m.faltam || []).length);
+  sec.hidden = false;
+  if (!devendo.length) {
+    sec.innerHTML = '<p class="tudo-certo">' + ICO.certo + '<span>Recebemos todos os seus documentos de ' + esc(mesPorExtenso(meses[0].competencia).toLowerCase()) + '.</span></p>';
+    return;
+  }
+  let h = '<div class="bloco aviso"><h2>Documentos que ainda precisamos de você</h2>';
+  devendo.forEach(m => {
+    h += '<p class="mes">' + esc((m.empresa ? m.empresa + ' · ' : '') + mesPorExtenso(m.competencia)) + '</p><ul>' +
+      m.faltam.map(k => '<li>' + esc(NOMES_DOC[k] || k) + '</li>').join('') + '</ul>';
+  });
+  if (docs.email) {
+    h += '<div class="acoes"><a class="botao" href="mailto:' + esc(docs.email) + '?subject=' + encodeURIComponent('Documentos de ' + mesPorExtenso(devendo[0].competencia).toLowerCase()) + '">' +
+      ICO.enviar + '<span>Mandar por e-mail</span></a></div><p class="dica" style="color:inherit">Anexe os arquivos e envie. O escritório marca como recebido sozinho.</p>';
+  }
+  sec.innerHTML = h + '</div>';
+}
+
+function desenharGuias(lista, recebidos) {
+  const caixa = $('guias');
+  if (!lista.length) { caixa.innerHTML = '<p class="sub">Ainda não há guias aqui. Quando o escritório lançar, elas aparecem sozinhas.</p>'; return; }
+  const porMes = new Map();
+  lista.forEach(e => { const k = e.competencia || ''; if (!porMes.has(k)) porMes.set(k, []); porMes.get(k).push(e); });
+  const ordem = Array.from(porMes.keys()).sort().reverse();
+  // o mês mais novo abre sozinho; os antigos ficam recolhidos pra lista não virar um rolo
+  caixa.innerHTML = ordem.map((comp, i) => {
+    const doMes = porMes.get(comp);
+    return '<details' + (i === 0 || abertos.has('mes:' + comp) ? ' open' : '') + ' data-mes="' + esc(comp) + '"><summary><h3 style="margin:0;font-size:1rem">' + esc(mesPorExtenso(comp)) +
+      '</h3><span>' + doMes.length + (doMes.length === 1 ? ' guia' : ' guias') + '</span></summary>' + doMes.map(e => cartaoDaGuia(e, recebidos, false)).join('') + '</details>';
+  }).join('');
+}
+
+// ---------- ações ----------
+const entregaDe = el => { const id = el.closest('[data-id]').dataset.id; return ((dados.entregas && dados.entregas.lista) || []).find(e => e.id === id); };
+
+document.addEventListener('toggle', ev => {
+  const d = ev.target;
+  if (d.dataset && d.dataset.mes !== undefined) { d.open ? abertos.add('mes:' + d.dataset.mes) : abertos.delete('mes:' + d.dataset.mes); }
+}, true);
+
+document.addEventListener('click', async ev => {
+  const btn = ev.target.closest('[data-acao]');
+  if (!btn) return;
+  const e = entregaDe(btn);
+  if (!e) return;
+  const cartao = btn.closest('[data-id]');
+  const rotulo = btn.querySelector('span');
+  const acao = btn.dataset.acao;
+
+  if (acao === 'copiar') {
+    const codigo = codigoLimpo(e);
+    const caixa = cartao.querySelector('[data-caixa="codigo"]');
+    caixa.hidden = false;                       // o código fica à vista, copiando ou não
+    let copiou = false;
+    try { await navigator.clipboard.writeText(codigo); copiou = true; } catch (err) {
+      const campo = caixa.querySelector('input'); campo.focus(); campo.select();
+      try { copiou = document.execCommand('copy'); } catch (e2) {}
+    }
+    const antes = rotulo.textContent;
+    rotulo.textContent = copiou ? 'Copiado. Agora cole no app do banco' : 'Segure o dedo no código abaixo';
+    btn.setAttribute('aria-live', 'polite');
+    setTimeout(() => { rotulo.textContent = antes; }, 4000);
+    registrar('copiou');
+  }
+
+  if (acao === 'guia' || acao === 'assinatura') {
+    const caixa = cartao.querySelector('[data-caixa="' + acao + '"]');
+    if (caixa.firstChild) { caixa.innerHTML = ''; btn.setAttribute('aria-expanded', 'false'); return; }
+    const antes = rotulo.textContent;
+    rotulo.textContent = 'Abrindo…'; btn.disabled = true;
+    try {
+      const snap = await getDoc(doc(db, 'portais', token, acao === 'guia' ? 'guias' : 'comprovantes', e.id));
+      const img = snap.exists() ? (acao === 'guia' ? snap.data().imagem : snap.data().assinatura) : null;
+      if (!img || !/^data:image\//.test(img)) {
+        caixa.innerHTML = '<p class="dica">' + (acao === 'guia' ? 'A imagem desta guia não está aqui. Peça ao escritório.' : 'A assinatura está guardada no escritório. Peça uma cópia se precisar.') + '</p>';
+      } else {
+        const el = new Image(); el.alt = acao === 'guia' ? 'Imagem da guia' : 'Assinatura de quem recebeu'; el.src = img;
+        caixa.appendChild(el);
+        if (acao === 'guia') {
+          // mandar a guia pra quem paga (filho, financeiro): o celular abre o "compartilhar" dele
+          const arquivo = await (await fetch(img)).blob().then(b => new File([b], 'guia.jpg', { type: b.type })).catch(() => null);
+          if (arquivo && navigator.canShare && navigator.canShare({ files: [arquivo] })) {
+            const s = document.createElement('button'); s.type = 'button'; s.style.marginTop = '8px';
+            s.innerHTML = ICO.enviar + '<span>Mandar esta guia para alguém</span>';
+            s.onclick = () => navigator.share({ files: [arquivo], title: nomeDaGuia(e) }).catch(() => {});
+            caixa.appendChild(s);
+          } else {
+            const p = document.createElement('p'); p.className = 'dica'; p.textContent = 'Para guardar, segure o dedo na imagem e escolha salvar.'; caixa.appendChild(p);
+          }
+          registrar('guia');
+        }
+      }
+      btn.setAttribute('aria-expanded', 'true');
+    } catch (err) {
+      caixa.innerHTML = '<p class="erro">Não abriu. Confira a internet e toque de novo.</p>';
+    }
+    rotulo.textContent = antes; btn.disabled = false;
+  }
+
+  if (acao === 'agenda') porNoCalendario(e);
+
+  if (acao === 'recebi') {
+    const campo = cartao.querySelector('[data-campo="nome"]');
+    const erro = cartao.querySelector('[data-erro]');
+    const nome = campo.value.trim().replace(/[|]/g, ' ').replace(/\s+/g, ' ').slice(0, 60);
+    if (nome.length < 2) { erro.hidden = false; campo.setAttribute('aria-invalid', 'true'); campo.focus(); return; }
+    erro.hidden = true; campo.removeAttribute('aria-invalid');
+    btn.disabled = true; btn.textContent = 'Registrando…';
+    try {
+      const valor = new Date().toISOString() + '|' + nome;
+      await updateDoc(ref, { ['recebido.' + e.id]: valor });
+      dados.recebido = Object.assign({}, dados.recebido, { [e.id]: valor });
+      desenhar();
+    } catch (err) {
+      btn.disabled = false; btn.textContent = 'Não foi. Toque de novo';
+    }
+  }
+});
+
+// Android abre o Google Agenda já preenchido; o resto recebe o arquivo .ics.
+// O endereço desta página NÃO vai no evento: calendário sincroniza com outros
+// aparelhos e o endereço é o que dá acesso às guias.
+function porNoCalendario(e) {
+  const dia = e.vencimento.replace(/-/g, '');
+  const f = new Date(e.vencimento + 'T12:00:00'); f.setDate(f.getDate() + 1);
+  const fim = f.getFullYear() + String(f.getMonth() + 1).padStart(2, '0') + String(f.getDate()).padStart(2, '0');
+  const titulo = 'Vence hoje: ' + nomeDaGuia(e);
+  const texto = 'Guia entregue pela Nilma Contabilidade. O código para pagar está na sua página de guias.';
+  if (/Android/i.test(navigator.userAgent)) {
+    location.href = 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + encodeURIComponent(titulo) + '&dates=' + dia + '/' + fim + '&details=' + encodeURIComponent(texto);
+    return;
+  }
+  const limpo = t => String(t).replace(/([,;\\])/g, '\\$1').replace(/\n/g, ' ');
+  const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Nilma Contabilidade//Guias//PT', 'BEGIN:VEVENT', 'UID:' + e.id + '@guias',
+    'DTSTAMP:' + new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z', 'DTSTART;VALUE=DATE:' + dia, 'DTEND;VALUE=DATE:' + fim,
+    'SUMMARY:' + limpo(titulo), 'DESCRIPTION:' + limpo(texto), 'BEGIN:VALARM', 'TRIGGER:-PT15H', 'ACTION:DISPLAY', 'DESCRIPTION:' + limpo('Vence amanhã: ' + nomeDaGuia(e)), 'END:VALARM',
+    'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
+  // sem "download": no iPhone isso abre direto a tela de adicionar ao calendário
+  location.href = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(ics);
+}
+
+// ---------- "o cliente viu" ----------
+function registrar(oque) {
+  if (ehEquipe || !dados) return;
+  const agora = new Date().toISOString();
+  const v = (dados.visto && typeof dados.visto === 'object') ? dados.visto : {};
+  let novo;
+  if (oque === 'abriu') {
+    try {
+      const chave = 'visto_' + token;
+      if (Date.now() - Number(localStorage.getItem(chave) || 0) < 30 * 60000) return;   // recarregar não conta de novo
+      localStorage.setItem(chave, String(Date.now()));
+    } catch (e) {}
+    novo = { primeira: v.primeira || agora, ultima: agora, vezes: Math.min((v.vezes || 0) + 1, 9999), copiou: v.copiou || '', guia: v.guia || '' };
+  } else {
+    novo = { primeira: v.primeira || agora, ultima: v.ultima || agora, vezes: v.vezes || 1, copiou: oque === 'copiou' ? agora : (v.copiou || ''), guia: oque === 'guia' ? agora : (v.guia || '') };
+  }
+  dados.visto = novo;
+  updateDoc(ref, { visto: novo }).catch(() => {});
+}
+
+// ---------- "me avise antes de vencer" ----------
+function prepararAviso(lista) {
+  const pode = 'Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window;
+  const temVencimento = lista.some(e => e.vencimento && diasAte(e.vencimento) >= 0);
+  $('secAviso').hidden = !pode || !temVencimento;
+  if ($('secAviso').hidden) return;
+  let ligado = false;
+  try { ligado = Notification.permission === 'granted' && !!localStorage.getItem('aviso_' + token); } catch (e) {}
+  const btn = $('avisarBtn');
+  btn.innerHTML = ICO.sino + '<span>' + (ligado ? 'Aviso de vencimento ligado neste celular' : 'Me avise um dia antes de vencer') + '</span>';
+  btn.disabled = ligado;
+  if (btn.dataset.pronto) return;
+  btn.dataset.pronto = '1';
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    try {
+      const perm = await Notification.requestPermission();
+      if (perm !== 'granted') throw new Error('negado');
+      const registro = await navigator.serviceWorker.register('firebase-messaging-sw.js');
+      const { getMessaging, getToken } = await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging.js');
+      const endereco = await getToken(getMessaging(app), { vapidKey: VAPID, serviceWorkerRegistration: registro });
+      if (!endereco) throw new Error('sem endereço');
+      // relê antes de gravar: outro celular do mesmo cliente pode ter ligado o aviso agora há pouco
+      const atual = (await getDoc(ref)).data() || {};
+      const outros = (Array.isArray(atual.avisar) ? atual.avisar : []).filter(t => t !== endereco).slice(-4);
+      await updateDoc(ref, { avisar: outros.concat([endereco]) });
+      try { localStorage.setItem('aviso_' + token, '1'); } catch (e) {}
+      btn.innerHTML = ICO.sino + '<span>Aviso de vencimento ligado neste celular</span>';
+    } catch (err) {
+      btn.disabled = false;
+      const negou = 'Notification' in window && Notification.permission === 'denied';
+      $('avisarDica').textContent = negou
+        ? 'O celular bloqueou os avisos desta página. Use "Pôr o vencimento no calendário" em cada guia.'
+        : (/iPhone|iPad/i.test(navigator.userAgent)
+          ? 'No iPhone, primeiro adicione esta página à Tela de Início (botão de compartilhar) e abra por lá.'
+          : 'Não deu para ligar o aviso neste navegador. Use "Pôr o vencimento no calendário" em cada guia.');
+    }
+  });
+}
+
+carregar();
+</script>
+<noscript><p style="padding:20px">Esta página precisa de JavaScript ligado no navegador para mostrar suas guias.</p></noscript>
+</body>
+</html>

@@ -12,15 +12,18 @@ firebase.initializeApp({
 
 var messaging = firebase.messaging();
 
+// Os avisos do robô chegam só com "data" (titulo, corpo, tag, link). Mensagem
+// que traz "notification" o próprio Firebase já mostra sozinho; mostrar de
+// novo aqui fazia o aviso aparecer duas vezes.
 messaging.onBackgroundMessage(function (payload) {
-  var titulo = (payload.notification && payload.notification.title) || 'Nilma Protocolos';
-  var opcoes = {
-    body: (payload.notification && payload.notification.body) || '',
+  if (payload.notification) return;
+  var d = payload.data || {};
+  self.registration.showNotification(d.titulo || 'Nilma Contabilidade', {
+    body: d.corpo || '',
     icon: new URL('icon.png', self.registration.scope).href,
-    tag: (payload.data && payload.data.tag) || 'nilma-sol',
-    data: payload.data || {}
-  };
-  self.registration.showNotification(titulo, opcoes);
+    tag: d.tag || 'nilma-aviso',
+    data: d
+  });
 });
 
 // ---------- cache do app ----------
@@ -65,8 +68,13 @@ self.addEventListener('fetch', function (event) {
 
   // Rede primeiro: o app é um arquivo só e muda com frequência, então nunca
   // pode ficar preso numa versão velha enquanto existe internet.
+  // 'no-cache' manda o navegador CONFERIR com o servidor em vez de confiar na
+  // cópia dele: o GitHub Pages serve com validade de 10 minutos, e era por
+  // isso que versão nova só aparecia com Ctrl+F5. Sem mudança, a resposta é
+  // um "não mudou" de poucos bytes.
+  var conferir = req.mode === 'navigate' || /\.(html|js)$/.test(url.pathname);
   event.respondWith(
-    fetch(req).then(function (resposta) {
+    fetch(req, conferir ? { cache: 'no-cache' } : undefined).then(function (resposta) {
       if (resposta && resposta.ok) {
         var copia = resposta.clone();
         caches.open(CACHE).then(function (c) { c.put(req, copia); });
@@ -82,14 +90,27 @@ self.addEventListener('fetch', function (event) {
   );
 });
 
+// Tocar no aviso abre o endereço que veio nele. O lembrete de vencimento do
+// CLIENTE traz o link da página dele: sem isto, o toque abria a tela de login
+// do escritório. Só endereço deste mesmo site é aceito.
 self.addEventListener('notificationclick', function (event) {
   event.notification.close();
+  var dados = event.notification.data || {};
+  var destino = new URL('entregas.html', self.registration.scope).href;
+  try {
+    var pedido = new URL(dados.link || '', self.registration.scope);
+    if (pedido.origin === self.location.origin) destino = pedido.href;
+  } catch (e) {}
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (clientList) {
-      for (var i = 0; i < clientList.length; i++) {
-        if ('focus' in clientList[i]) return clientList[i].focus();
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (abertas) {
+      for (var i = 0; i < abertas.length; i++) {
+        // já tem uma janela nesse endereço: só traz pra frente
+        if (abertas[i].url === destino && 'focus' in abertas[i]) return abertas[i].focus();
       }
-      if (clients.openWindow) return clients.openWindow(new URL('entregas.html', self.registration.scope).href);
+      if (!dados.link) {
+        for (var j = 0; j < abertas.length; j++) { if ('focus' in abertas[j]) return abertas[j].focus(); }
+      }
+      if (clients.openWindow) return clients.openWindow(destino);
     })
   );
 });
