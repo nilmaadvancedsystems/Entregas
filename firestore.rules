@@ -287,6 +287,28 @@ service cloud.firestore {
       allow delete: if ehAdmin();
     }
 
+    // ---------- documento enviado pelo link do cliente ----------
+    // O cliente manda o extrato/comprovante pela página dele, sem login. O
+    // arquivo vem inteiro no documento (em base64, até ~700 KB: o banco não
+    // aceita documento maior que 1 MB e o plano gratuito não tem Storage). O
+    // PC do robô guarda no Drive, marca o mês como recebido e APAGA o envio.
+    // Só cria quem tem um link que existe; ninguém lê nem lista pelo app.
+    match /enviosDoPortal/{id} {
+      allow create: if request.resource.data.token is string
+        && request.resource.data.token.matches('^[A-Za-z0-9_-]{20,64}$')
+        && exists(/databases/$(database)/documents/portais/$(request.resource.data.token))
+        && request.resource.data.keys().hasOnly(['token', 'competencia', 'tipo', 'nome', 'mime', 'tamanho', 'dados', 'criadoEm', 'empresa'])
+        && request.resource.data.competencia is string && request.resource.data.competencia.matches('^20[0-9]{2}-(0[1-9]|1[0-2])$')
+        && request.resource.data.tipo in ['extrato', 'comprovante', 'aplicacao']
+        && request.resource.data.nome is string && request.resource.data.nome.size() <= 120
+        && request.resource.data.mime in ['application/pdf', 'image/jpeg', 'image/png']
+        && request.resource.data.dados is string && request.resource.data.dados.size() <= 960000
+        && request.resource.data.criadoEm is string && request.resource.data.criadoEm.size() <= 40
+        && (!('empresa' in request.resource.data) || (request.resource.data.empresa is string && request.resource.data.empresa.size() <= 200));
+      allow read, delete: if ehAdmin();
+      allow update: if false;
+    }
+
     // ---------- protocolos emitidos ----------
     // Cada protocolo impresso leva um código e um QR. Quem tem o papel na mão
     // (fiscal, banco, o próprio cliente) confere em cliente.html?protocolo=

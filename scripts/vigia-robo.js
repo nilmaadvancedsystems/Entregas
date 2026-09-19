@@ -501,6 +501,8 @@ async function iniciar() {
   catch (err) { log('entrega pelo link desligada:', err.message); }
   try { require('./resumo-semanal').iniciarResumoSemanal({ db, log, enviar, destino: destinoDosAvisos }); }
   catch (err) { log('resumo da semana desligado:', err.message); }
+  try { require('./envios-do-portal').iniciarEnviosDoPortal(db, log); }
+  catch (err) { log('documentos pelo link desligados:', err.message); }
   // Os dois abaixo mandam e-mail pra CLIENTE e vêm desligados: quem liga é o
   // admin em Pendências › Configurações › Automático. Passam pelo mesmo freio
   // por hora da fila de cobrança.

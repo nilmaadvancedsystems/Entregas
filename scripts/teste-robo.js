@@ -213,5 +213,18 @@ igual('comprovante de duas guias num e-mail só', [comp.assunto, /- DAS R\$ 1\.2
   ['Entrega registrada: 2 documentos', true, true, true, true]);
 igual('assunto de uma guia só', ce.textoDoComprovante({ nome: 'X' }, [{ itens: [{ tipo: 'DAS', valor: 50 }], competencia: '2026-08', confirmadoEm: '2026-09-19T13:00:00Z' }]).assunto, 'Entrega registrada: DAS R$ 50,00');
 
+// ---------- documento enviado pelo link do cliente ----------
+const ep = require('./envios-do-portal');
+const pdf = Buffer.from('%PDF-1.4\n%fim');
+igual('PDF pelos primeiros bytes', ep.tipoReal(pdf), 'pdf');
+igual('JPEG pelos primeiros bytes', ep.tipoReal(Buffer.from([0xFF, 0xD8, 0xFF, 0xE0, 0, 0, 0, 0])), 'jpg');
+igual('texto com nome de .pdf não passa', ep.tipoReal(Buffer.from('<html>oi</html>')), '');
+const envioOk = { competencia: '2026-08', tipo: 'extrato', nome: 'C:\\fakepath\\extrato: agosto?.PDF', dados: pdf.toString('base64') };
+igual('envio certo passa', [ep.conferirEnvio(envioOk).ext, !!ep.conferirEnvio(envioOk).buffer], ['pdf', true]);
+igual('mês inválido não passa', ep.conferirEnvio(Object.assign({}, envioOk, { competencia: '2026-13' })).erro, 'competência inválida');
+igual('tipo fora da lista não passa', ep.conferirEnvio(Object.assign({}, envioOk, { tipo: 'contrato' })).erro, 'tipo de documento inválido');
+igual('arquivo disfarçado não passa', ep.conferirEnvio(Object.assign({}, envioOk, { dados: Buffer.from('MZ executável').toString('base64') })).erro, 'não é PDF nem foto');
+igual('nome no Drive sem caminho nem caractere proibido', ep.nomeNoDrive(envioOk, 'pdf', new Date(2026, 8, 19)), 'Pelo link 2026-09-19 - Extrato - extrato agosto.pdf');
+
 console.log(falhas ? '\n' + falhas + ' de ' + total + ' testes FALHARAM' : total + ' testes, todos passaram');
 process.exit(falhas ? 1 : 0);

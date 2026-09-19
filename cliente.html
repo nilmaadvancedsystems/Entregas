@@ -26,7 +26,8 @@
       módulo de notificação se o cliente tocar em "Me avise";
     - lê UM documento: portais/{token}. O token na URL é a credencial.
   O que o cliente pode gravar está travado nas regras (firestore.rules):
-  visto, avisar e recebido.
+  visto, avisar e recebido, e o documento que ele envia (enviosDoPortal).
+  Também confere protocolo impresso (?protocolo=CODIGO).
 -->
 <style>
   :root {
@@ -106,6 +107,17 @@
   summary::-webkit-details-marker { display: none; }
   summary span { color: var(--ink-faint); font-weight: 400; font-size: .875rem; }
 
+  /* enviar documento pela página */
+  .envio { margin-top: 14px; padding-top: 14px; border-top: 1px solid color-mix(in srgb, currentColor 25%, transparent); }
+  .envio label { margin-top: 10px; }
+  .envio select, .envio input[type=file] {
+    font: inherit; width: 100%; min-height: 48px; padding: 10px 12px; border-radius: 10px;
+    border: 1px solid var(--border); background: var(--surface); color: var(--ink);
+  }
+  .envio .erro { color: var(--ruim); background: var(--surface); padding: 6px 10px; border-radius: 8px; margin-top: 8px; }
+  .enviado { font-size: .8125rem; font-weight: 600; opacity: .85; }
+  .bloco.aviso .botao { background: transparent; color: inherit; border-color: color-mix(in srgb, currentColor 35%, transparent); }
+
   /* guardar na tela inicial: uma faixa discreta, some quando a pessoa dispensa ou já guardou */
   .instalar { display: flex; align-items: center; gap: 12px; margin-top: 16px; padding: 12px 12px 12px 14px; border-radius: var(--r); background: var(--surface-2); }
   .instalar p { flex: 1; font-size: .9375rem; color: var(--ink-soft); }
@@ -174,7 +186,7 @@
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
-import { getFirestore, doc, getDoc, updateDoc } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-lite.js';
+import { getFirestore, doc, getDoc, updateDoc, addDoc, collection } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-lite.js';
 
 const CONFIG = {
   apiKey: 'AIzaSyD6xg7XhX8dKTKmaYup4hRX5k9XFHEkb98', authDomain: 'entregas-2e5e2.firebaseapp.com', projectId: 'entregas-2e5e2',
@@ -357,16 +369,116 @@ function desenharDocumentos(docs) {
     return;
   }
   let h = '<div class="bloco aviso"><h2>Documentos que ainda precisamos de você</h2>';
+  const opcoes = [];
   devendo.forEach(m => {
     h += '<p class="mes">' + esc((m.empresa ? m.empresa + ' · ' : '') + mesPorExtenso(m.competencia)) + '</p><ul>' +
-      m.faltam.map(k => '<li>' + esc(NOMES_DOC[k] || k) + '</li>').join('') + '</ul>';
+      m.faltam.map(k => {
+        opcoes.push({ competencia: m.competencia, tipo: k, empresa: m.empresa, rotulo: (NOMES_DOC[k] || k) + ' · ' + (m.empresa ? m.empresa + ' · ' : '') + mesPorExtenso(m.competencia).toLowerCase() });
+        return '<li>' + esc(NOMES_DOC[k] || k) + (jaEnviado(m.competencia, k, m.empresa) ? ' <span class="enviado">enviado, o escritório vai conferir</span>' : '') + '</li>';
+      }).join('') + '</ul>';
   });
+  h += '<div class="acoes">';
+  if (!ehEquipe) h += '<button type="button" class="principal" id="enviarAbrir">' + ICO.enviar + '<span>Enviar daqui do celular</span></button>';
   if (docs.email) {
-    h += '<div class="acoes"><a class="botao" href="mailto:' + esc(docs.email) + '?subject=' + encodeURIComponent('Documentos de ' + mesPorExtenso(devendo[0].competencia).toLowerCase()) + '">' +
-      ICO.enviar + '<span>Mandar por e-mail</span></a></div><p class="dica" style="color:inherit">Anexe os arquivos e envie. O escritório marca como recebido sozinho.</p>';
+    h += '<a class="botao" href="mailto:' + esc(docs.email) + '?subject=' + encodeURIComponent('Documentos de ' + mesPorExtenso(devendo[0].competencia).toLowerCase()) + '">' +
+      '<span>Mandar por e-mail</span></a>';
+  }
+  h += '</div>';
+  if (!ehEquipe) {
+    h += '<form class="envio" id="envioForm" hidden>' +
+      '<label for="envioQual">Qual documento</label><select id="envioQual">' +
+        opcoes.map((o, i) => '<option value="' + i + '">' + esc(o.rotulo) + '</option>').join('') + '</select>' +
+      '<label for="envioArquivo">Arquivo (PDF ou foto)</label><input type="file" id="envioArquivo" accept="application/pdf,image/jpeg,image/png">' +
+      '<p class="erro" id="envioErro" hidden></p>' +
+      '<div class="acoes"><button type="submit" class="principal" id="envioBtn">Enviar</button></div>' +
+      '<p class="dica" style="color:inherit">Um arquivo por vez, até 700 KB. Foto é diminuída sozinha. Extrato grande em PDF vai melhor por e-mail.</p></form>';
   }
   sec.innerHTML = h + '</div>';
+  if (!ehEquipe) prepararEnvio(opcoes);
 }
+
+// ---------- enviar documento pela página ----------
+// O arquivo vai inteiro num documento do banco (enviosDoPortal), porque o
+// plano gratuito não tem Storage. O PC do escritório guarda no Drive, marca o
+// mês e apaga o envio. Limite de ~700 KB: o banco não aceita mais que 1 MB.
+const MAX_ENVIO = 700 * 1024;
+const chaveEnvio = (comp, tipo, empresa) => 'envio_' + token + '_' + comp + '_' + tipo + '_' + (empresa || '');
+function jaEnviado(comp, tipo, empresa) {
+  try { return Date.now() - Number(localStorage.getItem(chaveEnvio(comp, tipo, empresa)) || 0) < 3 * 864e5; } catch (e) { return false; }
+}
+function lerComoBase64(blob) {
+  return new Promise((ok, falha) => {
+    const r = new FileReader();
+    r.onload = () => ok(String(r.result).split(',')[1] || '');
+    r.onerror = () => falha(r.error);
+    r.readAsDataURL(blob);
+  });
+}
+// foto de celular tem 3 a 5 MB: reduz pra caber, ainda legível
+async function diminuirFoto(arquivo) {
+  const url = URL.createObjectURL(arquivo);
+  try {
+    const img = await new Promise((ok, falha) => { const i = new Image(); i.onload = () => ok(i); i.onerror = falha; i.src = url; });
+    for (const [lado, q] of [[2000, 0.82], [1600, 0.72], [1280, 0.62]]) {
+      const k = Math.min(1, lado / Math.max(img.naturalWidth, img.naturalHeight));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      const blob = await new Promise(ok => c.toBlob(ok, 'image/jpeg', q));
+      if (blob && blob.size <= MAX_ENVIO) return blob;
+    }
+    return null;
+  } finally { URL.revokeObjectURL(url); }
+}
+function prepararEnvio(opcoes) {
+  const form = $('envioForm');
+  $('enviarAbrir').addEventListener('click', () => {
+    form.hidden = !form.hidden;
+    if (!form.hidden) $('envioQual').focus();
+  });
+  const erro = t => { $('envioErro').textContent = t; $('envioErro').hidden = !t; };
+  form.addEventListener('submit', async ev => {
+    ev.preventDefault();
+    erro('');
+    const o = opcoes[Number($('envioQual').value)];
+    const arq = $('envioArquivo').files[0];
+    if (!o) return;
+    if (!arq) { erro('Escolha o arquivo.'); return; }
+    const btn = $('envioBtn');
+    btn.disabled = true;
+    btn.textContent = 'Enviando…';
+    try {
+      let blob = arq, mime = arq.type;
+      if (/^image\//.test(mime)) {
+        blob = await diminuirFoto(arq);
+        mime = 'image/jpeg';
+        if (!blob) throw new Error('A foto ficou grande demais mesmo diminuída. Tente de novo mais de perto ou mande por e-mail.');
+      } else if (mime !== 'application/pdf') {
+        throw new Error('Mande um PDF ou uma foto.');
+      } else if (arq.size > MAX_ENVIO) {
+        throw new Error('Este PDF passa de 700 KB. Mande por e-mail, que aceita arquivo maior.');
+      }
+      const dados = await lerComoBase64(blob);
+      const envio = { token, competencia: o.competencia, tipo: o.tipo, nome: String(arq.name || 'arquivo').slice(0, 120), mime, tamanho: blob.size, dados, criadoEm: new Date().toISOString() };
+      if (o.empresa) envio.empresa = String(o.empresa).slice(0, 200);
+      await addDoc(collection(db, 'enviosDoPortal'), envio);
+      try { localStorage.setItem(chaveEnvio(o.competencia, o.tipo, o.empresa), String(Date.now())); } catch (e) {}
+      form.reset();
+      form.hidden = true;
+      desenharDocumentos(docsAtuais());
+      const ok = document.createElement('p');
+      ok.className = 'tudo-certo';
+      ok.innerHTML = ICO.certo + '<span>Recebemos o arquivo. Em alguns minutos o escritório confere e tira da lista.</span>';
+      $('secDocs').appendChild(ok);
+    } catch (err) {
+      erro(err && err.message && !/permission|PERMISSION/.test(err.message) ? err.message : 'Não deu para enviar agora. Veja a internet e tente de novo, ou mande por e-mail.');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Enviar';
+    }
+  });
+}
+const docsAtuais = () => (dados && dados.documentos) || null;
 
 function desenharGuias(lista, recebidos) {
   const caixa = $('guias');

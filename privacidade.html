@@ -38,7 +38,8 @@
     <li><strong>Leitura</strong> dos e-mails recebidos na caixa do escritório, para reconhecer
     quando um cliente enviou extrato bancário, comprovante ou aplicação e marcar isso no controle mensal.</li>
     <li><strong>Envio</strong> de e-mails de cobrança de documentos aos clientes, a partir da própria
-    caixa do escritório, e de avisos internos para a equipe.</li>
+    caixa do escritório, e de avisos internos para a equipe. Se o escritório ligar, também saem sozinhos o
+    lembrete de documentos em dias combinados do mês e o comprovante de cada entrega de guia.</li>
   </ul>
   <p>O sistema não acessa nenhuma outra conta de e-mail além da do escritório.</p>
 
@@ -68,6 +69,11 @@
   digitado ao confirmar o recebimento de uma guia e, se o cliente ligar o lembrete de vencimento, o endereço de
   notificação daquele celular. Esses registros servem para o escritório saber que a guia chegou e para enviar o
   lembrete; não são usados para outra finalidade nem compartilhados.</p>
+  <p>O cliente também pode enviar um documento (PDF ou foto) por essa página. O arquivo passa pelo Firebase só até o
+  computador do escritório guardá-lo no Google Drive do escritório; depois é apagado do Firebase.</p>
+  <p>O protocolo de entrega impresso traz um código. Quem tem o código vê, na mesma página, o que foi registrado naquele
+  protocolo (documentos, datas e nome de quem recebeu), sem assinatura e sem localização, para conferir se o papel é
+  verdadeiro.</p>
 
   <h2>Por quanto tempo</h2>
   <p>As informações ficam guardadas enquanto forem necessárias à prestação dos serviços contábeis

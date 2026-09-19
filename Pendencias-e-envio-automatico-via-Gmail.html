@@ -3799,6 +3799,7 @@
     if (!info || !info.origem) return null;
     var quando = info.em ? ' em ' + dataCurta(info.em) : '';
     if (info.origem === 'gmail') return { icone: 'ph-robot', texto: 'Lido do Gmail' + quando, arquivos: info.arquivos || [], robo: true };
+    if (info.origem === 'link') return { icone: 'ph-link', texto: 'Enviado pelo cliente no link dele' + quando, arquivos: info.arquivos || [], robo: true };
     return { icone: 'ph-hand-pointing', texto: 'Marcado' + (info.por ? ' por ' + info.por : ' à mão') + quando, arquivos: [], robo: false };
   }
   function clienteAtualObj() { return clientesPorId.get(clienteSelecionadoId); }

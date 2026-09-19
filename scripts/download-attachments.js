@@ -651,4 +651,6 @@ if (require.main === module) {
 module.exports = {
   competenciaDoTexto, competenciaPresumida, mesesDoPortal, faltamNoMes, detectarTipos, coletarAnexos, IMAGEM_DE_ASSINATURA, AUTOMATICO,
   desempatarPorDocumento, decodificarEntidades, extrairEmail, extrairNome, dominioDe, DOMINIOS_PUBLICOS,
+  // usados por envios-do-portal.js (documento que o cliente manda pelo link)
+  PASTA_DESTINO, sanitizar, salvarArquivo, atualizarPortal,
 };
