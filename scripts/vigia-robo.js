@@ -469,6 +469,11 @@ async function iniciar() {
 
   baterPonto();
   setInterval(() => { baterPonto(); talvezMandarResumo(); if (filaFalhou) atenderFila(); }, 60 * 1000);
+
+  // Avisos no celular (parada nova, entrega não realizada). Se isto falhar,
+  // o resto do vigia segue: aviso é conforto, não pode derrubar o robô.
+  try { require('./avisos-push').iniciarAvisos(db, log); }
+  catch (err) { log('avisos no celular desligados:', err.message); }
   limparFila();
   setInterval(limparFila, 24 * 36e5);
 
