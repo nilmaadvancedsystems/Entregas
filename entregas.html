@@ -1399,8 +1399,9 @@
     .hub-head h1 { font-size: 1.875rem; }
     .hub-data { grid-column: 1; font-size: var(--t-md); margin-top: calc(var(--esp-2) - var(--esp-4)); }
     .hub-grid { grid-column: 2; grid-row: 1; }
-    .hub-aviso, .hub-novidades { grid-column: 2; }
+    .hub-aviso { grid-column: 2; }
     .hub-pe { grid-column: 2; margin: 0; padding: 0 var(--esp-2); }
+    .hub-novas { grid-column: 1; margin-top: 0; }
     .hub-sair {
       grid-column: 1; grid-row: auto; justify-self: start; align-self: start;
       width: auto; min-height: 34px; padding: 0 12px; gap: 8px; margin-top: var(--esp-2);
@@ -1416,18 +1417,37 @@
     .hub-head { margin-bottom: var(--esp-5); }
     .hub-card-desc { font-size: var(--t-sm); }
   }
-  /* novidades: aparece uma vez por versão, some no "Entendi" */
-  .hub-novidades {
-    margin-top: var(--esp-4); padding: var(--esp-3) var(--esp-4);
-    border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface);
-    font-size: var(--t-sm); color: var(--ink-soft); line-height: 1.5;
+  /* novidades: um selo discreto junto do nome. A lista abre num quadro próprio;
+     dentro da tela de funções ela empurrava o menu e o aviso do robô. */
+  .hub-novas {
+    grid-column: 1 / -1; justify-self: start; margin-top: var(--esp-3);
+    display: inline-flex; align-items: center; gap: 8px; min-height: 32px; padding: 0 12px 0 10px;
+    border: 1px solid var(--border); border-radius: var(--r-pill); background: var(--surface);
+    font: inherit; font-size: var(--t-sm); font-weight: 500; color: var(--ink-soft); cursor: pointer;
+    transition: border-color var(--dur-rapido) var(--ease), color var(--dur-rapido) var(--ease);
   }
-  .hub-novidades-topo { display: flex; justify-content: space-between; align-items: center; gap: var(--esp-3); margin-bottom: 4px; }
-  .hub-novidades-topo span { font-weight: 600; color: var(--ink); font-size: var(--t-base); }
-  .hub-novidades-topo .link-btn { font-size: var(--t-sm); padding: 2px 4px; }
-  .hub-novidades ul { margin: 0; padding-left: 18px; }
-  .hub-novidades li + li { margin-top: 3px; }
-  @media (min-width: 900px) { .hub-novidades { margin-top: 0; } }
+  .hub-novas:hover { border-color: var(--border-forte); color: var(--ink); }
+  .hub-novas .ph { font-size: .875rem; color: var(--ink-faint); transition: transform var(--dur-rapido) var(--ease); }
+  .hub-novas:hover .ph { transform: translateX(2px); }
+  .hub-novas-ponto { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex: none; }
+
+  /* modal aberto a partir da tela de funções precisa ficar por cima dela */
+  body:has(.hub-screen:not([hidden])) .modal-overlay { z-index: calc(var(--z-tela) + 2); }
+
+  /* o quadro das novidades */
+  .novas-lista { display: grid; gap: 2px; margin: var(--esp-2) 0 var(--esp-4); }
+  .novas-item { display: grid; grid-template-columns: 36px 1fr; column-gap: var(--esp-3); align-items: start; padding: var(--esp-3) 0; border-bottom: 1px solid var(--border); }
+  .novas-item:last-child { border-bottom: 0; }
+  .novas-ico { width: 36px; height: 36px; display: grid; place-items: center; border-radius: var(--r-md); background: var(--surface-2); color: var(--ink-soft); font-size: 1.125rem; }
+  .novas-titulo { font-weight: 600; font-size: var(--t-md); color: var(--ink); line-height: 1.3; }
+  .novas-texto { font-size: var(--t-base); color: var(--ink-soft); line-height: 1.45; margin-top: 2px; }
+  @media (prefers-reduced-motion: no-preference) {
+    .novas-item { animation: hub-chega var(--dur-lento) var(--ease) backwards; }
+    .novas-item:nth-child(2) { animation-delay: 45ms; }
+    .novas-item:nth-child(3) { animation-delay: 90ms; }
+    .novas-item:nth-child(4) { animation-delay: 135ms; }
+  }
+  html[data-animacao="reduzida"] .novas-item { animation: none !important; }
 
   /* só aparece quando tem problema: PC do robô parado ou backup atrasado */
   .hub-aviso {
@@ -2683,6 +2703,7 @@
       <span class="hub-avatar" id="hubAvatar" aria-hidden="true"></span>
       <h1 id="hubSaudacao">Olá</h1>
       <p class="hub-data" id="hubData"></p>
+      <button type="button" class="hub-novas" id="hubNovasBtn" hidden><span class="hub-novas-ponto" aria-hidden="true"></span><span id="hubNovasTexto"></span><i class="ph ph-caret-right" aria-hidden="true"></i></button>
       <button type="button" class="btn-chip hub-sair" id="hubSairBtn" title="Sair da conta" aria-label="Sair da conta"><i class="ph ph-sign-out" aria-hidden="true"></i><span>Sair da conta</span></button>
     </div>
     <div class="hub-grid" id="hubGridPrincipal">
@@ -2729,13 +2750,6 @@
         <span class="hub-card-desc">Classifica lançamentos do SIEG e gera a planilha do Alterdata</span>
         <span class="hub-card-fim"><kbd aria-hidden="true"></kbd><i class="ph ph-caret-right" aria-hidden="true"></i></span>
       </a>
-    </div>
-    <div class="hub-novidades" id="hubNovidades" hidden>
-      <div class="hub-novidades-topo">
-        <span>O que mudou</span>
-        <button type="button" class="link-btn" id="hubNovidadesOk">Entendi</button>
-      </div>
-      <ul id="hubNovidadesLista"></ul>
     </div>
     <div class="hub-aviso" id="hubAviso" hidden role="status">
       <i class="ph ph-warning" aria-hidden="true"></i>
@@ -11383,31 +11397,52 @@
   var NOVIDADES_ = {
     versao: '2026-09-19',
     itens: [
-      { quem: ['office_boy'], texto: 'Cliente ausente? O app oferece pôr de volta na rota, até várias guias de uma vez.' },
-      { quem: ['office_boy'], texto: 'Na confirmação, "Mostrar o link do cliente" abre o QR pra ele guardar a página dele.' },
-      { quem: ['admin'], texto: 'Clientes › abrir um cliente › Link do cliente: a página dele com guias, código pra pagar e comprovantes.' },
-      { quem: ['admin', 'contabil'], texto: 'Clientes mostra "Mudou na Receita": inapto, baixado, saiu do Simples. E o cadastro agora se edita no app.' },
-      { quem: [], texto: 'Embaixo de "Nome de quem recebeu" aparecem os nomes que já assinaram por aquele cliente: um toque preenche.' },
-      { quem: [], texto: 'A ficha do cliente tem Linha do tempo e, em cada mês, Protocolo pra imprimir ou salvar em PDF.' },
-      { quem: [], texto: 'Trocar de função é o botão de quatro quadrados ao lado da engrenagem.' }
+      { quem: ['office_boy'], icone: 'ph-arrow-counter-clockwise', titulo: 'Cliente ausente volta pra rota num toque', texto: 'Depois de registrar que não entregou, o app oferece pôr de volta na rota, até várias guias de uma vez.' },
+      { quem: ['office_boy'], icone: 'ph-qr-code', titulo: 'QR da página do cliente na entrega', texto: 'Na confirmação, "Mostrar o link do cliente" abre o QR pra ele guardar a página dele.' },
+      { quem: ['admin'], icone: 'ph-link', titulo: 'Cada cliente pode ter a página dele', texto: 'Clientes › abrir um cliente › Link do cliente: guias, código pra pagar, comprovantes e o que falta enviar.' },
+      { quem: ['admin'], icone: 'ph-paper-plane-tilt', titulo: 'Entregar pelo link, sem ir até lá', texto: 'Em Nova entrega, "Pelo link": anexe o PDF, o cliente confirma que recebeu e isso entra no protocolo.' },
+      { quem: ['admin', 'contabil'], icone: 'ph-bank', titulo: 'Aviso quando algo muda na Receita', texto: 'A aba Clientes mostra quem ficou inapto, foi baixado ou saiu do Simples. E o cadastro agora se edita no app.' },
+      { quem: [], icone: 'ph-user-check', titulo: 'Quem costuma assinar, num toque', texto: 'Embaixo de "Nome de quem recebeu" aparecem os nomes que já assinaram por aquele cliente.' },
+      { quem: [], icone: 'ph-clock-counter-clockwise', titulo: 'Linha do tempo e protocolo do mês', texto: 'Na ficha do cliente: tudo que aconteceu numa ordem só, e o protocolo de cada mês pra imprimir ou salvar em PDF.' },
+      { quem: [], icone: 'ph-squares-four', titulo: 'Trocar de função ficou à mão', texto: 'É o botão de quatro quadrados ao lado da engrenagem.' }
     ]
   };
-  function mostrarNovidades_() {
-    var caixa = $('hubNovidades');
-    var vista = '';
-    try { vista = localStorage.getItem('nilma_novidades_vista') || ''; } catch (e) {}
-    if (vista === NOVIDADES_.versao) { caixa.hidden = true; return; }
-    // primeiro o que é do papel da pessoa, depois o que é de todo mundo
+  function novidadesPraMim_() {
+    // primeiro o que é do papel da pessoa, depois o que é de todo mundo; no máximo quatro
     var meus = NOVIDADES_.itens.filter(function (i) { return i.quem.some(temPapel); });
     var gerais = NOVIDADES_.itens.filter(function (i) { return !i.quem.length; });
-    var linhas = meus.concat(gerais).slice(0, 4);
-    $('hubNovidadesLista').innerHTML = linhas.map(function (i) { return '<li>' + escapeHtml_(i.texto) + '</li>'; }).join('');
-    caixa.hidden = !linhas.length;
+    return meus.concat(gerais).slice(0, 4);
   }
-  $('hubNovidadesOk').addEventListener('click', function () {
-    try { localStorage.setItem('nilma_novidades_vista', NOVIDADES_.versao); } catch (e) {}
-    $('hubNovidades').hidden = true;
-  });
+  function mostrarNovidades_() {
+    var btn = $('hubNovasBtn');
+    var vista = '';
+    try { vista = localStorage.getItem('nilma_novidades_vista') || ''; } catch (e) {}
+    var n = vista === NOVIDADES_.versao ? 0 : novidadesPraMim_().length;
+    btn.hidden = !n;
+    if (n) $('hubNovasTexto').textContent = n + (n === 1 ? ' novidade' : ' novidades');
+  }
+  function abrirNovidades_() {
+    var root = $('modalRoot');
+    root.innerHTML =
+      '<div class="modal-overlay" id="overlay"><div class="modal" id="modalInner">' +
+        '<div class="modal-head"><div><h2>O que mudou</h2></div>' +
+          '<button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button></div>' +
+        '<div class="novas-lista">' + novidadesPraMim_().map(function (i) {
+          return '<div class="novas-item"><span class="novas-ico"><i class="ph ' + i.icone + '" aria-hidden="true"></i></span>' +
+            '<div><div class="novas-titulo">' + escapeHtml_(i.titulo) + '</div><div class="novas-texto">' + escapeHtml_(i.texto) + '</div></div></div>';
+        }).join('') + '</div>' +
+        '<button type="button" class="btn btn-primary" id="novasEntendiBtn">Entendi</button>' +
+      '</div></div>';
+    // fechar no X deixa o selo: a pessoa pode querer ler depois. "Entendi" é que dispensa.
+    $('overlay').addEventListener('click', function (e) { if (e.target.id === 'overlay') closeModal(); });
+    $('modalClose').addEventListener('click', closeModal);
+    $('novasEntendiBtn').addEventListener('click', function () {
+      try { localStorage.setItem('nilma_novidades_vista', NOVIDADES_.versao); } catch (e) {}
+      $('hubNovasBtn').hidden = true;
+      closeModal();
+    });
+  }
+  $('hubNovasBtn').addEventListener('click', abrirNovidades_);
 
   var CHAVE_ULTIMA_FUNCAO = 'nilma_ultima_funcao';
   function linhasDoHub_() {
