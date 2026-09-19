@@ -1169,6 +1169,14 @@
   /* Celular deitado: a faixa come a tela toda. */
   @media (max-height: 460px) { .auth-side { display: none; } }
 
+  /* linha do tempo do cliente */
+  .tempo-linha { display: grid; grid-template-columns: 22px 1fr; column-gap: var(--esp-3); align-items: start; padding: var(--esp-2) 0; border-bottom: 1px solid var(--border); }
+  .tempo-linha > .ph { font-size: 1.125rem; color: var(--ink-faint); margin-top: 1px; }
+  .tempo-linha > .ph.ok { color: var(--success); }
+  .tempo-linha > .ph.erro { color: var(--danger); }
+  .tempo-linha .er-nome { font-weight: 500; font-size: var(--t-base); color: var(--ink); }
+  .tempo-linha .er-sub { font-size: var(--t-sm); color: var(--ink-soft); margin-top: 1px; overflow-wrap: anywhere; }
+
   /* nomes de quem costuma receber, logo abaixo do campo */
   .recebedor-sugestoes { display: flex; flex-wrap: wrap; gap: 6px; margin: calc(var(--esp-2) - var(--esp-4)) 0 var(--esp-4); }
   .recebedor-sugestoes .btn-chip { min-height: 32px; font-size: var(--t-sm); color: var(--ink-soft); }
@@ -7806,6 +7814,7 @@
         (whatsAppNumero_(cliente.telefone)
           ? '<button type="button" class="btn-chip" id="falarClienteBtn"><i class="ph ph-whatsapp-logo" aria-hidden="true"></i> Falar no WhatsApp</button>'
           : '') +
+        '<button type="button" class="btn-chip" id="linhaDoTempoBtn"><i class="ph ph-clock-counter-clockwise" aria-hidden="true"></i> Linha do tempo</button>' +
         (temPapel('admin') ? '<button type="button" class="btn-chip" id="editarCadastroBtn"><i class="ph ph-pencil-simple" aria-hidden="true"></i> Editar cadastro</button>' : '') +
         ((cliente.portalToken || temPapel('admin')) ? '<button type="button" class="btn-chip" id="linkClienteBtn"><i class="ph ph-link" aria-hidden="true"></i> Link do cliente</button>' : '') +
         '<button type="button" class="btn-chip" id="corrigirLocalBtn"><i class="ph ph-map-pin-line" aria-hidden="true"></i> Corrigir localização</button>' +
@@ -7851,6 +7860,9 @@
         window.open(whatsAppUrl_('Olá! Aqui é da Nilma Contabilidade.', cliente.telefone), '_blank');
       });
     }
+    $('linhaDoTempoBtn').addEventListener('click', function () {
+      abrirLinhaDoTempo_(cliente, historico, function () { renderHistoricoList(cliente, historico); });
+    });
     if ($('editarCadastroBtn')) $('editarCadastroBtn').addEventListener('click', function () {
       abrirCadastroCliente_(cliente, function () { openClienteHistorico(clientesCache.get(cliente.id) || cliente); });
     });
@@ -11219,6 +11231,96 @@
         botaoLivre_(btn);
       });
     });
+  }
+
+  // ---------- linha do tempo do cliente ----------
+  // Entregas ficam numa tela, cobranças e documentos recebidos em outra. Pra
+  // responder "vocês receberam meu extrato?" ou "quando entregaram a guia?"
+  // era preciso abrir as duas. Aqui vai tudo numa ordem só, do mais novo pro
+  // mais antigo. Só lê o que já existe. Documentos e cobranças só aparecem
+  // pra quem a regra deixa ler (admin e contábil); os demais veem as entregas.
+  var NOMES_DOC_TEMPO_ = { extrato: 'Extrato bancário', comprovante: 'Comprovantes', aplicacao: 'Extrato de aplicação' };
+  var CANAIS_COBRANCA_ = { gmail: 'por e-mail', robo: 'por e-mail', lote: 'por e-mail (lote)', whatsapp: 'pelo WhatsApp', coleta: 'coleta combinada' };
+
+  function eventosDasEntregas_(historico) {
+    var ev = [];
+    historico.forEach(function (e) {
+      var itens = (e.itens || []).map(function (i) { return typeof i === 'string' ? i : i.tipo; }).join(', ') || 'documentos';
+      var comp = e.competencia ? ' (' + fmtCompetencia(e.competencia) + ')' : '';
+      if (e.status === 'confirmada') {
+        ev.push({ em: e.confirmadoEm || e.criadoEm, ico: 'ph-check-circle', cor: 'ok', titulo: 'Entregue: ' + itens + comp,
+          sub: [e.recebedor ? 'recebido por ' + e.recebedor : '', e.entregadoPorNome ? 'entregue por ' + e.entregadoPorNome : '',
+            e.semComprovante ? 'sem comprovante' : ''].filter(Boolean).join(' · ') });
+      } else if (e.status === 'falha') {
+        ev.push({ em: e.confirmadoEm || e.criadoEm, ico: 'ph-x-circle', cor: 'erro', titulo: 'Não entregue: ' + itens + comp, sub: e.motivoFalha || '' });
+      } else {
+        ev.push({ em: e.criadoEm, ico: 'ph-truck', cor: '', titulo: 'Na rota: ' + itens + comp, sub: e.tentativa > 1 ? e.tentativa + 'ª tentativa' : '' });
+      }
+    });
+    return ev;
+  }
+  function eventosDosDocumentos_(docs) {
+    var ev = [];
+    docs.forEach(function (d) {
+      var comp = d.competencia ? ' de ' + fmtCompetencia(d.competencia) : '';
+      Object.keys(d.detalhes || {}).forEach(function (tipo) {
+        var det = d.detalhes[tipo];
+        if (!det || !det.em || !d[tipo]) return;
+        ev.push({ em: det.em, ico: 'ph-file-arrow-down', cor: 'ok', titulo: 'Chegou: ' + (NOMES_DOC_TEMPO_[tipo] || tipo) + comp,
+          sub: det.origem === 'gmail' ? 'lido do e-mail pelo robô' : (det.por ? 'marcado por ' + det.por : 'marcado na tela') });
+      });
+      (d.cobrancas || []).forEach(function (c) {
+        if (!c || !c.em) return;
+        ev.push({ em: c.em, ico: 'ph-paper-plane-tilt', cor: '', titulo: 'Cobrança' + comp + ' ' + (CANAIS_COBRANCA_[c.canal] || ''),
+          sub: [(c.tipos || []).map(function (t) { return NOMES_DOC_TEMPO_[t] || t; }).join(', '), c.por ? 'por ' + c.por : ''].filter(Boolean).join(' · ') });
+      });
+      (d.mensagens || []).forEach(function (m) {
+        if (!m || !m.em) return;
+        var n = (m.anexos || []).length;
+        ev.push({ em: m.em, ico: 'ph-envelope-simple', cor: '', titulo: 'E-mail recebido' + (n ? ' com ' + n + (n === 1 ? ' anexo' : ' anexos') : ''), sub: m.assunto || '' });
+      });
+    });
+    return ev;
+  }
+
+  function abrirLinhaDoTempo_(cliente, historico, aoVoltar) {
+    var root = $('modalRoot');
+    root.innerHTML =
+      '<div class="modal-overlay" id="overlay"><div class="modal" id="modalInner">' +
+        '<div class="modal-head"><div><h2>Linha do tempo</h2>' +
+          '<div class="card-hint modal-head-sub">' + escapeHtml_(clienteLabel(cliente)) + '</div>' +
+        '</div><button class="modal-close" id="modalClose" title="Voltar"><i class="ph ph-x" aria-hidden="true"></i></button></div>' +
+        '<div id="tempoLista"><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>' +
+      '</div></div>';
+    function voltar() { if (aoVoltar) aoVoltar(); else closeModal(); }
+    $('overlay').addEventListener('click', function (e) { if (e.target.id === 'overlay') voltar(); });
+    $('modalClose').addEventListener('click', voltar);
+
+    function desenhar(eventos, semDocumentos) {
+      var lista = $('tempoLista');
+      if (!lista) return;
+      eventos = eventos.filter(function (e) { return e.em; })
+        .sort(function (a, b) { return String(b.em).localeCompare(String(a.em)); }).slice(0, 150);
+      if (!eventos.length) { lista.innerHTML = '<div class="empty-state">Nada registrado para este cliente ainda.</div>'; return; }
+      var html = '', mesAtual = '';
+      eventos.forEach(function (e) {
+        var d = new Date(e.em);
+        var mes = isNaN(d) ? '' : d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+        if (mes !== mesAtual) { mesAtual = mes; html += '<div class="historico-mes"><span>' + escapeHtml_(mes) + '</span></div>'; }
+        html += '<div class="tempo-linha"><i class="ph ' + e.ico + (e.cor ? ' ' + e.cor : '') + '" aria-hidden="true"></i>' +
+          '<div><div class="er-nome">' + escapeHtml_(e.titulo) + '</div>' +
+          '<div class="er-sub">' + escapeHtml_(fmtDateTime(e.em)) + (e.sub ? ' · ' + escapeHtml_(e.sub) : '') + '</div></div></div>';
+      });
+      if (semDocumentos) html += '<p class="card-hint" style="margin-top:12px">Cobranças e documentos recebidos aparecem aqui pra quem é do contábil.</p>';
+      lista.innerHTML = html;
+    }
+
+    var daEntrega = eventosDasEntregas_(historico);
+    var podeVerDocumentos = temPapel('admin') || temPapel('contabil');
+    if (!podeVerDocumentos) { desenhar(daEntrega, true); return; }
+    db.collection('documentosMensal').where('clienteId', '==', cliente.id).get().then(function (snap) {
+      desenhar(daEntrega.concat(eventosDosDocumentos_(snap.docs.map(function (d) { return d.data(); }))), false);
+    }).catch(function () { desenhar(daEntrega, false); });
   }
 
   $('hubClientes').addEventListener('click', entrarModoClientes_);
