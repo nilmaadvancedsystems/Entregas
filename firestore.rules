@@ -167,7 +167,9 @@ service cloud.firestore {
 
       allow create: if logado()
         && request.resource.data.criadoEm is string
-        && request.resource.data.status in ['pendente', 'confirmada', 'falha'];
+        // 'link' = guia publicada na página do cliente, esperando ele tocar em
+        // "Recebi". Quem confirma depois é o PC do robô (Admin SDK).
+        && request.resource.data.status in ['pendente', 'confirmada', 'falha', 'link'];
 
       // Quem registrou pode corrigir; admin corrige qualquer uma. O que
       // ninguém reescreve é a autoria e a data de criação — é isso que faz o
@@ -197,7 +199,7 @@ service cloud.firestore {
       // rota não provou nada: quem a colocou pode tirar.
       allow delete: if ehAdmin()
         || (logado()
-          && resource.data.status == 'pendente'
+          && resource.data.status in ['pendente', 'link']
           && resource.data.get('entregadoPor', '') == request.auth.token.email);
 
       match /anexos/{anexo} {
@@ -377,6 +379,12 @@ service cloud.firestore {
         && request.resource.data.visto.copiou is string && request.resource.data.visto.copiou.size() <= 30
         && request.resource.data.visto.guia is string && request.resource.data.visto.guia.size() <= 30
         && request.resource.data.visto.vezes is int && request.resource.data.visto.vezes <= 9999;
+      //  - recebido: o toque em "Recebi" de uma guia entregue pelo link
+      //    (entregaId -> "data|nome"). Não confirma nada sozinho: quem vira a
+      //    entrega pra confirmada é o PC do robô, conferindo que ela estava no link.
+      allow update: if so(['recebido'])
+        && request.resource.data.recebido is map
+        && request.resource.data.recebido.size() <= 80;
       allow update: if so(['avisar'])
         && request.resource.data.avisar is list
         && request.resource.data.avisar.size() <= 5

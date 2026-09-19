@@ -107,6 +107,17 @@ igual('assunto do resumo', textoSem.assunto, 'Resumo da semana: 2 entregas, 1 n�
 igual('resumo traz cada bloco', ['- João: 2', '! PADARIA EXEMPLO: Fechado', '1 cliente abriu o link', 'OFICINA EXEMPLO: extrato, aplicação', 'Saiu do Simples Nacional', 'Ainda não há registro de backup']
   .map(p => textoSem.texto.includes(p)), [true, true, true, true, true, true]);
 
+// ---------- entrega pelo link ----------
+const elk = require('./entrega-pelo-link');
+igual('toque bem formado', elk.lerToque('2026-09-19T12:00:00.000Z|Maria  Souza'), { em: '2026-09-19T12:00:00.000Z', nome: 'Maria Souza' });
+igual('toque sem nome ainda vale', elk.lerToque('2026-09-19T12:00:00.000Z|'), { em: '2026-09-19T12:00:00.000Z', nome: '' });
+igual('toque com lixo no lugar da data é recusado', elk.lerToque('ontem|Maria'), null);
+igual('nome gigante é cortado em 60', elk.lerToque('2026-09-19T12:00:00.000Z|' + 'a'.repeat(200)).nome.length, 60);
+igual('entrega esperando no link, de empresa do link: confirma', elk.podeConfirmar({ status: 'link', clienteId: 'c2' }, {}, ['c2', 'c4']), true);
+igual('entrega de outra empresa não é confirmada por este link', elk.podeConfirmar({ status: 'link', clienteId: 'c9' }, {}, ['c2', 'c4']), false);
+igual('entrega da rota (não é do link) não é confirmada por toque', elk.podeConfirmar({ status: 'pendente', clienteId: 'c2' }, {}, ['c2']), false);
+igual('entrega já confirmada não é mexida de novo', elk.podeConfirmar({ status: 'confirmada', clienteId: 'c2' }, {}, ['c2']), false);
+
 // ---------- tipo de documento ----------
 igual('títulos pagos = comprovante', r.detectarTipos('TITULOS PAGOS SICOOB AGO2026.pdf'), ['comprovante']);
 igual('tit liquidados = comprovante', r.detectarTipos('TIT LIQUIDADOS BBDVCM AGO2026.pdf'), ['comprovante']);

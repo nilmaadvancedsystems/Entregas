@@ -1225,6 +1225,8 @@
   .portal-comprovante { margin-top: var(--esp-2); }
   .portal-pagar { margin-top: var(--esp-3); display: flex; flex-wrap: wrap; gap: 6px; }
   .portal-pagar .btn-chip { gap: 8px; }
+  .portal-receber { display: grid; gap: 8px; margin-top: var(--esp-3); }
+  .portal-receber .btn { margin: 0; }
   .portal-guia img { display: block; width: 100%; margin-top: var(--esp-3); background: #fff; border: 1px solid var(--border); border-radius: var(--r-sm); }
   .portal-avisar { margin: var(--esp-4) 0 0; }
   .portal-avisar .btn-chip { gap: 8px; width: 100%; min-height: 40px; }
@@ -2049,6 +2051,7 @@
       <div class="mode-toggle" id="modeToggle">
         <button type="button" class="mode-btn active" data-mode="agora">Entregar agora</button>
         <button type="button" class="mode-btn" data-mode="rota">Preparar rota</button>
+        <button type="button" class="mode-btn" data-mode="link" id="modoLinkBtn" hidden>Pelo link</button>
       </div>
 
       <label class="field" id="zonaField" hidden>
@@ -4501,6 +4504,9 @@
   function aplicarZonaDoCliente_(c) {
     if (!$('zonaField').hidden && c && c.zona) $('zonaSelect').value = c.zona;
     sugerirRecebedores_(c && c.id, $('recebedorInput'));
+    var temLink = !!(c && donosDoLinkDe_(c.id).length);
+    $('modoLinkBtn').hidden = !temLink;
+    if (!temLink && formMode === 'link') document.querySelector('#modeToggle .mode-btn[data-mode="agora"]').click();
   }
 
   // ---------- quem costuma receber ----------
@@ -4688,26 +4694,35 @@
       document.querySelectorAll('#modeToggle .mode-btn').forEach(function (b) { b.classList.remove('active'); });
       btn.classList.add('active');
       var isRota = formMode === 'rota';
-      $('recebedorField').hidden = isRota;
-      $('assinaturaField').hidden = isRota;
-      $('falhaToggleWrap').hidden = isRota;
+      // "Pelo link": a guia vai pra página do cliente e ele confirma que recebeu.
+      // Como na rota, não há ninguém presente pra assinar agora.
+      var isLink = formMode === 'link';
+      var semPresenca = isRota || isLink;
+      $('recebedorField').hidden = semPresenca;
+      $('assinaturaField').hidden = semPresenca;
+      $('falhaToggleWrap').hidden = semPresenca;
       $('zonaField').hidden = !isRota;
-      if (isRota) { $('falhaToggle').checked = false; } else { $('zonaSelect').value = ''; }
+      if (semPresenca) { $('falhaToggle').checked = false; }
+      if (!isRota) { $('zonaSelect').value = ''; }
       atualizarModoFalha();
-      $('formHint').textContent = isRota
-        ? 'Prepare os documentos e valores agora; a assinatura fica para quando entregar de fato.'
-        : 'Preencha na hora, colha a assinatura ou anexe uma foto — sem protocolo de papel.';
+      $('formHint').textContent = isLink
+        ? 'Anexe o PDF da guia: ela aparece na página do cliente, ele toca em "Recebi" e isso entra no protocolo do mês, marcado como recebido pelo link.'
+        : (isRota
+          ? 'Prepare os documentos e valores agora; a assinatura fica para quando entregar de fato.'
+          : 'Preencha na hora, colha a assinatura ou anexe uma foto — sem protocolo de papel.');
     });
   });
 
   // ---------- cliente ausente / entrega não realizada ----------
   function atualizarModoFalha() {
-    var isRota = formMode === 'rota';
+    var isLink = formMode === 'link';
+    var isRota = formMode === 'rota' || isLink;   // nos dois não há ninguém presente pra assinar
     var isFalha = !isRota && $('falhaToggle').checked;
     $('falhaMotivoField').hidden = !isFalha;
     $('assinaturaField').hidden = isRota || isFalha;
     $('fotoLabel').textContent = isFalha ? 'Foto (obrigatória)' : 'Foto (opcional se colher assinatura)';
-    if (isRota) { $('submitBtn').textContent = 'Adicionar à rota'; }
+    if (isLink) { $('submitBtn').textContent = 'Publicar no link do cliente'; }
+    else if (isRota) { $('submitBtn').textContent = 'Adicionar à rota'; }
     else { $('submitBtn').textContent = isFalha ? 'Registrar entrega não realizada' : 'Confirmar entrega'; }
   }
   $('falhaToggle').addEventListener('change', atualizarModoFalha);
@@ -4721,9 +4736,15 @@
     e.preventDefault();
     clearErrors();
     if (!db) { showToast('Sem conexão com o banco. Tente novamente.', 'error'); return; }
-    var isRota = formMode === 'rota';
+    var isLink = formMode === 'link';
+    // daqui pra baixo "isRota" quer dizer "ninguém presente agora": vale pros dois
+    var isRota = formMode === 'rota' || isLink;
     var isFalha = !isRota && $('falhaToggle').checked;
     var isAvulso = $('avulsoToggle').checked;
+    if (isLink) {
+      if (isAvulso || !selectedClienteId || !donosDoLinkDe_(selectedClienteId).length) { showToast('Este cliente não tem link. Crie em Clientes › Link do cliente.', 'error'); return; }
+      if (!(fotoEhGuia_ && fotoDataUrl)) { showToast('Anexe o PDF da guia: é ele que o cliente vai ver no link.', 'error'); return; }
+    }
     var avulsoNome = $('avulsoNomeInput').value.trim();
     var competencia = $('competenciaInput').value;
     var itens = getSelectedItens();
@@ -4776,12 +4797,13 @@
       temFoto: !!fotoDataUrl,
       falha: isFalha,
       motivoFalha: isFalha ? motivo : '',
-      zona: isRota ? $('zonaSelect').value : '',
+      zona: (isRota && !isLink) ? $('zonaSelect').value : '',
+      canal: isLink ? 'link' : '',
       geo: isRota ? null : currentGeo,
       localDivergente: !isRota && !isFalha && avaliarLocalDaEntrega_(selectedClienteId, currentGeo).divergente,
       entregadoPor: (auth.currentUser && auth.currentUser.email) || '',
       entregadoPorNome: currentUserNome || (auth.currentUser && auth.currentUser.email) || '',
-      status: isRota ? 'pendente' : (isFalha ? 'falha' : 'confirmada'),
+      status: isLink ? 'link' : (isRota ? 'pendente' : (isFalha ? 'falha' : 'confirmada')),
       criadoEm: now,
       confirmadoEm: isRota ? null : now
     }, {
@@ -4789,7 +4811,7 @@
       foto: fotoDataUrl
     });
 
-    if (isRota && cliente && $('zonaSelect').value && cliente.zona !== $('zonaSelect').value) {
+    if (isRota && !isLink && cliente && $('zonaSelect').value && cliente.zona !== $('zonaSelect').value) {
       db.doc('clientes/' + cliente.id).update({ zona: $('zonaSelect').value }).catch(function () {});
     }
     var avaliacaoLocal = null;
@@ -4797,7 +4819,9 @@
 
     var nomeNoAviso = (isAvulso ? avulsoNome : (cliente ? clienteLabel(cliente) : clienteInput.value)) || 'um cliente';
     escritaQueNaoTrava_(gravacao, 'a entrega de ' + nomeNoAviso).then(function (resultado) {
-      showToast(avisoDeEscrita_(resultado, isRota ? 'Adicionado à rota — aguardando assinatura.' : (isFalha ? 'Entrega não realizada registrada.' : 'Entrega registrada com sucesso.')));
+      showToast(avisoDeEscrita_(resultado, isLink ? 'Publicado no link do cliente. Quando ele tocar em "Recebi", vira entrega confirmada.'
+        : (isRota ? 'Adicionado à rota — aguardando assinatura.' : (isFalha ? 'Entrega não realizada registrada.' : 'Entrega registrada com sucesso.'))));
+      if (isLink && cliente) oferecerAvisarDoLink_(cliente);
       if (avaliacaoLocal) avisarLocalDivergente_(avaliacaoLocal, cliente && cliente.nome);
       resetForm();
       var card = $('form-nova');
@@ -7379,7 +7403,7 @@
       var entregas = byCliente.get(c.id) || [];
       var latest = entregas[0];
       var isConfirmada = !!(latest && latest.status === 'confirmada');
-      var isRota = !!(latest && latest.status === 'pendente');
+      var isRota = !!(latest && (latest.status === 'pendente' || latest.status === 'link'));
       var isFalha = !!(latest && latest.status === 'falha');
       var status = isConfirmada ? 'entregue' : (isFalha ? 'falha' : (isRota ? 'rota' : 'sem_entrega'));
       return { c: c, entregas: entregas, latest: latest, status: status };
@@ -7415,11 +7439,11 @@
       var row = document.createElement('button');
       row.type = 'button';
       var subtitle = latest
-        ? fmtDateTime(latest.confirmadoEm || latest.criadoEm) + (item.status === 'rota' ? ' · aguardando assinatura' : '') + (item.status === 'falha' ? ' · ' + (latest.motivoFalha || 'não entregue') : '') + (entregas.length > 1 ? ' · +' + (entregas.length - 1) + ' entrega(s) nesta competência' : '')
+        ? fmtDateTime(latest.confirmadoEm || latest.criadoEm) + (item.status === 'rota' ? (latest.status === 'link' ? ' · no link, aguardando o cliente' : ' · aguardando assinatura') : '') + (item.status === 'falha' ? ' · ' + (latest.motivoFalha || 'não entregue') : '') + (entregas.length > 1 ? ' · +' + (entregas.length - 1) + ' entrega(s) nesta competência' : '')
         : 'Sem entrega registrada nesta competência';
       var pillClass = item.status === 'entregue' ? 'entregue' : (item.status === 'rota' ? 'rota' : (item.status === 'falha' ? 'falha' : 'pendente'));
       row.className = 'entrega-row st-' + pillClass;
-      var pillLabel = item.status === 'entregue' ? 'Entregue' : (item.status === 'rota' ? 'Na rota' : (item.status === 'falha' ? 'Não entregue' : 'Sem entrega'));
+      var pillLabel = item.status === 'entregue' ? 'Entregue' : (item.status === 'rota' ? (latest && latest.status === 'link' ? 'No link' : 'Na rota') : (item.status === 'falha' ? 'Não entregue' : 'Sem entrega'));
       row.innerHTML =
         '<div><div class="er-nome"></div><div class="er-sub"></div></div>' +
         '<span class="status-pill ' + pillClass + '">' + pillLabel + '</span>';
@@ -7952,7 +7976,7 @@
             var isConfirmada = e.status === 'confirmada';
             var isFalha = e.status === 'falha';
             var pillClass = isConfirmada ? 'entregue' : (isFalha ? 'falha' : 'rota');
-            var pillLabel = isConfirmada ? 'Entregue' : (isFalha ? 'Não entregue' : 'Na rota');
+            var pillLabel = isConfirmada ? (e.recebidoPeloLink ? 'Recebido pelo link' : 'Entregue') : (isFalha ? 'Não entregue' : (e.status === 'link' ? 'No link' : 'Na rota'));
             return '<button type="button" class="history-row" data-idx="' + item.idx + '">' +
               '<div><div class="er-nome">' + escapeHtml_(itensStr || 'sem documentos') + '</div>' +
               '<div class="er-sub">' + escapeHtml_(fmtDateTime(e.confirmadoEm || e.criadoEm)) + (total > 0 ? ' · ' + fmtMoney(total) : '') + '</div></div>' +
@@ -10612,7 +10636,7 @@
   // aparecia pra qualquer entrega da pessoa e o servidor recusava sempre.
   function podeExcluir(entrega) {
     if (temPapel('admin')) return true;
-    return (entrega.status || 'pendente') === 'pendente' &&
+    return ((entrega.status || 'pendente') === 'pendente' || entrega.status === 'link') &&
       !!entrega.entregadoPor && !!auth.currentUser && entrega.entregadoPor === auth.currentUser.email;
   }
 
@@ -11696,9 +11720,10 @@
           if (valor) total += valor;
           return h(tipo) + (valor != null ? ' <span class="v">' + h(fmtMoney(valor)) + '</span>' : '');
         }).join('<br>');
-        var situacao = e.status === 'confirmada' ? 'Entregue' : (e.status === 'falha' ? 'Não entregue' : 'Na rota');
+        var situacao = e.status === 'confirmada' ? (e.recebidoPeloLink ? 'Recebido pelo link' : 'Entregue') : (e.status === 'falha' ? 'Não entregue' : (e.status === 'link' ? 'No link, aguardando' : 'Na rota'));
         var detalhe = e.status === 'confirmada'
           ? [e.recebedor ? 'Recebido por <b>' + h(e.recebedor) + '</b>' : 'Recebedor não informado',
+             e.recebidoPeloLink ? 'Confirmado pelo próprio cliente na página dele, sem assinatura' : '',
              e.entregadoPorNome ? 'Entregue por ' + h(e.entregadoPorNome) : '',
              e.semComprovante ? 'Sem comprovante: ' + h(e.motivoSemComprovante || '') : '',
              e.geo && e.geo.lat ? 'Local: ' + Number(e.geo.lat).toFixed(5) + ', ' + Number(e.geo.lng).toFixed(5) + (e.localDivergente ? ' (longe do endereço do cliente)' : '') : '']
@@ -11706,7 +11731,8 @@
         return '<tr><td class="n">' + (i + 1) + '</td><td>' + itens + (e.vencimento ? '<div class="m">vence ' + h(e.vencimento.split('-').reverse().join('/')) + '</div>' : '') + '</td>' +
           '<td><b>' + situacao + '</b><div class="m">' + h(fmtDateTime(e.confirmadoEm || e.criadoEm)) + '</div></td>' +
           '<td>' + detalhe.filter(Boolean).join('<br>') + '</td>' +
-          '<td class="a">' + (assinaturas[i] ? '<img src="' + h(assinaturas[i]) + '" alt="assinatura">' : (e.temFoto ? '<span class="m">comprovado por foto</span>' : '')) + '</td></tr>';
+          '<td class="a">' + (assinaturas[i] ? '<img src="' + h(assinaturas[i]) + '" alt="assinatura">'
+            : (e.recebidoPeloLink ? '<span class="m">confirmado pelo link</span>' : (e.temFoto ? '<span class="m">comprovado por foto</span>' : ''))) + '</td></tr>';
       }).join('');
       var entregues = ordenadas.filter(function (e) { return e.status === 'confirmada'; }).length;
       var html = '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Protocolo ' + h(fmtCompetencia(comp)) + ' - ' + h(cliente.nome) + '</title><style>' +
@@ -11747,13 +11773,14 @@
       var itens = (e.itens || []).map(function (i) { return typeof i === 'string' ? i : i.tipo; }).join(', ') || 'documentos';
       var comp = e.competencia ? ' (' + fmtCompetencia(e.competencia) + ')' : '';
       if (e.status === 'confirmada') {
-        ev.push({ em: e.confirmadoEm || e.criadoEm, ico: 'ph-check-circle', cor: 'ok', titulo: 'Entregue: ' + itens + comp,
+        ev.push({ em: e.confirmadoEm || e.criadoEm, ico: 'ph-check-circle', cor: 'ok', titulo: (e.recebidoPeloLink ? 'Recebido pelo link: ' : 'Entregue: ') + itens + comp,
           sub: [e.recebedor ? 'recebido por ' + e.recebedor : '', e.entregadoPorNome ? 'entregue por ' + e.entregadoPorNome : '',
             e.semComprovante ? 'sem comprovante' : ''].filter(Boolean).join(' · ') });
       } else if (e.status === 'falha') {
         ev.push({ em: e.confirmadoEm || e.criadoEm, ico: 'ph-x-circle', cor: 'erro', titulo: 'Não entregue: ' + itens + comp, sub: e.motivoFalha || '' });
       } else {
-        ev.push({ em: e.criadoEm, ico: 'ph-truck', cor: '', titulo: 'Na rota: ' + itens + comp, sub: e.tentativa > 1 ? e.tentativa + 'ª tentativa' : '' });
+        if (e.status === 'link') ev.push({ em: e.criadoEm, ico: 'ph-link', cor: '', titulo: 'Publicado no link: ' + itens + comp, sub: 'aguardando o cliente confirmar' });
+        else ev.push({ em: e.criadoEm, ico: 'ph-truck', cor: '', titulo: 'Na rota: ' + itens + comp, sub: e.tentativa > 1 ? e.tentativa + 'ª tentativa' : '' });
       }
     });
     return ev;
@@ -12156,7 +12183,8 @@
       recebedor: e.recebedor || '',
       temAssinatura: !!e.temAssinatura,
       temFoto: !!e.temFoto,
-      motivoFalha: e.status === 'falha' ? (e.motivoFalha || '') : ''
+      motivoFalha: e.status === 'falha' ? (e.motivoFalha || '') : '',
+      peloLink: !!(e.canal === 'link' || e.recebidoPeloLink)
     };
   }
 
@@ -12269,6 +12297,33 @@
     if (!db || !entrega || !imagem || imagem.length > 950000) return;
     donosDoLinkDe_(entrega.clienteId).forEach(function (dono) {
       db.doc('portais/' + dono.portalToken + '/guias/' + entrega.id).set({ imagem: imagem, em: new Date().toISOString() }).catch(function () {});
+    });
+  }
+
+  // Depois de publicar uma guia no link: um toque pra avisar o cliente no WhatsApp.
+  function oferecerAvisarDoLink_(cliente) {
+    var dono = donosDoLinkDe_(cliente.id)[0];
+    if (!dono || !whatsAppNumero_(cliente.telefone || dono.telefone)) return;
+    var root = $('modalRoot');
+    root.innerHTML =
+      '<div class="modal-overlay" id="overlay"><div class="modal" id="modalInner">' +
+        '<div class="modal-head"><div><h2>Avisar o cliente?</h2>' +
+          '<div class="card-hint modal-head-sub">' + escapeHtml_(clienteLabel(cliente)) + '</div>' +
+        '</div><button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button></div>' +
+        '<p class="card-hint">A guia já está na página dele. A mensagem leva o link e pede pra ele tocar em "Recebi".</p>' +
+        '<div class="modal-acoes">' +
+          '<button type="button" class="btn-chip accent" id="avisarLinkSim"><i class="ph ph-whatsapp-logo" aria-hidden="true"></i> Mandar no WhatsApp</button>' +
+          '<button type="button" class="btn-chip" id="avisarLinkNao">Agora não</button>' +
+        '</div>' +
+      '</div></div>';
+    $('overlay').addEventListener('click', function (e) { if (e.target.id === 'overlay') closeModal(); });
+    $('modalClose').addEventListener('click', closeModal);
+    $('avisarLinkNao').addEventListener('click', closeModal);
+    $('avisarLinkSim').addEventListener('click', function () {
+      var texto = 'Olá! Sua guia já está disponível aqui: ' + linkDoPortal_(dono.portalToken) +
+        ' — é só abrir, conferir e tocar em "Recebi". O código pra pagar está na mesma página.';
+      window.open(whatsAppUrl_(texto, cliente.telefone || dono.telefone), '_blank');
+      closeModal();
     });
   }
 
@@ -12457,10 +12512,10 @@
       renderPortalDocumentos_(d.documentos);
       // "visto" e "avisar" também mudam este documento: sem isto, cada visita
       // remontava a lista e fechava a guia ou a assinatura que estava aberta
-      var marcaLista = JSON.stringify((d.entregas && d.entregas.lista) || []);
+      var marcaLista = JSON.stringify([(d.entregas && d.entregas.lista) || [], d.recebido || null]);
       if (marcaLista !== abrirTelaPortal_.marca) {
         abrirTelaPortal_.marca = marcaLista;
-        renderPortalEntregas_(token, (d.entregas && d.entregas.lista) || []);
+        renderPortalEntregas_(token, (d.entregas && d.entregas.lista) || [], d.recebido || {});
       }
       prepararAvisoDeVencimento_(token, d);
       if (portalVisto_ === null) {
@@ -12600,7 +12655,7 @@
     caixa.innerHTML = html + '</div>';
   }
 
-  function renderPortalEntregas_(token, lista) {
+  function renderPortalEntregas_(token, lista, recebidos) {
     var caixa = $('portalEntregas');
     if (!lista.length) { caixa.innerHTML = '<p class="portal-vazio">Nenhuma guia registrada nos últimos meses.</p>'; return; }
     var porComp = {};
@@ -12615,19 +12670,29 @@
       return '<div class="historico-mes"><span>' + escapeHtml_(comp ? fmtCompetencia(comp) : 'Outros') + '</span></div>' +
         porComp[comp].map(function (e) {
           var itens = (e.itens || []).map(function (i) { return i.tipo + (i.valor != null ? ' — ' + fmtMoney(i.valor) : ''); }).join(' · ');
-          var entregue = e.status === 'confirmada';
+          // entrega pelo link: o próprio cliente confirma aqui. O toque dele fica em
+          // recebidos[id] na hora; o PC do robô transforma em entrega confirmada.
+          var toque = recebidos && recebidos[e.id] ? String(recebidos[e.id]).split('|') : null;
+          var noLink = e.status === 'link' && !toque;
+          var entregue = e.status === 'confirmada' || !!toque;
           var falha = e.status === 'falha';
           var pill = entregue ? 'entregue' : (falha ? 'falha' : 'rota');
-          var rotulo = entregue ? 'Entregue' : (falha ? 'Não entregue' : 'A entregar');
-          var sub = entregue
-            ? fmtDateTime(e.quando) + (e.recebedor ? ' · recebido por ' + e.recebedor : '')
-            : (falha ? fmtDateTime(e.quando) + (e.motivoFalha ? ' · ' + e.motivoFalha : '') : 'Ainda vamos entregar');
+          var rotulo = entregue ? (e.peloLink || toque ? 'Recebido' : 'Entregue') : (falha ? 'Não entregue' : (noLink ? 'Disponível aqui' : 'A entregar'));
+          var sub = toque
+            ? fmtDateTime(toque[0]) + (toque[1] ? ' · recebido por ' + toque[1] : '') + ' · confirmado por este link'
+            : (entregue
+              ? fmtDateTime(e.quando) + (e.recebedor ? ' · recebido por ' + e.recebedor : '') + (e.peloLink ? ' · confirmado por este link' : '')
+              : (falha ? fmtDateTime(e.quando) + (e.motivoFalha ? ' · ' + e.motivoFalha : '') : (noLink ? 'Confira a guia e confirme que recebeu' : 'Ainda vamos entregar')));
           if (e.vencimento) sub += ' · vence ' + e.vencimento.split('-').reverse().join('/');
           return '<div class="portal-linha">' +
             '<div class="portal-linha-topo"><div>' + (e.empresa ? '<div class="portal-empresa">' + escapeHtml_(e.empresa) + '</div>' : '') +
             '<div class="er-nome">' + escapeHtml_(itens || 'Documentos') + '</div>' +
             '<div class="er-sub">' + escapeHtml_(sub) + '</div></div>' +
             '<span class="status-pill ' + pill + '">' + rotulo + '</span></div>' +
+            (noLink
+              ? '<div class="portal-receber"><input class="input" type="text" placeholder="Seu nome" aria-label="Seu nome" maxlength="60" data-recebi-nome="' + escapeHtml_(e.id) + '">' +
+                '<button type="button" class="btn btn-primary" data-recebi="' + escapeHtml_(e.id) + '">Confirmar que recebi</button></div>'
+              : '') +
             (function () {
               if (falha) return '';
               var acoes = '';
@@ -12647,6 +12712,20 @@
           '</div>';
         }).join('');
     }).join('');
+    caixa.querySelectorAll('[data-recebi]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var campo = caixa.querySelector('[data-recebi-nome="' + btn.dataset.recebi + '"]');
+        var nome = (campo.value || '').trim().replace(/[|]/g, ' ').slice(0, 60);
+        if (nome.length < 2) { campo.focus(); campo.setAttribute('aria-invalid', 'true'); return; }
+        btn.disabled = true;
+        var patch = {};
+        patch['recebido.' + btn.dataset.recebi] = new Date().toISOString() + '|' + nome;
+        db.doc('portais/' + token).update(patch).catch(function () {
+          btn.disabled = false;
+          btn.textContent = 'Não foi. Toque de novo';
+        });
+      });
+    });
     caixa.querySelectorAll('[data-guia]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var alvo = caixa.querySelector('[data-guia-caixa="' + btn.dataset.guia + '"]');
