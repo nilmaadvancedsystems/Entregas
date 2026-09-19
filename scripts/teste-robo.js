@@ -91,6 +91,22 @@ fsT.writeFileSync(cache.ARQUIVO, 'lixo');
 igual('arquivo estragado é ignorado', cache.lerDoArquivo(), null);
 if (guardado) fsT.writeFileSync(cache.ARQUIVO, guardado); else fsT.unlinkSync(cache.ARQUIVO);
 
+// ---------- resumo da semana ----------
+const sem = require('./resumo-semanal');
+igual('quinta ainda não é hora do resumo', sem.horaDoResumo(new Date(2026, 8, 17, 18)), false);
+igual('sexta às 16h ainda não', sem.horaDoResumo(new Date(2026, 8, 18, 16)), false);
+igual('sexta às 17h é', sem.horaDoResumo(new Date(2026, 8, 18, 17)), true);
+igual('PC desligado na sexta: sábado e domingo ainda mandam', [sem.horaDoResumo(new Date(2026, 8, 19, 9)), sem.horaDoResumo(new Date(2026, 8, 20, 9))], [true, true]);
+igual('segunda já é outra semana', sem.horaDoResumo(new Date(2026, 8, 21, 9)), false);
+igual('segunda da semana de um domingo é a anterior', sem.segundaDaSemana(new Date(2026, 8, 20, 9)).getDate(), 14);
+const textoSem = sem.montarTexto({ de: '14/09/2026', ate: '18/09/2026', mesDosDocumentos: 'agosto de 2026',
+  entregas: [{ status: 'confirmada', entregadoPorNome: 'João' }, { status: 'confirmada', entregadoPorNome: 'João' }, { status: 'falha', clienteNome: 'PADARIA EXEMPLO', motivoFalha: 'Fechado' }],
+  portais: { total: 5, abriram: ['MERCEARIA EXEMPLO'] }, devendo: [{ nome: 'OFICINA EXEMPLO', faltam: ['extrato', 'aplicacao'] }],
+  receita: [{ nome: 'MERCEARIA EXEMPLO', textos: ['Saiu do Simples Nacional'] }], backup: null });
+igual('assunto do resumo', textoSem.assunto, 'Resumo da semana: 2 entregas, 1 não realizada, 1 devendo documento');
+igual('resumo traz cada bloco', ['- João: 2', '! PADARIA EXEMPLO: Fechado', '1 cliente abriu o link', 'OFICINA EXEMPLO: extrato, aplicação', 'Saiu do Simples Nacional', 'Ainda não há registro de backup']
+  .map(p => textoSem.texto.includes(p)), [true, true, true, true, true, true]);
+
 // ---------- tipo de documento ----------
 igual('títulos pagos = comprovante', r.detectarTipos('TITULOS PAGOS SICOOB AGO2026.pdf'), ['comprovante']);
 igual('tit liquidados = comprovante', r.detectarTipos('TIT LIQUIDADOS BBDVCM AGO2026.pdf'), ['comprovante']);

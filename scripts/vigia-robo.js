@@ -494,6 +494,8 @@ async function iniciar() {
   catch (err) { log('backup diário desligado:', err.message); }
   try { require('./clientes-cache').manterArquivo(db, log); }
   catch (err) { log('arquivo local de clientes desligado:', err.message); }
+  try { require('./resumo-semanal').iniciarResumoSemanal({ db, log, enviar, destino: destinoDosAvisos }); }
+  catch (err) { log('resumo da semana desligado:', err.message); }
   limparFila();
   setInterval(limparFila, 24 * 36e5);
 

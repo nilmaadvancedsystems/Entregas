@@ -1380,7 +1380,7 @@
     .hub-head h1 { font-size: 1.875rem; }
     .hub-data { grid-column: 1; font-size: var(--t-md); margin-top: calc(var(--esp-2) - var(--esp-4)); }
     .hub-grid { grid-column: 2; grid-row: 1; }
-    .hub-aviso { grid-column: 2; }
+    .hub-aviso, .hub-novidades { grid-column: 2; }
     .hub-pe { grid-column: 2; margin: 0; padding: 0 var(--esp-2); }
     .hub-sair {
       grid-column: 1; grid-row: auto; justify-self: start; align-self: start;
@@ -1397,6 +1397,19 @@
     .hub-head { margin-bottom: var(--esp-5); }
     .hub-card-desc { font-size: var(--t-sm); }
   }
+  /* novidades: aparece uma vez por versão, some no "Entendi" */
+  .hub-novidades {
+    margin-top: var(--esp-4); padding: var(--esp-3) var(--esp-4);
+    border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface);
+    font-size: var(--t-sm); color: var(--ink-soft); line-height: 1.5;
+  }
+  .hub-novidades-topo { display: flex; justify-content: space-between; align-items: center; gap: var(--esp-3); margin-bottom: 4px; }
+  .hub-novidades-topo span { font-weight: 600; color: var(--ink); font-size: var(--t-base); }
+  .hub-novidades-topo .link-btn { font-size: var(--t-sm); padding: 2px 4px; }
+  .hub-novidades ul { margin: 0; padding-left: 18px; }
+  .hub-novidades li + li { margin-top: 3px; }
+  @media (min-width: 900px) { .hub-novidades { margin-top: 0; } }
+
   /* só aparece quando tem problema: PC do robô parado ou backup atrasado */
   .hub-aviso {
     display: grid; grid-template-columns: 20px 1fr; column-gap: var(--esp-3); align-items: start;
@@ -2696,6 +2709,13 @@
         <span class="hub-card-desc">Classifica lançamentos do SIEG e gera a planilha do Alterdata</span>
         <span class="hub-card-fim"><kbd aria-hidden="true"></kbd><i class="ph ph-caret-right" aria-hidden="true"></i></span>
       </a>
+    </div>
+    <div class="hub-novidades" id="hubNovidades" hidden>
+      <div class="hub-novidades-topo">
+        <span>O que mudou</span>
+        <button type="button" class="link-btn" id="hubNovidadesOk">Entendi</button>
+      </div>
+      <ul id="hubNovidadesLista"></ul>
     </div>
     <div class="hub-aviso" id="hubAviso" hidden role="status">
       <i class="ph ph-warning" aria-hidden="true"></i>
@@ -11304,6 +11324,40 @@
     }).catch(function () {});
   }
 
+  // ---------- o que mudou ----------
+  // Função nova que ninguém sabe que existe não serve pra nada. Quando a versão
+  // muda, a tela de funções mostra até quatro linhas, escolhidas pelo papel de
+  // quem entrou; "Entendi" guarda a versão no aparelho e o quadro some.
+  // Pra anunciar outra leva: trocar `versao` e a lista.
+  var NOVIDADES_ = {
+    versao: '2026-09-19',
+    itens: [
+      { quem: ['office_boy'], texto: 'Cliente ausente? O app oferece pôr de volta na rota, até várias guias de uma vez.' },
+      { quem: ['office_boy'], texto: 'Na confirmação, "Mostrar o link do cliente" abre o QR pra ele guardar a página dele.' },
+      { quem: ['admin'], texto: 'Clientes › abrir um cliente › Link do cliente: a página dele com guias, código pra pagar e comprovantes.' },
+      { quem: ['admin', 'contabil'], texto: 'Clientes mostra "Mudou na Receita": inapto, baixado, saiu do Simples. E o cadastro agora se edita no app.' },
+      { quem: [], texto: 'Embaixo de "Nome de quem recebeu" aparecem os nomes que já assinaram por aquele cliente: um toque preenche.' },
+      { quem: [], texto: 'A ficha do cliente tem Linha do tempo e, em cada mês, Protocolo pra imprimir ou salvar em PDF.' },
+      { quem: [], texto: 'Trocar de função é o botão de quatro quadrados ao lado da engrenagem.' }
+    ]
+  };
+  function mostrarNovidades_() {
+    var caixa = $('hubNovidades');
+    var vista = '';
+    try { vista = localStorage.getItem('nilma_novidades_vista') || ''; } catch (e) {}
+    if (vista === NOVIDADES_.versao) { caixa.hidden = true; return; }
+    // primeiro o que é do papel da pessoa, depois o que é de todo mundo
+    var meus = NOVIDADES_.itens.filter(function (i) { return i.quem.some(temPapel); });
+    var gerais = NOVIDADES_.itens.filter(function (i) { return !i.quem.length; });
+    var linhas = meus.concat(gerais).slice(0, 4);
+    $('hubNovidadesLista').innerHTML = linhas.map(function (i) { return '<li>' + escapeHtml_(i.texto) + '</li>'; }).join('');
+    caixa.hidden = !linhas.length;
+  }
+  $('hubNovidadesOk').addEventListener('click', function () {
+    try { localStorage.setItem('nilma_novidades_vista', NOVIDADES_.versao); } catch (e) {}
+    $('hubNovidades').hidden = true;
+  });
+
   var CHAVE_ULTIMA_FUNCAO = 'nilma_ultima_funcao';
   function linhasDoHub_() {
     var grade = $('hubGridFiscal').hidden ? $('hubGridPrincipal') : $('hubGridFiscal');
@@ -11328,6 +11382,7 @@
     // estão na rota. Com o app já aberto sai do que está na memória; senão,
     // uma consulta curta.
     avisarSeRoboParado_();
+    mostrarNovidades_();
     var info = $('hubInfoEntregas');
     var mostrar = function (n) { info.hidden = !n; info.textContent = n ? n + ' na rota' : ''; };
     // fora do app, o número vale por 10 minutos: ler a rota inteira toda vez
