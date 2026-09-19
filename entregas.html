@@ -1446,7 +1446,21 @@
   /* modal aberto a partir da tela de funções precisa ficar por cima dela */
   body:has(.hub-screen:not([hidden])) .modal-overlay { z-index: calc(var(--z-tela) + 2); }
 
+  .hub-versao { margin-left: auto; font-size: var(--t-xs); font-weight: 500; color: var(--ink-faint); padding: 4px; }
+  .hub-versao:hover { color: var(--ink); }
+
   /* o quadro das novidades */
+  .novas-versoes { display: flex; gap: 6px; overflow-x: auto; padding: 2px 0 var(--esp-2); margin: 0 0 var(--esp-1); scrollbar-width: none; }
+  .novas-versoes::-webkit-scrollbar { display: none; }
+  .novas-versao {
+    flex: none; min-width: 44px; min-height: 32px; padding: 0 12px; border-radius: var(--r-pill); cursor: pointer;
+    border: 1px solid var(--border); background: var(--surface); color: var(--ink-soft);
+    font: inherit; font-size: var(--t-sm); font-weight: 600; font-variant-numeric: tabular-nums;
+    transition: background-color var(--dur-rapido) var(--ease), color var(--dur-rapido) var(--ease), border-color var(--dur-rapido) var(--ease);
+  }
+  .novas-versao:hover { border-color: var(--border-forte); color: var(--ink); }
+  .novas-versao.ativa { background: var(--accent-soft); color: var(--accent-forte); border-color: transparent; }
+  .novas-lista { max-height: min(52vh, 460px); overflow-y: auto; }
   .novas-lista { display: grid; gap: 2px; margin: var(--esp-2) 0 var(--esp-4); }
   .novas-item { display: grid; grid-template-columns: 36px 1fr; column-gap: var(--esp-3); align-items: start; padding: var(--esp-3) 0; border-bottom: 1px solid var(--border); }
   .novas-item:last-child { border-bottom: 0; }
@@ -2774,6 +2788,7 @@
     </div>
     <div class="hub-pe">
       <span class="hub-dica">Enter abre a última função · os números abrem as outras</span>
+      <button type="button" class="link-btn hub-versao" id="hubVersaoBtn" title="Ver o que mudou em cada versão"></button>
     </div>
   </div>
 </div>
@@ -11595,60 +11610,136 @@
     }).catch(function () {});
   }
 
-  // ---------- o que mudou ----------
-  // Função nova que ninguém sabe que existe não serve pra nada. Quando a versão
-  // muda, a tela de funções mostra até quatro linhas, escolhidas pelo papel de
-  // quem entrou; "Entendi" guarda a versão no aparelho e o quadro some.
-  // Pra anunciar outra leva: trocar `versao` e a lista.
-  var NOVIDADES_ = {
-    versao: '2026-09-19',
-    itens: [
-      { quem: ['office_boy'], icone: 'ph-arrow-counter-clockwise', titulo: 'Cliente ausente volta pra rota num toque', texto: 'Depois de registrar que não entregou, o app oferece pôr de volta na rota, até várias guias de uma vez.' },
-      { quem: ['office_boy'], icone: 'ph-qr-code', titulo: 'QR da página do cliente na entrega', texto: 'Na confirmação, "Mostrar o link do cliente" abre o QR pra ele guardar a página dele.' },
-      { quem: ['admin'], icone: 'ph-link', titulo: 'Cada cliente pode ter a página dele', texto: 'Clientes › abrir um cliente › Link do cliente: guias, código pra pagar, comprovantes e o que falta enviar.' },
+  // ---------- o que mudou, versão por versão ----------
+  // A história do sistema em linguagem de quem usa. A primeira da lista é a
+  // versão atual: quando ela muda, a tela de funções mostra o selo de novidades
+  // até a pessoa tocar em "Entendi". As anteriores ficam pra consulta.
+  // "quem" vazio = vale pra todo mundo; senão, só aparece pra quem tem o papel
+  // (admin vê tudo). PRA LANÇAR UMA VERSÃO: acrescentar um bloco no topo.
+  var VERSOES_ = [
+    { versao: '2.1', data: '2026-09-19', resumo: 'Página do cliente mais leve e atalhos pra quem está na rua', itens: [
+      { quem: ['office_boy'], icone: 'ph-hand-tap', titulo: 'Motivo de não entrega em um toque', texto: 'Fechado, ausente, recusou, endereço errado: botões acima do campo, que continua livre pra completar.' },
+      { quem: ['office_boy'], icone: 'ph-barcode', titulo: 'Ler a guia com a câmera', texto: 'Na Rota, "Ler guia" lê o código de barras ou o QR do PIX e abre a parada certa (Chrome no Android, guia montada com PDF).' },
+      { quem: ['office_boy'], icone: 'ph-lightbulb', titulo: 'O app aprende o horário do cliente', texto: 'Na tela de confirmar aparece a faixa em que ele costuma receber e a hora em que já se deu com a cara na porta.' },
+      { quem: ['admin'], icone: 'ph-chart-bar', titulo: 'Números do mês no Painel', texto: 'Entregas por pessoa, tipo de comprovante, ritmo por parada, por que falhou e quem mais falha.' },
+      { quem: [], icone: 'ph-device-mobile', titulo: 'Página do cliente leve', texto: 'O link do cliente agora abre uma página própria de 30 KB, com "Para pagar" no topo e letras grandes. O endereço antigo continua valendo.' },
+      { quem: [], icone: 'ph-arrows-clockwise', titulo: 'Versão nova sem Ctrl+F5', texto: 'O app confere com o servidor sozinho. E este quadro passou a guardar o que veio em cada versão.' },
+      { quem: ['admin'], icone: 'ph-shield-check', titulo: 'Revisão de segurança', texto: 'Entrega confirmada não pode mais ser desfeita por quem não é admin, e o robô ficou à prova de abuso pelo link do cliente.' }
+    ] },
+    { versao: '2.0', data: '2026-09-18', resumo: 'O cliente ganha a página dele', itens: [
+      { quem: ['admin'], icone: 'ph-link', titulo: 'Cada cliente pode ter a página dele', texto: 'Clientes › abrir um cliente › Link do cliente: guias, código pra pagar, comprovantes e o que falta enviar, sem senha.' },
       { quem: ['admin'], icone: 'ph-paper-plane-tilt', titulo: 'Entregar pelo link, sem ir até lá', texto: 'Em Nova entrega, "Pelo link": anexe o PDF, o cliente confirma que recebeu e isso entra no protocolo.' },
-      { quem: ['admin', 'contabil'], icone: 'ph-bank', titulo: 'Aviso quando algo muda na Receita', texto: 'A aba Clientes mostra quem ficou inapto, foi baixado ou saiu do Simples. E o cadastro agora se edita no app.' },
-      { quem: [], icone: 'ph-user-check', titulo: 'Quem costuma assinar, num toque', texto: 'Embaixo de "Nome de quem recebeu" aparecem os nomes que já assinaram por aquele cliente.' },
-      { quem: [], icone: 'ph-clock-counter-clockwise', titulo: 'Linha do tempo e protocolo do mês', texto: 'Na ficha do cliente: tudo que aconteceu numa ordem só, e o protocolo de cada mês pra imprimir ou salvar em PDF.' },
-      { quem: [], icone: 'ph-squares-four', titulo: 'Trocar de função ficou à mão', texto: 'É o botão de quatro quadrados ao lado da engrenagem.' }
-    ]
-  };
-  function novidadesPraMim_() {
-    // primeiro o que é do papel da pessoa, depois o que é de todo mundo; no máximo quatro
-    var meus = NOVIDADES_.itens.filter(function (i) { return i.quem.some(temPapel); });
-    var gerais = NOVIDADES_.itens.filter(function (i) { return !i.quem.length; });
-    return meus.concat(gerais).slice(0, 4);
+      { quem: [], icone: 'ph-users', titulo: 'Clientes virou uma função', texto: 'Com cadastro editável, linha do tempo de cada cliente e protocolo do mês pra imprimir ou salvar em PDF.' },
+      { quem: ['admin', 'contabil'], icone: 'ph-bank', titulo: 'Aviso quando algo muda na Receita', texto: 'Toda semana o robô confere os CNPJs: inapto, baixado, saiu do Simples, troca de sócio.' },
+      { quem: ['office_boy'], icone: 'ph-arrow-counter-clockwise', titulo: 'Cliente ausente volta pra rota num toque', texto: 'Inclusive várias guias de uma vez. E "quem costuma assinar" aparece embaixo do nome de quem recebeu.' },
+      { quem: [], icone: 'ph-bell-ringing', titulo: 'Avisos no celular', texto: 'Parada nova na rota avisa o office boy; entrega não realizada avisa o admin. Quem manda é o PC do robô.' },
+      { quem: [], icone: 'ph-squares-four', titulo: 'Tela de funções nova', texto: 'Menu com a última função em destaque, atalhos 1 a 5 no PC e "Trocar de função" ao lado da engrenagem.' },
+      { quem: ['admin', 'contabil'], icone: 'ph-chat-circle-dots', titulo: 'Consulta rápida', texto: 'Perguntas em português sobre entregas e pendências, com reforço opcional de IA.' },
+      { quem: ['admin'], icone: 'ph-envelope-simple', titulo: 'Resumo da semana e backup diário', texto: 'Toda sexta o robô manda o resumo do escritório por e-mail, e o backup roda sozinho uma vez por dia.' }
+    ] },
+    { versao: '1.6', data: '2026-09-17', resumo: 'Pendências e o robô do Gmail', itens: [
+      { quem: [], icone: 'ph-envelope-simple-open', titulo: 'Pendências: cobrança de documentos', texto: 'Quem mandou extrato, comprovante e aplicação em cada mês, com cobrança por e-mail e WhatsApp.' },
+      { quem: [], icone: 'ph-robot', titulo: 'O robô lê o Gmail', texto: 'Anexo que chega do cliente é reconhecido, marcado sozinho no mês certo e pode ir pro Drive com um toque.' },
+      { quem: ['admin'], icone: 'ph-hard-drives', titulo: 'Backup fora do Firebase', texto: 'O banco inteiro num arquivo, com as assinaturas guardadas como imagem, uma vez só.' },
+      { quem: [], icone: 'ph-hand-pointing', titulo: 'Confirmar entrega que outra pessoa montou', texto: 'Quem monta a rota nem sempre é quem entrega.' }
+    ] },
+    { versao: '1.5', data: '2026-09-15', resumo: 'Visual novo, honorários e rota pro cliente', itens: [
+      { quem: [], icone: 'ph-paint-brush', titulo: 'Visual refeito', texto: 'Mais denso no PC, mais largo no celular, com paletas e modo escuro de verdade.' },
+      { quem: ['admin', 'office_boy'], icone: 'ph-currency-circle-dollar', titulo: 'Honorários', texto: 'Aba própria em estilo de planilha: quem pagou, quem falta, forma e dia de cobrança.' },
+      { quem: [], icone: 'ph-share-network', titulo: 'Enviar rota pro cliente', texto: 'Link sem login com a posição dele na fila e a estimativa de chegada.' },
+      { quem: [], icone: 'ph-calendar-check', titulo: 'Vencimento automático', texto: 'Calculado pelo tipo de documento quando a guia não traz a data.' },
+      { quem: ['admin'], icone: 'ph-map-trifold', titulo: 'Qualidade da rota', texto: 'Clientes sem região ou com endereço impreciso, com quem está na rota primeiro.' },
+      { quem: ['admin', 'fiscal'], icone: 'ph-tractor', titulo: 'Função Fiscal', texto: 'O Importador LCDPR entrou no sistema, com o mesmo login.' }
+    ] },
+    { versao: '1.4', data: '2026-09-11', resumo: 'O cliente assina no celular dele', itens: [
+      { quem: [], icone: 'ph-qr-code', titulo: 'Assinatura no celular do cliente', texto: 'Ele aponta a câmera pro QR, assina no próprio aparelho e a assinatura cai na entrega.' },
+      { quem: [], icone: 'ph-map-pin', titulo: 'Rota inteira no Google Maps', texto: 'Na ordem que está na tela, e ordenar por proximidade a partir de onde você está.' },
+      { quem: [], icone: 'ph-clock', titulo: 'Previsão de quando a rota termina', texto: 'Medida no ritmo real das suas entregas.' },
+      { quem: [], icone: 'ph-warning', titulo: 'Aviso de guia vencendo', texto: 'Com a data lida da própria guia.' },
+      { quem: [], icone: 'ph-note', titulo: 'Mural de recados e reagendar', texto: 'Recados da equipe na aba Rota; entrega não realizada volta pra rota.' },
+      { quem: ['admin'], icone: 'ph-link-simple', titulo: 'Aglutinar empresas', texto: 'Empresas no mesmo endereço contam como uma parada só. E o CNPJ preenche o cadastro sozinho.' }
+    ] },
+    { versao: '1.3', data: '2026-09-09', resumo: 'PDF que se preenche e assinatura em lote', itens: [
+      { quem: [], icone: 'ph-file-pdf', titulo: 'Anexar o PDF da guia', texto: 'Cliente, tipo, competência, valor e vencimento saem do próprio documento.' },
+      { quem: [], icone: 'ph-signature', titulo: 'Assinatura em lote', texto: 'Várias entregas do mesmo cliente confirmadas de uma vez.' },
+      { quem: [], icone: 'ph-dots-six-vertical', titulo: 'Arrastar pra reordenar a rota', texto: 'E busca rápida com Ctrl+K.' },
+      { quem: [], icone: 'ph-flag-checkered', titulo: 'Fechamento do dia', texto: 'Resumo pra colar no WhatsApp, repetir o mês passado e aviso de competência fechada.' },
+      { quem: ['admin'], icone: 'ph-user-plus', titulo: 'Convite por link', texto: 'A própria pessoa escolhe nome e senha. Entrou também o registro de auditoria e o ranking da equipe.' }
+    ] },
+    { versao: '1.2', data: '2026-09-08', resumo: 'Várias funções num sistema só', itens: [
+      { quem: [], icone: 'ph-squares-four', titulo: 'Escolher a função ao entrar', texto: 'Entregas, Contábil e o que veio depois, cada um com o seu cargo.' },
+      { quem: ['admin', 'contabil'], icone: 'ph-calculator', titulo: 'Contábil', texto: 'Conciliadorzinho e ajuste de cheque especial dentro do sistema.' },
+      { quem: [], icone: 'ph-compass', titulo: 'Região da rota', texto: 'Parte superior, central e inferior, preenchida sozinha pelo cliente.' },
+      { quem: [], icone: 'ph-floppy-disk', titulo: 'Rascunho automático', texto: 'A entrega que você estava preenchendo não se perde se o app fechar.' },
+      { quem: [], icone: 'ph-device-mobile', titulo: 'Instalável e acessível', texto: 'Funciona como aplicativo no celular, inclusive sem sinal.' }
+    ] },
+    { versao: '1.1', data: '2026-09-03', resumo: 'Solicitações, mapa e entrega não realizada', itens: [
+      { quem: [], icone: 'ph-paper-plane-tilt', titulo: 'Solicitações', texto: 'Peça pra alguém entregar ou buscar um documento; vira tarefa do office boy, com notificação.' },
+      { quem: [], icone: 'ph-x-circle', titulo: 'Entrega não realizada', texto: 'Com motivo e foto, na hora ou na rota.' },
+      { quem: [], icone: 'ph-map-trifold', titulo: 'Mapa de entregas no Painel', texto: 'Onde cada entrega foi confirmada.' },
+      { quem: [], icone: 'ph-moon', titulo: 'Modo escuro e anotações', texto: 'Configurações pessoais, anotações com acesso rápido e entrega avulsa pra quem não é cliente.' }
+    ] },
+    { versao: '1.0', data: '2026-09-02', resumo: 'O começo: protocolo de entrega sem papel', itens: [
+      { quem: [], icone: 'ph-pen-nib', titulo: 'Protocolo digital', texto: 'Documentos, valores, assinatura no celular ou foto, com quem entregou e quando.' },
+      { quem: [], icone: 'ph-lock-key', titulo: 'Login da equipe', texto: 'Nome e senha, com papéis de admin e equipe.' },
+      { quem: [], icone: 'ph-download-simple', titulo: 'Exportar em planilha', texto: 'Entregas e lista de clientes.' }
+    ] }
+  ];
+  var VERSAO_ATUAL_ = VERSOES_[0].versao;
+  function itensDaVersao_(v) {
+    // admin vê tudo; os demais, o que é do papel deles e o que é de todo mundo
+    return v.itens.filter(function (i) { return !i.quem.length || temPapel('admin') || i.quem.some(temPapel); });
   }
   function mostrarNovidades_() {
     var btn = $('hubNovasBtn');
     var vista = '';
     try { vista = localStorage.getItem('nilma_novidades_vista') || ''; } catch (e) {}
-    var n = vista === NOVIDADES_.versao ? 0 : novidadesPraMim_().length;
+    var n = vista === VERSAO_ATUAL_ ? 0 : itensDaVersao_(VERSOES_[0]).length;
     btn.hidden = !n;
-    if (n) $('hubNovasTexto').textContent = n + (n === 1 ? ' novidade' : ' novidades');
+    if (n) $('hubNovasTexto').textContent = 'Versão ' + VERSAO_ATUAL_ + ' · ' + n + (n === 1 ? ' novidade' : ' novidades');
+    $('hubVersaoBtn').textContent = 'versão ' + VERSAO_ATUAL_;
   }
   function abrirNovidades_() {
     var root = $('modalRoot');
     root.innerHTML =
       '<div class="modal-overlay" id="overlay"><div class="modal" id="modalInner">' +
-        '<div class="modal-head"><div><h2>O que mudou</h2></div>' +
+        '<div class="modal-head"><div><h2>O que mudou</h2><div class="card-hint modal-head-sub" id="novasSub"></div></div>' +
           '<button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button></div>' +
-        '<div class="novas-lista">' + novidadesPraMim_().map(function (i) {
-          return '<div class="novas-item"><span class="novas-ico"><i class="ph ' + i.icone + '" aria-hidden="true"></i></span>' +
-            '<div><div class="novas-titulo">' + escapeHtml_(i.titulo) + '</div><div class="novas-texto">' + escapeHtml_(i.texto) + '</div></div></div>';
+        '<div class="novas-versoes" id="novasVersoes" role="tablist" aria-label="Versões">' + VERSOES_.map(function (v, i) {
+          return '<button type="button" role="tab" class="novas-versao" data-i="' + i + '">' + escapeHtml_(v.versao) + '</button>';
         }).join('') + '</div>' +
+        '<div class="novas-lista" id="novasLista"></div>' +
         '<button type="button" class="btn btn-primary" id="novasEntendiBtn">Entendi</button>' +
       '</div></div>';
+    function mostrar(i) {
+      var v = VERSOES_[i];
+      root.querySelectorAll('.novas-versao').forEach(function (b) {
+        var ativa = Number(b.dataset.i) === i;
+        b.classList.toggle('ativa', ativa);
+        b.setAttribute('aria-selected', ativa ? 'true' : 'false');
+      });
+      var d = v.data.split('-');
+      $('novasSub').textContent = d[2] + '/' + d[1] + '/' + d[0] + ' · ' + v.resumo;
+      var itens = itensDaVersao_(v);
+      $('novasLista').innerHTML = itens.length ? itens.map(function (it) {
+        return '<div class="novas-item"><span class="novas-ico"><i class="ph ' + it.icone + '" aria-hidden="true"></i></span>' +
+          '<div><div class="novas-titulo">' + escapeHtml_(it.titulo) + '</div><div class="novas-texto">' + escapeHtml_(it.texto) + '</div></div></div>';
+      }).join('') : '<p class="card-hint">Nesta versão não entrou nada pra sua função.</p>';
+      $('novasLista').scrollTop = 0;
+    }
+    root.querySelectorAll('.novas-versao').forEach(function (b) { b.addEventListener('click', function () { mostrar(Number(b.dataset.i)); }); });
+    mostrar(0);
     // fechar no X deixa o selo: a pessoa pode querer ler depois. "Entendi" é que dispensa.
     $('overlay').addEventListener('click', function (e) { if (e.target.id === 'overlay') closeModal(); });
     $('modalClose').addEventListener('click', closeModal);
     $('novasEntendiBtn').addEventListener('click', function () {
-      try { localStorage.setItem('nilma_novidades_vista', NOVIDADES_.versao); } catch (e) {}
+      try { localStorage.setItem('nilma_novidades_vista', VERSAO_ATUAL_); } catch (e) {}
       $('hubNovasBtn').hidden = true;
       closeModal();
     });
   }
   $('hubNovasBtn').addEventListener('click', abrirNovidades_);
+  $('hubVersaoBtn').addEventListener('click', abrirNovidades_);
 
   var CHAVE_ULTIMA_FUNCAO = 'nilma_ultima_funcao';
   function linhasDoHub_() {
