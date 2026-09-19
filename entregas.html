@@ -1196,6 +1196,8 @@
   .portal-linha .er-nome { font-weight: 600; font-size: var(--t-base); color: var(--ink); }
   .portal-linha .er-sub { font-size: var(--t-sm); color: var(--ink-soft); margin-top: 2px; }
   .portal-comprovante { margin-top: var(--esp-2); }
+  .portal-pagar { margin-top: var(--esp-3); }
+  .portal-pagar .btn-chip { gap: 8px; }
   .portal-comprovante img { display: block; width: 100%; max-width: 320px; background: #fff; border: 1px solid var(--border); border-radius: var(--r-sm); }
   .portal-vazio { font-size: var(--t-sm); color: var(--ink-soft); margin: var(--esp-3) 0; }
 
@@ -3924,6 +3926,9 @@
       achados.push('competência');
     }
 
+    codigoPagamentoAtual_ = extrairCodigoPagamento_(textoBruto);
+    if (codigoPagamentoAtual_) achados.push(codigoPagamentoAtual_.tipo === 'pix' ? 'código PIX' : 'código de barras');
+
     var venc = extrairVencimento_(textoBruto);
     if (venc) {
       $('vencimentoInput').value = venc;
@@ -3960,6 +3965,90 @@
       : 'Não consegui identificar os dados automaticamente nesse PDF. Preencha manualmente.') +
       (semImagem ? ' A imagem do PDF não pôde ser gerada — anexe uma foto do documento também.' : ''));
   }
+
+  // ---------- código pra pagar (linha digitável ou PIX copia e cola) ----------
+  // Sai do mesmo texto que já é lido pra achar vencimento e valor. Vai junto
+  // com a entrega e aparece no link do cliente com um botão "copiar": é o
+  // que ele mais pede pelo WhatsApp ("me manda o código da guia").
+  //
+  // Código errado é pior que nenhum, então só entra o que confere:
+  //  - PIX: o próprio código traz um CRC no fim; só vale se bater.
+  //  - Boleto de banco (47 dígitos): os três dígitos verificadores dos campos.
+  //  - Guia de arrecadação — DAS, DARF, FGTS (48 dígitos, começa com 8): o
+  //    verificador de cada um dos quatro blocos.
+  function dvMod10_(numeros) {
+    var soma = 0, peso = 2;
+    for (var i = numeros.length - 1; i >= 0; i--) {
+      var p = Number(numeros.charAt(i)) * peso;
+      soma += p > 9 ? p - 9 : p;
+      peso = peso === 2 ? 1 : 2;
+    }
+    return (10 - (soma % 10)) % 10;
+  }
+  function dvMod11_(numeros) {
+    var soma = 0, peso = 2;
+    for (var i = numeros.length - 1; i >= 0; i--) {
+      soma += Number(numeros.charAt(i)) * peso;
+      peso = peso === 9 ? 2 : peso + 1;
+    }
+    var resto = soma % 11;
+    if (resto === 0 || resto === 1) return 0;
+    if (resto === 10) return 1;
+    return 11 - resto;
+  }
+  function crc16Pix_(texto) {
+    var crc = 0xFFFF;
+    for (var i = 0; i < texto.length; i++) {
+      crc ^= texto.charCodeAt(i) << 8;
+      for (var b = 0; b < 8; b++) crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) & 0xFFFF : (crc << 1) & 0xFFFF;
+    }
+    return ('0000' + crc.toString(16).toUpperCase()).slice(-4);
+  }
+  function pixValido_(codigo) {
+    var m = codigo.match(/^(000201[\s\S]*6304)([0-9A-Fa-f]{4})$/);
+    return !!m && crc16Pix_(m[1]) === m[2].toUpperCase();
+  }
+  function extrairCodigoPagamento_(textoBruto) {
+    var t = String(textoBruto || '');
+
+    // PIX copia e cola. O PDF às vezes quebra o código em pedaços (vira
+    // espaço no texto) e às vezes o espaço é do próprio código (nome do
+    // recebedor): tenta como veio e sem espaços, e fica com o que o CRC aceitar.
+    var pix = t.match(/000201[\s\S]{40,600}?6304[0-9A-Fa-f]{4}/g) || [];
+    for (var i = 0; i < pix.length; i++) {
+      var candidatos = [pix[i], pix[i].replace(/\s+/g, '')];
+      for (var c = 0; c < candidatos.length; c++) {
+        if (pixValido_(candidatos[c])) return { tipo: 'pix', codigo: candidatos[c] };
+      }
+    }
+
+    // Guia de arrecadação: quatro blocos de 11 dígitos + verificador.
+    var arr = /(8\d{10})[\s.-]?(\d)[\s.]+(\d{11})[\s.-]?(\d)[\s.]+(\d{11})[\s.-]?(\d)[\s.]+(\d{11})[\s.-]?(\d)(?!\d)/g;
+    var m, reservaArrecadacao = null;
+    while ((m = arr.exec(t))) {
+      // o 3º dígito diz qual conta vale: 6 e 7 = módulo 10; 8 e 9 = módulo 11
+      var dv = (m[1].charAt(2) === '6' || m[1].charAt(2) === '7') ? dvMod10_ : dvMod11_;
+      var confere = [1, 3, 5, 7].every(function (k) { return dv(m[k]) === Number(m[k + 1]); });
+      var achado = { tipo: 'boleto', codigo: [m[1] + m[2], m[3] + m[4], m[5] + m[6], m[7] + m[8]].join(' ') };
+      if (confere) return achado;
+      // Formato inconfundível (4 blocos de 12, começando com 8) mas a conta do
+      // verificador não fechou: guarda como reserva. O texto vem do PDF, não
+      // de foto, então os dígitos são exatos; e o app do banco confere de novo.
+      if (!reservaArrecadacao) reservaArrecadacao = achado;
+    }
+    if (reservaArrecadacao) return reservaArrecadacao;
+
+    // Boleto de banco: AAAAA.AAAAA BBBBB.BBBBBB CCCCC.CCCCCC D EEEEEEEEEEEEEE
+    var bol = /(\d{5})[.\s]?(\d{4})(\d)\s+(\d{5})[.\s]?(\d{5})(\d)\s+(\d{5})[.\s]?(\d{5})(\d)\s+(\d)\s+(\d{14})(?!\d)/g;
+    while ((m = bol.exec(t))) {
+      if (m[1].charAt(0) === '8') continue;
+      var ok = dvMod10_(m[1] + m[2]) === Number(m[3]) && dvMod10_(m[4] + m[5]) === Number(m[6]) && dvMod10_(m[7] + m[8]) === Number(m[9]);
+      if (ok) return { tipo: 'boleto', codigo: m[1] + '.' + m[2] + m[3] + ' ' + m[4] + '.' + m[5] + m[6] + ' ' + m[7] + '.' + m[8] + m[9] + ' ' + m[10] + ' ' + m[11] };
+    }
+    return null;
+  }
+  // o código lido do PDF que está anexado agora (some junto com o formulário)
+  var codigoPagamentoAtual_ = null;
 
   function processarPdf_(file) {
     if (typeof pdfjsLib === 'undefined') { showToast('Biblioteca de PDF não carregou. Recarregue a página.', 'error'); return; }
@@ -4496,6 +4585,7 @@
       avulso: isAvulso,
       competencia: competencia,
       vencimento: $('vencimentoInput').value || '',
+      codigoPagamento: codigoPagamentoAtual_ || null,
       itens: itens,
       recebedor: (isRota || isFalha) ? '' : recebedor,
       temAssinatura: !isRota && !isFalha && mainSigPad.hasSignature,
@@ -4563,6 +4653,7 @@
     }
     $('recebedorInput').value = '';
     $('vencimentoInput').value = '';
+    codigoPagamentoAtual_ = null;
     ultimoVencimentoAuto_ = null;
     $('falhaToggle').checked = false;
     $('falhaMotivo').value = '';
@@ -11380,6 +11471,7 @@
         return typeof i === 'string' ? { tipo: i, valor: null } : { tipo: i.tipo || '', valor: i.valor == null ? null : i.valor };
       }),
       vencimento: e.vencimento || '',
+      pagamento: (e.codigoPagamento && e.codigoPagamento.codigo) ? { tipo: e.codigoPagamento.tipo || 'boleto', codigo: e.codigoPagamento.codigo } : null,
       status: e.status || 'pendente',
       quando: e.confirmadoEm || e.criadoEm || '',
       recebedor: e.recebedor || '',
@@ -11633,12 +11725,23 @@
             '<div class="portal-linha-topo"><div><div class="er-nome">' + escapeHtml_(itens || 'Documentos') + '</div>' +
             '<div class="er-sub">' + escapeHtml_(sub) + '</div></div>' +
             '<span class="status-pill ' + pill + '">' + rotulo + '</span></div>' +
+            (e.pagamento && e.pagamento.codigo && !falha
+              ? '<div class="portal-pagar"><button type="button" class="btn-chip" data-pagar="' + escapeHtml_(e.pagamento.codigo) + '"><i class="ph ph-copy" aria-hidden="true"></i> ' +
+                (e.pagamento.tipo === 'pix' ? 'Copiar código PIX' : 'Copiar código de barras') + '</button></div>'
+              : '') +
             (entregue && e.temAssinatura
               ? '<div class="portal-comprovante"><button type="button" class="link-btn" data-comprovante="' + escapeHtml_(e.id) + '">Ver assinatura de quem recebeu</button></div>'
               : '') +
           '</div>';
         }).join('');
     }).join('');
+    caixa.querySelectorAll('[data-pagar]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        // boleto vai só com os dígitos: tem app de banco que recusa ponto e espaço
+        var codigo = /^000201/.test(btn.dataset.pagar) ? btn.dataset.pagar : btn.dataset.pagar.replace(/\D/g, '');
+        copiarOuMostrar_('Código pra pagar', codigo, 'Código copiado. Cole no app do seu banco.');
+      });
+    });
     caixa.querySelectorAll('[data-comprovante]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var alvo = btn.parentNode;
