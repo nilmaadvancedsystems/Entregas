@@ -8,7 +8,13 @@
 <meta name="color-scheme" content="light dark">
 <title>Suas guias · Nilma Contabilidade</title>
 <meta name="description" content="Suas guias, comprovantes de entrega e o que ainda falta enviar ao escritório.">
-<link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22Minhas%20guias%22%2C%22display%22%3A%22standalone%22%7D">
+<!-- o manifesto de verdade é montado no script, com o endereço deste cliente -->
+<link rel="manifest" id="manifesto" href="data:application/manifest+json,%7B%22name%22%3A%22Minhas%20guias%22%2C%22display%22%3A%22standalone%22%7D">
+<link rel="apple-touch-icon" id="iconeApple">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Minhas guias">
+<meta name="theme-color" content="#9A2B24">
 <!--
   Página do cliente. É o que abre no celular de quem recebe o link pelo
   WhatsApp: gente que não é de tecnologia, em aparelho simples e internet de
@@ -100,6 +106,13 @@
   summary::-webkit-details-marker { display: none; }
   summary span { color: var(--ink-faint); font-weight: 400; font-size: .875rem; }
 
+  /* guardar na tela inicial: uma faixa discreta, some quando a pessoa dispensa ou já guardou */
+  .instalar { display: flex; align-items: center; gap: 12px; margin-top: 16px; padding: 12px 12px 12px 14px; border-radius: var(--r); background: var(--surface-2); }
+  .instalar p { flex: 1; font-size: .9375rem; color: var(--ink-soft); }
+  .instalar p b { color: var(--ink); font-weight: 600; }
+  .instalar button { width: auto; min-height: 40px; padding: 6px 14px; flex: none; }
+  .instalar .fechar { min-height: 40px; width: 40px; padding: 0; border: 0; background: transparent; color: var(--ink-faint); }
+
   footer { margin-top: 32px; color: var(--ink-faint); font-size: .875rem; }
   footer p + p { margin-top: 8px; }
   footer a { color: inherit; }
@@ -110,6 +123,13 @@
   <p class="de" id="de">Nilma Contabilidade</p>
   <h1 id="quem">Abrindo…</h1>
   <p class="estado" id="estado" role="status" aria-live="polite">Buscando suas guias.</p>
+  <div class="instalar" id="instalar" hidden>
+    <p id="instalarTexto"><b>Guarde esta página</b> na tela inicial e abra suas guias como um aplicativo.</p>
+    <button type="button" id="instalarBtn" hidden>Guardar</button>
+    <button type="button" class="fechar" id="instalarFechar" aria-label="Agora não">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
 
   <div id="conteudo" hidden>
     <section id="secAPagar" hidden aria-labelledby="tAPagar">
@@ -517,6 +537,73 @@ function prepararAviso(lista) {
   });
 }
 
+// ---------- guardar na tela inicial ----------
+// O manifesto leva o endereço DESTE cliente: o ícone guardado abre direto as
+// guias dele, sem precisar achar o link no WhatsApp de novo. Ícone desenhado
+// aqui mesmo (o desenho da guia sobre a cor do escritório), sem arquivo de fora.
+function iconeDasGuias(lado) {
+  const c = document.createElement('canvas');
+  c.width = c.height = lado;
+  const x = c.getContext('2d');
+  x.fillStyle = '#9A2B24';
+  x.fillRect(0, 0, lado, lado);
+  // o desenho ocupa o miolo: o Android recorta o ícone em círculo
+  x.translate(lado * 0.25, lado * 0.25);
+  x.scale(lado * 0.5 / 24, lado * 0.5 / 24);
+  x.strokeStyle = '#FFFFFF'; x.lineWidth = 1.6; x.lineCap = 'round'; x.lineJoin = 'round';
+  x.stroke(new Path2D('M7 3h7l5 5v13H7z'));
+  x.stroke(new Path2D('M14 3v5h5M10 13h6M10 17h6'));
+  try { return c.toDataURL('image/png'); } catch (e) { return ''; }
+}
+function montarManifesto() {
+  if (!token || ehEquipe) return;
+  const i192 = iconeDasGuias(192), i512 = iconeDasGuias(512);
+  if (!i192) return;
+  const pasta = location.origin + location.pathname.replace(/[^/]*$/, '');
+  const inicio = location.origin + location.pathname + '?portal=' + encodeURIComponent(token);
+  const m = {
+    name: 'Minhas guias', short_name: 'Minhas guias', id: inicio, start_url: inicio, scope: pasta,
+    display: 'standalone', lang: 'pt-BR', background_color: '#F6F6F6', theme_color: '#9A2B24',
+    icons: [
+      { src: i192, sizes: '192x192', type: 'image/png', purpose: 'any' },
+      { src: i512, sizes: '512x512', type: 'image/png', purpose: 'any' },
+      { src: i512, sizes: '512x512', type: 'image/png', purpose: 'maskable' }
+    ]
+  };
+  $('manifesto').href = URL.createObjectURL(new Blob([JSON.stringify(m)], { type: 'application/manifest+json' }));
+  $('iconeApple').href = iconeDasGuias(180);
+}
+function oferecerInstalar() {
+  const aberto = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  let dispensou = false;
+  try { dispensou = Date.now() - Number(localStorage.getItem('instalar_nao') || 0) < 30 * 864e5; } catch (e) {}
+  if (!token || ehEquipe || aberto || dispensou) return;
+  const mostrar = texto => {
+    if (texto) $('instalarTexto').innerHTML = texto;
+    $('instalar').hidden = false;
+  };
+  $('instalarFechar').addEventListener('click', () => {
+    $('instalar').hidden = true;
+    try { localStorage.setItem('instalar_nao', String(Date.now())); } catch (e) {}
+  });
+  // Android/Chrome: o próprio navegador oferece; o botão só chama a janela dele
+  window.addEventListener('beforeinstallprompt', ev => {
+    ev.preventDefault();
+    $('instalarBtn').hidden = false;
+    $('instalarBtn').onclick = async () => {
+      ev.prompt();
+      const r = await ev.userChoice.catch(() => ({}));
+      if (r.outcome === 'accepted') $('instalar').hidden = true;
+    };
+    mostrar();
+  });
+  window.addEventListener('appinstalled', () => { $('instalar').hidden = true; });
+  // iPhone não tem essa janela: explica o caminho pelo botão de compartilhar
+  if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) mostrar('<b>Guarde esta página:</b> toque em Compartilhar e depois em "Adicionar à Tela de Início".');
+}
+
+montarManifesto();
+oferecerInstalar();
 carregar();
 </script>
 <noscript><p style="padding:20px">Esta página precisa de JavaScript ligado no navegador para mostrar suas guias.</p></noscript>
