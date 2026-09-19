@@ -43,6 +43,25 @@ igual('nada recebido: faltam os três', r.faltamNoMes({}, null), ['extrato', 'co
 igual('recebeu extrato, não tem aplicação', r.faltamNoMes({ documentosNaoAplicaveis: ['aplicacao'] }, { extrato: true }), ['comprovante']);
 igual('mês sem movimento não deve nada', r.faltamNoMes({}, { semMovimento: true }), []);
 
+// ---------- vigia de CNPJ: o que mudou na Receita ----------
+const cnpj = require('./vigia-cnpj');
+const daApi = { descricao_situacao_cadastral: 'Ativa', opcao_pelo_simples: true, opcao_pelo_mei: false, razao_social: 'PADARIA EXEMPLO LTDA', cnae_fiscal: 1091102,
+  cnae_fiscal_descricao: 'Padaria', descricao_tipo_de_logradouro: 'RUA', logradouro: 'DAS FLORES', numero: '120', bairro: 'CENTRO', municipio: 'TAIOBEIRAS', uf: 'MG',
+  qsa: [{ nome_socio: 'MARIA EXEMPLO', cnpj_cpf_do_socio: '***123456**', faixa_etaria: 'Entre 41 a 50 anos' }, { nome_socio: 'ANA EXEMPLO' }] };
+const r1 = cnpj.retrato(daApi);
+igual('retrato guarda situação em maiúsculas', r1.situacao, 'ATIVA');
+igual('retrato monta o endereço', r1.endereco, 'RUA DAS FLORES, 120, CENTRO, TAIOBEIRAS/MG');
+igual('retrato não guarda CPF nem idade de sócio', JSON.stringify(r1).includes('123456') || JSON.stringify(r1).includes('anos'), false);
+igual('sócios em ordem, só o nome', r1.socios, ['ANA EXEMPLO', 'MARIA EXEMPLO']);
+igual('nada mudou: nenhuma diferença', cnpj.diferencas(r1, cnpj.retrato(daApi)), []);
+const r2 = cnpj.retrato(Object.assign({}, daApi, { opcao_pelo_simples: false, descricao_situacao_cadastral: 'INAPTA', descricao_motivo_situacao_cadastral: 'OMISSAO DE DECLARACOES', qsa: [{ nome_socio: 'ANA EXEMPLO' }, { nome_socio: 'JOSE NOVO' }] }));
+igual('saiu do Simples e ficou inapta são graves', cnpj.diferencas(r1, r2).filter(m => m.grave).map(m => m.texto),
+  ['Situação cadastral: ATIVA → INAPTA (omissao de declaracoes)', 'Saiu do Simples Nacional']);
+igual('troca de sócio aparece, sem ser grave', cnpj.diferencas(r1, r2).filter(m => !m.grave).map(m => m.texto),
+  ['Saiu do quadro de sócios: MARIA EXEMPLO', 'Entrou no quadro de sócios: JOSE NOVO']);
+igual('primeira conferência de cliente ativo não avisa nada', cnpj.avisosDaPrimeiraVez(r1), []);
+igual('primeira conferência de cliente inapto avisa', cnpj.avisosDaPrimeiraVez(r2).length, 1);
+
 // ---------- tipo de documento ----------
 igual('títulos pagos = comprovante', r.detectarTipos('TITULOS PAGOS SICOOB AGO2026.pdf'), ['comprovante']);
 igual('tit liquidados = comprovante', r.detectarTipos('TIT LIQUIDADOS BBDVCM AGO2026.pdf'), ['comprovante']);

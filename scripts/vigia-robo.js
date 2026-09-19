@@ -472,8 +472,19 @@ async function iniciar() {
 
   // Avisos no celular (parada nova, entrega não realizada). Se isto falhar,
   // o resto do vigia segue: aviso é conforto, não pode derrubar o robô.
-  try { require('./avisos-push').iniciarAvisos(db, log); }
+  let avisos = null;
+  try { avisos = require('./avisos-push').iniciarAvisos(db, log); }
   catch (err) { log('avisos no celular desligados:', err.message); }
+
+  // Vigia de CNPJ: uma conferência por semana nos dados abertos da Receita.
+  // Mudança grave (inapta, baixada, saiu do Simples) vira aviso pro admin.
+  try {
+    require('./vigia-cnpj').iniciarVigiaCnpj(db, log, graves => {
+      if (!avisos) return;
+      const titulo = graves.length === 1 ? 'Mudou na Receita' : graves.length + ' clientes mudaram na Receita';
+      avisos.enviar('admin', '', titulo, graves.slice(0, 2).join(' · '), 'receita').catch(err => log('aviso da Receita não saiu:', err.message));
+    });
+  } catch (err) { log('vigia de CNPJ desligado:', err.message); }
   limparFila();
   setInterval(limparFila, 24 * 36e5);
 

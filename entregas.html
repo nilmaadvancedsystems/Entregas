@@ -1169,6 +1169,18 @@
   /* Celular deitado: a faixa come a tela toda. */
   @media (max-height: 460px) { .auth-side { display: none; } }
 
+  /* o que a Receita diz do cliente */
+  .receita-bloco { margin: var(--esp-3) 0; }
+  .receita-bloco dl { display: grid; grid-template-columns: auto 1fr; gap: 4px var(--esp-3); font-size: var(--t-sm); margin: var(--esp-2) 0 0; }
+  .receita-bloco dt { color: var(--ink-faint); }
+  .receita-bloco dd { margin: 0; color: var(--ink); overflow-wrap: anywhere; }
+  .receita-bloco dd.receita-ruim { color: var(--danger-forte); font-weight: 600; }
+  .receita-avisos { background: var(--warning-soft); border: 1px solid var(--border); border-radius: var(--r-md); padding: var(--esp-3); margin-bottom: var(--esp-2); display: grid; gap: 6px; }
+  .receita-aviso { display: grid; grid-template-columns: 18px 1fr; column-gap: 8px; font-size: var(--t-base); color: var(--ink); }
+  .receita-aviso .ph { margin-top: 2px; color: var(--ink-soft); }
+  .receita-aviso.grave .ph { color: var(--danger); }
+  .receita-avisos .btn-chip { justify-self: start; margin-top: 4px; gap: 6px; }
+
   /* linha do tempo do cliente */
   .tempo-linha { display: grid; grid-template-columns: 22px 1fr; column-gap: var(--esp-3); align-items: start; padding: var(--esp-2) 0; border-bottom: 1px solid var(--border); }
   .tempo-linha > .ph { font-size: 1.125rem; color: var(--ink-faint); margin-top: 1px; }
@@ -2512,6 +2524,13 @@
         <div id="qualidadeEnderecoList"></div>
       </div>
     </div>
+    <div class="card" id="receitaAvisosCard" hidden>
+      <div class="card-head-row">
+        <h2><i class="ph ph-bank" aria-hidden="true"></i> Mudou na Receita</h2>
+        <span class="card-hint" id="receitaAvisosContador"></span>
+      </div>
+      <div id="receitaAvisosList"></div>
+    </div>
     <form id="form-cliente" class="card" hidden novalidate>
       <h2><i class="ph ph-user-circle-plus" aria-hidden="true"></i> Novo cliente</h2>
       <div class="field">
@@ -3845,10 +3864,33 @@
     esocial: { dia: 20, ajuste: 'antecipa' }
   };
 
+  // Feriados nacionais (lista pública da BrasilAPI), guardados no aparelho por
+  // ano. Sem eles o vencimento calculado caía em feriado: só sábado e domingo
+  // eram pulados. Sem internet na primeira vez, segue como era antes.
+  var CHAVE_FERIADOS = 'nilma_feriados_';
+  var feriados_ = {};   // 'AAAA-MM-DD' -> nome
+  function carregarFeriados_(ano) {
+    try {
+      var guardado = JSON.parse(localStorage.getItem(CHAVE_FERIADOS + ano) || 'null');
+      if (guardado) { Object.assign(feriados_, guardado); return; }
+    } catch (e) {}
+    fetch('https://brasilapi.com.br/api/feriados/v1/' + ano).then(function (r) { return r.ok ? r.json() : []; }).then(function (lista) {
+      var doAno = {};
+      (Array.isArray(lista) ? lista : []).forEach(function (f) { if (f && f.date) doAno[f.date] = f.name || 'feriado'; });
+      if (!Object.keys(doAno).length) return;
+      Object.assign(feriados_, doAno);
+      try { localStorage.setItem(CHAVE_FERIADOS + ano, JSON.stringify(doAno)); } catch (e) {}
+    }).catch(function () {});
+  }
+  (function () { var a = new Date().getFullYear(); carregarFeriados_(a); carregarFeriados_(a + 1); })();
+  function ehFeriado_(d) {
+    return !!feriados_[d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0')];
+  }
+
   function ajustarDiaUtil_(data, ajuste) {
     var d = new Date(data.getTime());
     var passo = ajuste === 'antecipa' ? -1 : 1;
-    while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + passo);
+    while (d.getDay() === 0 || d.getDay() === 6 || ehFeriado_(d)) d.setDate(d.getDate() + passo);
     return d;
   }
 
@@ -7821,6 +7863,8 @@
         '<button type="button" class="btn-chip" id="aglutinarBtn"><i class="ph ph-link-simple" aria-hidden="true"></i> Aglutinar com outra empresa</button>' +
       '</div>' + avisoLocal;
 
+    var receitaHtml = htmlDaReceita_(cliente);
+
     // Info de honorário (importada da planilha do escritório): ponto de
     // referência ajuda achar o lugar quando o endereço é vago ou não tem
     // número; forma + dia dizem se dá pra ir cobrar essa semana.
@@ -7839,6 +7883,7 @@
         '<button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button>' +
       '</div>' +
       infoHonorario +
+      receitaHtml +
       acoesHtml +
       rowsHtml;
     $('modalClose').addEventListener('click', closeModal);
@@ -7860,6 +7905,16 @@
         window.open(whatsAppUrl_('Olá! Aqui é da Nilma Contabilidade.', cliente.telefone), '_blank');
       });
     }
+    if ($('receitaVistoBtn')) $('receitaVistoBtn').addEventListener('click', function () {
+      var btn = this;
+      botaoOcupado_(btn);
+      db.doc('clientes/' + cliente.id).update({ 'receita.mudancas': [] }).then(function () {
+        if (cliente.receita) cliente.receita.mudancas = [];
+        registrarAuditoria_('receita_visto', clienteLabel(cliente));
+        renderHistoricoList(cliente, historico);
+        renderAvisosDaReceita_();
+      }).catch(function (err) { showToast(errMsg(err, 'Não foi possível marcar.'), 'error'); botaoLivre_(btn); });
+    });
     $('linhaDoTempoBtn').addEventListener('click', function () {
       abrirLinhaDoTempo_(cliente, historico, function () { renderHistoricoList(cliente, historico); });
     });
@@ -9741,6 +9796,7 @@
   }
 
   function renderClientesList() {
+    renderAvisosDaReceita_();
     var busca = $('clientesBusca').value.trim().toLowerCase();
     var listEl = $('clientesList');
     var all = Array.from(clientesCache.values()).sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); });
@@ -11231,6 +11287,80 @@
         botaoLivre_(btn);
       });
     });
+  }
+
+  // ---------- o que a Receita diz do cliente ----------
+  // Quem preenche clientes.receita é o vigia de CNPJ, no PC do robô, uma vez
+  // por semana (scripts/vigia-cnpj.js). Aqui só se lê. Os dados abertos têm
+  // atraso de semanas: é alarme, não certidão — e a tela diz isso.
+  function mudancasDaReceita_(c) {
+    return (c && c.receita && Array.isArray(c.receita.mudancas)) ? c.receita.mudancas : [];
+  }
+  function htmlDaReceita_(c) {
+    var r = c && c.receita;
+    if (!r || r.situacao === undefined) return '';
+    var mud = mudancasDaReceita_(c);
+    var regime = r.mei ? 'MEI' : (r.simples ? 'Simples Nacional' : 'Fora do Simples');
+    var ativa = r.situacao === 'ATIVA';
+    var linhas = [
+      ['Situação', (r.situacao || '?') + (r.situacaoDesde ? ' desde ' + r.situacaoDesde.split('-').reverse().join('/') : '')],
+      ['Regime', regime],
+      ['Atividade', r.cnaeDescricao || r.cnae || ''],
+      ['Abertura', r.abertura ? r.abertura.split('-').reverse().join('/') : ''],
+      ['Sócios', (r.socios || []).join(', ')],
+      ['Endereço', r.endereco || '']
+    ].filter(function (l) { return l[1]; });
+    return '<div class="receita-bloco' + (mud.length ? ' tem-aviso' : '') + '">' +
+      (mud.length
+        ? '<div class="receita-avisos">' + mud.map(function (m) {
+            return '<div class="receita-aviso' + (m.grave ? ' grave' : '') + '"><i class="ph ' + (m.grave ? 'ph-warning' : 'ph-info') + '" aria-hidden="true"></i><span>' +
+              escapeHtml_(m.texto) + ' <span class="card-hint">· notado em ' + escapeHtml_(fmtDateTime(m.em).split(',')[0]) + '</span></span></div>';
+          }).join('') +
+          (temPapel('admin') ? '<button type="button" class="btn-chip" id="receitaVistoBtn"><i class="ph ph-check" aria-hidden="true"></i> Já vi</button>' : '') + '</div>'
+        : '') +
+      '<details' + (mud.length ? ' open' : '') + '><summary class="card-hint" style="cursor:pointer">Na Receita: ' + escapeHtml_(r.situacao || '?') + ' · ' + escapeHtml_(regime) + '</summary>' +
+        '<dl>' + linhas.map(function (l) { return '<dt>' + l[0] + '</dt><dd' + (l[0] === 'Situação' && !ativa ? ' class="receita-ruim"' : '') + '>' + escapeHtml_(l[1]) + '</dd>'; }).join('') + '</dl>' +
+        '<p class="card-hint" style="margin:6px 0 0">Dados abertos da Receita, conferidos em ' + escapeHtml_(fmtDateTime(r.conferidoEm || '').split(',')[0]) +
+        '. Podem ter semanas de atraso em relação ao e-CAC.</p>' +
+      '</details></div>';
+  }
+
+  // Quadro no topo da aba Clientes: quem mudou na Receita e ninguém viu ainda.
+  function renderAvisosDaReceita_() {
+    var card = $('receitaAvisosCard');
+    if (!card) return;
+    var lista = Array.from(clientesCache.values())
+      .filter(function (c) { return c.ativo !== false && mudancasDaReceita_(c).length; })
+      .sort(function (a, b) {
+        var ga = mudancasDaReceita_(a).some(function (m) { return m.grave; }) ? 0 : 1;
+        var gb = mudancasDaReceita_(b).some(function (m) { return m.grave; }) ? 0 : 1;
+        return ga - gb || a.nome.localeCompare(b.nome, 'pt-BR');
+      });
+    card.hidden = lista.length === 0;
+    if (!lista.length) return;
+    $('receitaAvisosContador').textContent = lista.length + (lista.length === 1 ? ' cliente' : ' clientes');
+    var caixa = $('receitaAvisosList');
+    caixa.innerHTML = '';
+    lista.slice(0, 12).forEach(function (c) {
+      var mud = mudancasDaReceita_(c);
+      var grave = mud.some(function (m) { return m.grave; });
+      var row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'client-row';
+      row.style.width = '100%';
+      row.innerHTML = '<div><div class="cr-name"></div><div class="cr-sub"></div></div>' + (grave ? '<span class="status-pill falha">Atenção</span>' : '');
+      row.querySelector('.cr-name').textContent = clienteLabel(c);
+      row.querySelector('.cr-sub').textContent = mud.map(function (m) { return m.texto; }).join(' · ');
+      row.addEventListener('click', function () { openClienteHistorico(c); });
+      caixa.appendChild(row);
+    });
+    if (lista.length > 12) {
+      var resto = document.createElement('p');
+      resto.className = 'card-hint';
+      resto.style.margin = '8px 0 0';
+      resto.textContent = 'e mais ' + (lista.length - 12) + '.';
+      caixa.appendChild(resto);
+    }
   }
 
   // ---------- linha do tempo do cliente ----------

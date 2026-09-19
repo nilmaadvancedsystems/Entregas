@@ -101,6 +101,8 @@ function iniciarAvisos(db, log) {
   }, err => log('avisos: perdi o ouvinte das entregas:', err.message));
 
   log('avisos no celular ligados (parada nova pro office boy, entrega não realizada pro admin)');
+  // quem mais quiser avisar (o vigia de CNPJ) usa o mesmo envio
+  return { enviar };
 }
 
 module.exports = { iniciarAvisos };
