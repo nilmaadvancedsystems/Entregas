@@ -308,16 +308,27 @@ function faltamNoMes(cliente, dado) {
   const na = Array.isArray(cliente.documentosNaoAplicaveis) ? cliente.documentosNaoAplicaveis : [];
   return TIPOS_DO_PORTAL.filter(t => na.indexOf(t) === -1 && !(dado && dado[t]));
 }
-async function atualizarPortal(db, cliente) {
+async function atualizarPortal(db, cliente, todos) {
   if (SIMULAR || !cliente || !cliente.portalToken) return;
-  const meses = [];
-  for (const comp of mesesDoPortal()) {
-    const snap = await db.collection('documentosMensal').doc(cliente.id + '_' + comp).get();
-    meses.push({ competencia: comp, faltam: faltamNoMes(cliente, snap.exists ? snap.data() : null) });
+  const mesesDe = async cli => {
+    const lista = [];
+    for (const comp of mesesDoPortal()) {
+      const snap = await db.collection('documentosMensal').doc(cli.id + '_' + comp).get();
+      lista.push({ competencia: comp, faltam: faltamNoMes(cli, snap.exists ? snap.data() : null) });
+    }
+    return lista;
+  };
+  const meses = await mesesDe(cliente);
+  // link de grupo: as empresas aglutinadas a esta entram cada uma com a sua parte
+  const seguidoras = cliente.grupoLocal ? [] : Array.from((todos || new Map()).values()).filter(x => x.grupoLocal === cliente.id);
+  let empresas = null;
+  if (seguidoras.length) {
+    empresas = [];
+    for (const x of [cliente].concat(seguidoras)) empresas.push({ nome: x.nomeFantasia || x.nome || '', meses: await mesesDe(x) });
   }
   // update() e não set(): portal apagado (link trocado) não pode renascer aqui
   await db.collection('portais').doc(cliente.portalToken)
-    .update({ documentos: { atualizadoEm: new Date().toISOString(), meses, email: 'nilmacontabilidade@gmail.com' } });
+    .update({ documentos: Object.assign({ atualizadoEm: new Date().toISOString(), meses, email: 'nilmacontabilidade@gmail.com' }, empresas ? { empresas } : {}) });
 }
 
 async function gravar(db, docId, patch) {
@@ -510,7 +521,9 @@ async function main() {
           patch.detalhes[t] = { origem: 'gmail', em: agora, mensagemId: id, arquivos: comBytes.map(a => a.filename) };
         });
         cont.marcados++;
-        if (cliente.portalToken) portaisATocar.set(cliente.id, cliente);
+        // o link que mostra este cliente: o dele ou o da empresa principal do grupo
+        const donoDoLink = cliente.portalToken ? cliente : clientesPorId.get(cliente.grupoLocal);
+        if (donoDoLink && donoDoLink.portalToken) portaisATocar.set(donoDoLink.id, donoDoLink);
         console.log(`  ${cliente.nome} (${competencia}): ${tipos.join(', ')} — ${comBytes.length} anexo(s)`);
       } else {
         console.log(`  ${cliente.nome} (${competencia}): conversa registrada${anexos.length ? ', anexo sem tipo reconhecido' : ''}`);
@@ -528,7 +541,7 @@ async function main() {
   }
 
   for (const cliente of portaisATocar.values()) {
-    try { await atualizarPortal(db, cliente); }
+    try { await atualizarPortal(db, cliente, clientesPorId); }
     catch (err) { console.error('  portal de', cliente.nome, 'não atualizou -', err.message); }
   }
 

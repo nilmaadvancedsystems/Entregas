@@ -2434,27 +2434,38 @@
       if (alvo.some(function (m) { return carregados.indexOf(m) === -1; })) return;
       clientesCache.forEach(function (c) {
         if (!c.portalToken) return;
-        var docs = docsDe(c.id);
-        var meses = alvo.map(function (comp) {
-          var d = docs[comp] || {};
-          return {
-            competencia: comp,
-            faltam: d.semMovimento ? [] : tiposExigidos(c).filter(function (t) { return !d[t.chave]; }).map(function (t) { return t.chave; })
-          };
-        });
-        var marca = JSON.stringify(meses);
+        var mesesDe = function (cli) {
+          var docs = docsDe(cli.id);
+          return alvo.map(function (comp) {
+            var d = docs[comp] || {};
+            return {
+              competencia: comp,
+              faltam: d.semMovimento ? [] : tiposExigidos(cli).filter(function (t) { return !d[t.chave]; }).map(function (t) { return t.chave; })
+            };
+          });
+        };
+        var meses = mesesDe(c);
+        // empresas aglutinadas a esta (clientes.grupoLocal aponta pra cá) dividem o
+        // mesmo link: a parte de cada uma vai em "empresas"
+        var seguidoras = c.grupoLocal ? [] : clientesCache.filter(function (x) { return x.grupoLocal === c.id; });
+        var empresas = seguidoras.length
+          ? [c].concat(seguidoras).map(function (x) { return { nome: x.nomeFantasia || x.nome || '', meses: mesesDe(x) }; })
+          : null;
+        var marca = JSON.stringify([meses, empresas]);
         var ref = db.collection('portais').doc(c.portalToken);
         var gravar = function () {
           if (portalConferido[c.portalToken] === marca) return;
           portalConferido[c.portalToken] = marca;
-          ref.update({ documentos: { atualizadoEm: new Date().toISOString(), meses: meses, email: CAIXA_GMAIL } })
+          var documentos = { atualizadoEm: new Date().toISOString(), meses: meses, email: CAIXA_GMAIL };
+          if (empresas) documentos.empresas = empresas;
+          ref.update({ documentos: documentos })
             .catch(function () { delete portalConferido[c.portalToken]; });
         };
         if (portalConferido[c.portalToken] !== undefined) { gravar(); return; }
         ref.get().then(function (snap) {
           if (!snap.exists) { portalConferido[c.portalToken] = marca; return; }
-          var atual = (snap.data().documentos || {}).meses;
-          portalConferido[c.portalToken] = atual ? JSON.stringify(atual) : '';
+          var gravado = snap.data().documentos || {};
+          portalConferido[c.portalToken] = gravado.meses ? JSON.stringify([gravado.meses, gravado.empresas || null]) : '';
           gravar();
         }).catch(function () {});
       });

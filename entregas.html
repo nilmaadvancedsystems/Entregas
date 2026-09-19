@@ -1221,6 +1221,7 @@
   .portal-linha-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--esp-3); }
   .portal-linha .er-nome { font-weight: 600; font-size: var(--t-base); color: var(--ink); }
   .portal-linha .er-sub { font-size: var(--t-sm); color: var(--ink-soft); margin-top: 2px; }
+  .portal-empresa { font-size: var(--t-xs); font-weight: 600; color: var(--ink-faint); letter-spacing: .01em; margin-bottom: 2px; }
   .portal-comprovante { margin-top: var(--esp-2); }
   .portal-pagar { margin-top: var(--esp-3); display: flex; flex-wrap: wrap; gap: 6px; }
   .portal-pagar .btn-chip { gap: 8px; }
@@ -7795,6 +7796,10 @@
   // referência: quem tem esse campo aponta pra ele; quem não tem (e é
   // apontado por outros) é a própria referência. Ler a chave sempre como
   // "grupoLocal || id" deixa a cadeia funcionar em qualquer tamanho.
+  // chamado depois de aglutinar/separar: os links dos envolvidos são refeitos
+  function refazerLinksDoGrupo_(ids) {
+    ids.forEach(function (id) { if (id) setTimeout(function () { portalMudou_(id); }, 1500); });
+  }
   function grupoLocalDe_(cliente) {
     return (cliente && cliente.grupoLocal) || null;
   }
@@ -7840,7 +7845,9 @@
       $('desfazerAglutinarBtn').addEventListener('click', function () {
         var btn = this;
         botaoOcupado_(btn);
+        var principalAntiga = cliente.grupoLocal;
         db.doc('clientes/' + cliente.id).update({ grupoLocal: firebase.firestore.FieldValue.delete() }).then(function () {
+          refazerLinksDoGrupo_([principalAntiga, cliente.id]);
           registrarAuditoria_('aglutinacao_desfeita', clienteLabel(cliente));
           showToast('Aglutinação desfeita — ' + clienteLabel(cliente) + ' volta a ser parada própria.');
           fechar();
@@ -7896,6 +7903,7 @@
             });
 
             batch.commit().then(function () {
+              refazerLinksDoGrupo_([novoGrupo, cliente.id]);
               registrarAuditoria_('aglutinado', clienteLabel(cliente) + ' + ' + clienteLabel(c));
               showToast('Aglutinado com ' + clienteLabel(c) + '. Agora contam como uma parada só na rota.');
               fechar();
@@ -12162,18 +12170,57 @@
   // Regrava a parte de entregas do portal de UM cliente. Lê do servidor de
   // propósito: o cache local pode estar pela metade, e gravar metade por
   // cima do portal faria entrega sumir da tela do cliente.
+  // Empresas aglutinadas (mesmo dono, mesmo endereço) dividem UM link: o da
+  // empresa principal do grupo. Quem tem três CNPJs recebe um endereço só e vê
+  // as três, cada linha com o nome da empresa. O grupo é o mesmo do "aglutinar"
+  // (clientes.grupoLocal aponta pra principal); nada novo pra cadastrar.
+  function empresasDoLink_(dono) {
+    if (!dono) return [];
+    if (dono.grupoLocal) return [dono];            // quem segue outra empresa só responde por si
+    var lista = [dono];
+    clientesCache.forEach(function (x) { if (x.id !== dono.id && x.grupoLocal === dono.id && x.ativo !== false) lista.push(x); });
+    return lista;
+  }
+  // Os clientes cujo link mostra as entregas deste: ele mesmo e a principal do grupo.
+  function donosDoLinkDe_(clienteId) {
+    var c = clienteId && clientesCache.get(clienteId);
+    if (!c) return [];
+    var donos = c.portalToken ? [c] : [];
+    var principal = c.grupoLocal && clientesCache.get(c.grupoLocal);
+    if (principal && principal.portalToken) donos.push(principal);
+    return donos;
+  }
+
   function atualizarPortalDoCliente_(clienteId) {
     var c = clientesCache.get(clienteId);
     if (!db || !c || !c.portalToken) return Promise.resolve(false);
     var comps = ultimasCompetencias_(MESES_NO_PORTAL);
-    return db.collection('entregas').where('clienteId', '==', clienteId).get({ source: 'server' }).then(function (snap) {
-      var lista = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); })
+    var empresas = empresasDoLink_(c);
+    var nomeDe = {};
+    empresas.forEach(function (x) { nomeDe[x.id] = x.nomeFantasia || x.nome || ''; });
+    // uma consulta por empresa do grupo (o "in" do Firestore pede índice a mais)
+    return Promise.all(empresas.map(function (x) {
+      return db.collection('entregas').where('clienteId', '==', x.id).get({ source: 'server' });
+    })).then(function (snaps) {
+      var todas = [], jaVista = {};
+      snaps.forEach(function (snap) {
+        snap.docs.forEach(function (d) {
+          if (jaVista[d.id] || !nomeDe.hasOwnProperty(d.data().clienteId)) return;   // só das empresas deste link, uma vez cada
+          jaVista[d.id] = true;
+          todas.push(Object.assign({ id: d.id }, d.data()));
+        });
+      });
+      var lista = todas
         .filter(function (e) { return e.status === 'pendente' || comps.indexOf(e.competencia) !== -1; })
         .sort(function (a, b) { return String(b.confirmadoEm || b.criadoEm || '').localeCompare(String(a.confirmadoEm || a.criadoEm || '')); })
-        .slice(0, 60)
-        .map(projecaoDaEntrega_);
+        .slice(0, 80)
+        .map(function (e) {
+          var p = projecaoDaEntrega_(e);
+          if (empresas.length > 1) p.empresa = nomeDe[e.clienteId] || '';
+          return p;
+        });
       return db.doc('portais/' + c.portalToken).update({
-        clienteNome: c.nome || '',
+        clienteNome: (c.nome || '') + (empresas.length > 1 ? ' e mais ' + (empresas.length - 1) + (empresas.length === 2 ? ' empresa' : ' empresas') : ''),
         entregas: { atualizadoEm: new Date().toISOString(), lista: lista }
       }).then(function () { return true; });
     });
@@ -12193,10 +12240,11 @@
   // tentar: confirmação feita sem sinal só chega ao servidor depois, talvez
   // com o app já fechado — a fila fica no aparelho e roda na próxima abertura.
   function portalMudou_(clienteId) {
-    var c = clienteId && clientesCache.get(clienteId);
-    if (!c || !c.portalToken) return;
+    var donos = donosDoLinkDe_(clienteId);
+    if (!donos.length) return;
     var fila = lerFilaPortal_();
-    if (fila.indexOf(clienteId) === -1) { fila.push(clienteId); gravarFilaPortal_(fila); }
+    donos.forEach(function (d) { if (fila.indexOf(d.id) === -1) fila.push(d.id); });
+    gravarFilaPortal_(fila);
     clearTimeout(relogioFilaPortal);
     relogioFilaPortal = setTimeout(processarFilaPortal_, 3000);
   }
@@ -12206,20 +12254,22 @@
   // tocar em "ver comprovante"). Fora do lote da confirmação de propósito:
   // se esta gravação for recusada, a confirmação da entrega não pode cair junto.
   function guardarComprovanteNoPortal_(entrega, assinatura, recebedor, confirmadoEm) {
-    var c = entrega && entrega.clienteId && clientesCache.get(entrega.clienteId);
-    if (!db || !c || !c.portalToken || !assinatura) return;
-    db.doc('portais/' + c.portalToken + '/comprovantes/' + entrega.id)
-      .set({ assinatura: assinatura, recebedor: recebedor || '', confirmadoEm: confirmadoEm })
-      .catch(function () {});
+    if (!db || !entrega || !assinatura) return;
+    donosDoLinkDe_(entrega.clienteId).forEach(function (dono) {
+      db.doc('portais/' + dono.portalToken + '/comprovantes/' + entrega.id)
+        .set({ assinatura: assinatura, recebedor: recebedor || '', confirmadoEm: confirmadoEm })
+        .catch(function () {});
+    });
   }
 
   // A página da guia (tirada do PDF na hora de montar a parada) vai pra um
   // documento à parte, igual à assinatura: só é baixada se o cliente pedir.
   // O Firestore aceita até 1 MiB por documento; imagem maior que isso fica de fora.
   function guardarGuiaNoPortal_(entrega, imagem) {
-    var c = entrega && entrega.clienteId && clientesCache.get(entrega.clienteId);
-    if (!db || !c || !c.portalToken || !imagem || imagem.length > 950000) return;
-    db.doc('portais/' + c.portalToken + '/guias/' + entrega.id).set({ imagem: imagem, em: new Date().toISOString() }).catch(function () {});
+    if (!db || !entrega || !imagem || imagem.length > 950000) return;
+    donosDoLinkDe_(entrega.clienteId).forEach(function (dono) {
+      db.doc('portais/' + dono.portalToken + '/guias/' + entrega.id).set({ imagem: imagem, em: new Date().toISOString() }).catch(function () {});
+    });
   }
 
   // ---- lado da equipe: criar, copiar, mandar e trocar o link ----
@@ -12232,6 +12282,9 @@
   // Assinaturas das entregas que já existiam antes do link: copia as do
   // período que o portal mostra, uma vez, na criação.
   function copiarComprovantesAntigos_(cliente, token) {
+    return Promise.all(empresasDoLink_(cliente).map(function (x) { return copiarComprovantesDe_(x, token); }));
+  }
+  function copiarComprovantesDe_(cliente, token) {
     var comps = ultimasCompetencias_(MESES_NO_PORTAL);
     return db.collection('entregas').where('clienteId', '==', cliente.id).get().then(function (snap) {
       // guia: só de parada ainda pendente — depois de confirmada, a foto do
@@ -12289,6 +12342,14 @@
   }
 
   function abrirLinkDoCliente_(cliente) {
+    // empresa que segue outra usa o link da principal: um endereço só pro dono
+    var principal = cliente.grupoLocal && clientesCache.get(cliente.grupoLocal);
+    if (principal && !cliente.portalToken) {
+      if (principal.portalToken) showToast(clienteLabel(cliente) + ' aparece no link de ' + clienteLabel(principal) + ', que é a empresa principal do grupo.');
+      else showToast('O link deste grupo é criado na empresa principal: ' + clienteLabel(principal) + '.');
+      abrirLinkDoCliente_(principal);
+      return;
+    }
     var root = $('modalRoot');
     var tem = !!cliente.portalToken;
     var admin = temPapel('admin');
@@ -12299,6 +12360,9 @@
         '</div><button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button></div>' +
         (tem
           ? '<p class="card-hint">Página só dele, sem senha: guias dos últimos meses, comprovante de cada entrega e os documentos que ainda faltam. O link é sempre o mesmo — mande uma vez.</p>' +
+            (empresasDoLink_(cliente).length > 1
+              ? '<p class="card-hint">Este link mostra as ' + empresasDoLink_(cliente).length + ' empresas do grupo: ' + escapeHtml_(empresasDoLink_(cliente).map(function (x) { return x.nomeFantasia || x.nome; }).join(', ')) + '.</p>'
+              : '') +
             '<p class="card-hint" id="portalVistoLinha" hidden></p>' +
             '<div class="modal-acoes">' +
               '<button type="button" class="btn-chip accent" id="portalWhatsBtn"><i class="ph ph-whatsapp-logo" aria-hidden="true"></i> Mandar no WhatsApp</button>' +
@@ -12509,7 +12573,14 @@
   function renderPortalDocumentos_(docs) {
     var caixa = $('portalDocumentos');
     caixa.innerHTML = '';
+    // link de grupo: a parte de cada empresa vem em docs.empresas
     var meses = (docs && docs.meses) || [];
+    if (docs && Array.isArray(docs.empresas) && docs.empresas.length > 1) {
+      meses = [];
+      docs.empresas.forEach(function (emp) {
+        (emp.meses || []).forEach(function (m) { meses.push({ competencia: m.competencia, faltam: m.faltam || [], empresa: emp.nome || '' }); });
+      });
+    }
     var devendo = meses.filter(function (m) { return (m.faltam || []).length; });
     if (!meses.length) return;
     if (!devendo.length) {
@@ -12519,7 +12590,7 @@
     }
     var html = '<div class="portal-faltam"><h2>Falta enviar</h2>';
     devendo.forEach(function (m) {
-      html += '<p>' + escapeHtml_(fmtCompetencia(m.competencia)) + '</p><ul>' +
+      html += '<p>' + escapeHtml_((m.empresa ? m.empresa + ' · ' : '') + fmtCompetencia(m.competencia)) + '</p><ul>' +
         m.faltam.map(function (k) { return '<li>' + escapeHtml_(NOMES_DOC_PORTAL[k] || k) + '</li>'; }).join('') + '</ul>';
     });
     if (docs.email) {
@@ -12553,7 +12624,8 @@
             : (falha ? fmtDateTime(e.quando) + (e.motivoFalha ? ' · ' + e.motivoFalha : '') : 'Ainda vamos entregar');
           if (e.vencimento) sub += ' · vence ' + e.vencimento.split('-').reverse().join('/');
           return '<div class="portal-linha">' +
-            '<div class="portal-linha-topo"><div><div class="er-nome">' + escapeHtml_(itens || 'Documentos') + '</div>' +
+            '<div class="portal-linha-topo"><div>' + (e.empresa ? '<div class="portal-empresa">' + escapeHtml_(e.empresa) + '</div>' : '') +
+            '<div class="er-nome">' + escapeHtml_(itens || 'Documentos') + '</div>' +
             '<div class="er-sub">' + escapeHtml_(sub) + '</div></div>' +
             '<span class="status-pill ' + pill + '">' + rotulo + '</span></div>' +
             (function () {
