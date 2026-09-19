@@ -3125,8 +3125,7 @@
     var hoje = confirmadasHoje_().filter(function (e) { return e.status === 'confirmada'; }).length;
     $('dashHoje').textContent = hoje;
     $('dashRota').textContent = pendentesCache.length;
-    var ativos = Array.from(clientesCache.values()).filter(function (c) { return c.ativo !== false; }).length;
-    $('dashClientes').textContent = ativos;
+    $('dashClientes').textContent = clientesDoEntregas_().length;
   }
 
   function fmtDateTime(iso) {
@@ -3252,6 +3251,7 @@
       lote.set(ref.collection('anexos').doc('comprovante'), comprovante);
     }
     portalMudou_(parentData.clienteId);
+    marcarClienteDeEntrega_(parentData.clienteId);
     if (parentData.temGuia && anexos && anexos.foto) guardarGuiaNoPortal_({ id: ref.id, clienteId: parentData.clienteId }, anexos.foto);
     if (parentData.status === 'confirmada' && anexos && anexos.assinatura) {
       guardarComprovanteNoPortal_({ id: ref.id, clienteId: parentData.clienteId }, anexos.assinatura, parentData.recebedor, parentData.confirmadoEm);
@@ -3457,6 +3457,7 @@
       // mesmo que o botão seja forçado a aparecer.
       if (btn.dataset.tab === 'perfil' && !temPapel('admin')) return;
       if (btn.dataset.tab === 'perfil') voltarParaEquipe();
+      if (btn.dataset.tab === 'clientes') garantirTodosOsClientes_();
       document.querySelectorAll('.tab').forEach(function (b) {
         b.classList.remove('active');
         b.setAttribute('aria-selected', 'false');
@@ -4170,7 +4171,14 @@
         ]);
         return Promise.all([textPromise, imagemComLimite]);
       }).then(function (r) {
-        aplicarDadosDoPdf_(r[0], r[1]);
+        var textoDoPdf = r[0], imagemDoPdf = r[1];
+        var citaCarregado = (String(textoDoPdf).match(/\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}|\d{3}\.?\d{3}\.?\d{3}-?\d{2}/g) || []).some(function (doc) {
+          var dig = doc.replace(/\D/g, '');
+          return Array.from(clientesCache.values()).some(function (c) { return (c.documento || '').replace(/\D/g, '') === dig; });
+        });
+        return (citaCarregado ? Promise.resolve() : garantirTodosOsClientes_()).then(function () {
+          aplicarDadosDoPdf_(textoDoPdf, imagemDoPdf);
+        });
       }).catch(function (err) {
         $('pdfStatus').textContent = '';
         showToast('Não foi possível ler esse PDF: ' + (err && err.message ? err.message : 'erro desconhecido'), 'error');
@@ -4538,6 +4546,9 @@
     var list = Array.from(clientesCache.values()).filter(function (c) {
       return c.ativo !== false && clienteCombina_(c, q);
     }).slice(0, 8);
+    // poucos resultados com a carga curta: pode ser cliente que não é do
+    // Entregas ainda. Busca a base inteira e refaz a lista sozinho.
+    if (!clientesCompletos_ && list.length < 3 && q.length >= 2) garantirTodosOsClientes_().then(renderSuggestions);
     var exact = list.some(function (c) { return c.nome.toLowerCase() === q; });
     list.forEach(function (c) {
       var btn = document.createElement('button');
@@ -4926,6 +4937,7 @@
     if (!db) return;
     unsubEntregasPainel = db.collection('entregas').where('competencia', '==', comp).limit(LIMITE_PAINEL).onSnapshot(function (snap) {
       entregasPainelCache = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+      conferirClientesQueFaltam_();
       // Sem aviso, o que passava do teto sumia em silêncio e o Painel dizia
       // "sem entrega registrada" pra cliente que já tinha recebido.
       if (snap.size >= LIMITE_PAINEL && !subscribePainel.avisou) {
@@ -4984,6 +4996,7 @@
     if (!db) return;
     unsubPendentes = db.collection('entregas').where('status', '==', 'pendente').limit(500).onSnapshot(function (snap) {
       pendentesCache = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+      conferirClientesQueFaltam_();
       renderRota();
       renderClientesList();
       renderQualidadeRota_();
@@ -5198,6 +5211,7 @@
   var buscaGlobalResultados = [];
 
   function abrirBuscaGlobal_() {
+    garantirTodosOsClientes_();
     if ($('authGate') && !$('authGate').hidden) return;
     if (!$('hubScreen').hidden) return;
     $('buscaGlobal').hidden = false;
@@ -5640,6 +5654,7 @@
   // Aqui é só buscar o cliente já cadastrado e preencher forma/dia —
   // reaproveita o mesmo modal de editar, que já grava esses campos.
   function abrirAdicionarHonorarioCliente_() {
+    if (!clientesCompletos_) { garantirTodosOsClientes_().then(abrirAdicionarHonorarioCliente_); return; }
     var root = $('modalRoot');
     root.innerHTML =
       '<div class="modal-overlay" id="overlay"><div class="modal" id="modalInner">' +
@@ -5724,6 +5739,7 @@
         honorarioDia: $('editHonorarioDia').value.trim(),
         pontoReferencia: $('editHonorarioRef').value.trim()
       }).then(function () {
+        marcarClienteDeEntrega_(cliente.id);   // quem tem honorário pra receber é do Entregas
         registrarAuditoria_('honorario_editado', clienteLabel(cliente));
         showToast('Dados atualizados.');
         fechar();
@@ -7199,7 +7215,11 @@
     atestadoEmpresaInput.setAttribute('aria-expanded', String(atestadoEmpresaSuggestionsEl.children.length > 0));
   }
   atestadoEmpresaInput.addEventListener('input', function () { selectedAtestadoClienteId = null; renderAtestadoEmpresaSuggestions_(); });
-  atestadoEmpresaInput.addEventListener('focus', renderAtestadoEmpresaSuggestions_);
+  atestadoEmpresaInput.addEventListener('focus', function () {
+    // atestado pode ser de funcionário de qualquer cliente do escritório
+    garantirTodosOsClientes_().then(renderAtestadoEmpresaSuggestions_);
+    renderAtestadoEmpresaSuggestions_();
+  });
   document.addEventListener('click', function (e) {
     if (!e.target.closest('#atestadoEmpresaComboboxWrap')) atestadoEmpresaSuggestionsEl.classList.remove('show');
   });
@@ -7303,8 +7323,10 @@
 
   function renderPainel() {
     var busca = $('painelBusca').value.trim().toLowerCase();
-    var ativos = Array.from(clientesCache.values()).filter(function (c) { return c.ativo !== false; });
-    if (busca) ativos = ativos.filter(function (c) { return clienteCombina_(c, busca); });
+    // sem busca: só quem é do Entregas. Com busca: qualquer cliente carregado.
+    var ativos = busca
+      ? Array.from(clientesCache.values()).filter(function (c) { return c.ativo !== false && clienteCombina_(c, busca); })
+      : clientesDoEntregas_();
     ativos.sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); });
 
     var byCliente = new Map();
@@ -7317,10 +7339,13 @@
       list.sort(function (a, b) { return new Date(b.confirmadoEm || b.criadoEm) - new Date(a.confirmadoEm || a.criadoEm); });
     });
 
-    var totalAtivos = Array.from(clientesCache.values()).filter(function (c) { return c.ativo !== false; }).length;
-    var entreguesCount = Array.from(clientesCache.values()).filter(function (c) {
+    // a conta é sobre quem recebe entrega: com os 320 do escritório no
+    // denominador o anel nunca passava de 15%
+    var daConta = clientesDoEntregas_();
+    var totalAtivos = daConta.length;
+    var entreguesCount = daConta.filter(function (c) {
       var list = byCliente.get(c.id);
-      return c.ativo !== false && list && list[0].status === 'confirmada';
+      return list && list[0].status === 'confirmada';
     }).length;
     var pct = totalAtivos ? Math.round((entreguesCount / totalAtivos) * 100) : 0;
     $('summaryRing').style.setProperty('--pct', pct);
@@ -7601,8 +7626,8 @@
         });
     buscar.then(function (ids) {
       var comEntrega = new Set(ids);
-      clientesSemEntregaCache = Array.from(clientesCache.values())
-        .filter(function (c) { return c.ativo !== false && !comEntrega.has(c.id); })
+      clientesSemEntregaCache = clientesDoEntregas_()
+        .filter(function (c) { return !comEntrega.has(c.id); })
         .sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); });
       var card = $('alertaSemEntregaCard');
       if (clientesSemEntregaCache.length) {
@@ -7755,6 +7780,7 @@
   }
 
   function abrirAglutinar_(cliente, aoFechar) {
+    if (!clientesCompletos_) { garantirTodosOsClientes_().then(function () { abrirAglutinar_(cliente, aoFechar); }); return; }
     var root = $('modalRoot');
     var grupoAtual = grupoLocalDe_(cliente);
     var ancoraAtual = grupoAtual ? clientesCache.get(grupoAtual) : null;
@@ -9490,6 +9516,7 @@
 
   $('importHonorariosBtn').addEventListener('click', function () {
     var btn = this;
+    garantirTodosOsClientes_();   // a planilha cita clientes do escritório inteiro
     confirmarDuplo(btn, function () {
       lerJsonEscolhido_(null, function (lista) { importarHonorarios_(btn, lista); });
     });
@@ -9968,7 +9995,7 @@
       return (a.nome || '').localeCompare(b.nome || '', 'pt-BR');
     }
 
-    var ativos = Array.from(clientesCache.values()).filter(function (c) { return c.ativo !== false; });
+    var ativos = clientesDoEntregas_();
 
     // aglutinado usa a localização e a lógica de zona de quem ele segue —
     // corrigir aqui seria corrigir o cliente errado
@@ -10871,6 +10898,124 @@
     currentUserNome = '';
     clientesCache = new Map();
     pendentesCache = [];
+    clientesCompletos_ = false;
+    esperandoTodosOsClientes_ = [];
+  }
+
+  // ==========================================================================
+  // Clientes de entrega
+  //
+  // O escritório tem uns 320 clientes, mas o Entregas trabalha com uns 50. A
+  // base inteira era carregada a cada abertura (é o item que mais gasta leitura
+  // do banco na abertura) e entrava nas contas: o Painel media "52 de 320
+  // entregues", o alerta "sem entrega há tempo" acusava quem nunca recebeu nada.
+  //
+  // clientes.entrega = true marca quem é do Entregas. Ninguém marca à mão: o app
+  // marca na primeira entrega (ou honorário) do cliente, e o histórico é
+  // preenchido uma vez pelo aparelho de um admin.
+  //
+  // O app abre carregando só os marcados. Tudo que precisa da base inteira
+  // (aba Clientes, busca, consulta rápida, atestado, aglutinar, importação,
+  // PDF de cliente que não está carregado, digitar um nome que não aparece)
+  // chama garantirTodosOsClientes_(), que troca o ouvinte pelo completo. E há
+  // uma rede de segurança: entrega que cita cliente não carregado puxa a base.
+  // Enquanto ninguém estiver marcado, tudo funciona como antes, com todos.
+  // ==========================================================================
+  var clientesCompletos_ = false;
+  var primeiraCargaClientes_ = true;
+  var esperandoTodosOsClientes_ = [];
+
+  function haClientesMarcados_() {
+    var ha = false;
+    clientesCache.forEach(function (c) { if (c.entrega === true) ha = true; });
+    return ha;
+  }
+  // Os clientes que contam pro Entregas: marcados, mais quem está na rota agora.
+  function clientesDoEntregas_() {
+    var ativos = Array.from(clientesCache.values()).filter(function (c) { return c.ativo !== false; });
+    if (!haClientesMarcados_()) return ativos;
+    var naRota = {};
+    pendentesCache.forEach(function (e) { if (e.clienteId) naRota[e.clienteId] = true; });
+    return ativos.filter(function (c) { return c.entrega === true || naRota[c.id]; });
+  }
+
+  function aoChegarClientes_(snap, completo) {
+    clientesCache = new Map(snap.docs.map(function (d) { return [d.id, Object.assign({ id: d.id }, d.data())]; }));
+    clientesCompletos_ = completo;
+    renderClientesList();
+    renderQualidadeRota_();
+    renderHonorariosTab_();
+    renderPainel();
+    updateDashStrip();
+    renderRota();
+    sincronizarRotaLinks_();
+    if (primeiraCargaClientes_) { primeiraCargaClientes_ = false; restaurarRascunhoSeExistir_(); atualizarAlertaSemEntrega_(); }
+    if (completo) {
+      esperandoTodosOsClientes_.splice(0).forEach(function (f) { f(); });
+      preencherClientesDeEntrega_();
+    } else {
+      conferirClientesQueFaltam_();
+    }
+  }
+  function erroNosClientes_(err) {
+    $('no-db').hidden = false;
+    $('no-db').textContent = errMsg(err, 'Não foi possível conectar ao banco de dados. Verifique sua internet e recarregue a página.');
+  }
+  function ouvirClientes_(todos) {
+    if (unsubClientes) { unsubClientes(); unsubClientes = null; }
+    if (todos) {
+      unsubClientes = db.collection('clientes').orderBy('nome').limit(1000).onSnapshot(function (snap) { aoChegarClientes_(snap, true); }, erroNosClientes_);
+      return;
+    }
+    unsubClientes = db.collection('clientes').where('entrega', '==', true).limit(1000).onSnapshot(function (snap) {
+      // ninguém marcado ainda (primeiros dias, ou regra nova não publicada): base inteira, como sempre foi
+      if (snap.empty) { ouvirClientes_(true); return; }
+      aoChegarClientes_(snap, false);
+    }, function () { ouvirClientes_(true); });
+  }
+  function garantirTodosOsClientes_() {
+    if (clientesCompletos_ || !db) return Promise.resolve();
+    return new Promise(function (resolve) {
+      var jaPedido = esperandoTodosOsClientes_.length > 0;
+      esperandoTodosOsClientes_.push(resolve);
+      if (!jaPedido) ouvirClientes_(true);
+    });
+  }
+  // Rede de segurança: parada da rota ou entrega do Painel de um cliente que
+  // não veio na carga curta (marcação que falhou, cliente marcado por engano
+  // como inativo...) — busca a base inteira em vez de mostrar dado pela metade.
+  function conferirClientesQueFaltam_() {
+    if (clientesCompletos_ || !clientesCache.size) return;
+    var falta = pendentesCache.concat(entregasPainelCache).some(function (e) { return e.clienteId && !clientesCache.has(e.clienteId); });
+    if (falta) garantirTodosOsClientes_();
+  }
+  function marcarClienteDeEntrega_(clienteId) {
+    var c = clienteId && clientesCache.get(clienteId);
+    if (!db || !c || c.entrega === true) return;
+    c.entrega = true;
+    // gravação à parte e sem espera: se a regra ainda não deixar, nada mais quebra
+    db.doc('clientes/' + clienteId).update({ entrega: true }).catch(function () { c.entrega = false; });
+  }
+  // Uma vez por aparelho de admin: marca quem já teve entrega ou tem honorário.
+  function preencherClientesDeEntrega_() {
+    if (!temPapel('admin')) return;
+    try { if (localStorage.getItem('nilma_clientes_de_entrega_v1')) return; } catch (e) { return; }
+    db.collection('entregas').limit(5000).get().then(function (snap) {
+      var ids = {};
+      snap.docs.forEach(function (d) { var id = d.data().clienteId; if (id) ids[id] = true; });
+      clientesCache.forEach(function (c) { if (c.honorarioForma) ids[c.id] = true; });
+      var alvos = Object.keys(ids).filter(function (id) { var c = clientesCache.get(id); return c && c.entrega !== true; });
+      var lotes = [];
+      for (var i = 0; i < alvos.length; i += 400) lotes.push(alvos.slice(i, i + 400));
+      return Promise.all(lotes.map(function (grupo) {
+        var lote = db.batch();
+        grupo.forEach(function (id) { lote.update(db.doc('clientes/' + id), { entrega: true }); });
+        return lote.commit();
+      })).then(function () {
+        try { localStorage.setItem('nilma_clientes_de_entrega_v1', String(Date.now())); } catch (e) {}
+        if (alvos.length) registrarAuditoria_('clientes_de_entrega', alvos.length + ' clientes marcados pelo histórico');
+      });
+    }).catch(function () {});
   }
 
   function startApp() {
@@ -10901,21 +11046,8 @@
     $('tabPerfil').hidden = !temPapel('admin');
     if (temPapel('admin')) subscribeUsuarios();
 
-    var primeiraCargaClientes = true;
-    unsubClientes = db.collection('clientes').orderBy('nome').limit(1000).onSnapshot(function (snap) {
-      clientesCache = new Map(snap.docs.map(function (d) { return [d.id, Object.assign({ id: d.id }, d.data())]; }));
-      renderClientesList();
-      renderQualidadeRota_();
-      renderHonorariosTab_();
-      renderPainel();
-      updateDashStrip();
-      renderRota();
-      sincronizarRotaLinks_();
-      if (primeiraCargaClientes) { primeiraCargaClientes = false; restaurarRascunhoSeExistir_(); atualizarAlertaSemEntrega_(); }
-    }, function (err) {
-      $('no-db').hidden = false;
-      $('no-db').textContent = errMsg(err, 'Não foi possível conectar ao banco de dados. Verifique sua internet e recarregue a página.');
-    });
+    primeiraCargaClientes_ = true;
+    ouvirClientes_(false);
 
     subscribePainel($('painelCompetencia').value);
     subscribeHoje_();
@@ -13154,6 +13286,7 @@
   }
 
   $('cqBotao').addEventListener('click', function () {
+    garantirTodosOsClientes_();   // a consulta rápida responde sobre qualquer cliente
     // Só agora: quem nunca abre o painel não fica com um listener aberto no
     // Firestore o dia inteiro. É a mesma economia que as abas já fazem com
     // os iframes, que só carregam na primeira vez que são abertas.

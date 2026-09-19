@@ -151,12 +151,13 @@ service cloud.firestore {
     // não: quem está na rua é quem sabe onde o cliente fica de verdade, qual
     // empresa aglutina com qual, e como aquele cliente paga o honorário —
     // por isso qualquer pessoa logada pode ajustar esses campos, sem abrir a
-    // porta pra reescrever CNPJ, telefone ou nome.
+    // porta pra reescrever CNPJ, telefone ou nome. `entrega` é a marca de
+    // "cliente do Entregas", que o app põe sozinho na primeira entrega.
     match /clientes/{id} {
       allow read: if logado();
       allow create, delete: if ehAdmin();
       allow update: if ehAdmin() ||
-        (logado() && so(['geo', 'zona', 'grupoLocal', 'honorarioForma', 'honorarioDia', 'pontoReferencia', 'email', 'emails']));
+        (logado() && so(['geo', 'zona', 'grupoLocal', 'honorarioForma', 'honorarioDia', 'pontoReferencia', 'email', 'emails', 'entrega']));
     }
 
     // ---------- entregas ----------
