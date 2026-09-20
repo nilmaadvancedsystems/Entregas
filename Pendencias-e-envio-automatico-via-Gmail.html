@@ -36,6 +36,7 @@
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css">
 <!-- Mesmo sistema do Entregas: o script vem ANTES da folha e sem defer,
      senão a tela pisca no tema errado. -->
+<script src="bancos-nilma.js"></script>
 <script src="nilma-ui.js"></script>
 <link rel="stylesheet" href="nilma-ui.css">
 <style>
@@ -614,6 +615,12 @@
   .lc-sem-email { flex: none; color: var(--warning-forte); font-size: .9em; }
   .lc-obs { flex: none; color: var(--ink-faint); font-size: .95em; }
   .doc-ind.na { border-style: dotted; opacity: .35; cursor: default; }
+  /* chegou de um banco, falta de outro: aviso, não sucesso */
+  .doc-ind.parcial {
+    background: var(--warning-soft); border-style: solid;
+    border-color: color-mix(in srgb, var(--warning-forte) 45%, var(--border));
+    color: var(--warning-forte);
+  }
   .doc-inds.sem-mov .doc-ind { display: none; }
   .lc-sub { font-size: var(--t-sm); color: var(--ink-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
@@ -862,6 +869,20 @@
   details.doc-opcoes > summary:hover, details.doc-opcoes[open] > summary { background: var(--surface-2); color: var(--ink); }
   details.doc-opcoes > .doc-acoes { margin-top: var(--esp-2); }
   .doc-item .doc-ind { margin-top: 1px; }
+  /* um banco por linha: o que chegou e o que falta, clicável */
+  .bancos-doc { display: flex; flex-wrap: wrap; gap: 6px; margin: var(--esp-2) 0 0; }
+  .banco-linha {
+    display: inline-flex; align-items: center; gap: 6px;
+    min-height: 34px; padding: 0 10px; border-radius: var(--r-sm);
+    border: 1px solid var(--border); background: var(--surface);
+    font: 500 var(--t-sm)/1 var(--font-body); color: var(--ink-soft); cursor: pointer;
+  }
+  .banco-linha i { font-size: 15px; color: var(--ink-faint); }
+  .banco-linha:hover:not(:disabled) { border-color: var(--border-forte); color: var(--ink); }
+  .banco-linha.veio { background: var(--success-soft); border-color: color-mix(in srgb, var(--success-forte) 35%, var(--border)); color: var(--success-forte); }
+  .banco-linha.veio i { color: var(--success-forte); }
+  .banco-linha:disabled { opacity: .45; cursor: default; }
+  @media (max-width: 700px) { .banco-linha { min-height: 44px; } }
   .doc-corpo { flex: 1; min-width: 0; }
   .doc-linha1 { display: flex; align-items: center; gap: var(--esp-2); flex-wrap: wrap; }
   .doc-nome { font-weight: 500; }
@@ -1951,19 +1972,72 @@
     return !!(c && Array.isArray(c.documentosNaoAplicaveis) && c.documentosNaoAplicaveis.indexOf(chave) !== -1);
   }
   function semMovimento(clienteId) { return !!statusDoCliente(clienteId).semMovimento; }
+  // Conta pelo que FALTA, senão um extrato de três bancos com um entregue
+  // aparecia como documento resolvido.
   function recebidosDe(clienteId) {
-    var st = statusDoCliente(clienteId);
-    return tiposExigidos(clienteId).filter(function (t) { return st[t.chave]; }).length;
+    if (semMovimento(clienteId)) return tiposExigidos(clienteId).length;
+    return tiposExigidos(clienteId).length - faltandoDe(clienteId).length;
   }
+  // ---------- extrato é um por banco ----------
+  // Os bancos do cliente vêm do cadastro (o robô aprende sozinho pelo
+  // cabeçalho dos extratos); o que chegou no mês fica em bancosRecebidos,
+  // gravado pelo robô a cada anexo reconhecido.
+  function bancosDoCliente(clienteId) {
+    var c = clientesPorId.get(clienteId);
+    return (c && Array.isArray(c.bancos)) ? c.bancos : [];
+  }
+  function bancosRecebidos(clienteId, dado) {
+    var d = dado || statusDoCliente(clienteId);
+    return Array.isArray(d.bancosRecebidos) ? d.bancosRecebidos : [];
+  }
+  function bancosFaltando(clienteId, dado) {
+    var esperados = bancosDoCliente(clienteId);
+    if (!esperados.length) return [];
+    var d = dado || statusDoCliente(clienteId);
+    var chegaram = bancosRecebidos(clienteId, d);
+    // Extrato marcado sem NENHUM banco identificado: ou foi marcado à mão,
+    // ou o robô não leu o cabeçalho do PDF. Não dá pra afirmar que falta
+    // algum, e inventar pendência é pior que não ver.
+    if (d.extrato && !chegaram.length) return [];
+    return esperados.filter(function (b) { return chegaram.indexOf(b) === -1; });
+  }
+  function nomesDeBancos(ids) {
+    return window.BancosNilma ? window.BancosNilma.nomesDosBancos(ids) : (ids || []).join(', ');
+  }
+  function nomeDeBanco(id) {
+    return window.BancosNilma ? window.BancosNilma.nomeDoBanco(id) : id;
+  }
+  // O tipo "extrato" com os bancos que faltam pendurados: é isso que vai
+  // parar no texto da cobrança e no selo da tela.
+  function extratoComBancos(tipo, faltam, clienteId) {
+    var total = bancosDoCliente(clienteId).length;
+    return Object.assign({}, tipo, {
+      bancos: faltam,
+      label: tipo.label + ' (' + nomesDeBancos(faltam) + ')',
+      // no meio de uma frase o nome do banco não pode virar minúscula
+      frase: 'extrato do ' + nomesDeBancos(faltam),
+      curto: tipo.curto + ' ' + (total - faltam.length) + '/' + total
+    });
+  }
+
   function faltandoDe(clienteId) {
     var st = statusDoCliente(clienteId);
     if (st.semMovimento) return [];
-    return tiposExigidos(clienteId).filter(function (t) { return !st[t.chave]; });
+    return tiposExigidos(clienteId).map(function (t) {
+      if (t.chave !== 'extrato') return st[t.chave] ? null : t;
+      var faltam = bancosFaltando(clienteId);
+      if (faltam.length) return extratoComBancos(t, faltam, clienteId);
+      return st.extrato ? null : t;
+    }).filter(Boolean);
   }
   function completoNoMes(clienteId, dado) {
     if (!dado) return false;
     if (dado.semMovimento) return true;
-    return tiposExigidos(clienteId).every(function (t) { return dado[t.chave]; });
+    return tiposExigidos(clienteId).every(function (t) {
+      if (!dado[t.chave]) return false;
+      if (t.chave === 'extrato' && bancosFaltando(clienteId, dado).length) return false;
+      return true;
+    });
   }
   function historicoDe(clienteId) { return historicoCache.get(clienteId) || {}; }
   function docsDe(clienteId) { return historicoDocs.get(clienteId) || {}; }
@@ -2615,6 +2689,41 @@
         toast('Erro ao salvar: ' + err.message, 'erro');
       });
   }
+  // Marcar/desmarcar UM banco do mês. Marcar o primeiro já liga o extrato;
+  // desmarcar o último desliga, senão o mês ficava "com extrato" sem nenhum.
+  function alternarBanco(cliente, bancoId, marcar) {
+    var comp = competenciaStr(competenciaAtual);
+    var chave = cliente.id + '_banco_' + bancoId + '_' + comp;
+    if (salvandoDoc.has(chave)) return;
+    salvandoDoc.add(chave);
+    var FV = firebase.firestore.FieldValue;
+    var restantes = bancosRecebidos(cliente.id).filter(function (b) { return b !== bancoId; });
+    var patch = {
+      clienteId: cliente.id, clienteNome: cliente.nome, competencia: comp,
+      atualizadoEm: new Date().toISOString(),
+      bancosRecebidos: marcar ? FV.arrayUnion(bancoId) : FV.arrayRemove(bancoId)
+    };
+    if (marcar) {
+      patch.extrato = true;
+      if (!statusDoCliente(cliente.id).extrato) patch.detalhes = { extrato: { origem: 'manual', em: new Date().toISOString(), por: quemSou() } };
+    } else if (!restantes.length) {
+      patch.extrato = false;
+      patch.detalhes = { extrato: null };
+    }
+    db.collection('documentosMensal').doc(cliente.id + '_' + comp).set(patch, { merge: true })
+      .then(function () {
+        salvandoDoc.delete(chave);
+        registrarAuditoria(marcar ? 'extrato_banco_marcado' : 'extrato_banco_desmarcado',
+          clienteLabel(cliente) + ' · ' + nomeDeBanco(bancoId) + ' · ' + comp);
+        toast('Extrato do ' + nomeDeBanco(bancoId) + (marcar ? ' marcado como recebido.' : ' desmarcado.'), 'ok',
+          { rotulo: 'Desfazer', acao: function () { alternarBanco(cliente, bancoId, !marcar); } });
+      })
+      .catch(function (err) {
+        salvandoDoc.delete(chave);
+        toast('Erro ao salvar: ' + err.message, 'erro');
+      });
+  }
+
   function marcarSemMovimento(cliente, ligado) {
     var comp = competenciaStr(competenciaAtual);
     var patch = { clienteId: cliente.id, clienteNome: cliente.nome, competencia: comp, atualizadoEm: new Date().toISOString(),
@@ -2795,7 +2904,13 @@
       }
       b.classList.toggle('recebido', marcado);
       b.classList.toggle('gmail', marcado && !!(detalhes[tipo.chave] && detalhes[tipo.chave].origem === 'gmail'));
-      b.title = tipo.label + (marcado ? ' recebido. Clique para desmarcar.' : ' em falta. Clique para marcar como recebido.');
+      var faltamBancos = tipo.chave === 'extrato' ? bancosFaltando(cliente.id) : [];
+      // Chegou o extrato de um banco e falta o de outro: nem verde nem vazio.
+      b.classList.toggle('parcial', marcado && faltamBancos.length > 0);
+      if (marcado && faltamBancos.length) b.classList.remove('recebido');
+      b.title = faltamBancos.length
+        ? 'Falta o extrato de ' + nomesDeBancos(faltamBancos) + (marcado ? ' (os outros já chegaram)' : '') + '.'
+        : tipo.label + (marcado ? ' recebido. Clique para desmarcar.' : ' em falta. Clique para marcar como recebido.');
       b.setAttribute('aria-label', b.title);
     });
     linha.obs.hidden = !status.observacao;
@@ -2948,8 +3063,10 @@
     if (filtroTipos.size === 0) return true;
     var st = statusDoCliente(cliente.id);
     if (st.semMovimento) return false;
+    var faltamAqui = {};
+    faltandoDe(cliente.id).forEach(function (t) { faltamAqui[t.chave] = true; });
     var passa = true;
-    filtroTipos.forEach(function (t) { if (st[t] || naoSeAplica(cliente.id, t)) passa = false; });
+    filtroTipos.forEach(function (t) { if (!faltamAqui[t] || naoSeAplica(cliente.id, t)) passa = false; });
     return passa;
   }
   function passaExtras(cliente) {
@@ -4099,7 +4216,12 @@
       var corpo = el('div', 'doc-corpo');
       var linha1 = el('div', 'doc-linha1');
       linha1.appendChild(el('span', 'doc-nome', tipo.label));
-      linha1.appendChild(na ? badge('não se aplica', 'quieto', 'ph-prohibit') : marcado ? badge('recebido', 'ok', 'ph-check') : sm ? badge('sem movimento', 'quieto', 'ph-minus-circle') : badge('em falta', 'pend', 'ph-hourglass'));
+      var faltamNoTipo = tipo.chave === 'extrato' ? bancosFaltando(cliente.id) : [];
+      linha1.appendChild(na ? badge('não se aplica', 'quieto', 'ph-prohibit')
+        : sm ? badge('sem movimento', 'quieto', 'ph-minus-circle')
+        : faltamNoTipo.length ? badge(marcado ? 'falta ' + faltamNoTipo.length + ' de ' + bancosDoCliente(cliente.id).length : 'em falta', 'pend', 'ph-hourglass')
+        : marcado ? badge('recebido', 'ok', 'ph-check')
+        : badge('em falta', 'pend', 'ph-hourglass'));
       // Admin decide o que é exigido de cada cliente.
       if (souAdmin && !marcado) {
         var bNa = el('button', 'btn btn-ghost btn-sm', na ? 'voltar a exigir' : 'não se aplica a este cliente');
@@ -4109,6 +4231,36 @@
         linha1.appendChild(bNa);
       }
       corpo.appendChild(linha1);
+
+      // Extrato: uma linha por banco do cliente. Sem banco no cadastro, a
+      // tela segue como era — é o caso de quem só manda um extrato mesmo.
+      if (tipo.chave === 'extrato' && !sm) {
+        var doCliente = bancosDoCliente(cliente.id);
+        if (doCliente.length) {
+          var chegaram = bancosRecebidos(cliente.id);
+          var caixaB = el('div', 'bancos-doc');
+          doCliente.forEach(function (bid) {
+            var veio = chegaram.indexOf(bid) !== -1;
+            var bb = el('button', 'banco-linha' + (veio ? ' veio' : ''));
+            bb.type = 'button';
+            bb.appendChild(ico(veio ? 'ph-check-circle' : 'ph-circle-dashed'));
+            bb.appendChild(el('span', null, nomeDeBanco(bid)));
+            bb.title = veio ? 'Extrato do ' + nomeDeBanco(bid) + ' recebido. Clique para desmarcar.'
+                            : 'Clique se o extrato do ' + nomeDeBanco(bid) + ' chegou por fora do Gmail.';
+            bb.setAttribute('aria-label', bb.title);
+            bb.disabled = na;
+            bb.addEventListener('click', function () { alternarBanco(cliente, bid, !veio); });
+            caixaB.appendChild(bb);
+          });
+          corpo.appendChild(caixaB);
+          var faltamB = bancosFaltando(cliente.id);
+          if (marcado && !chegaram.length) {
+            corpo.appendChild(el('div', 'doc-origem', 'Chegou extrato, mas o banco não foi identificado — marque acima de qual banco é.'));
+          } else if (faltamB.length) {
+            corpo.appendChild(el('div', 'doc-origem', 'Falta o extrato de ' + nomesDeBancos(faltamB) + '.'));
+          }
+        }
+      }
 
       var origem = marcado ? descreverOrigem(detalhes[tipo.chave]) : null;
       if (marcado) {
@@ -4688,7 +4840,7 @@
       cliente: nomeExibicao(cliente),
       mes: competenciaPorExtenso(competenciaStr(competenciaAtual)),
       lista: faltando.map(function (t) { return '- ' + t.label; }).join('\n'),
-      documentos: faltando.map(function (t) { return t.label.toLowerCase(); }).join(', '),
+      documentos: faltando.map(function (t) { return t.frase || t.label.toLowerCase(); }).join(', '),
       prazo: p ? p.texto : 'combinado',
       n: nCob,
       assinatura: configCobranca.assinatura || 'Nilma Contabilidade',
@@ -5436,7 +5588,7 @@
     var vars = {
       cliente: nomeExibicao(cliente), mes: competenciaPorExtenso(competenciaStr(competenciaAtual)),
       lista: faltando.map(function (t) { return '- ' + t.label; }).join('\n'),
-      documentos: faltando.map(function (t) { return t.label.toLowerCase(); }).join(', '),
+      documentos: faltando.map(function (t) { return t.frase || t.label.toLowerCase(); }).join(', '),
       prazo: form.diaLimite ? pad2(form.diaLimite) + '/' + pad2(((competenciaAtual.getMonth() + 1) % 12) + 1) : 'combinado',
       n: cfgPreviewQual, assinatura: form.assinatura, caixa: CAIXA_GMAIL
     };

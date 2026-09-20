@@ -3335,6 +3335,7 @@
   </div>
 </div>
 
+<script src="bancos-nilma.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
@@ -14436,18 +14437,12 @@
   // aprende sozinho pelo cabeçalho dos extratos (scripts/bancos.js, mesma
   // lista); aqui se confere e corrige. Banco que o admin desmarca e que o robô
   // tinha aprendido vai pra bancosRecusados, pro robô não pôr de volta.
-  var BANCOS_ = [
-    ['bb', 'Banco do Brasil', 'BB', '#FCF800', '#003DA5'], ['caixa', 'Caixa', 'CAIXA', '#005CA9', '#FFFFFF'],
-    ['bnb', 'Banco do Nordeste', 'BNB', '#A6192E', '#FFFFFF'], ['itau', 'Itaú', 'itaú', '#EC7000', '#FFFFFF'],
-    ['bradesco', 'Bradesco', 'BRA', '#CC092F', '#FFFFFF'], ['santander', 'Santander', 'SAN', '#EC0000', '#FFFFFF'],
-    ['sicoob', 'Sicoob', 'SICOOB', '#003641', '#7DB61C'], ['sicredi', 'Sicredi', 'SICREDI', '#3FA110', '#FFFFFF'],
-    ['cresol', 'Cresol', 'CRESOL', '#00843D', '#FFFFFF'], ['nubank', 'Nubank', 'nu', '#820AD1', '#FFFFFF'],
-    ['inter', 'Inter', 'inter', '#FF7A00', '#FFFFFF'], ['c6', 'C6 Bank', 'C6', '#242424', '#FFFFFF'],
-    ['mercadopago', 'Mercado Pago', 'MP', '#00B1EA', '#FFFFFF'], ['pagbank', 'PagBank', 'PAG', '#1BB99A', '#FFFFFF'],
-    ['cora', 'Cora', 'cora', '#FE3E6D', '#FFFFFF'], ['stone', 'Stone', 'stone', '#00A868', '#FFFFFF'],
-    ['btg', 'BTG Pactual', 'BTG', '#0B2A4A', '#FFFFFF'], ['safra', 'Safra', 'SAFRA', '#1C2C4C', '#C9A96E'],
-    ['banrisul', 'Banrisul', 'BANRI', '#004B8D', '#FFFFFF']
-  ];
+  // A lista de verdade fica em bancos-nilma.js, lida também pelo robô e pela
+  // tela de Pendências. Aqui ela vira a tupla [id, nome, sigla, cor, tinta]
+  // que o cadastro já usava.
+  var BANCOS_ = (window.BancosNilma ? window.BancosNilma.BANCOS : []).map(function (b) {
+    return [b.id, b.nome, b.sigla, b.cor, b.tinta];
+  });
   function marcaDoBanco_(b) {
     // logo em scripts/logos-bancos/<id>.png; sem o arquivo, fica o selo com a sigla
     return '<span class="banco-marca" style="background:' + b[3] + ';color:' + b[4] + '">' + escapeHtml_(b[2]) +
