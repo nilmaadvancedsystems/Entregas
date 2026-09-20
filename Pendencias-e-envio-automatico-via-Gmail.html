@@ -34,113 +34,36 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<!-- Mesmo sistema do Entregas: o script vem ANTES da folha e sem defer,
+     senão a tela pisca no tema errado. -->
+<script src="nilma-ui.js"></script>
+<link rel="stylesheet" href="nilma-ui.css">
 <style>
   /* ==========================================================================
-     Tokens — os mesmos do entregas.html (ver DESIGN.md). Esta tela carrega
-     dentro de um <iframe> do app principal e precisa ler como parte dele.
+     Tokens, paletas e preferências vêm de nilma-ui.css (gerado do
+     entregas.html). Antes eram copiados à mão aqui e já tinham começado a
+     divergir — e mudar a marca exigia mexer nos dois lugares.
+
+     Só fica aqui o que é desta tela e a folha ainda não tem.
      ========================================================================== */
   :root {
-    --bg: #FFFFFF; --surface: #FFFFFF; --surface-2: #F2F2F2; --surface-3: #F8F8F8;
-    --border: #E3E3E3; --border-forte: #C9C9C9;
-    --ink: #1A1A1A; --ink-soft: #525252; --ink-faint: #6C6C6C;
-    --accent: #9A2B24; --accent-ink: #FFFFFF; --accent-soft: #F7E7E5;
-    --accent-forte: color-mix(in srgb, var(--accent) 62%, var(--ink));
-    --success: #17694A; --success-soft: #E2F2EA; --success-forte: color-mix(in srgb, var(--success) 62%, var(--ink));
-    --warning: #8A5D12; --warning-soft: #FAF0DC; --warning-forte: color-mix(in srgb, var(--warning) 62%, var(--ink));
-    --danger: #A8322F; --danger-soft: #FAE6E4; --danger-forte: color-mix(in srgb, var(--danger) 62%, var(--ink));
-    --info: #2B4F8A; --info-soft: #E4EBF7; --info-forte: color-mix(in srgb, var(--info) 62%, var(--ink));
-    --borda-interativa: #949494;  /* 3,03:1 — contorno de campo/botão */
+    --surface-3: color-mix(in srgb, var(--ink) 3%, var(--surface));
+    --info: var(--accent);
+    --info-forte: var(--accent-forte);
     --foco: var(--accent);
-    --r-xs: 4px; --r-sm: 6px; --r-md: 8px; --r-lg: 10px; --r-pill: 999px;
-    --esp-1: 4px; --esp-2: 8px; --esp-3: 12px; --esp-4: 16px; --esp-5: 24px; --esp-6: 32px;
-    --font-body: 'Inter', -apple-system, 'Segoe UI', system-ui, sans-serif;
-    --font-mono: 'JetBrains Mono', SFMono-Regular, Consolas, monospace;
-    --t-xs: .6875rem; --t-sm: .75rem; --t-base: .8125rem; --t-md: .9375rem; --t-lg: 1rem; --t-xl: 1.25rem; --t-2xl: 1.5rem;
-    --linha: 52px;
-    --shadow: 0 10px 28px -14px rgba(10,10,16,.45), 0 2px 6px -3px rgba(10,10,16,.18);
-    --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
-    --dur-rapido: 120ms; --dur: 180ms; --dur-lento: 280ms;
-    /* Escala de empilhamento com nome. Nada de número solto. */
-    --z-fixo: 20; --z-menu: 30; --z-modal: 60; --z-toast: 80;
-    color-scheme: light;
+    --borda-interativa: var(--border-forte);
+    --ease-out: var(--ease);
+    --t-2xl: 1.5rem;
+    --z-menu: var(--z-nav);
+    --z-toast: var(--z-aviso);
+    --kpi-cols: 4;
   }
-  :root[data-theme="dark"] {
-    --bg: #17191A; --surface: #17191A; --surface-2: #232526; --surface-3: #1C1E1F;
-    --border: #33363A; --border-forte: #45484D;
-    --ink: #F2F2F2; --ink-soft: #C7C9CC; --ink-faint: #9A9DA2;
-    --accent-soft: #3A2422; --accent-forte: #D9756D;
-    --success-soft: #0C2419; --success-forte: #34A075;
-    --warning-soft: #3A2E0F; --warning-forte: #BE9134;
-    --danger-soft: #3A1F1D; --danger-forte: #E0716C;
-    --info-soft: #1B2436; --info-forte: #7FA3E0;
-    --borda-interativa: #62666B;
-    --foco: #CF5248;
-    color-scheme: dark;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      --bg: #17191A; --surface: #17191A; --surface-2: #232526; --surface-3: #1C1E1F;
-      --border: #33363A; --border-forte: #45484D;
-      --ink: #F2F2F2; --ink-soft: #C7C9CC; --ink-faint: #9A9DA2;
-      --accent-soft: #3A2422; --accent-forte: #D9756D;
-      --success-soft: #0C2419; --success-forte: #34A075;
-      --warning-soft: #3A2E0F; --warning-forte: #BE9134;
-      --danger-soft: #3A1F1D; --danger-forte: #E0716C;
-      --info-soft: #1B2436; --info-forte: #7FA3E0;
-      --borda-interativa: #62666B;
-      --foco: #CF5248;
-      color-scheme: dark;
-    }
-  }
-  @media (min-width: 900px) { :root { --linha: 40px; --t-md: .875rem; } }
 
-  /* Paleta e tamanho de texto escolhidos no Entregas (Configurações). Os
-     valores são os mesmos de lá — quem escolheu azul lá vê azul aqui. */
-  [data-paleta="verde"] { --accent: #235347; --accent-ink: #FFFFFF; }
-  [data-paleta="vermelho"] { --accent: #C01F29; --accent-ink: #FFFFFF; }
-  [data-paleta="laranja"] { --accent: #804012; --accent-ink: #FFFFFF; }
-  [data-paleta="azul"] { --accent: #1A3D63; --accent-ink: #F6FAFD; }
-  [data-paleta="ardosia"] { --accent: #47606A; --accent-ink: #FFFFFF; }
-  [data-paleta="nogueira"] { --accent: #5E4B43; --accent-ink: #FFFFFF; }
-  :root[data-theme="dark"][data-paleta="verde"] { --accent: #8EB69B; --accent-ink: #0B2B26; }
-  :root[data-theme="dark"][data-paleta="vermelho"] { --accent: #EF6A6A; --accent-ink: #2A0508; }
-  :root[data-theme="dark"][data-paleta="laranja"] { --accent: #DB9F75; --accent-ink: #3E2411; }
-  :root[data-theme="dark"][data-paleta="azul"] { --accent: #7FB3DC; --accent-ink: #0A1931; }
-  :root[data-theme="dark"][data-paleta="ardosia"] { --accent: #A8BAC4; --accent-ink: #191D23; }
-  :root[data-theme="dark"][data-paleta="nogueira"] { --accent: #C4A794; --accent-ink: #2E1F1B; }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"])[data-paleta="verde"] { --accent: #8EB69B; --accent-ink: #0B2B26; }
-    :root:not([data-theme="light"])[data-paleta="vermelho"] { --accent: #EF6A6A; --accent-ink: #2A0508; }
-    :root:not([data-theme="light"])[data-paleta="laranja"] { --accent: #DB9F75; --accent-ink: #3E2411; }
-    :root:not([data-theme="light"])[data-paleta="azul"] { --accent: #7FB3DC; --accent-ink: #0A1931; }
-    :root:not([data-theme="light"])[data-paleta="ardosia"] { --accent: #A8BAC4; --accent-ink: #191D23; }
-    :root:not([data-theme="light"])[data-paleta="nogueira"] { --accent: #C4A794; --accent-ink: #2E1F1B; }
-  }
-  /* No escuro, esta tela tem os tons derivados da marca (forte, suave,
-     foco) cravados em vermelho. Com outra paleta, eles passam a sair da
-     cor escolhida — senão ícone ativo e contorno de foco ficavam vinho
-     no meio de uma tela azul. Vem depois dos blocos de tema de propósito:
-     mesma especificidade, ganha pela ordem. */
-  :root[data-paleta] {
-    --accent-forte: color-mix(in srgb, var(--accent) 62%, var(--ink));
-    --accent-soft: color-mix(in srgb, var(--accent) 16%, var(--bg));
-    --foco: var(--accent);
-  }
-  html[data-texto="grande"] { font-size: 17.5px; }
-  html[data-texto="maior"] { font-size: 19px; }
-
-  /* Compacto: a linha da tabela encolhe e as telas apertam, como no Entregas. */
-  html[data-densidade="compacto"] { --linha: 42px; --esp-5: 18px; --esp-6: 24px; }
+  /* a densidade compacta desta tela mexe em espaços que só ela tem */
+  html[data-densidade="compacto"] { --esp-5: 18px; --esp-6: 24px; }
   html[data-densidade="compacto"] .pagina-topo { padding: var(--esp-3) 0 var(--esp-2); margin-bottom: var(--esp-3); }
   html[data-densidade="compacto"] .foco-card { padding: var(--esp-4); gap: var(--esp-3); }
   html[data-densidade="compacto"] .campo { margin-bottom: var(--esp-3); }
-  @media (min-width: 900px) { html[data-densidade="compacto"] { --linha: 34px; } }
-
-  html[data-animacao="reduzida"] *,
-  html[data-animacao="reduzida"] *::before,
-  html[data-animacao="reduzida"] *::after {
-    transition: none !important; animation: none !important;
-  }
 
   /* janela de aparência: cada preferência vira uma fileira de botões */
   .aparencia-grupo { margin-bottom: var(--esp-5); }
