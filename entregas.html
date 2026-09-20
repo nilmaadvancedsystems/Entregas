@@ -701,6 +701,26 @@
   /* ---------- comprimidos de documento ---------- */
   .chip-grid { display: flex; flex-wrap: wrap; gap: 6px; }
 
+  /* agenda de obrigações e montagem do dia */
+  .obrig-linha { display: flex; align-items: center; justify-content: space-between; gap: var(--esp-3); padding: var(--esp-2) 0; border-bottom: 1px solid var(--border); }
+  .obrig-linha:last-child { border-bottom: 0; }
+  .obrig-nome { font-weight: 500; }
+  .obrig-sub { font-size: var(--t-sm); color: var(--ink-faint); margin-top: 2px; }
+  .obrig-prazo { font-weight: 600; font-family: var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .obrig-prazo.perto { color: var(--warning-forte); }
+  .obrig-prazo.hoje { color: var(--danger-forte); }
+  .obrig-edit { display: grid; grid-template-columns: 1fr 88px auto; gap: 6px; align-items: center; margin-bottom: 6px; }
+
+  .montagem-linha { display: flex; align-items: center; gap: var(--esp-3); padding: var(--esp-2) 0; border-bottom: 1px solid var(--border); }
+  .montagem-linha:last-child { border-bottom: 0; }
+  .montagem-linha input { width: 20px; height: 20px; accent-color: var(--accent); flex: none; }
+  .montagem-linha.pronto .montagem-nome { color: var(--ink-faint); text-decoration: line-through; }
+  .montagem-nome { font-weight: 500; }
+  .montagem-sub { font-size: var(--t-sm); color: var(--ink-faint); margin-top: 2px; }
+
+  .dias-semana { display: flex; flex-wrap: wrap; gap: 4px; }
+  .dias-semana .btn-chip { min-width: 44px; padding: 0 8px; }
+
   /* aba Clientes: seletor entre carteira e ajustes do app */
   .clientes-subnav { margin: 0 0 var(--esp-4); }
   .clientes-subnav .mode-btn { flex: 1; }
@@ -2342,6 +2362,21 @@
       </div>
       <div id="rotaList"><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
     </div>
+    <div class="card" id="montagemCard" hidden>
+      <div class="card-head-row">
+        <h2><i class="ph ph-package" aria-hidden="true"></i> Montagem do dia</h2>
+        <button type="button" class="btn-chip accent" id="etiquetasBtn"><i class="ph ph-printer" aria-hidden="true"></i> Etiquetas</button>
+      </div>
+      <p class="card-hint" id="montagemResumo"></p>
+      <div id="montagemList"></div>
+    </div>
+    <div class="card" id="obrigacoesCard" hidden>
+      <div class="card-head-row">
+        <h2><i class="ph ph-calendar-dots" aria-hidden="true"></i> Obrigações do mês</h2>
+      </div>
+      <p class="card-hint">Datas do escritório, já ajustadas para dia útil. O número ao lado é quanta guia desse tipo ainda está na rota.</p>
+      <div id="obrigacoesList"></div>
+    </div>
     <div class="card" id="vencimentosCard" hidden>
       <div class="card-head-row">
         <h2><i class="ph ph-clock-countdown" aria-hidden="true"></i> Vencendo</h2>
@@ -2550,6 +2585,15 @@
         </div>
       </div>
     </form>
+    <div class="card" id="obrigacoesConfigCard" hidden>
+      <div class="card-head-row">
+        <h2><i class="ph ph-calendar-dots" aria-hidden="true"></i> Obrigações do mês</h2>
+        <button type="button" class="btn-chip accent" id="obrigacoesAddBtn"><i class="ph ph-plus" aria-hidden="true"></i> Incluir</button>
+      </div>
+      <p class="card-hint">As datas que aparecem na Rota. O dia cai pra trás quando bate em fim de semana ou feriado. "Casa com" liga a data ao tipo de guia — é o que conta quantas ainda estão na rota.</p>
+      <div id="obrigacoesEdit"></div>
+      <button type="button" class="btn btn-primary" id="obrigacoesSalvarBtn">Salvar obrigações</button>
+    </div>
     <div class="card" id="integracaoCard" hidden>
       <div class="card-head-row">
         <h2><i class="ph ph-buildings" aria-hidden="true"></i> Endereço do serviço de contas</h2>
@@ -5312,6 +5356,8 @@
       updateDashStrip();
       renderFechamentoDia_();
       renderVencimentos_();
+      renderObrigacoes_();
+      renderMontagem_();
       sincronizarRotaLinks_();
     }, function (err) { showToast(errMsg(err, 'Não foi possível carregar a rota.'), 'error'); });
   }
@@ -5868,6 +5914,222 @@
   // de um clique.
   var LIMITE_VENCIMENTOS_VISIVEL_ = 6;
   var mostrarTodosVencimentos_ = false;
+
+  // ================= obrigações do mês =================
+  // As datas que mandam no mês do escritório. Vêm de config/obrigacoes
+  // (admin edita em Clientes e ajustes); sem documento, valem estas. O dia
+  // cai pra trás quando bate em fim de semana ou feriado — a mesma conta que
+  // o app já usa pra calcular vencimento de guia.
+  var OBRIGACOES_PADRAO_ = [
+    { id: 'fgts', nome: 'FGTS', dia: 7, casa: 'FGTS' },
+    { id: 'esocial', nome: 'DAE do eSocial (doméstico)', dia: 7, casa: 'eSocial|DAE' },
+    { id: 'darf', nome: 'DARF / INSS', dia: 20, casa: 'DARF|INSS|prolabore|pró-labore' },
+    { id: 'das', nome: 'DAS do Simples', dia: 20, casa: 'DAS' },
+    { id: 'icms', nome: 'ICMS', dia: 9, casa: 'ICMS' }
+  ];
+  var obrigacoes_ = OBRIGACOES_PADRAO_.slice();
+
+  function proximaDataDaObrigacao_(dia, hoje) {
+    var base = hoje || new Date();
+    var d = ajustarDiaUtil_(new Date(base.getFullYear(), base.getMonth(), dia), 'antecipa');
+    // já passou neste mês: mostra a do mês que vem
+    if (d < new Date(base.getFullYear(), base.getMonth(), base.getDate())) {
+      d = ajustarDiaUtil_(new Date(base.getFullYear(), base.getMonth() + 1, dia), 'antecipa');
+    }
+    return d;
+  }
+  function guiasNaRotaDe_(casa) {
+    if (!casa) return 0;
+    var re = new RegExp(casa, 'i');
+    return pendentesCache.filter(function (e) {
+      return (e.itens || []).some(function (i) { return re.test(typeof i === 'string' ? i : (i && i.tipo) || ''); });
+    }).length;
+  }
+  function renderObrigacoes_() {
+    var card = $('obrigacoesCard');
+    if (!card) return;
+    var lista = obrigacoes_.filter(function (o) { return o && o.nome && o.dia >= 1 && o.dia <= 28; });
+    if (!lista.length) { card.hidden = true; return; }
+    var hoje = new Date();
+    var comDatas = lista.map(function (o) {
+      var data = proximaDataDaObrigacao_(Number(o.dia), hoje);
+      return { o: o, data: data, dias: Math.round((data - new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate())) / 864e5) };
+    }).sort(function (a, b) { return a.data - b.data; }).slice(0, 5);
+    card.hidden = false;
+    $('obrigacoesList').innerHTML = comDatas.map(function (x) {
+      var naRota = guiasNaRotaDe_(x.o.casa);
+      var classe = x.dias === 0 ? ' hoje' : (x.dias <= 3 ? ' perto' : '');
+      return '<div class="obrig-linha"><div><div class="obrig-nome">' + escapeHtml_(x.o.nome) + '</div>' +
+        '<div class="obrig-sub">' + escapeHtml_(fmtData_(x.data)) +
+          (naRota ? ' · ' + naRota + (naRota === 1 ? ' guia na rota' : ' guias na rota') : '') + '</div></div>' +
+        '<span class="obrig-prazo' + classe + '">' + escapeHtml_(textoPrazo_(x.dias)) + '</span></div>';
+    }).join('');
+  }
+  function fmtData_(d) {
+    return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0');
+  }
+  function renderObrigacoesConfig_() {
+    var card = $('obrigacoesConfigCard');
+    if (!card) return;
+    card.hidden = !temPapel('admin');
+    if (card.hidden) return;
+    var el = $('obrigacoesEdit');
+    el.innerHTML = '';
+    obrigacoes_.forEach(function (o, i) {
+      var linha = document.createElement('div');
+      linha.className = 'obrig-edit';
+      linha.innerHTML =
+        '<input class="input" data-o="nome" type="text" maxlength="40" placeholder="Nome (ex.: DAS do Simples)">' +
+        '<input class="input" data-o="dia" type="number" min="1" max="28" placeholder="Dia">' +
+        '<button type="button" class="btn-chip danger" title="Tirar"><i class="ph ph-trash" aria-hidden="true"></i></button>' +
+        '<input class="input" data-o="casa" type="text" maxlength="60" placeholder="Casa com (ex.: DAS ou DARF|INSS)" style="grid-column:1 / -1">';
+      linha.querySelector('[data-o="nome"]').value = o.nome || '';
+      linha.querySelector('[data-o="dia"]').value = o.dia || '';
+      linha.querySelector('[data-o="casa"]').value = o.casa || '';
+      linha.querySelector('.btn-chip').addEventListener('click', function () { linha.remove(); });
+      el.appendChild(linha);
+    });
+  }
+  function lerObrigacoesDoForm_() {
+    return Array.from(document.querySelectorAll('#obrigacoesEdit .obrig-edit')).map(function (linha, i) {
+      return {
+        id: 'o' + i,
+        nome: linha.querySelector('[data-o="nome"]').value.trim().slice(0, 40),
+        dia: Number(linha.querySelector('[data-o="dia"]').value),
+        casa: linha.querySelector('[data-o="casa"]').value.trim().slice(0, 60)
+      };
+    }).filter(function (o) { return o.nome && o.dia >= 1 && o.dia <= 28; }).slice(0, 12);
+  }
+
+  function carregarObrigacoes_() {
+    if (!db) return;
+    db.collection('config').doc('obrigacoes').get().then(function (snap) {
+      var d = snap.exists ? snap.data() : null;
+      if (d && Array.isArray(d.itens) && d.itens.length) obrigacoes_ = d.itens;
+      renderObrigacoes_();
+      renderObrigacoesConfig_();
+    }).catch(function () { /* sem permissão ou offline: ficam as padrão */ });
+  }
+
+  // ================= montagem do dia =================
+  // O que precisa ser separado antes de sair. O risco de cada envelope fica
+  // no aparelho (chave do dia), não no banco: é lista de trabalho, some
+  // sozinha amanhã e não gasta escrita.
+  function chaveDaMontagem_() {
+    var d = new Date();
+    return 'nilma_montagem_' + d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function montagemFeita_() {
+    try { return JSON.parse(localStorage.getItem(chaveDaMontagem_()) || '[]'); } catch (e) { return []; }
+  }
+  function guardarMontagem_(ids) {
+    try { localStorage.setItem(chaveDaMontagem_(), JSON.stringify(ids.slice(0, 400))); } catch (e) {}
+  }
+  function paradasParaMontar_() {
+    var porCliente = {};
+    pendentesCache.forEach(function (e) {
+      var chave = e.clienteId || e.clienteNome || 'sem-cliente';
+      (porCliente[chave] = porCliente[chave] || { nome: e.clienteNome || 'Sem cliente', clienteId: e.clienteId, entregas: [] }).entregas.push(e);
+    });
+    return Object.keys(porCliente).map(function (k) { return porCliente[k]; })
+      .sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); });
+  }
+  function renderMontagem_() {
+    var card = $('montagemCard');
+    if (!card) return;
+    var grupos = paradasParaMontar_();
+    if (!grupos.length) { card.hidden = true; return; }
+    card.hidden = false;
+    var feitas = montagemFeita_();
+    $('montagemResumo').textContent = feitas.filter(function (id) {
+      return grupos.some(function (g) { return (g.clienteId || g.nome) === id; });
+    }).length + ' de ' + grupos.length + ' separados. O risco vale só pra hoje, neste aparelho.';
+    var el = $('montagemList');
+    el.innerHTML = '';
+    grupos.forEach(function (g) {
+      var id = g.clienteId || g.nome;
+      var pronto = feitas.indexOf(id) !== -1;
+      var itens = g.entregas.map(function (e) {
+        return (e.itens || []).map(function (i) { return typeof i === 'string' ? i : i.tipo; }).join(', ');
+      }).filter(Boolean).join(' · ');
+      var linha = document.createElement('label');
+      linha.className = 'montagem-linha' + (pronto ? ' pronto' : '');
+      linha.innerHTML = '<input type="checkbox"' + (pronto ? ' checked' : '') + '>' +
+        '<span><span class="montagem-nome"></span><span class="montagem-sub"></span></span>';
+      linha.querySelector('.montagem-nome').textContent = g.nome;
+      linha.querySelector('.montagem-sub').textContent = (itens || 'documentos') +
+        (g.entregas.length > 1 ? ' · ' + g.entregas.length + ' guias' : '');
+      linha.querySelector('input').addEventListener('change', function () {
+        var lista = montagemFeita_();
+        var i = lista.indexOf(id);
+        if (this.checked && i === -1) lista.push(id);
+        if (!this.checked && i !== -1) lista.splice(i, 1);
+        guardarMontagem_(lista);
+        renderMontagem_();
+      });
+      el.appendChild(linha);
+    });
+  }
+
+  // Etiqueta de envelope: uma por parada, em folha comum. Leva nome, código,
+  // o que vai dentro e o QR da página do cliente, quando ele tem.
+  function imprimirEtiquetas_() {
+    var grupos = paradasParaMontar_();
+    if (!grupos.length) { showToast('Nada na rota pra montar.'); return; }
+    var aba = window.open('', '_blank');
+    if (!aba) { showToast('O navegador bloqueou a nova aba. Permita pop-ups para este site.', 'error'); return; }
+    var h = function (t) { return escapeHtml_(t == null ? '' : String(t)); };
+    var etiquetas = grupos.map(function (g) {
+      var cliente = g.clienteId ? clientesCache.get(g.clienteId) : null;
+      var itens = g.entregas.map(function (e) {
+        var nome = (e.itens || []).map(function (i) { return typeof i === 'string' ? i : i.tipo; }).join(', ');
+        return '<li>' + h(nome || 'documentos') + (e.competencia ? ' <span class="m">' + h(fmtCompetencia(e.competencia)) + '</span>' : '') +
+          (e.vencimento ? ' <span class="m">vence ' + h(e.vencimento.split('-').reverse().join('/')) + '</span>' : '') + '</li>';
+      }).join('');
+      var qr = '';
+      if (cliente && cliente.portalToken && typeof QRCode !== 'undefined') {
+        var caixa = document.createElement('div');
+        try {
+          new QRCode(caixa, { text: linkDoPortal_(cliente.portalToken), width: 150, height: 150, correctLevel: QRCode.CorrectLevel.M });
+          var tela = caixa.querySelector('canvas');
+          if (tela) qr = '<img class="qr" src="' + tela.toDataURL('image/png') + '" alt="">';
+        } catch (e) { qr = ''; }
+      }
+      return '<div class="etq"><div class="txt"><div class="cod">' + h(cliente && cliente.codigoOrigem ? 'cód. ' + cliente.codigoOrigem : '') + '</div>' +
+        '<div class="nome">' + h(g.nome) + '</div>' +
+        (cliente && cliente.endereco ? '<div class="m">' + h(cliente.endereco) + '</div>' : '') +
+        '<ul>' + itens + '</ul></div>' + (qr ? '<div class="qrbox">' + qr + '<div class="m">página do cliente</div></div>' : '') + '</div>';
+    }).join('');
+    aba.document.write('<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Etiquetas da rota</title><style>' +
+      '@page{size:A4;margin:10mm}*{box-sizing:border-box}body{font:12px/1.4 -apple-system,"Segoe UI",Inter,Arial,sans-serif;color:#111;margin:0;padding:16px}' +
+      '.barra{margin-bottom:12px}.barra button{font:inherit;padding:8px 14px;cursor:pointer}' +
+      '.folha{display:grid;grid-template-columns:1fr 1fr;gap:8px}' +
+      '.etq{border:1px solid #999;border-radius:6px;padding:10px 12px;display:flex;gap:10px;justify-content:space-between;break-inside:avoid;min-height:120px}' +
+      '.cod{font-size:10px;color:#666}.nome{font-weight:700;font-size:14px;line-height:1.25;margin:2px 0 4px}' +
+      '.m{color:#555;font-size:10px}ul{margin:6px 0 0;padding-left:16px}li{margin-bottom:2px}' +
+      '.qrbox{text-align:center;flex:none}.qr{width:76px;height:76px;display:block}' +
+      '@media print{.barra{display:none}body{padding:0}}</style></head><body>' +
+      '<div class="barra"><button onclick="window.print()">Imprimir</button></div>' +
+      '<div class="folha">' + etiquetas + '</div></body></html>');
+    aba.document.close();
+  }
+
+  // ================= dia da semana do cliente =================
+  var DIAS_DA_SEMANA_ = [['1', 'Seg'], ['2', 'Ter'], ['3', 'Qua'], ['4', 'Qui'], ['5', 'Sex']];
+  function diasDeEntregaDe_(c) { return Array.isArray(c && c.diasEntrega) ? c.diasEntrega.map(String) : []; }
+  function recebeHoje_(c, hoje) {
+    var dias = diasDeEntregaDe_(c);
+    if (!dias.length) return true;                       // sem preferência: qualquer dia serve
+    return dias.indexOf(String((hoje || new Date()).getDay())) !== -1;
+  }
+  function textoDiasDeEntrega_(c) {
+    var dias = diasDeEntregaDe_(c);
+    if (!dias.length) return '';
+    return dias.map(function (d) {
+      var achou = DIAS_DA_SEMANA_.filter(function (x) { return x[0] === d; })[0];
+      return achou ? achou[1] : d;
+    }).join(', ');
+  }
 
   function renderVencimentos_() {
     var card = $('vencimentosCard');
@@ -6943,6 +7205,11 @@
       // pra não repetir o mesmo erro (ex.: chegar de novo no horário do almoço)
       if (e.tentativa > 1) {
         subtitle += ' · ' + e.tentativa + 'ª tentativa' + (e.motivoTentativaAnterior ? ' (antes: ' + e.motivoTentativaAnterior + ')' : '');
+      }
+      // cliente que só recebe em certos dias: avisa antes da viagem perdida
+      var clienteDaLinha = e.clienteId ? clientesCache.get(e.clienteId) : null;
+      if (clienteDaLinha && !recebeHoje_(clienteDaLinha)) {
+        subtitle += ' · recebe ' + textoDiasDeEntrega_(clienteDaLinha);
       }
       row.innerHTML =
         '<span class="rota-drag-handle" aria-label="Arrastar para reordenar"><i class="ph ph-dots-six-vertical" aria-hidden="true"></i></span>' +
@@ -10103,6 +10370,28 @@
 
   $('clientesBusca').addEventListener('input', aoParar(renderClientesList));
   $('clientesOrdem').addEventListener('change', renderClientesList);
+  $('etiquetasBtn').addEventListener('click', imprimirEtiquetas_);
+  $('obrigacoesAddBtn').addEventListener('click', function () {
+    obrigacoes_ = lerObrigacoesDoForm_().concat([{ id: 'novo', nome: '', dia: 20, casa: '' }]);
+    renderObrigacoesConfig_();
+    var campos = document.querySelectorAll('#obrigacoesEdit [data-o="nome"]');
+    if (campos.length) campos[campos.length - 1].focus();
+  });
+  $('obrigacoesSalvarBtn').addEventListener('click', function () {
+    var btn = this;
+    var itens = lerObrigacoesDoForm_();
+    botaoOcupado_(btn);
+    db.collection('config').doc('obrigacoes').set({ itens: itens, atualizadoEm: new Date().toISOString(), atualizadoPor: currentUserNome || '' })
+      .then(function () {
+        obrigacoes_ = itens.length ? itens : OBRIGACOES_PADRAO_.slice();
+        registrarAuditoria_('config_obrigacoes', itens.length + ' item(ns)');
+        renderObrigacoes_();
+        renderObrigacoesConfig_();
+        showToast('Obrigações salvas.');
+      })
+      .catch(function (err) { showToast(errMsg(err, 'Não foi possível salvar.'), 'error'); })
+      .then(function () { botaoLivre_(btn, 'Salvar obrigações'); });
+  });
 
   // ---------- perfil: quem tem acesso (só admin) ----------
   var unsubUsuarios = null;
@@ -11601,7 +11890,7 @@
     updateDashStrip();
     renderRota();
     sincronizarRotaLinks_();
-    if (primeiraCargaClientes_) { primeiraCargaClientes_ = false; restaurarRascunhoSeExistir_(); atualizarAlertaSemEntrega_(); }
+    if (primeiraCargaClientes_) { primeiraCargaClientes_ = false; restaurarRascunhoSeExistir_(); atualizarAlertaSemEntrega_(); carregarObrigacoes_(); }
     if (completo) {
       esperandoTodosOsClientes_.splice(0).forEach(function (f) { f(); });
       preencherClientesDeEntrega_();
@@ -12332,6 +12621,12 @@
             return '<label><input type="checkbox" data-doc="' + d.chave + '"' + (naoAplica.indexOf(d.chave) === -1 ? ' checked' : '') + '> ' + d.rotulo + '</label>';
           }).join('') + '</div>' +
           '<p class="card-hint" style="margin:6px 0 0">O que ficar desmarcado não aparece como pendência dele.</p></div>' +
+        '<div class="field" style="margin-top:var(--esp-4)"><span>Dias em que ele recebe</span>' +
+          '<div class="dias-semana" id="cadDias">' + DIAS_DA_SEMANA_.map(function (d) {
+            var posto = diasDeEntregaDe_(cliente).indexOf(d[0]) !== -1;
+            return '<button type="button" class="btn-chip' + (posto ? ' accent' : '') + '" data-dia="' + d[0] + '">' + d[1] + '</button>';
+          }).join('') + '</div>' +
+          '<p class="card-hint" style="margin:6px 0 0">Nenhum marcado = recebe em qualquer dia. A rota avisa quando a parada cai fora desses dias.</p></div>' +
         '<div class="field" style="margin-top:var(--esp-4)"><span>Etiquetas</span>' +
           '<div class="chip-grid" id="cadEtiquetas"></div>' +
           '<div class="linha-busca-cnpj" style="margin-top:8px">' +
@@ -12360,6 +12655,16 @@
     $('modalClose').addEventListener('click', fechar);
     root.querySelectorAll('[data-banco]').forEach(function (c) {
       c.addEventListener('change', function () { c.closest('.banco-opcao').classList.toggle('ligado', c.checked); });
+    });
+
+    // --- dias da semana ---
+    var diasDoForm = diasDeEntregaDe_(cliente).slice();
+    root.querySelectorAll('[data-dia]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var i = diasDoForm.indexOf(b.dataset.dia);
+        if (i === -1) diasDoForm.push(b.dataset.dia); else diasDoForm.splice(i, 1);
+        b.classList.toggle('accent', i === -1);
+      });
     });
 
     // --- etiquetas: as sugeridas mais as que este cliente já tem ---
@@ -12440,6 +12745,7 @@
       };
       Object.assign(dados, bancosQueFicam_(cliente, Array.from(root.querySelectorAll('[data-banco]'))
         .filter(function (c) { return c.checked; }).map(function (c) { return c.dataset.banco; })));
+      dados.diasEntrega = diasDoForm.slice().sort();
       dados.etiquetas = etiquetasDoForm.slice(0, 12);
       dados.observacao = $('cadObservacao').value.trim().slice(0, 280);
       dados.contatos = Array.from(root.querySelectorAll('#cadContatos .contato-row')).map(function (linha) {
