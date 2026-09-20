@@ -2597,6 +2597,13 @@
         </div>
       </div>
     </form>
+    <div class="card" id="saudeSistemaCard" hidden>
+      <div class="card-head-row">
+        <h2><i class="ph ph-heartbeat" aria-hidden="true"></i> Saúde do sistema</h2>
+        <button type="button" class="btn-chip" id="saudeSistemaAtualizarBtn"><i class="ph ph-arrows-clockwise" aria-hidden="true"></i> Atualizar</button>
+      </div>
+      <div id="saudeSistemaCorpo"></div>
+    </div>
     <div class="card" id="lembretesCard" hidden>
       <div class="card-head-row">
         <h2><i class="ph ph-bell-simple-ringing" aria-hidden="true"></i> Lembretes do escritório</h2>
@@ -3154,6 +3161,78 @@
 (function () {
   var auth = firebase.auth();
   var db = firebase.firestore();
+
+  // ---------- quantas leituras este aparelho já pediu hoje ----------
+  // Envolve get() e onSnapshot pra somar os documentos que chegam. Fica no
+  // aparelho, por dia; serve pro cartão "Saúde do sistema" avisar antes de
+  // bater no teto gratuito (50 mil por dia, que já parou o app uma vez).
+  var LIMITE_LEITURAS_DIA_ = 50000;
+  var leiturasHoje_ = { dia: '', n: 0 };
+  function chaveLeituras_() {
+    var d = new Date();
+    return 'nilma_leituras_' + d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function lerContadorDeLeituras_() {
+    var chave = chaveLeituras_();
+    if (leiturasHoje_.dia === chave) return leiturasHoje_.n;
+    var guardado = 0;
+    try { guardado = Number(localStorage.getItem(chave) || 0) || 0; } catch (e) {}
+    leiturasHoje_ = { dia: chave, n: guardado };
+    return guardado;
+  }
+  function contarLeituras_(quantas) {
+    if (!quantas) return;
+    var atual = lerContadorDeLeituras_() + quantas;
+    leiturasHoje_.n = atual;
+    try { localStorage.setItem(leiturasHoje_.dia, String(atual)); } catch (e) {}
+  }
+  // Envolve get/onSnapshot uma vez só, no protótipo que REALMENTE tem esses
+  // métodos: num ref de coleção eles vêm de Query (que .where() também usa),
+  // e num ref de documento, de DocumentReference. Envolver o ref de coleção
+  // direto deixaria toda consulta com filtro de fora da conta.
+  function donoDoMetodo_(obj, metodo) {
+    var p = Object.getPrototypeOf(obj);
+    while (p && p !== Object.prototype) {
+      if (Object.prototype.hasOwnProperty.call(p, metodo)) return p;
+      p = Object.getPrototypeOf(p);
+    }
+    return null;
+  }
+  function envolverLeituras_() {
+    var tamanhoDe = function (r) { return r && typeof r.size === 'number' ? r.size : 1; };
+    var amostras = [];
+    try { amostras.push(db.collection('clientes')); } catch (e) {}
+    try { amostras.push(db.collection('clientes').where('ativo', '==', true)); } catch (e) {}
+    try { amostras.push(db.doc('robo/estado')); } catch (e) {}
+    amostras.forEach(function (amostra) {
+      ['get', 'onSnapshot'].forEach(function (metodo) {
+        var dono = donoDoMetodo_(amostra, metodo);
+        if (!dono || dono['__contado_' + metodo]) return;
+        dono['__contado_' + metodo] = true;
+        var original = dono[metodo];
+        if (metodo === 'get') {
+          dono.get = function () {
+            return original.apply(this, arguments).then(function (r) { contarLeituras_(tamanhoDe(r)); return r; });
+          };
+          return;
+        }
+        dono.onSnapshot = function () {
+          var args = Array.prototype.slice.call(arguments);
+          var i = args.findIndex(function (a) { return typeof a === 'function'; });
+          if (i !== -1) {
+            var cb = args[i];
+            args[i] = function (snap) {
+              // ouvinte só cobra o que muda, fora a primeira carga
+              contarLeituras_(snap && snap.docChanges ? snap.docChanges().length : tamanhoDe(snap));
+              return cb.apply(this, arguments);
+            };
+          }
+          return original.apply(this, args);
+        };
+      });
+    });
+  }
+  envolverLeituras_();
   // Cache local: entrega registrada sem sinal entra na fila do Firestore e
   // sobe sozinha quando a conexão volta, em vez de perder o formulário.
   db.enablePersistence({ synchronizeTabs: true }).catch(function (err) {
@@ -4157,6 +4236,7 @@
     var ajustes = $('clientesAjustes');
     if (!carteira || !ajustes) return;
     var querAjustes = parte === 'ajustes' && temPapel('admin');
+    if (querAjustes) renderSaudeDoSistema_();
     carteira.hidden = querAjustes;
     ajustes.hidden = !querAjustes;
     var nav = $('clientesSubnav');
@@ -10787,6 +10867,7 @@
   $('clientesOrdem').addEventListener('change', renderClientesList);
   $('etiquetasBtn').addEventListener('click', imprimirEtiquetas_);
   $('emprestimoNovoBtn').addEventListener('click', function () { abrirNovoEmprestimo_(null); });
+  $('saudeSistemaAtualizarBtn').addEventListener('click', renderSaudeDoSistema_);
   $('lembreteAddBtn').addEventListener('click', function () {
     lembretes_ = lerLembretesDoForm_().concat([{ texto: '', dia: 5, quem: '' }]);
     renderLembretes_();
@@ -12693,6 +12774,65 @@
     }).catch(function () {});
   }
 
+  // ---------- saúde do sistema ----------
+  function barraDeUso_(pct, cor) {
+    return '<div style="height:8px;border-radius:99px;background:var(--surface-2);overflow:hidden;margin:6px 0 4px">' +
+      '<div style="height:100%;width:' + Math.min(100, Math.max(2, pct)) + '%;background:' + cor + ';border-radius:99px"></div></div>';
+  }
+  function renderSaudeDoSistema_() {
+    var card = $('saudeSistemaCard');
+    if (!card) return;
+    card.hidden = !(temPapel('admin') || temPapel('contabil'));
+    if (card.hidden) return;
+    var lidas = lerContadorDeLeituras_();
+    var pct = Math.round(lidas / LIMITE_LEITURAS_DIA_ * 100);
+    var cor = pct >= 80 ? 'var(--danger)' : (pct >= 50 ? 'var(--warning)' : 'var(--success)');
+    var corpo = $('saudeSistemaCorpo');
+    corpo.innerHTML =
+      '<div class="field" style="margin-bottom:var(--esp-4)"><span>Leituras do banco hoje, neste aparelho</span>' +
+        barraDeUso_(pct, cor) +
+        '<p class="card-hint" style="margin:0">' + lidas.toLocaleString('pt-BR') + ' de ' + LIMITE_LEITURAS_DIA_.toLocaleString('pt-BR') +
+        ' do plano gratuito (' + pct + '%). O limite é do escritório inteiro: some o que os outros aparelhos e o robô leem. ' +
+        'Passar do teto para o app pra todo mundo até o dia virar.</p></div>' +
+      '<div id="saudeRoboLinhas"><p class="card-hint" style="margin:0">Consultando o PC do robô…</p></div>';
+    if (!db) return;
+    db.doc('robo/estado').get().then(function (snap) {
+      var e = snap.exists ? snap.data() : {};
+      var agora = new Date();
+      var linhas = [];
+      var sinal = e.vigia && e.vigia.em ? new Date(e.vigia.em) : null;
+      var vivo = sinal && !isNaN(sinal) && (agora - sinal) < 3 * 60000;
+      linhas.push({
+        ok: !!vivo,
+        titulo: vivo ? 'PC do robô ligado' : 'PC do robô sem dar sinal',
+        sub: sinal && !isNaN(sinal) ? 'último sinal em ' + fmtDateTime(e.vigia.em) + (e.vigia.pc ? ' · ' + e.vigia.pc : '') : 'nunca deu sinal'
+      });
+      var b = e.backup || {};
+      var diasBackup = b.em ? Math.floor((agora - new Date(b.em)) / 864e5) : null;
+      linhas.push({
+        ok: b.ok !== false && diasBackup !== null && diasBackup <= 3,
+        titulo: b.ok === false ? 'Último backup falhou' : (diasBackup === null ? 'Sem backup registrado' : 'Backup de ' + (diasBackup === 0 ? 'hoje' : 'há ' + diasBackup + ' dia(s)')),
+        sub: b.resumo || (b.em ? fmtDateTime(b.em) : 'o backup roda no PC do robô, uma vez por dia')
+      });
+      if (e.ultimaExecucao) {
+        linhas.push({ ok: true, titulo: 'Última leitura do Gmail', sub: fmtDateTime(e.ultimaExecucao) + (e.ultimaExecucaoResumo ? ' · ' + e.ultimaExecucaoResumo : '') });
+      }
+      if (e.reguaUltima && e.reguaUltima.em) {
+        linhas.push({ ok: true, titulo: 'Cobrança automática', sub: fmtDateTime(e.reguaUltima.em) + ' · ' + (e.reguaUltima.enviados || 0) + ' enviada(s)' });
+      }
+      if (e.ultimoErro) {
+        linhas.push({ ok: false, titulo: 'Último erro do robô', sub: String(e.ultimoErro).slice(0, 200) });
+      }
+      $('saudeRoboLinhas').innerHTML = linhas.map(function (l) {
+        return '<div class="entrega-row" style="cursor:default"><div><div class="er-nome">' + escapeHtml_(l.titulo) + '</div>' +
+          '<div class="er-sub">' + escapeHtml_(l.sub) + '</div></div>' +
+          '<span class="status-pill ' + (l.ok ? 'entregue' : 'falha') + '">' + (l.ok ? 'ok' : 'ver') + '</span></div>';
+      }).join('');
+    }).catch(function () {
+      $('saudeRoboLinhas').innerHTML = '<p class="card-hint" style="margin:0">Não consegui ler o estado do robô (só admin e contábil podem).</p>';
+    });
+  }
+
   // ---------- o que mudou, versão por versão ----------
   // A história do sistema em linguagem de quem usa. A primeira da lista é a
   // versão atual: quando ela muda, a tela de funções mostra o selo de novidades
@@ -12708,6 +12848,11 @@
       { quem: [], icone: 'ph-device-mobile', titulo: 'Página do cliente leve', texto: 'O link do cliente agora abre uma página própria de 30 KB, com "Para pagar" no topo e letras grandes. O endereço antigo continua valendo.' },
       { quem: [], icone: 'ph-seal-check', titulo: 'Protocolo com código de conferência', texto: 'O protocolo do mês sai com um QR e um código. Quem recebe o papel confere na página do cliente se ele saiu do escritório como está.' },
       { quem: ['admin', 'contabil'], icone: 'ph-robot', titulo: 'Cobrança e comprovante automáticos', texto: 'Pendências › Configurações › Automático: o robô cobra sozinho quem não mandou os documentos nos dias escolhidos e manda o comprovante de cada entrega por e-mail. Vem desligado.' },
+      { quem: [], icone: 'ph-package', titulo: 'Montagem do dia e etiqueta de envelope', texto: 'Na Rota, a lista do que separar antes de sair, com risco por parada, e o botão Etiquetas: uma etiqueta por cliente pra imprimir, com o que vai dentro, o vencimento e o QR da página dele.' },
+      { quem: [], icone: 'ph-calendar-dots', titulo: 'Obrigações do mês na Rota', texto: 'FGTS, DAE, DARF, DAS e ICMS com a data já jogada pro dia útil anterior, e quantas guias daquele tipo ainda estão na rota. Admin muda a lista em Clientes e ajustes.' },
+      { quem: ['admin', 'contabil'], icone: 'ph-file-text', titulo: 'Extrato do mês do cliente', texto: 'Na ficha, ao lado de Protocolo: uma folha com o que entregamos e o que o cliente mandou ou deixou de mandar no mês. Boa pra mandar junto com o honorário.' },
+      { quem: [], icone: 'ph-hand-arrow-down', titulo: 'Documentos com o escritório e ocorrências', texto: 'Livro ou contrato que veio pro escritório fica registrado até alguém dar baixa. E a ficha do cliente passa a guardar combinado, reclamação e elogio.' },
+      { quem: ['admin'], icone: 'ph-heartbeat', titulo: 'Saúde do sistema e lembretes', texto: 'Em Clientes e ajustes: quanto do limite diário de leituras já foi gasto, se o PC do robô está ligado e quando foi o backup. E os lembretes que se repetem todo mês, que o robô avisa no celular.' },
       { quem: ['admin'], icone: 'ph-sliders-horizontal', titulo: 'Ajustes do app dentro de Clientes', texto: 'A aba Perfil saiu da barra. Quem tem acesso, novo acesso, auditoria, competências fechadas e o reforço de IA agora ficam em Clientes › Ajustes do app. A engrenagem continua com o que é seu: tema, cor, foto e senha.' },
       { quem: [], icone: 'ph-users', titulo: 'Clientes: o que falta na base, etiquetas e recados', texto: 'A aba mostra quem está sem e-mail, telefone, endereço, ponto no mapa ou link, e quem está repetido. Cada cliente pode ter etiquetas (MEI, Rural, Só WhatsApp), um recado interno e outros contatos, com WhatsApp na ficha.' },
       { quem: ['admin', 'contabil'], icone: 'ph-bank', titulo: 'Cobrança com os bancos do cliente', texto: 'O e-mail de cobrança sai com visual próprio e o logo de cada banco do cliente. O robô aprende os bancos pelos extratos; no cadastro dá pra corrigir.' },
