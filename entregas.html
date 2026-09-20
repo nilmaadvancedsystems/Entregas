@@ -722,6 +722,16 @@
   .ajuda-item mark { background: var(--accent-soft); color: var(--accent-forte); border-radius: var(--r-xs); padding: 0 2px; }
   .ajuda-vazio { color: var(--ink-faint); font-size: var(--t-base); padding: var(--esp-4) 0; }
 
+  /* checklist do fechamento */
+  .fecha-linha { display: flex; align-items: flex-start; gap: 10px; padding: var(--esp-2) 0; border-bottom: 1px solid var(--border); cursor: pointer; }
+  .fecha-linha:last-child { border-bottom: 0; }
+  .fecha-linha input { width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--accent); flex: none; }
+  .fecha-linha.pronto .fecha-nome { color: var(--ink-faint); text-decoration: line-through; }
+  .fecha-nome { font-weight: 500; }
+  .fecha-sub { font-size: var(--t-sm); color: var(--ink-faint); margin-top: 2px; }
+  .fecha-barra { height: 8px; border-radius: var(--r-pill); background: var(--surface-2); overflow: hidden; margin: var(--esp-2) 0 4px; }
+  .fecha-barra > span { display: block; height: 100%; background: var(--success); border-radius: var(--r-pill); transition: width var(--dur-lento) var(--ease); }
+
   /* papéis com validade (certidão, procuração, certificado) */
   .papel-edit { display: grid; grid-template-columns: 1fr 150px 130px auto; gap: 6px; align-items: center; margin-bottom: 6px; }
   @media (max-width: 700px) { .papel-edit { grid-template-columns: 1fr 1fr; } }
@@ -2484,6 +2494,19 @@
       </div>
       <p class="card-hint">Clientes ativos sem nenhuma entrega confirmada nas últimas 3 competências.</p>
     </div>
+    <div class="card" id="fechamentoMesCard">
+      <div class="card-head-row">
+        <h2><i class="ph ph-list-checks" aria-hidden="true"></i> Fechamento do mês</h2>
+        <div style="display:flex;gap:6px;align-items:center">
+          <label class="sr-only" for="fechamentoMesSelect">Competência</label>
+          <input class="input" id="fechamentoMesSelect" type="month" style="width:auto;min-height:34px;padding:0 8px">
+          <button type="button" class="btn-chip" id="relatorioPessoaBtn"><i class="ph ph-printer" aria-hidden="true"></i> Relatório do mês</button>
+        </div>
+      </div>
+      <p class="card-hint" id="fechamentoMesResumo"></p>
+      <div class="fecha-barra"><span id="fechamentoMesBarra" style="width:0%"></span></div>
+      <div id="fechamentoMesList"></div>
+    </div>
     <div class="card" id="graficoCard">
       <div class="card-head-row">
         <h2><i class="ph ph-chart-line-up" aria-hidden="true"></i> Entregas por dia</h2>
@@ -4059,6 +4082,155 @@
       lembretes_ = (d && Array.isArray(d.itens)) ? d.itens : [];
       renderLembretes_();
     }).catch(function () {});
+  }
+
+  // ---------- checklist do fechamento do mês ----------
+  // Os passos que se repetem todo mês e hoje moram na cabeça de quem fecha.
+  // O risco vai pra config/fechamento, por competência, com quem marcou —
+  // é trabalho de escritório, não de aparelho: a outra pessoa precisa ver.
+  var PASSOS_DO_FECHAMENTO_ = [
+    { id: 'documentos', nome: 'Conferir documentos recebidos', sub: 'extrato, comprovantes e aplicação de cada cliente' },
+    { id: 'lancamentos', nome: 'Lançar o movimento', sub: 'contabilizar o que chegou no mês' },
+    { id: 'guias', nome: 'Gerar as guias', sub: 'DAS, DARF, FGTS e o que mais o cliente tiver' },
+    { id: 'entrega', nome: 'Entregar as guias', sub: 'pela rota ou pelo link do cliente' },
+    { id: 'honorario', nome: 'Cobrar o honorário', sub: 'quem paga em dinheiro, boleto ou PIX' },
+    { id: 'conferencia', nome: 'Conferir o que ficou pendente', sub: 'quem não recebeu e quem não mandou documento' },
+    { id: 'fechar', nome: 'Fechar a competência', sub: 'trava lançamento novo no mês em Clientes e ajustes' }
+  ];
+  var fechamentoMes_ = { competencia: '', passos: {} };
+
+  function competenciaDoFechamento_() {
+    var campo = $('fechamentoMesSelect');
+    return (campo && campo.value) || competenciaAnterior_();
+  }
+  function competenciaAnterior_() {
+    var d = new Date();
+    d.setMonth(d.getMonth() - 1);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  }
+  function carregarFechamentoDoMes_(comp) {
+    if (!db) return;
+    db.collection('config').doc('fechamento').get().then(function (snap) {
+      var todos = snap.exists ? (snap.data().meses || {}) : {};
+      fechamentoMes_ = { competencia: comp, passos: todos[comp] || {}, todos: todos };
+      renderFechamentoDoMes_();
+    }).catch(function () { renderFechamentoDoMes_(); });
+  }
+  function renderFechamentoDoMes_() {
+    var card = $('fechamentoMesCard');
+    if (!card) return;
+    card.hidden = !(temPapel('admin') || temPapel('contabil'));
+    if (card.hidden) return;
+    var passos = fechamentoMes_.passos || {};
+    var feitos = PASSOS_DO_FECHAMENTO_.filter(function (p) { return passos[p.id]; }).length;
+    var pct = Math.round(feitos / PASSOS_DO_FECHAMENTO_.length * 100);
+    $('fechamentoMesBarra').style.width = pct + '%';
+    $('fechamentoMesResumo').textContent = feitos + ' de ' + PASSOS_DO_FECHAMENTO_.length + ' passos de ' +
+      fmtCompetencia(fechamentoMes_.competencia) + (feitos === PASSOS_DO_FECHAMENTO_.length ? ' — mês fechado.' : '.');
+    var el = $('fechamentoMesList');
+    el.innerHTML = '';
+    PASSOS_DO_FECHAMENTO_.forEach(function (p) {
+      var marca = passos[p.id];
+      var linha = document.createElement('label');
+      linha.className = 'fecha-linha' + (marca ? ' pronto' : '');
+      linha.innerHTML = '<input type="checkbox"' + (marca ? ' checked' : '') + '>' +
+        '<span><span class="fecha-nome"></span><span class="fecha-sub"></span></span>';
+      linha.querySelector('.fecha-nome').textContent = p.nome;
+      linha.querySelector('.fecha-sub').textContent = marca
+        ? 'feito por ' + (marca.por || 'alguém') + ' em ' + fmtDateTime(marca.em)
+        : p.sub;
+      linha.querySelector('input').addEventListener('change', function () {
+        marcarPassoDoFechamento_(p.id, this.checked);
+      });
+      el.appendChild(linha);
+    });
+  }
+  function marcarPassoDoFechamento_(idPasso, ligado) {
+    var comp = fechamentoMes_.competencia;
+    var passos = Object.assign({}, fechamentoMes_.passos);
+    if (ligado) passos[idPasso] = { em: new Date().toISOString(), por: currentUserNome || '' };
+    else delete passos[idPasso];
+    fechamentoMes_.passos = passos;
+    renderFechamentoDoMes_();
+    var dados = {};
+    dados['meses.' + comp] = passos;
+    db.collection('config').doc('fechamento').set({ meses: Object.assign({}, fechamentoMes_.todos || {}, (function () {
+      var o = {}; o[comp] = passos; return o;
+    })()) }, { merge: true }).then(function () {
+      fechamentoMes_.todos = Object.assign({}, fechamentoMes_.todos || {});
+      fechamentoMes_.todos[comp] = passos;
+    }).catch(function (err) {
+      showToast(errMsg(err, 'Não foi possível guardar o passo.'), 'error');
+    });
+  }
+
+  // ---------- relatório do mês por pessoa ----------
+  // Os números já existem em "Números do mês"; aqui eles viram uma folha por
+  // pessoa, pra conversa de equipe e pra decidir rota.
+  function abrirRelatorioDoMes_(comp) {
+    var aba = window.open('', '_blank');
+    if (!aba) { showToast('O navegador bloqueou a nova aba. Permita pop-ups para este site.', 'error'); return; }
+    aba.document.write('<!doctype html><meta charset="utf-8"><title>Relatório do mês</title><body style="font:14px system-ui;padding:24px">Montando o relatório...</body>');
+    var ini = comp + '-01';
+    var fim = comp + '-31';
+    db.collection('entregas').where('competencia', '==', comp).limit(1500).get().then(function (snap) {
+      var lista = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+      var h = function (t) { return escapeHtml_(t == null ? '' : String(t)); };
+      var porPessoa = {};
+      lista.forEach(function (e) {
+        var quem = e.entregadoPorNome || e.entregadoPor || 'sem pessoa';
+        var p = porPessoa[quem] = porPessoa[quem] || { feitas: 0, falhas: 0, link: 0, valor: 0, motivos: {}, dias: {} };
+        if (e.status === 'confirmada') {
+          p.feitas++;
+          if (e.recebidoPeloLink) p.link++;
+          p.valor += (e.itens || []).reduce(function (t, i) { return t + ((i && i.valor) || 0); }, 0);
+          var dia = String(e.confirmadoEm || '').slice(0, 10);
+          if (dia) p.dias[dia] = (p.dias[dia] || 0) + 1;
+        } else if (e.status === 'falha') {
+          p.falhas++;
+          var m = motivoPadrao_(e.motivoFalha || '');
+          if (m) p.motivos[m] = (p.motivos[m] || 0) + 1;
+        }
+      });
+      var nomes = Object.keys(porPessoa).sort(function (a, b) { return porPessoa[b].feitas - porPessoa[a].feitas; });
+      var blocos = nomes.map(function (nome) {
+        var p = porPessoa[nome];
+        var diasTrabalhados = Object.keys(p.dias).length;
+        var motivos = Object.keys(p.motivos).sort(function (a, b) { return p.motivos[b] - p.motivos[a]; });
+        return '<section><h2>' + h(nome) + '</h2>' +
+          '<div class="numeros">' +
+            '<div><b>' + p.feitas + '</b><span>entregues</span></div>' +
+            '<div><b>' + p.falhas + '</b><span>não entregues</span></div>' +
+            '<div><b>' + (diasTrabalhados ? (p.feitas / diasTrabalhados).toFixed(1).replace('.', ',') : '0') + '</b><span>por dia</span></div>' +
+            '<div><b>' + h(fmtMoney(p.valor)) + '</b><span>em guias</span></div>' +
+          '</div>' +
+          (motivos.length
+            ? '<p class="m">Motivos de não entrega: ' + motivos.map(function (m) { return h(m) + ' (' + p.motivos[m] + ')'; }).join(' · ') + '</p>'
+            : '<p class="m">Nenhuma entrega frustrada no mês.</p>') +
+          (p.link ? '<p class="m">' + p.link + ' recebida(s) pelo link do cliente.</p>' : '') +
+        '</section>';
+      }).join('');
+      var totalFeitas = nomes.reduce(function (t, n) { return t + porPessoa[n].feitas; }, 0);
+      var totalFalhas = nomes.reduce(function (t, n) { return t + porPessoa[n].falhas; }, 0);
+      var html = '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Relatório de ' + h(fmtCompetencia(comp)) + '</title><style>' +
+        '@page{size:A4;margin:16mm}*{box-sizing:border-box}body{font:12px/1.45 -apple-system,"Segoe UI",Inter,Arial,sans-serif;color:#111;margin:0 auto;padding:24px;max-width:900px}' +
+        'h1{font-size:18px;margin:0 0 2px}h2{font-size:14px;margin:0 0 8px}header{display:flex;justify-content:space-between;gap:24px;border-bottom:2px solid #111;padding-bottom:10px;margin-bottom:16px}' +
+        'section{border-bottom:1px solid #ddd;padding:0 0 14px;margin-bottom:14px;break-inside:avoid}' +
+        '.numeros{display:flex;gap:28px;flex-wrap:wrap;margin-bottom:8px}.numeros b{display:block;font-size:20px;font-variant-numeric:tabular-nums}' +
+        '.numeros span{font-size:10px;color:#555;text-transform:uppercase;letter-spacing:.04em}.m{color:#555;font-size:11px;margin:2px 0}' +
+        '.barra{margin:0 0 14px}.barra button{font:inherit;padding:8px 14px;cursor:pointer}@media print{.barra{display:none}body{padding:0}}</style></head><body>' +
+        '<div class="barra"><button onclick="window.print()">Imprimir ou salvar em PDF</button></div>' +
+        '<header><div><h1>Relatório do mês</h1><div class="m">Nilma Contabilidade</div></div>' +
+        '<div style="text-align:right"><b>' + h(fmtCompetencia(comp)) + '</b><div class="m">' + totalFeitas + ' entregues · ' + totalFalhas + ' não entregues</div></div></header>' +
+        (blocos || '<p class="m">Nenhuma entrega nesta competência.</p>') +
+        '<p class="m">Emitido em ' + h(fmtDateTime(new Date().toISOString())) + ' por ' + h(currentUserNome || '') + '</p>' +
+        '</body></html>';
+      aba.document.open(); aba.document.write(html); aba.document.close();
+      registrarAuditoria_('relatorio_mes', fmtCompetencia(comp));
+    }).catch(function (err) {
+      aba.close();
+      showToast(errMsg(err, 'Não foi possível montar o relatório.'), 'error');
+    });
   }
 
   // ---------- papéis com validade ----------
@@ -11151,6 +11323,8 @@
   $('etiquetasBtn').addEventListener('click', imprimirEtiquetas_);
   $('emprestimoNovoBtn').addEventListener('click', function () { abrirNovoEmprestimo_(null); });
   $('saudeSistemaAtualizarBtn').addEventListener('click', renderSaudeDoSistema_);
+  $('fechamentoMesSelect').addEventListener('change', function () { carregarFechamentoDoMes_(competenciaDoFechamento_()); });
+  $('relatorioPessoaBtn').addEventListener('click', function () { abrirRelatorioDoMes_(competenciaDoFechamento_()); });
   ['escPixChave', 'escPixNome', 'escPixCidade'].forEach(function (id) {
     $(id).addEventListener('input', atualizarPreviaDoPix_);
   });
@@ -12715,7 +12889,9 @@
     updateDashStrip();
     renderRota();
     sincronizarRotaLinks_();
-    if (primeiraCargaClientes_) { primeiraCargaClientes_ = false; restaurarRascunhoSeExistir_(); atualizarAlertaSemEntrega_(); carregarObrigacoes_(); atualizarLinkParado_(); carregarLembretes_(); ouvirEmprestimos_(); carregarEscritorio_(); ouvirRecadosDoCliente_(); }
+    if (primeiraCargaClientes_) { primeiraCargaClientes_ = false; restaurarRascunhoSeExistir_(); atualizarAlertaSemEntrega_(); carregarObrigacoes_(); atualizarLinkParado_(); carregarLembretes_(); ouvirEmprestimos_(); carregarEscritorio_(); ouvirRecadosDoCliente_();
+      $('fechamentoMesSelect').value = competenciaAnterior_();
+      carregarFechamentoDoMes_(competenciaAnterior_()); }
     if (completo) {
       esperandoTodosOsClientes_.splice(0).forEach(function (f) { f(); });
       preencherClientesDeEntrega_();
@@ -13252,6 +13428,8 @@
       { quem: [], icone: 'ph-device-mobile', titulo: 'Página do cliente leve', texto: 'O link do cliente agora abre uma página própria de 30 KB, com "Para pagar" no topo e letras grandes. O endereço antigo continua valendo.' },
       { quem: [], icone: 'ph-seal-check', titulo: 'Protocolo com código de conferência', texto: 'O protocolo do mês sai com um QR e um código. Quem recebe o papel confere na página do cliente se ele saiu do escritório como está.' },
       { quem: ['admin', 'contabil'], icone: 'ph-robot', titulo: 'Cobrança e comprovante automáticos', texto: 'Pendências › Configurações › Automático: o robô cobra sozinho quem não mandou os documentos nos dias escolhidos e manda o comprovante de cada entrega por e-mail. Vem desligado.' },
+      { quem: ['admin', 'contabil'], icone: 'ph-list-checks', titulo: 'Fechamento do mês no Painel', texto: 'Os sete passos que se repetem todo mês, com risco e barra de progresso. Fica guardado por competência e mostra quem marcou cada passo.' },
+      { quem: ['admin', 'contabil'], icone: 'ph-printer', titulo: 'Relatório do mês por pessoa', texto: 'No Painel, uma folha por office boy: entregues, não entregues com motivo, média por dia e total em guias. Dá pra imprimir ou salvar em PDF.' },
       { quem: ['admin', 'contabil'], icone: 'ph-certificate', titulo: 'Certidão e certificado com validade', texto: 'No cadastro do cliente dá pra guardar CND, procuração e certificado digital com a data de vencimento. A aba mostra o que está vencendo e o robô avisa 30, 15 e 3 dias antes.' },
       { quem: [], icone: 'ph-clock', titulo: 'Horário em que o cliente atende', texto: 'Além dos dias, agora tem a hora: fecha meio-dia, só de tarde. A rota avisa quando a parada cai fora do horário dele.' },
       { quem: [], icone: 'ph-magnifying-glass', titulo: 'Busca acha a guia pelo valor', texto: 'No Ctrl+K (ou na busca), digitar "1.240,55", "DAS" ou a competência traz as guias que estão na rota, não só os clientes.' },
