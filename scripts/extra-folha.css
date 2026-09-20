@@ -95,3 +95,82 @@
 .btn-ghost:hover:not(:disabled) { background: var(--accent-soft); }
 .btn:disabled { opacity: .5; cursor: default; }
 input, select, textarea { min-height: 38px; }
+
+/* ==========================================================================
+   Componentes que as telas menores escreviam cada uma do seu jeito.
+   Moravam duplicados no Conciliadorzinho e no Cheque especial e já tinham
+   começado a divergir (raio, borda, foco, animação). Agora moram aqui.
+   ========================================================================== */
+
+/* dobra (details/summary) */
+.dobra { border: 0; margin: var(--esp-3) 0 0; }
+.dobra > summary {
+  list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+  font-size: var(--t-base); font-weight: 500; color: var(--ink-soft); min-height: 38px;
+}
+.dobra > summary::-webkit-details-marker { display: none; }
+.dobra > summary::before {
+  content: ""; width: 6px; height: 6px; border-right: 1.5px solid var(--ink-faint);
+  border-bottom: 1.5px solid var(--ink-faint); transform: rotate(-45deg); margin-right: 4px;
+  transition: transform var(--dur-rapido) var(--ease);
+}
+.dobra[open] > summary::before { transform: rotate(45deg); }
+.dobra > summary:hover { color: var(--ink); }
+.dobra > p, .dobra > label { font-size: var(--t-base); color: var(--ink-soft); line-height: 1.55; margin: 6px 0 0; max-width: 74ch; }
+
+/* Aviso flutuante: a folha declarava .toast escondido e cada tela empilhava
+   vários dentro de uma região, contando com a animação local pra aparecer.
+   Com "animação reduzida" (animation:none) o aviso ficava INVISÍVEL. Agora a
+   região empilha e a visibilidade não depende de animação nenhuma. */
+.toast-region {
+  position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%);
+  z-index: var(--z-aviso); display: flex; flex-direction: column; gap: var(--esp-2);
+  align-items: center; pointer-events: none; width: min(92vw, 520px);
+}
+.toast-region .toast {
+  position: static; left: auto; bottom: auto; transform: none; opacity: 1;
+  pointer-events: auto; max-width: 100%;
+}
+
+/* tabela de dados */
+.tabela-caixa { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.tabela-dados { width: 100%; border-collapse: collapse; font-size: var(--t-base); }
+.tabela-dados th {
+  position: sticky; top: 0; z-index: var(--z-conteudo); text-align: left;
+  font-size: var(--t-sm); font-weight: 600; color: var(--ink-soft);
+  background: var(--surface-2); padding: 8px 10px; border-bottom: 1px solid var(--border); white-space: nowrap;
+}
+.tabela-dados td { padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.tabela-dados tbody tr:hover { background: var(--surface-2); }
+.tabela-dados .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* aviso em linha (erro, atenção, ok) — a folha só tinha toast e erro de campo */
+.aviso-linha {
+  display: flex; gap: var(--esp-2); align-items: flex-start;
+  padding: 10px 12px; border-radius: var(--r-sm); font-size: var(--t-base); line-height: 1.5;
+  border: 1px solid var(--border); background: var(--surface-2); color: var(--ink-soft);
+}
+.aviso-linha.erro { border-color: var(--danger-soft); background: var(--danger-soft); color: var(--danger-forte); }
+.aviso-linha.atencao { border-color: var(--warning-soft); background: var(--warning-soft); color: var(--warning-forte); }
+.aviso-linha.ok { border-color: var(--success-soft); background: var(--success-soft); color: var(--success-forte); }
+
+/* zona de arrastar arquivo e cartão do arquivo lido */
+.zona-arquivo {
+  border: 1px dashed var(--border-forte); border-radius: var(--r-md); background: var(--surface);
+  padding: var(--esp-6) var(--esp-4); text-align: center; cursor: pointer;
+  transition: border-color var(--dur-rapido) var(--ease), background-color var(--dur-rapido) var(--ease);
+}
+.zona-arquivo:hover, .zona-arquivo.sobre { border-color: var(--accent); background: var(--surface-2); }
+.zona-arquivo.lendo { opacity: .7; pointer-events: none; }
+.zona-arquivo .grande { font-size: var(--t-md); font-weight: 600; }
+.zona-arquivo .pequeno { font-size: var(--t-sm); color: var(--ink-faint); margin-top: 4px; }
+.cartao-arquivo {
+  display: flex; align-items: center; gap: var(--esp-3);
+  padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--surface);
+}
+.cartao-arquivo .nome { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cartao-arquivo .peso { font-size: var(--t-sm); color: var(--ink-faint); white-space: nowrap; }
+
+/* barra de progresso de trabalho em andamento */
+.barra-trilho { height: 8px; border-radius: var(--r-pill); background: var(--surface-2); overflow: hidden; }
+.barra-trilho > span { display: block; height: 100%; background: var(--accent); border-radius: inherit; transition: width var(--dur) var(--ease); }

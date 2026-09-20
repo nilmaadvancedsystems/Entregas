@@ -148,7 +148,7 @@
 
   /* ---------------------------------- modal / config ---------------------------------- */
   .modal-overlay{
-    position:fixed;inset:0;background:rgba(12,9,9,.55);backdrop-filter:blur(3px);
+    position:fixed;inset:0;background:var(--scrim);backdrop-filter:blur(3px);
     display:flex;align-items:center;justify-content:center;padding:20px;z-index:70;
   }
   .modal-overlay[hidden]{display:none;}
@@ -160,16 +160,12 @@
   .modal p{font-size:14px;color:var(--ink-muted);line-height:1.55;margin:0;}
   .modal-actions{display:flex;gap:10px;margin-top:23px;}
   .modal-actions .btn{flex:1;}
-  .paleta-swatch{width:38px;height:38px;border-radius:50%;border:2px solid var(--border);cursor:pointer;position:relative;padding:0;}
-  .paleta-swatch.ativo{border-color:var(--ink);box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--ink);}
-  .paleta-swatch.ativo::after{content:"✓";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:15px;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.4);}
 
   /* ---------------------------------- alerts / toast ---------------------------------- */
   .alert{
     display:flex;gap:12px;align-items:flex-start;border-radius:var(--radius-sm);padding:14px 16px;
     border:1px solid var(--danger);background:var(--danger-soft);color:var(--danger-forte);margin-top:18px;
   }
-  .alert.is-warn{border-color:var(--accent);background:var(--accent-soft);color:var(--accent-forte);}
   .alert svg{width:19px;height:19px;flex:none;margin-top:1px;}
   .alert-title{font-weight:700;font-size:13.5px;}
   .alert-text{font-size:13.5px;margin-top:2px;line-height:1.45;}
@@ -207,7 +203,7 @@
   .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:26px 0;}
   @media (max-width:700px){ .stat-grid{grid-template-columns:repeat(2,1fr);} }
   .stat{border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px 15px;background:var(--surface-2);}
-  .stat-label{font-size:11.5px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.05em;font-weight:700;}
+  .stat-label{font-size:var(--t-sm);color:var(--ink-faint);font-weight:500;}
   .stat-value{font-family:var(--font-mono);font-size:19px;font-weight:600;margin-top:6px;font-variant-numeric:tabular-nums;}
   .stat.success .stat-value{color:var(--success-forte);}
 
@@ -226,13 +222,13 @@
     position:sticky;top:0;background:var(--surface-2);text-align:left;padding:9px 12px;font-weight:700;
     color:var(--ink-muted);font-size:11px;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border);
   }
-  tbody td{padding:8px 12px;border-bottom:1px solid var(--border);font-family:var(--font-mono);white-space:nowrap;}
+  tbody td{padding:8px 12px;border-bottom:1px solid var(--border);white-space:nowrap;}
+  tbody td.num, tbody td.valor{font-family:var(--font-mono);font-variant-numeric:tabular-nums;}
   tbody td.wrap{white-space:normal;font-family:var(--font-body);min-width:200px;}
   tbody tr:last-child td{border-bottom:none;}
 
   .download-row{display:flex;flex-wrap:wrap;align-items:center;gap:16px;margin-top:28px;}
   .download-note{font-size:12.5px;color:var(--ink-faint);}
-  .empty-state{color:var(--ink-faint);font-size:13.5px;padding:20px 4px;}
 
   .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;}
 
@@ -282,7 +278,7 @@
   .brand-tag { font-size: var(--t-sm); color: var(--ink-faint); margin: 2px 0 0; }
   .brand-logo { height: 32px; padding: 0 12px; border-radius: var(--r-md); box-shadow: none; }
   .brand-logo img { height: 16px; }
-  .brand-mark { width: 32px; height: 32px; border-radius: var(--r-md); }
+  .brand-mark { width: 32px; height: 32px; border-radius: var(--r-md); box-shadow: none; }
   .brand-sep { background: var(--border); }
   .topbar-meta { font-size: var(--t-sm); color: var(--ink-faint); }
   .cancel-btn {
@@ -301,21 +297,7 @@
   .btn-row { margin-top: var(--esp-5); gap: var(--esp-2); }
   .btn-row-dica { font-size: var(--t-sm); color: var(--ink-faint); }
 
-  /* dobra: o texto que se lê uma vez e depois só atrapalha */
-  .dobra { border: 0; margin: var(--esp-3) 0 0; }
-  .dobra > summary {
-    list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
-    font-size: var(--t-base); font-weight: 500; color: var(--ink-soft); min-height: 32px;
-  }
-  .dobra > summary::-webkit-details-marker { display: none; }
-  .dobra > summary::before {
-    content: ""; width: 6px; height: 6px; border-right: 1.5px solid var(--ink-faint);
-    border-bottom: 1.5px solid var(--ink-faint); transform: rotate(-45deg); margin-right: 4px;
-    transition: transform var(--dur-rapido) var(--ease);
-  }
-  .dobra[open] > summary::before { transform: rotate(45deg); }
-  .dobra > summary:hover { color: var(--ink); }
-  .dobra > p, .dobra > label { font-size: var(--t-base); color: var(--ink-soft); line-height: 1.55; margin: 6px 0 0; max-width: 74ch; }
+  /* dobra, aviso flutuante, tabela e zona de arquivo: vêm de nilma-ui.css */
 
   /* campos */
   .field { margin-bottom: var(--esp-4); }
@@ -430,17 +412,6 @@
     <a class="btn btn-outline-neutral" href="entregas.html" title="Voltar pra escolher outra função"><i class="ph ph-squares-four" aria-hidden="true"></i> Trocar de função</a>
       <button type="button" class="btn btn-ghost" id="configBtn" aria-label="Aparência" title="Aparência: tema, cor, texto" style="padding:8px;line-height:0;"></button>
   </header>
-
-  <div class="modal-overlay" id="configOverlay" hidden>
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="configTitle">
-      <h3 id="configTitle">Cor do app</h3>
-      <p>Essa cor é a mesma em Entregas, Conciliadorzinho e Cheque especial — muda aqui, muda em todo lugar.</p>
-      <div id="paletaSwatches" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:18px;"></div>
-      <div class="modal-actions">
-        <button type="button" class="btn btn-outline-neutral" id="configCloseBtn">Fechar</button>
-      </div>
-    </div>
-  </div>
 
   <main class="fluxo">
     <section class="passo panel" id="passoArquivo">
@@ -1021,45 +992,16 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
   function aplicarPaleta_(p) {
     paletaAtual = p || 'padrao';
     document.documentElement.setAttribute('data-paleta', paletaAtual);
-    document.querySelectorAll('#paletaSwatches .paleta-swatch').forEach(function (b) {
-      b.classList.toggle('ativo', b.dataset.paleta === paletaAtual);
-    });
-  }
-
-  function renderPaletaSwatches_() {
-    var wrap = document.getElementById('paletaSwatches');
-    if (!wrap || wrap.children.length) return;
-    PALETAS.forEach(function (p) {
-      var b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'paleta-swatch';
-      b.style.background = p.cor;
-      b.dataset.paleta = p.key;
-      b.title = p.nome;
-      b.setAttribute('aria-label', p.nome);
-      b.addEventListener('click', function () {
-        aplicarPaleta_(p.key);
-        if (uidAtual) firebase.firestore().collection('usuarios').doc(uidAtual).update({ paleta: p.key }).catch(function () {});
-      });
-      wrap.appendChild(b);
-    });
   }
 
   var configBtn = document.getElementById('configBtn');
-  var configOverlay = document.getElementById('configOverlay');
   if (configBtn) {
     configBtn.innerHTML = GEAR_SVG;
     configBtn.addEventListener('click', function () {
       // a janela de Aparência é a mesma das outras telas (nilma-ui.js):
       // cor, tema, tamanho do texto, espaçamento e animações
       if (window.NilmaUI) window.NilmaUI.abrirAparencia();
-      else { renderPaletaSwatches_(); configOverlay.hidden = false; }
     });
-  }
-  if (configOverlay) {
-    configOverlay.addEventListener('click', function (e) { if (e.target === configOverlay) configOverlay.hidden = true; });
-    var fechar = document.getElementById('configCloseBtn');
-    if (fechar) fechar.addEventListener('click', function () { configOverlay.hidden = true; });
   }
 
   try {

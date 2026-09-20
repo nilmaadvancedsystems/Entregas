@@ -25,6 +25,19 @@ h2 { font-size: var(--t-lg); margin: 0 0 var(--esp-2); }
 h3 { font-size: var(--t-md); margin: 0 0 var(--esp-2); }
 a { color: var(--accent-forte); }
 
+.registro-import { margin-bottom: var(--esp-4); }
+.registro-tab td { padding: 6px 8px; }
+.badge-erro { color: var(--danger); font-weight: 600; }
+.dropzone.lendo { opacity: .7; pointer-events: none; }
+
+/* progresso da revisão: a pergunta é "dá pra exportar?", não "quantos são?" */
+.progresso-lcdpr { margin: var(--esp-4) 0; }
+.progresso-topo { display: flex; justify-content: space-between; gap: var(--esp-3); font-size: var(--t-md); font-weight: 600; margin-bottom: 6px; }
+.progresso-valor { color: var(--ink-soft); font-weight: 500; font-variant-numeric: tabular-nums; }
+.progresso-lcdpr .barra { height: 8px; border-radius: var(--r-pill); background: var(--surface-2); overflow: hidden; }
+.progresso-lcdpr .barra span { display: block; height: 100%; background: var(--accent); border-radius: inherit; transition: width var(--dur) var(--ease); }
+.progresso-pe { margin: 6px 0 0; color: var(--ink-soft); }
+
 /* área de arrastar os relatórios do SIEG */
 .dropzone {
   border: 1px dashed var(--border-forte); border-radius: var(--r-md); background: var(--surface);
@@ -392,6 +405,9 @@ function defaultState(){
       {codigo:'3', descricao:'Receitas de produtos entregues no ano referente a adiantamentos de recursos'}
     ],
     lancamentos: [],
+    // registro dos arquivos lidos nesta sessão: anda junto com os
+    // lançamentos, que também não ficam salvos
+    importacoes: [],
     ui: { search:'', showOnlyRevisar:false, bulkCategoria:'', expandedId:null }
   };
 }
@@ -406,6 +422,7 @@ function load(){
     // shallow-merge top level, keep saved arrays/objects if present
     const merged = Object.assign(d, parsed);
     merged.lancamentos = []; // lançamentos nunca ficam salvos — ver save()
+    merged.importacoes = [];
     return merged;
   }catch(e){ console.warn('Falha ao carregar estado salvo, usando padrão.', e); return defaultState(); }
 }
@@ -413,7 +430,7 @@ function save(){
   // Lançamentos importados NÃO ficam salvos (nem local, nem na nuvem) — são
   // dados de trabalho, recriados a qualquer momento reimportando os relatórios
   // do SIEG. Só regras/cadastros (que dão trabalho pra recriar) persistem.
-  const { lancamentos, ...toPersist } = state;
+  const { lancamentos, importacoes, ...toPersist } = state;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(toPersist));
   scheduleCloudSync();
 }
@@ -512,7 +529,7 @@ async function bootstrapCloud(){
       for(const k of SETTINGS_FIELDS) if(d[k]!==undefined) state[k] = d[k];
     }
     cloudReady = true; cloudStatus = 'ok';
-    const { lancamentos, ...toPersist } = state;
+    const { lancamentos, importacoes, ...toPersist } = state;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(toPersist)); // atualiza o cache local, sem reagendar sync
     render();
     renderSidebarFoot();
@@ -596,6 +613,23 @@ function findCategoriaLabel(conta, codHist){
   return c ? c.nome : '';
 }
 let toastTimer=null;
+let desfazerLote = null;
+let buscaTimer = null;
+// Toast com saída: aplicar em lote reescrevia 200 linhas sem volta.
+function toastComDesfazer(msg, aoDesfazer){
+  let el = document.getElementById('__toast');
+  if(!el){ el=document.createElement('div'); el.id='__toast'; el.className='toast'; document.body.appendChild(el); }
+  el.textContent = msg + ' ';
+  const b = document.createElement('button');
+  b.className = 'btn btn-ghost';
+  b.textContent = 'Desfazer';
+  b.style.marginLeft = '10px';
+  b.onclick = ()=>{ el.style.display='none'; aoDesfazer(); };
+  el.appendChild(b);
+  el.style.display='block';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>{ el.style.display='none'; }, 7000);
+}
 function toast(msg){
   let el = document.getElementById('__toast');
   if(!el){ el=document.createElement('div'); el.id='__toast'; el.className='toast'; document.body.appendChild(el); }
@@ -685,31 +719,72 @@ function buildLancamentoFromDoc(doc, origem){
 async function handleFiles(fileList){
   const files = Array.from(fileList);
   let added = 0, skippedFiles = 0;
-  for(const file of files){
+  const zona = document.getElementById('dropzone');
+  for(let k=0;k<files.length;k++){
+    const file = files[k];
+    // Arquivo grande congelava a aba sem dizer nada: agora pelo menos diz
+    // em qual está e desabilita a zona enquanto lê.
+    if(zona){ zona.classList.add('lendo'); zona.querySelector('.big').textContent = 'Lendo ' + (k+1) + ' de ' + files.length + ': ' + file.name + '…'; }
+    await new Promise(r=>setTimeout(r,0));
+    const antes = state.lancamentos.length;
+    let erro = '';
     try{
+      // Mesmo arquivo de novo empilhava tudo em dobro, sem aviso nenhum.
+      const jaVeio = (state.importacoes||[]).find(i=>i.arquivo===file.name && i.bytes===file.size);
+      if(jaVeio && !confirm('O arquivo "'+file.name+'" já foi importado em '+new Date(jaVeio.em).toLocaleString('pt-BR')+'.\n\nImportar de novo vai duplicar os lançamentos. Continuar?')){ skippedFiles++; continue; }
       const buf = await file.arrayBuffer();
       const wb = XLSX.read(buf, {type:'array', cellDates:true});
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(ws, {defval:''});
-      if(!rows.length){ skippedFiles++; continue; }
+      if(!rows.length){ skippedFiles++; erro = 'planilha vazia'; registrarImportacao(file, 0, erro); continue; }
       const headers = Object.keys(rows[0]);
+      let doArquivo = 0;
       if(headers.includes('Valor_Transporte') || headers.includes('Prod_Predominante')){
-        added += importCTe(rows);
+        doArquivo = importCTe(rows);
       } else if(headers.includes('Produto') && headers.includes('Valor_Unitario')){
-        added += importDetalhamento(rows);
+        doArquivo = importDetalhamento(rows);
       } else {
         skippedFiles++;
+        erro = 'não é Detalhamento de Produtos nem CT-e';
         toast('Arquivo "'+file.name+'" não reconhecido (não é Detalhamento de Produtos nem CT-e).');
       }
+      added += doArquivo;
+      registrarImportacao(file, doArquivo, erro, state.lancamentos.slice(antes).map(r=>r.id));
     }catch(err){
       console.error(err);
+      registrarImportacao(file, 0, err.message);
       toast('Erro ao ler "'+file.name+'": '+err.message);
     }
   }
+  if(zona){ zona.classList.remove('lendo'); zona.querySelector('.big').textContent = 'Clique para escolher os arquivos, ou arraste aqui'; }
   save();
   render();
   if(added>0) toast(added+' lançamento(s) importado(s).');
   else if(skippedFiles>0 && added===0) toast('Nenhum lançamento novo importado.');
+}
+
+// Uma linha por arquivo lido: nome, data, quantos entraram, o que deu errado
+// e quais lançamentos vieram dali — que é o que permite desfazer.
+function registrarImportacao(file, quantos, erro, ids){
+  if(!state.importacoes) state.importacoes = [];
+  state.importacoes.unshift({
+    id: Date.now() + Math.random(),
+    arquivo: file.name, bytes: file.size, em: new Date().toISOString(),
+    quantos: quantos || 0, erro: erro || '', ids: ids || []
+  });
+  state.importacoes = state.importacoes.slice(0, 40);
+}
+
+function desfazerImportacao(id){
+  const imp = (state.importacoes||[]).find(i=>String(i.id)===String(id));
+  if(!imp || !imp.ids.length) return;
+  if(!confirm('Remover os '+imp.ids.length+' lançamento(s) que vieram de "'+imp.arquivo+'"?')) return;
+  const fora = new Set(imp.ids);
+  state.lancamentos = state.lancamentos.filter(r=>!fora.has(r.id));
+  imp.desfeita = new Date().toISOString();
+  imp.ids = [];
+  save(); render();
+  toast('Importação desfeita.');
 }
 
 function importDetalhamento(rows){
@@ -782,7 +857,16 @@ function importCTe(rows){
 }
 
 /* ============================== EXPORTAÇÃO ============================== */
+// Sem conta devedora e com "⚠ Sem regra correspondente" no histórico, a
+// linha ia pro arquivo entregue ao cliente do mesmo jeito. Agora é preciso
+// dizer de novo que quer, sabendo quantas linhas vão assim.
 function exportPlanilha(){
+  const pendentes = state.lancamentos.filter(r=>r.revisar);
+  if(pendentes.length){
+    const soma = pendentes.reduce((s,r)=>s+(Number(r.valor)||0),0);
+    const ok = confirm(pendentes.length + ' lançamento(s), somando R$ ' + fmtMoney(soma) + ', ainda não foram classificados.\n\nEles vão para a planilha sem conta e com o aviso de classificar manualmente no histórico.\n\nBaixar assim mesmo?');
+    if(!ok) return;
+  }
   const header = ['Lancamento Automatico','Data','Conta Devedora','Conta Credora','Codigo Historico','Historico','Valor','Documento','Imovel','Tipo de Documento','Tipo de Lancamento','CPF/CNPJ','Produto'];
   const rows = [header];
   const list = state.lancamentos.slice().sort((a,b)=> (a.data? new Date(a.data):0) - (b.data? new Date(b.data):0));
@@ -866,18 +950,24 @@ function screenImportar(){
       <input type="file" id="fileInput" accept=".xlsx,.xls" multiple style="display:none">
     </div>`}
 
-    <div class="stats">
-      <div class="stat"><b>${total}</b><span>Lançamentos</span></div>
-      <div class="stat"><b>${revisar}</b><span>A revisar</span></div>
-      <div class="stat"><b>${selecionados}</b><span>Selecionados</span></div>
-      <div class="stat"><b>R$ ${fmtMoney(valorTotal)}</b><span>Valor total</span></div>
-    </div>
+    <!-- Quanto falta revisar era um número solto. Agora é barra, que é o
+         que responde "dá pra exportar?" sem a pessoa fazer conta. -->
+    ${total ? `<div class="progresso-lcdpr">
+      <div class="progresso-topo">
+        <span>${total - revisar} de ${total} classificados</span>
+        <span class="progresso-valor">R$ ${fmtMoney(valorTotal)}</span>
+      </div>
+      <div class="barra" role="img" aria-label="${total - revisar} de ${total} lançamentos classificados">
+        <span style="width:${Math.round((total - revisar) / total * 100)}%"></span>
+      </div>
+      <p class="small progresso-pe">${revisar ? `Faltam <strong>${revisar}</strong> para revisar antes de exportar.` : 'Tudo classificado. Pode baixar a planilha.'}</p>
+    </div>` : ''}
 
     <div class="toolbar">
       <input type="search" id="searchBox" placeholder="Buscar por fornecedor, documento, histórico…" value="${esc(state.ui.search)}">
       <span style="flex:1"></span>
       <button class="btn btn-secondary" id="toggleRevisar">${state.ui.showOnlyRevisar? 'Mostrar todos' : 'Mostrar só REVISAR'}</button>
-      <button class="btn btn-primary" id="btnExport" ${total===0?'disabled':''}>Baixar planilha .xls</button>
+      <button class="btn ${revisar ? 'btn-secondary' : 'btn-primary'}" id="btnExport" ${total===0?'disabled':''}>Baixar planilha .xls</button>
     </div>
 
     <div class="bulkbar">
@@ -889,6 +979,15 @@ function screenImportar(){
       <label class="small" style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="selectAllVisible"> selecionar visíveis</label>
     </div>
 
+    ${(state.importacoes||[]).length ? `<details class="dobra registro-import">
+      <summary>Arquivos lidos nesta sessão (${state.importacoes.length})</summary>
+      <table class="t registro-tab"><tbody>${state.importacoes.map(i=>`<tr>
+        <td>${esc(i.arquivo)}</td>
+        <td class="small">${new Date(i.em).toLocaleString('pt-BR')}</td>
+        <td class="small">${i.erro ? '<span class="badge-erro">'+esc(i.erro)+'</span>' : i.quantos + ' lançamento(s)'}</td>
+        <td>${i.ids && i.ids.length ? `<button class="btn btn-ghost" data-desfazer="${i.id}">Desfazer</button>` : (i.desfeita ? '<span class="small">desfeita</span>' : '')}</td>
+      </tr>`).join('')}</tbody></table>
+    </details>` : ''}
     <p class="small" style="margin-bottom:10px">Clique na seta ▸ de uma linha pra ver/editar conta, código histórico, imóvel e o texto completo do histórico.</p>
     <div class="tablewrap">
       <table class="t">
@@ -956,6 +1055,33 @@ function applyCategoriaToRow(row, catNome){
     row.revisar = false;
     row.origemRegra = 'Manual';
   }
+}
+
+// O NCM da linha, com os zeros à esquerda que o Excel come.
+function ncmDaLinha(row){
+  const bruto = String(row.ncm||'').split(/[^0-9]+/).filter(Boolean)[0];
+  if(!bruto) return '';
+  return /^\d+$/.test(bruto) ? bruto.padStart(8,'0') : '';
+}
+// Já existe regra que pega esse NCM?
+function regraQuePega(ncm){
+  return state.ncmRules.find(r=>{ const p=String(r.prefixo||'').trim(); return p && ncm.startsWith(p); });
+}
+// Depois de classificar uma linha à mão, oferece transformar aquilo em regra.
+// O prefixo sugerido é o capítulo de 4 dígitos: pega a família do produto
+// sem casar com o país inteiro.
+function talvezVirarRegra(row){
+  const ncm = ncmDaLinha(row);
+  if(!ncm || !row.contaDeved) return;
+  if(regraQuePega(ncm)) return;
+  const prefixo = ncm.slice(0,4);
+  const quantas = state.lancamentos.filter(r=>ncmDaLinha(r).startsWith(prefixo)).length;
+  const ok = confirm('Classificar sempre o NCM ' + prefixo + '… na conta ' + row.contaDeved + '?\n\n' +
+    'Vale para ' + quantas + ' lançamento(s) desta importação e para as próximas, sem passar por REVISAR.\n' +
+    'Dá para mudar depois em NCM & categorias.');
+  if(!ok) return;
+  state.ncmRules.push({prefixo:prefixo, conta:row.contaDeved, codHist:row.codHist||'', historico:row.historico||''});
+  toast('Regra criada para o NCM ' + prefixo + '.');
 }
 
 /* ============================== TELA: PLANO DE CONTAS ============================== */
@@ -1035,36 +1161,44 @@ function screenTabelas(){
     </div>
     <div class="twocol">
       <div>
-        <h2>Imóveis rurais</h2>
-        <p class="hint">Código e nome de cada propriedade, como cadastrado no LCDPR.</p>
-        <div class="tablewrap" style="margin-bottom:12px"><table class="t">
-          <thead><tr><th style="width:70px">Código</th><th>Descrição</th><th style="width:40px"></th></tr></thead>
-          <tbody>${ruleRows('imoveis',[{k:'codigo',w:'70px'},{k:'descricao'}])}</tbody>
-        </table></div>
-        <button class="btn btn-secondary" data-add="imoveis" style="margin-bottom:28px">+ Imóvel</button>
+        <details class="dobra">
+          <summary>Imóveis rurais</summary>
+          <p class="hint">Código e nome de cada propriedade, como cadastrado no LCDPR.</p>
+          <div class="tablewrap" style="margin-bottom:12px"><table class="t">
+            <thead><tr><th style="width:70px">Código</th><th>Descrição</th><th style="width:40px"></th></tr></thead>
+            <tbody>${ruleRows('imoveis',[{k:'codigo',w:'70px'},{k:'descricao'}])}</tbody>
+          </table></div>
+          <button class="btn btn-secondary" data-add="imoveis">+ Imóvel</button>
+        </details>
 
-        <h2>IE do destinatário → imóvel</h2>
-        <p class="hint">A Inscrição Estadual do destinatário decide automaticamente qual imóvel usar (relatório de Detalhamento de Produtos).</p>
-        <div class="tablewrap" style="margin-bottom:12px"><table class="t">
-          <thead><tr><th style="width:150px">IE Destinatário</th><th>Imóvel (código)</th><th style="width:40px"></th></tr></thead>
-          <tbody>${ruleRows('ieDest',[{k:'ie',w:'150px'},{k:'imovel'}])}</tbody>
-        </table></div>
-        <button class="btn btn-secondary" data-add="ieDest">+ Mapeamento</button>
+        <details class="dobra">
+          <summary>IE do destinatário → imóvel</summary>
+          <p class="hint">A Inscrição Estadual do destinatário decide automaticamente qual imóvel usar (relatório de Detalhamento de Produtos).</p>
+          <div class="tablewrap" style="margin-bottom:12px"><table class="t">
+            <thead><tr><th style="width:150px">IE Destinatário</th><th>Imóvel (código)</th><th style="width:40px"></th></tr></thead>
+            <tbody>${ruleRows('ieDest',[{k:'ie',w:'150px'},{k:'imovel'}])}</tbody>
+          </table></div>
+          <button class="btn btn-secondary" data-add="ieDest">+ Mapeamento</button>
+        </details>
       </div>
       <div>
-        <h2>Tipo de documento</h2>
-        <div class="tablewrap" style="margin-bottom:12px"><table class="t">
-          <thead><tr><th style="width:70px">Código</th><th>Descrição</th><th style="width:40px"></th></tr></thead>
-          <tbody>${ruleRows('tipoDoc',[{k:'codigo',w:'70px'},{k:'descricao'}])}</tbody>
-        </table></div>
-        <button class="btn btn-secondary" data-add="tipoDoc" style="margin-bottom:28px">+ Tipo de documento</button>
+        <details class="dobra">
+          <summary>Tipo de documento</summary>
+          <div class="tablewrap" style="margin-bottom:12px"><table class="t">
+            <thead><tr><th style="width:70px">Código</th><th>Descrição</th><th style="width:40px"></th></tr></thead>
+            <tbody>${ruleRows('tipoDoc',[{k:'codigo',w:'70px'},{k:'descricao'}])}</tbody>
+          </table></div>
+          <button class="btn btn-secondary" data-add="tipoDoc">+ Tipo de documento</button>
+        </details>
 
-        <h2>Tipo de lançamento</h2>
-        <div class="tablewrap" style="margin-bottom:12px"><table class="t">
-          <thead><tr><th style="width:70px">Código</th><th>Descrição</th><th style="width:40px"></th></tr></thead>
-          <tbody>${ruleRows('tipoLanc',[{k:'codigo',w:'70px'},{k:'descricao'}])}</tbody>
-        </table></div>
-        <button class="btn btn-secondary" data-add="tipoLanc">+ Tipo de lançamento</button>
+        <details class="dobra">
+          <summary>Tipo de lançamento</summary>
+          <div class="tablewrap" style="margin-bottom:12px"><table class="t">
+            <thead><tr><th style="width:70px">Código</th><th>Descrição</th><th style="width:40px"></th></tr></thead>
+            <tbody>${ruleRows('tipoLanc',[{k:'codigo',w:'70px'},{k:'descricao'}])}</tbody>
+          </table></div>
+          <button class="btn btn-secondary" data-add="tipoLanc">+ Tipo de lançamento</button>
+        </details>
       </div>
     </div>
   </section>`;
@@ -1123,17 +1257,40 @@ function wireScreen(){
     fi.addEventListener('change', ()=>{ if(fi.files.length) handleFiles(fi.files); fi.value=''; });
   }
   const searchBox = document.getElementById('searchBox');
-  if(searchBox) searchBox.addEventListener('input', ()=>{ state.ui.search = searchBox.value; render(); document.getElementById('searchBox').focus(); document.getElementById('searchBox').selectionStart = document.getElementById('searchBox').value.length; });
+  // Cada tecla remontava a tela inteira, e um remendo empurrava o cursor pro
+  // fim — não dava pra corrigir uma letra no meio da palavra. Agora espera a
+  // digitação parar e devolve o cursor onde estava.
+  if(searchBox) searchBox.addEventListener('input', ()=>{
+    state.ui.search = searchBox.value;
+    const pos = searchBox.selectionStart;
+    clearTimeout(buscaTimer);
+    buscaTimer = setTimeout(()=>{
+      render();
+      const cx = document.getElementById('searchBox');
+      if(cx){ cx.focus(); try{ cx.setSelectionRange(pos, pos); }catch(e){} }
+    }, 200);
+  });
   const toggleRev = document.getElementById('toggleRevisar');
   if(toggleRev) toggleRev.addEventListener('click', ()=>{ state.ui.showOnlyRevisar = !state.ui.showOnlyRevisar; save(); render(); });
   const btnExport = document.getElementById('btnExport');
   if(btnExport) btnExport.addEventListener('click', exportPlanilha);
+  document.querySelectorAll('[data-desfazer]').forEach(b=>{
+    b.addEventListener('click', ()=>desfazerImportacao(b.dataset.desfazer));
+  });
   const bulkApply = document.getElementById('bulkApply');
   if(bulkApply) bulkApply.addEventListener('click', ()=>{
     const cat = document.getElementById('bulkCategoria').value;
     if(!cat) return;
+    // Aplicar à seleção reescreve até 200 linhas de uma vez; o único
+    // retrocesso era remover tudo e importar de novo.
+    const antes = state.lancamentos.filter(r=>r.selected).map(r=>({id:r.id, dados:Object.assign({}, r)}));
     state.lancamentos.filter(r=>r.selected).forEach(r=>applyCategoriaToRow(r, cat));
+    desfazerLote = antes;
     save(); render();
+    toastComDesfazer(antes.length + ' lançamento(s) classificados.', ()=>{
+      antes.forEach(x=>{ const i = state.lancamentos.findIndex(r=>r.id===x.id); if(i!==-1) state.lancamentos[i] = x.dados; });
+      desfazerLote = null; save(); render();
+    });
   });
   const selAllRevisar = document.getElementById('selectAllRevisar');
   if(selAllRevisar) selAllRevisar.addEventListener('click', ()=>{
@@ -1152,7 +1309,7 @@ function wireScreen(){
   }));
   document.querySelectorAll('[data-catsel]').forEach(sel=>sel.addEventListener('change', ()=>{
     const row = findLanc(sel.dataset.catsel);
-    if(row){ applyCategoriaToRow(row, sel.value); save(); render(); }
+    if(row){ applyCategoriaToRow(row, sel.value); if(sel.value) talvezVirarRegra(row); save(); render(); }
   }));
   document.querySelectorAll('[data-expand]').forEach(btn=>btn.addEventListener('click', ()=>{
     const id = Number(btn.dataset.expand);

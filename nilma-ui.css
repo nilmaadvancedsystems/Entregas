@@ -16,7 +16,7 @@
 
 /* ---------------------------------------------------------------
  tokens, tema escuro, paletas, preferências e barra de rolagem
- (entregas.html, linhas 76-337)
+ (entregas.html, linhas 77-356)
  --------------------------------------------------------------- */
 :root {
   /* --- neutros ---
@@ -108,6 +108,9 @@
   /* Altura de linha de lista. É o número que traduz "celular largo, PC
      denso" — tudo que é linha clicável lê daqui. */
   --linha: 52px;
+  /* Altura mínima de qualquer coisa que se toca. No celular é dedo na
+     calçada: 44px. No PC (media de 900px) cai, porque lá é mouse. */
+  --alvo: 44px;
   --card-pad: 16px;
 
   /* --- tipografia ---
@@ -258,11 +261,25 @@ html[data-densidade="compacto"] { --linha: 42px; --card-pad: 13px; }
 html[data-densidade="compacto"] .view { gap: var(--esp-3); }
 html[data-densidade="compacto"] .field { margin-bottom: var(--esp-3); }
 
+/* Quem já conhece o app não precisa reler 24 parágrafos de ajuda. As
+   dicas que o próprio app escreve na hora (têm id) continuam. */
+html[data-explicacoes="esconder"] .card-hint:not([id]):not(.modal-head-sub) { display: none; }
+
 html[data-animacao="reduzida"] *,
 html[data-animacao="reduzida"] *::before,
 html[data-animacao="reduzida"] *::after {
   transition: none !important; animation: none !important;
 }
+
+/* ---------- duas utilidades ----------
+   .sr-only já era usada na marcação sem existir no CSS: os rótulos
+   apareciam na tela. .ink-faint substitui o cinza cravado no HTML, que
+   sumia contra o fundo escuro. */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+  overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0;
+}
+.ink-faint { color: var(--ink-faint); }
 
 /* ---------- barra de rolagem ----------
    Fina e neutra. Barra colorida é decoração: numa ferramenta ela só precisa
@@ -281,9 +298,10 @@ html[data-animacao="reduzida"] *::after {
 ::-webkit-scrollbar-corner { background: transparent; }
 .suggestions::-webkit-scrollbar-thumb { border-color: var(--surface); }
 
+
 /* ---------------------------------------------------------------
  base: corpo, tipografia, toque, ícones, foco
- (entregas.html, linhas 339-407)
+ (entregas.html, linhas 357-426)
  --------------------------------------------------------------- */
 /* ---------- base ---------- */
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -354,10 +372,11 @@ select:focus-visible, textarea:focus-visible, a:focus-visible, .chip:focus-visib
   outline: 2px solid var(--accent); outline-offset: 2px;
 }
 
+/* ==========================================================================
 
 /* ---------------------------------------------------------------
  cartão
- (entregas.html, linhas 531-574)
+ (entregas.html, linhas 549-592)
  --------------------------------------------------------------- */
 .card {
   background: none; border: none; border-radius: 0;
@@ -406,7 +425,7 @@ select:focus-visible, textarea:focus-visible, a:focus-visible, .chip:focus-visib
 
 /* ---------------------------------------------------------------
  campo, entrada e erro de campo
- (entregas.html, linhas 575-624)
+ (entregas.html, linhas 593-642)
  --------------------------------------------------------------- */
 .field { display: block; margin-bottom: var(--esp-4); }
 .field > span:first-child:not([class]),
@@ -461,13 +480,12 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  chip
- (entregas.html, linhas 702-723)
+ (entregas.html, linhas 860-879)
  --------------------------------------------------------------- */
-.chip-grid { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip { position: relative; }
 .chip input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
 .chip span {
-  display: inline-flex; align-items: center; position: relative; min-height: 34px; padding: 0 12px;
+  display: inline-flex; align-items: center; position: relative; min-height: var(--alvo); padding: 0 12px;
   border: 1px solid var(--border); border-radius: var(--r-sm);
   background: var(--surface); font-size: var(--t-base); font-weight: 500; cursor: pointer;
   transition: background-color var(--dur-rapido) var(--ease), border-color var(--dur-rapido) var(--ease), color var(--dur-rapido) var(--ease);
@@ -484,12 +502,13 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 .chip input:active + span { transform: scale(.97); }
 .chip input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-/* ---------- valores ---------- */
 
 /* ---------------------------------------------------------------
  botão
- (entregas.html, linhas 740-796)
+ (entregas.html, linhas 895-947)
  --------------------------------------------------------------- */
+   Botões — uma forma só, três pesos
+   ========================================================================== */
 .btn {
   border: 1px solid transparent; border-radius: var(--r-sm); padding: 12px 16px;
   font-weight: 600; font-size: var(--t-md); cursor: pointer; width: 100%;
@@ -508,7 +527,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 .btn-chip {
   border: 1px solid var(--border); background: var(--surface); border-radius: var(--r-sm);
-  padding: 0 12px; min-height: 34px; font-size: var(--t-base); font-weight: 500; cursor: pointer;
+  padding: 0 12px; min-height: var(--alvo); font-size: var(--t-base); font-weight: 500; cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center; gap: 0; color: var(--ink);
 }
 .btn-chip:hover { background: var(--surface-2); border-color: var(--border-forte); }
@@ -542,36 +561,9 @@ html[data-densidade="compacto"] .rota-lote-btn { margin-left: 22px; max-width: c
 }
 .link-btn:hover { text-decoration: underline; }
 
-/* ==========================================================================
-   Linhas de lista — o coração do app
-   Celular: bloco de duas linhas, alvo de --linha (52px).
-   PC: linha de tabela de 40px (ver media query no fim).
-   ========================================================================== */
-
-/* ---------------------------------------------------------------
- selo de situação e tela vazia
- (entregas.html, linhas 853-868)
- --------------------------------------------------------------- */
-.status-pill {
-  font-size: var(--t-xs); font-weight: 600; padding: 4px 9px; border-radius: var(--r-xs);
-  white-space: nowrap; flex-shrink: 0; letter-spacing: .005em;
-}
-.status-pill.entregue { background: var(--success-soft); color: var(--success-forte); }
-.status-pill.pendente { background: var(--warning-soft); color: var(--warning-forte); }
-.status-pill.rota { background: var(--accent-soft); color: var(--accent-forte); }
-.status-pill.falha { background: var(--danger-soft); color: var(--danger-forte); }
-.status-pill.neutro { background: var(--surface-2); color: var(--ink-soft); }
-
-.empty-state { color: var(--ink-faint); font-size: var(--t-base); text-align: center; padding: var(--esp-5) var(--esp-3); line-height: 1.5; }
-
-/* ---------- tabela de honorários ---------- */
-/* No celular cada "coluna" empilha com o rótulo na frente (1 coluna só
-   no grid); no PC (>=900px) as mesmas divs viram colunas de verdade,
-   lado a lado, como o cabeçalho já anuncia. */
-
 /* ---------------------------------------------------------------
  aviso flutuante
- (entregas.html, linhas 990-1002)
+ (entregas.html, linhas 1176-1184)
  --------------------------------------------------------------- */
 .toast {
   position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 10px); z-index: var(--z-aviso);
@@ -583,13 +575,9 @@ html[data-densidade="compacto"] .rota-lote-btn { margin-left: 22px; max-width: c
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 .toast.error { background: var(--danger); color: var(--danger-ink); }
 
-/* ==========================================================================
-   Modal
-   ========================================================================== */
-
 /* ---------------------------------------------------------------
- janela
- (entregas.html, linhas 1003-1046)
+ janela (modal)
+ (entregas.html, linhas 1189-1234)
  --------------------------------------------------------------- */
 .modal-overlay {
   position: fixed; inset: 0; background: var(--scrim); z-index: var(--z-veu);
@@ -635,6 +623,73 @@ html[data-densidade="compacto"] .rota-lote-btn { margin-left: 22px; max-width: c
   font-size: var(--t-sm); font-weight: 500; padding: 3px 9px; border-radius: var(--r-xs);
 }
 .modal img.sig-preview { width: 100%; border: 1px solid var(--border); border-radius: var(--r-sm); background: #fff; margin: var(--esp-2) 0; }
+.modal dl { display: grid; grid-template-columns: auto 1fr; gap: 6px var(--esp-3); font-size: var(--t-base); margin: var(--esp-2) 0; }
+.modal dt { color: var(--ink-faint); }
+
+/* ---------------------------------------------------------------
+ selo de situação
+ (entregas.html, linhas 1039-1049)
+ --------------------------------------------------------------- */
+/* ---------- selo de situação ---------- */
+.status-pill {
+  font-size: var(--t-xs); font-weight: 600; padding: 4px 9px; border-radius: var(--r-xs);
+  white-space: nowrap; flex-shrink: 0; letter-spacing: .005em;
+}
+.status-pill.entregue { background: var(--success-soft); color: var(--success-forte); }
+.status-pill.pendente { background: var(--warning-soft); color: var(--warning-forte); }
+.status-pill.rota { background: var(--accent-soft); color: var(--accent-forte); }
+.status-pill.falha { background: var(--danger-soft); color: var(--danger-forte); }
+.status-pill.neutro { background: var(--surface-2); color: var(--ink-soft); }
+
+
+/* ---------------------------------------------------------------
+ tela vazia e janela
+ (entregas.html, linhas 1050-1093)
+ --------------------------------------------------------------- */
+.empty-state { color: var(--ink-faint); font-size: var(--t-base); text-align: center; padding: var(--esp-5) var(--esp-3); line-height: 1.5; }
+
+/* ---------- tabela de honorários ---------- */
+/* No celular cada "coluna" empilha com o rótulo na frente (1 coluna só
+   no grid); no PC (>=900px) as mesmas divs viram colunas de verdade,
+   lado a lado, como o cabeçalho já anuncia. */
+.honorarios-tabela { border: 1px solid var(--border); border-radius: var(--r-md); overflow: hidden; }
+.honorarios-cabecalho { display: none; }
+.honorario-linha {
+  display: grid; grid-template-columns: 1fr; gap: 3px;
+  padding: var(--esp-3) var(--esp-3); border-bottom: 1px solid var(--border);
+}
+.honorario-linha:last-child { border-bottom: none; }
+.honorario-linha:hover { background: var(--surface-2); }
+.honorario-col-rotulo { display: inline; font-size: var(--t-xs); color: var(--ink-faint); margin-right: 4px; }
+.honorario-col-nome { font-weight: 500; }
+.honorario-col-status { display: flex; }
+.honorario-acoes { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+@media (min-width: 900px) {
+  /* "auto" na última coluna deixava ela crescer pra caber os 4 botões
+     numa linha só, espremendo Nome e Ponto de referência (é isso que
+     fazia nome/referência quebrar em duas linhas torto). Largura fixa
+     + flex-wrap: os botões quebram em até 2 linhas dentro da própria
+     coluna, sem roubar espaço das outras. */
+  .honorarios-cabecalho {
+    display: grid; grid-template-columns: minmax(0,1.6fr) 120px 70px minmax(0,1.3fr) 108px 190px;
+    gap: 0 var(--esp-2); padding: 8px var(--esp-3); background: var(--surface-2);
+    font-size: var(--t-xs); font-weight: 600; color: var(--ink-soft);
+  }
+  .honorario-linha {
+    grid-template-columns: minmax(0,1.6fr) 120px 70px minmax(0,1.3fr) 108px 190px;
+    gap: 0 var(--esp-2); align-items: center; min-height: var(--linha); padding: 6px var(--esp-3);
+  }
+  .honorario-col-rotulo { display: none; }
+  /* overflow tem que estar na CÉLULA do grid (a div direta), não só no
+     texto de dentro — senão o navegador não corta nada, só deixa o
+     texto comprido pintar por cima da coluna vizinha (foi o que criava
+     "Só Deus sabeAntiga Krok" colado, sem corte nem espaço). */
+  .honorario-linha > div { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .honorario-col-sub { color: var(--ink-faint); font-size: var(--t-sm); }
+  .honorario-linha > .honorario-acoes { margin-top: 0; justify-content: flex-end; overflow: visible; white-space: normal; }
+  .honorario-acoes .btn-chip, .honorario-acoes .link-btn { font-size: var(--t-xs); padding: 4px 8px; }
+}
+
 /* ---------------------------------------------------------------
    Só destas telas: janela de Aparência (nilma-ui.js) e a moldura
    (menu lateral, cabeçalho de página). O entregas.html tem a
@@ -732,4 +787,83 @@ html[data-densidade="compacto"] .rota-lote-btn { margin-left: 22px; max-width: c
 .btn-ghost:hover:not(:disabled) { background: var(--accent-soft); }
 .btn:disabled { opacity: .5; cursor: default; }
 input, select, textarea { min-height: 38px; }
+
+/* ==========================================================================
+   Componentes que as telas menores escreviam cada uma do seu jeito.
+   Moravam duplicados no Conciliadorzinho e no Cheque especial e já tinham
+   começado a divergir (raio, borda, foco, animação). Agora moram aqui.
+   ========================================================================== */
+
+/* dobra (details/summary) */
+.dobra { border: 0; margin: var(--esp-3) 0 0; }
+.dobra > summary {
+  list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+  font-size: var(--t-base); font-weight: 500; color: var(--ink-soft); min-height: 38px;
+}
+.dobra > summary::-webkit-details-marker { display: none; }
+.dobra > summary::before {
+  content: ""; width: 6px; height: 6px; border-right: 1.5px solid var(--ink-faint);
+  border-bottom: 1.5px solid var(--ink-faint); transform: rotate(-45deg); margin-right: 4px;
+  transition: transform var(--dur-rapido) var(--ease);
+}
+.dobra[open] > summary::before { transform: rotate(45deg); }
+.dobra > summary:hover { color: var(--ink); }
+.dobra > p, .dobra > label { font-size: var(--t-base); color: var(--ink-soft); line-height: 1.55; margin: 6px 0 0; max-width: 74ch; }
+
+/* Aviso flutuante: a folha declarava .toast escondido e cada tela empilhava
+   vários dentro de uma região, contando com a animação local pra aparecer.
+   Com "animação reduzida" (animation:none) o aviso ficava INVISÍVEL. Agora a
+   região empilha e a visibilidade não depende de animação nenhuma. */
+.toast-region {
+  position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%);
+  z-index: var(--z-aviso); display: flex; flex-direction: column; gap: var(--esp-2);
+  align-items: center; pointer-events: none; width: min(92vw, 520px);
+}
+.toast-region .toast {
+  position: static; left: auto; bottom: auto; transform: none; opacity: 1;
+  pointer-events: auto; max-width: 100%;
+}
+
+/* tabela de dados */
+.tabela-caixa { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.tabela-dados { width: 100%; border-collapse: collapse; font-size: var(--t-base); }
+.tabela-dados th {
+  position: sticky; top: 0; z-index: var(--z-conteudo); text-align: left;
+  font-size: var(--t-sm); font-weight: 600; color: var(--ink-soft);
+  background: var(--surface-2); padding: 8px 10px; border-bottom: 1px solid var(--border); white-space: nowrap;
+}
+.tabela-dados td { padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.tabela-dados tbody tr:hover { background: var(--surface-2); }
+.tabela-dados .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* aviso em linha (erro, atenção, ok) — a folha só tinha toast e erro de campo */
+.aviso-linha {
+  display: flex; gap: var(--esp-2); align-items: flex-start;
+  padding: 10px 12px; border-radius: var(--r-sm); font-size: var(--t-base); line-height: 1.5;
+  border: 1px solid var(--border); background: var(--surface-2); color: var(--ink-soft);
+}
+.aviso-linha.erro { border-color: var(--danger-soft); background: var(--danger-soft); color: var(--danger-forte); }
+.aviso-linha.atencao { border-color: var(--warning-soft); background: var(--warning-soft); color: var(--warning-forte); }
+.aviso-linha.ok { border-color: var(--success-soft); background: var(--success-soft); color: var(--success-forte); }
+
+/* zona de arrastar arquivo e cartão do arquivo lido */
+.zona-arquivo {
+  border: 1px dashed var(--border-forte); border-radius: var(--r-md); background: var(--surface);
+  padding: var(--esp-6) var(--esp-4); text-align: center; cursor: pointer;
+  transition: border-color var(--dur-rapido) var(--ease), background-color var(--dur-rapido) var(--ease);
+}
+.zona-arquivo:hover, .zona-arquivo.sobre { border-color: var(--accent); background: var(--surface-2); }
+.zona-arquivo.lendo { opacity: .7; pointer-events: none; }
+.zona-arquivo .grande { font-size: var(--t-md); font-weight: 600; }
+.zona-arquivo .pequeno { font-size: var(--t-sm); color: var(--ink-faint); margin-top: 4px; }
+.cartao-arquivo {
+  display: flex; align-items: center; gap: var(--esp-3);
+  padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--surface);
+}
+.cartao-arquivo .nome { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cartao-arquivo .peso { font-size: var(--t-sm); color: var(--ink-faint); white-space: nowrap; }
+
+/* barra de progresso de trabalho em andamento */
+.barra-trilho { height: 8px; border-radius: var(--r-pill); background: var(--surface-2); overflow: hidden; }
+.barra-trilho > span { display: block; height: 100%; background: var(--accent); border-radius: inherit; transition: width var(--dur) var(--ease); }
 

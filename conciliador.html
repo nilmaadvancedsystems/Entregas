@@ -63,7 +63,6 @@
   @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
   @keyframes popIn{0%{opacity:0;transform:scale(.94);}60%{transform:scale(1.01);}100%{opacity:1;transform:scale(1);}}
   @keyframes spin{to{transform:rotate(360deg);}}
-  @keyframes shimmer{0%{background-position:200% 0;}100%{background-position:-200% 0;}}
 
   @media (prefers-reduced-motion: reduce){
     *{animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important;}
@@ -114,18 +113,6 @@
   .cancel-btn:hover{border-color:var(--danger);color:var(--danger);background:var(--danger-soft);}
   .app:has(#step-brands.active) .cancel-btn{display:none;}
 
-  .theme-toggle{
-    display:flex;align-items:center;background:var(--surface-2);border:1px solid var(--border);
-    border-radius:999px;padding:3px;gap:2px;flex:none;
-  }
-  .theme-toggle button{
-    appearance:none;border:none;background:transparent;color:var(--ink-faint);cursor:pointer;
-    width:30px;height:30px;border-radius:999px;display:flex;align-items:center;justify-content:center;
-    transition:background .18s ease,color .18s ease,transform .18s ease;
-  }
-  .theme-toggle button svg{width:15px;height:15px;}
-  .theme-toggle button:hover{color:var(--ink);transform:translateY(-1px);}
-  .theme-toggle button.active{background:var(--accent);color:var(--accent-ink);box-shadow:var(--shadow-xs);}
 
   /* ---------------------------------- stepper (top, horizontal) ---------------------------------- */
   .layout{display:block;}
@@ -172,7 +159,6 @@
   .step-section.active{display:block;animation:rise .4s cubic-bezier(.22,.8,.3,1) both;}
   @media (max-width:640px){ .step-section{padding:24px 20px 22px;} }
 
-  .step-eyebrow{font-size:11.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--accent);margin-bottom:9px;}
   .step-title{font-size:27px;font-weight:700;margin-bottom:7px;letter-spacing:-.028em;}
   .step-desc{color:var(--ink-muted);font-size:15.5px;max-width:62ch;margin-bottom:26px;}
 
@@ -191,7 +177,7 @@
     display:flex;align-items:center;justify-content:center;margin:0 auto 14px;
     transition:transform .25s ease;
   }
-  .dropzone:hover .dropzone-icon{transform:scale(1.06) rotate(-3deg);}
+  .dropzone:hover .dropzone-icon{transform:none;}
   .dropzone-icon svg{width:23px;height:23px;}
   .dropzone-title{font-weight:600;font-size:14.5px;}
   .dropzone-sub{font-size:12.5px;color:var(--ink-faint);margin-top:4px;}
@@ -285,7 +271,7 @@
 
   /* ---------------------------------- modal ---------------------------------- */
   .modal-overlay{
-    position:fixed;inset:0;background:rgba(12,9,9,.55);backdrop-filter:blur(3px);
+    position:fixed;inset:0;background:var(--scrim);backdrop-filter:blur(3px);
     display:flex;align-items:center;justify-content:center;padding:20px;z-index:70;
     animation:fadeIn .18s ease both;
   }
@@ -304,9 +290,6 @@
   .modal-actions .btn{flex:1;}
   .btn-outline{background:transparent;border:1.5px solid var(--border-strong);color:var(--ink-muted);}
   .btn-outline:hover{background:var(--surface-2);color:var(--ink);}
-  .paleta-swatch{width:38px;height:38px;border-radius:50%;border:2px solid var(--border);cursor:pointer;position:relative;padding:0;}
-  .paleta-swatch.ativo{border-color:var(--ink);box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--ink);}
-  .paleta-swatch.ativo::after{content:"✓";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:15px;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.4);}
 
   /* ---------------------------------- progress + form ---------------------------------- */
   .split{display:grid;grid-template-columns:1fr 1fr;gap:36px;}
@@ -318,7 +301,6 @@
   .progress-fill{
     height:100%;border-radius:999px;width:0%;transition:width .3s cubic-bezier(.22,.8,.3,1);
     background:linear-gradient(90deg,var(--accent),var(--accent-strong),var(--accent));
-    background-size:200% 100%;animation:shimmer 2s linear infinite;
   }
   .progress-phase{font-size:13.5px;color:var(--ink-muted);margin-top:13px;min-height:18px;}
   .progress-log{list-style:none;margin:16px 0 0;padding:0;display:flex;flex-direction:column;gap:9px;}
@@ -472,7 +454,7 @@
   /* "Baixar PDF" on the totals step just calls window.print() — only the active
      section is ever visible, so scoping print to it is a matter of hiding chrome. */
   @media print{
-    .theme-toggle,.cancel-btn,.stepper,#totalsLoading,#totalsAlertHost,.btn-row{display:none !important;}
+    .cancel-btn,.stepper,#totalsLoading,#totalsAlertHost,.btn-row{display:none !important;}
     body{background:#fff;color:#000;}
     .app{padding:0;max-width:100%;}
     .panel{box-shadow:none;border:none;}
@@ -504,10 +486,15 @@
   .btn-outline:hover:not(:disabled),.btn-outline-neutral:hover:not(:disabled){background:var(--surface-2);border-color:var(--border-forte);}
   .panel,.file-card,.progress-card,.stat,.alert,.table-wrap{box-shadow:none;}
   .panel{border:1px solid var(--border);border-radius:var(--r-md);}
-  /* o passo já aparece no caminho da esquerda e no título; a etiqueta em
-     caixa alta em cima de cada seção era repetição */
-  .step-eyebrow{display:none;}
+  /* A contagem é a única coisa que diz de quanto é o caminho: o fluxo tem
+     5 etapas mais uma por bandeira. Sem caixa alta, sem cor de destaque. */
+  .step-eyebrow{
+    font-size:var(--t-sm);font-weight:500;letter-spacing:0;text-transform:none;
+    color:var(--ink-faint);margin-bottom:4px;
+  }
   .step-title{font-size:var(--t-xl);font-weight:600;letter-spacing:-.01em;margin-bottom:6px;}
+  /* o "Histórico" usava .step-eyebrow e sumia junto; é um título de seção */
+  .rotulo-secao{font-size:var(--t-md);font-weight:600;color:var(--ink);margin:0 0 4px;}
   .step-desc{font-size:var(--t-base);color:var(--ink-soft);margin-bottom:var(--esp-5);}
   .dropzone{border:1px dashed var(--border-forte);border-radius:var(--r-md);background:var(--surface);}
   .dropzone:hover,.dropzone.is-dragging{border-color:var(--accent);background:var(--accent-soft);transform:none;box-shadow:none;}
@@ -547,21 +534,7 @@
   .btn-row { margin-top: var(--esp-5); gap: var(--esp-2); }
   .btn-row-dica { font-size: var(--t-sm); color: var(--ink-faint); }
 
-  /* dobra: o texto que se lê uma vez e depois só atrapalha */
-  .dobra { border: 0; margin: var(--esp-3) 0 0; }
-  .dobra > summary {
-    list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
-    font-size: var(--t-base); font-weight: 500; color: var(--ink-soft); min-height: 32px;
-  }
-  .dobra > summary::-webkit-details-marker { display: none; }
-  .dobra > summary::before {
-    content: ""; width: 6px; height: 6px; border-right: 1.5px solid var(--ink-faint);
-    border-bottom: 1.5px solid var(--ink-faint); transform: rotate(-45deg); margin-right: 4px;
-    transition: transform var(--dur-rapido) var(--ease);
-  }
-  .dobra[open] > summary::before { transform: rotate(45deg); }
-  .dobra > summary:hover { color: var(--ink); }
-  .dobra > p, .dobra > label { font-size: var(--t-base); color: var(--ink-soft); line-height: 1.55; margin: 6px 0 0; max-width: 74ch; }
+  /* dobra, aviso flutuante, tabela e zona de arquivo: vêm de nilma-ui.css */
 
   /* campos */
   .field { margin-bottom: var(--esp-4); }
@@ -689,25 +662,9 @@
       <button class="cancel-btn" id="cancelBtn" type="button">Cancelar</button>
       <a class="btn btn-outline-neutral" href="entregas.html" title="Voltar pra escolher outra função"><i class="ph ph-squares-four" aria-hidden="true"></i> Trocar de função</a>
       <button type="button" class="btn btn-ghost" id="configBtn" aria-label="Aparência" title="Aparência: tema, cor, texto" style="padding:8px;line-height:0;"></button>
-      <div class="theme-toggle" id="themeToggle" role="group" aria-label="Tema">
-        <button type="button" data-theme-choice="light" aria-label="Tema claro" title="Claro"></button>
-        <button type="button" data-theme-choice="dark" aria-label="Tema escuro" title="Escuro"></button>
-        <button type="button" data-theme-choice="system" aria-label="Seguir o sistema" title="Sistema"></button>
-      </div>
     </div>
   </header>
 
-  <div class="modal-overlay" id="configOverlay" hidden>
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="configTitle">
-      <div class="modal-icon" id="configModalIcon"></div>
-      <h3 id="configTitle">Cor do app</h3>
-      <p>Essa cor é a mesma em Entregas, Conciliadorzinho e Cheque especial — muda aqui, muda em todo lugar.</p>
-      <div id="paletaSwatches" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:18px;"></div>
-      <div class="modal-actions">
-        <button type="button" class="btn btn-outline" id="configCloseBtn">Fechar</button>
-      </div>
-    </div>
-  </div>
 
   <div class="layout">
     <nav class="stepper" aria-label="Etapas da conciliação">
@@ -726,9 +683,9 @@
           <button class="btn btn-primary" id="brandsContinueBtn" type="button" disabled>Continuar</button>
         </div>
         <div style="margin-top:26px;padding-top:18px;border-top:1px solid var(--border);">
-          <p class="step-eyebrow" style="margin-bottom:6px;">Histórico</p>
-          <p class="dropzone-sub" style="margin:0 0 10px;">Conciliações já concluídas por aqui.</p>
-          <div id="historicoConciliacoes"><p class="dropzone-sub" style="margin:0;">Carregando...</p></div>
+          <p class="rotulo-secao">Histórico</p>
+          <p class="card-hint" style="margin:0 0 10px;">Conciliações já concluídas por aqui.</p>
+          <div id="historicoConciliacoes"><p class="card-hint" style="margin:0;">Carregando…</p></div>
         </div>
       </section>
 
@@ -925,47 +882,10 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
   document.getElementById('successIcon').innerHTML = svg('checkCircle');
 
   /* ============================== theme (claro / escuro / sistema) ============================== */
-  var THEME_KEY = 'nilma_tema';
-  var NOME_DO_TEMA = { light: 'claro', dark: 'escuro', system: 'auto' };
-  var ESCOLHA_DO_TEMA = { claro: 'light', escuro: 'dark', auto: 'system' };
-  var themeToggle = document.getElementById('themeToggle');
-  themeToggle.querySelector('[data-theme-choice="light"]').innerHTML = svg('sun');
-  themeToggle.querySelector('[data-theme-choice="dark"]').innerHTML = svg('moon');
-  themeToggle.querySelector('[data-theme-choice="system"]').innerHTML = svg('monitor');
-
-  function applyTheme(choice){
-    if(choice === 'light' || choice === 'dark'){
-      document.documentElement.setAttribute('data-theme', choice);
-    } else {
-      choice = 'system';
-      document.documentElement.removeAttribute('data-theme');
-    }
-    try{ localStorage.setItem(THEME_KEY, NOME_DO_TEMA[choice] || 'auto'); }catch(e){}
-    if (window.NilmaUI && typeof window.NilmaUI.aoSalvar === 'function') window.NilmaUI.aoSalvar('tema', NOME_DO_TEMA[choice] || 'auto');
-    Array.prototype.forEach.call(themeToggle.querySelectorAll('button'), function(b){
-      b.classList.toggle('active', b.dataset.themeChoice === choice);
-    });
-  }
-  themeToggle.addEventListener('click', function(e){
-    var btn = e.target.closest('button');
-    if(!btn) return;
-    applyTheme(btn.dataset.themeChoice);
-  });
-  var savedTheme = 'system';
-  try{ savedTheme = ESCOLHA_DO_TEMA[localStorage.getItem(THEME_KEY)] || 'system'; }catch(e){}
-  applyTheme(savedTheme);
-  // trocou o tema em outra tela (Entregas, Pendências, Aparência): acompanha
-  window.addEventListener('storage', function (ev) {
-    if (ev && ev.key === 'nilma_tema') applyTheme(ESCOLHA_DO_TEMA[ev.newValue] || 'system');
-  });
-  // trocou pela janela de Aparência, nesta mesma tela: remarca os três botões
-  if (window.NilmaUI) window.NilmaUI.aoAplicar = function (campo, valor) {
-    if (campo !== 'tema') return;
-    var escolha = ESCOLHA_DO_TEMA[valor] || 'system';
-    Array.prototype.forEach.call(themeToggle.querySelectorAll('button'), function (b) {
-      b.classList.toggle('active', b.dataset.themeChoice === escolha);
-    });
-  };
+  // Tema, cor, texto, espaçamento e animação: tudo pela janela de Aparência
+  // (nilma-ui.js), que já aplica antes da primeira pintura e acompanha a
+  // troca feita em outra aba. A pílula de tema aqui era um segundo caminho
+  // pro mesmo ajuste.
 
   /* ============================== helpers ============================== */
   var MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
@@ -1022,18 +942,42 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
     }
     return null;
   }
+  // Cada saída diz o que houve: é a diferença entre "tente de novo" e
+  // "sua planilha tem a data na coluna errada".
+  var MOTIVO_LEITURA_ = {
+    semXlsx: 'o leitor de planilhas não carregou — recarregue a página',
+    corrompido: 'o arquivo não abriu como planilha (pode estar corrompido ou ser outro formato)',
+    semAba: 'a planilha não tem nenhuma aba',
+    semLinhas: 'a aba está vazia',
+    semColunas: 'nenhuma linha tinha data, valor bruto e taxa juntos — confira a ordem das colunas',
+    semVendas: 'nenhuma linha tinha data e valor — confira se é a planilha de vendas',
+    cancelado: 'leitura cancelada por causa do tamanho do arquivo'
+  };
+
+  // Planilha muito grande trava a aba inteira enquanto o XLSX lê (é tudo na
+  // mesma linha de execução). Pelo menos avisa antes, em vez de a pessoa achar
+  // que o app morreu.
+  var LIMITE_AVISO_MB_ = 20;
+  function pesarArquivo_(file){
+    var mb = (file.size||0) / 1048576;
+    if(mb < LIMITE_AVISO_MB_) return true;
+    return confirm('Este arquivo tem ' + mb.toFixed(1) + ' MB. A leitura pode deixar a página parada por um tempo — não feche a aba. Ler assim mesmo?');
+  }
+
   function parseCardStatementFile(file){
     return new Promise(function(resolve){
-      if(typeof XLSX === 'undefined' || !file.arrayBuffer){ resolve({ok:false}); return; }
+      if(!pesarArquivo_(file)){ resolve({ok:false, motivo:'cancelado'}); return; }
+      if(typeof XLSX === 'undefined' || !file.arrayBuffer){ resolve({ok:false, motivo:'semXlsx'}); return; }
       file.arrayBuffer().then(function(buf){
         var wb;
         try{ wb = XLSX.read(new Uint8Array(buf), { type:'array', cellDates:true, raw:true }); }
-        catch(e){ resolve({ok:false}); return; }
+        catch(e){ resolve({ok:false, motivo:'corrompido'}); return; }
         var sheetName = wb && wb.SheetNames && wb.SheetNames[0];
-        if(!sheetName){ resolve({ok:false}); return; }
+        if(!sheetName){ resolve({ok:false, motivo:'semAba'}); return; }
         var rows;
         try{ rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header:1, raw:true, defval:null, blankrows:false }); }
-        catch(e){ resolve({ok:false}); return; }
+        catch(e){ resolve({ok:false, motivo:'corrompido'}); return; }
+        if(!rows.length){ resolve({ok:false, motivo:'semLinhas'}); return; }
         var tx = [];
         for(var i=0;i<rows.length;i++){
           var row = rows[i] || [];
@@ -1044,7 +988,7 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
             tx.push({ date:d, dateKey: fmtDate(d), bruto: Math.round(bruto*100)/100, taxa: Math.round(taxa*100)/100 });
           }
         }
-        if(!tx.length){ resolve({ok:false}); return; }
+        if(!tx.length){ resolve({ok:false, motivo:'semColunas'}); return; }
         tx.sort(function(a,b){ return a.date-b.date; });
         var tally = {};
         tx.forEach(function(t){
@@ -1055,7 +999,7 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
         Object.keys(tally).forEach(function(k){ if(tally[k]>bestCount){ bestCount=tally[k]; best=k; } });
         var parts = best.split('/');
         resolve({ ok:true, transactions:tx, month:{ month:parseInt(parts[0],10), year:parseInt(parts[1],10) } });
-      }).catch(function(){ resolve({ok:false}); });
+      }).catch(function(){ resolve({ok:false, motivo:'corrompido'}); });
     });
   }
   function cleanHistorico(raw){
@@ -1080,16 +1024,17 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
     // Returns full entries (used for genuine date+valor matching against the card statement) plus the
     // month tally (used to warn about months the card statement doesn't cover).
     return new Promise(function(resolve){
-      if(typeof XLSX === 'undefined' || !file.arrayBuffer){ resolve({ok:false}); return; }
+      if(!pesarArquivo_(file)){ resolve({ok:false, motivo:'cancelado'}); return; }
+      if(typeof XLSX === 'undefined' || !file.arrayBuffer){ resolve({ok:false, motivo:'semXlsx'}); return; }
       file.arrayBuffer().then(function(buf){
         var wb;
         try{ wb = XLSX.read(new Uint8Array(buf), { type:'array', cellDates:true, raw:true }); }
-        catch(e){ resolve({ok:false}); return; }
+        catch(e){ resolve({ok:false, motivo:'corrompido'}); return; }
         var sheetName = wb && wb.SheetNames && wb.SheetNames[0];
-        if(!sheetName){ resolve({ok:false}); return; }
+        if(!sheetName){ resolve({ok:false, motivo:'semAba'}); return; }
         var rows;
         try{ rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header:1, raw:true, defval:null, blankrows:false }); }
-        catch(e){ resolve({ok:false}); return; }
+        catch(e){ resolve({ok:false, motivo:'corrompido'}); return; }
         var entries = [];
         for(var i=0;i<rows.length;i++){
           var row = rows[i] || [];
@@ -1105,9 +1050,9 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
             });
           }
         }
-        if(!entries.length){ resolve({ok:false}); return; }
+        if(!entries.length){ resolve({ok:false, motivo:'semVendas'}); return; }
         resolve({ ok:true, entries:entries, months: computeMonthTally(entries), totalRows: entries.length });
-      }).catch(function(){ resolve({ok:false}); });
+      }).catch(function(){ resolve({ok:false, motivo:'corrompido'}); });
     });
   }
 
@@ -1460,7 +1405,8 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
           return Promise.resolve({ file:file, ok:false, reason:'ext' });
         }
         return parseCardStatementFile(file).then(function(result){
-          return { file:file, ok:result.ok, transactions: result.ok ? result.transactions : null, reason: result.ok ? null : 'parse' };
+          return { file:file, ok:result.ok, transactions: result.ok ? result.transactions : null,
+                   reason: result.ok ? null : 'parse', motivo: result.motivo };
         });
       });
       Promise.all(tasks).then(function(results){
@@ -1469,7 +1415,7 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
           if(r.ok){
             state.brandData[code].files.push({ id: cardFileIdSeq++, name:r.file.name, size:r.file.size, transactions:r.transactions });
           } else {
-            failed.push({ name:r.file.name, reason:r.reason });
+            failed.push({ name:r.file.name, reason:r.reason, motivo:r.motivo });
           }
         });
         renderBrandFileList(code);
@@ -1479,9 +1425,9 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
           showInlineAlert('alertBrand-'+code+'-Host', {
             title: failed.length===1 ? 'Não foi possível ler um dos arquivos' : 'Não foi possível ler '+failed.length+' dos arquivos',
             text: failed.map(function(f){
-              return '<b>'+f.name+'</b>: ' + (f.reason==='ext'
-                ? 'formato não suportado.'
-                : 'confira se segue o padrão coluna A = Data, coluna B = Valor Bruto, coluna C = Valor da Taxa.');
+              if(f.reason==='ext') return '<b>'+f.name+'</b>: formato não suportado.';
+              var motivo = MOTIVO_LEITURA_[f.motivo] || 'confira se segue o padrão coluna A = Data, coluna B = Valor Bruto, coluna C = Valor da Taxa';
+              return '<b>'+f.name+'</b>: ' + motivo + '.';
             }).join('<br>')
           });
         }
@@ -1551,7 +1497,7 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
           resetStep2Zone();
           showInlineAlert('alert2Host', {
             title:'Não foi possível ler o arquivo',
-            text:'Confira se a planilha segue o padrão esperado: coluna C = Data, coluna G = Valor Bruto, coluna I = Histórico (a primeira linha pode ser cabeçalho).'
+            text: (MOTIVO_LEITURA_[result.motivo] ? 'Motivo: ' + MOTIVO_LEITURA_[result.motivo] + '. ' : '') + 'A planilha esperada tem coluna C = Data, coluna G = Valor Bruto e coluna I = Histórico (a primeira linha pode ser cabeçalho).'
           });
           return;
         }
@@ -1726,25 +1672,38 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
     }).join('');
   }
 
+  // Cada fase acende quando o trabalho dela terminou de verdade. As duas
+  // primeiras já estão prontas quando se chega aqui (as planilhas foram
+  // lidas nas etapas anteriores); o cruzamento em si roda no fechamento,
+  // e é lá que as últimas acendem.
+  // Os lançamentos do cartão ficam espalhados por bandeira.
+  function contarLancamentosDoCartao(){
+    return Object.keys(state.brandData || {}).reduce(function(soma, code){
+      var d = state.brandData[code];
+      return soma + ((d && d.transactions) ? d.transactions.length : 0);
+    }, 0);
+  }
+
+  function marcarFase(indice){
+    state.faseAtual = indice;
+    var pct = Math.round((indice + 1) / PHASES.length * 100);
+    state.progress = pct;
+    document.getElementById('progressFill').style.width = pct + '%';
+    document.getElementById('progressPct').textContent = pct + '%';
+    document.getElementById('progressPhase').textContent = PHASES[indice].text;
+    renderProgressLog(indice, indice);
+  }
+
   function startStep3(){
-    state.progress = 0;
-    document.getElementById('progressFill').style.width = '0%';
-    document.getElementById('progressPct').textContent = '0%';
     clearInterval(progressTimer);
-    var phaseIdx = 0;
-    progressTimer = setInterval(function(){
-      state.progress = Math.min(100, state.progress + randInt(3,9));
-      document.getElementById('progressFill').style.width = state.progress+'%';
-      document.getElementById('progressPct').textContent = state.progress+'%';
-      while(phaseIdx < PHASES.length-1 && state.progress >= PHASES[phaseIdx+1].at) phaseIdx++;
-      document.getElementById('progressPhase').textContent = PHASES[phaseIdx].text;
-      renderProgressLog(phaseIdx, phaseIdx);
-      if(state.progress >= 100){
-        clearInterval(progressTimer);
-        checkStep3Ready();
-      }
-    }, 220);
+    var lidosCartao = contarLancamentosDoCartao();
+    var lidasNotas = (state.sales && state.sales.entries ? state.sales.entries.length : 0);
     renderProgressLog(0, -1);
+    marcarFase(0);
+    document.getElementById('progressPhase').textContent =
+      lidosCartao + ' lançamento(s) do cartão e ' + lidasNotas + ' nota(s) lidos. O cruzamento roda ao fechar a conciliação.';
+    marcarFase(1);
+    checkStep3Ready();
   }
 
   function accountsValid(){
@@ -1755,7 +1714,9 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
     return true;
   }
   function checkStep3Ready(){
-    var ready = state.progress >= 100 && accountsValid();
+    var leu = contarLancamentosDoCartao() > 0 &&
+              !!(state.sales && state.sales.entries && state.sales.entries.length);
+    var ready = leu && accountsValid();
     var btn = document.getElementById('finishBtn');
     btn.disabled = !ready;
   }
@@ -2470,48 +2431,17 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
   function aplicarPaleta_(p) {
     paletaAtual = p || 'padrao';
     document.documentElement.setAttribute('data-paleta', paletaAtual);
-    document.querySelectorAll('#paletaSwatches .paleta-swatch').forEach(function (b) {
-      b.classList.toggle('ativo', b.dataset.paleta === paletaAtual);
-    });
-  }
-
-  function renderPaletaSwatches_() {
-    var wrap = document.getElementById('paletaSwatches');
-    if (!wrap || wrap.children.length) return;
-    PALETAS.forEach(function (p) {
-      var b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'paleta-swatch';
-      b.style.background = p.cor;
-      b.dataset.paleta = p.key;
-      b.title = p.nome;
-      b.setAttribute('aria-label', p.nome);
-      b.addEventListener('click', function () {
-        aplicarPaleta_(p.key);
-        if (uidAtual) firebase.firestore().collection('usuarios').doc(uidAtual).update({ paleta: p.key }).catch(function () {});
-      });
-      wrap.appendChild(b);
-    });
   }
 
   var GEAR_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>';
   var configBtn = document.getElementById('configBtn');
-  var configOverlay = document.getElementById('configOverlay');
   if (configBtn) {
     configBtn.innerHTML = GEAR_SVG;
     configBtn.addEventListener('click', function () {
       // a janela de Aparência é a mesma das outras telas (nilma-ui.js):
       // cor, tema, tamanho do texto, espaçamento e animações
       if (window.NilmaUI) window.NilmaUI.abrirAparencia();
-      else { renderPaletaSwatches_(); configOverlay.hidden = false; }
     });
-  }
-  var configModalIcon = document.getElementById('configModalIcon');
-  if (configModalIcon) configModalIcon.innerHTML = GEAR_SVG;
-  if (configOverlay) {
-    configOverlay.addEventListener('click', function (e) { if (e.target === configOverlay) configOverlay.hidden = true; });
-    var fechar = document.getElementById('configCloseBtn');
-    if (fechar) fechar.addEventListener('click', function () { configOverlay.hidden = true; });
   }
 
   try {
