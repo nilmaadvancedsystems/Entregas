@@ -88,7 +88,10 @@
   button:active, .botao:active { background: var(--surface-2); }
   button.principal { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
   button:disabled { opacity: .6; cursor: default; }
+  /* No botão principal o contorno era da mesma cor do fundo dele: quem anda
+     de teclado não via onde estava. */
   button:focus-visible, .botao:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  button.principal:focus-visible { outline-color: var(--ink); }
   svg { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
   label { display: block; font-weight: 600; font-size: .9375rem; margin-bottom: 4px; }
@@ -98,6 +101,10 @@
   }
   input[readonly] { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .8125rem; background: var(--surface-2); }
   .erro { color: var(--ruim); font-size: .875rem; margin-top: 4px; }
+  /* segunda fileira: mesma altura de dedo, menos peso visual */
+  .acoes-menores { display: flex; flex-wrap: wrap; gap: 8px; }
+  .acoes-menores button { flex: 1 1 auto; min-width: 46%; font-size: .9375rem; color: var(--ink-soft); }
+  .acoes-menores button svg { width: 18px; height: 18px; }
   .dica { color: var(--ink-faint); font-size: .875rem; margin-top: 6px; }
   .caixa-img img { display: block; width: 100%; background: #fff; border: 1px solid var(--border); border-radius: 8px; margin-top: 10px; }
 
@@ -151,14 +158,6 @@
   <p class="de" id="de">Nilma Contabilidade</p>
   <h1 id="quem">Abrindo…</h1>
   <p class="estado" id="estado" role="status" aria-live="polite">Buscando suas guias.</p>
-  <div class="instalar" id="instalar" hidden>
-    <p id="instalarTexto"><b>Guarde esta página</b> na tela inicial e abra suas guias como um aplicativo.</p>
-    <button type="button" id="instalarBtn" hidden>Guardar</button>
-    <button type="button" class="fechar" id="instalarFechar" aria-label="Agora não">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
-    </button>
-  </div>
-
   <div id="conteudo" hidden>
     <section id="secAPagar" hidden aria-labelledby="tAPagar">
       <h2 id="tAPagar">Para pagar</h2>
@@ -179,7 +178,7 @@
       <div class="bloco" id="honorarioBloco"></div>
     </section>
 
-    <section aria-labelledby="tGuias">
+    <section id="secGuias" aria-labelledby="tGuias">
       <h2 id="tGuias">Suas guias</h2>
       <div class="bloco" id="guias"></div>
     </section>
@@ -240,10 +239,19 @@
       </div>
     </section>
 
-    <footer>
+    <div class="instalar" id="instalar" hidden>
+      <p id="instalarTexto"><b>Guarde esta página</b> na tela inicial e abra suas guias como um aplicativo.</p>
+      <button type="button" id="instalarBtn" hidden>Guardar</button>
+      <button type="button" class="fechar" id="instalarFechar" aria-label="Agora não">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+
+<footer>
       <p>Esta página é da <span id="pe-escritorio">Nilma Contabilidade</span> para <span id="pe-cliente">você</span>. Quem tem este endereço vê estas guias, então não repasse a quem não deve ver.</p>
       <p>Guardamos quando a página é aberta e quando um código é copiado, para o escritório saber que a guia chegou. <a href="privacidade.html">Como cuidamos dos seus dados</a>.</p>
       <p id="pe-contato" hidden></p>
+      <p id="pe-zap" hidden></p>
       <p id="atualizado"></p>
     </footer>
   </div>
@@ -303,6 +311,7 @@ const ICO = {
   sino: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 17V11a6 6 0 0 1 12 0v6l2 2H4zM10 21h4"/></svg>',
   enviar: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M8 8l4-4 4 4M5 14v5h14v-5"/></svg>',
   certo: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>',
+  zap: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5a8.5 8.5 0 0 1-12.6 7.4L3 20.5l1.7-5.2A8.5 8.5 0 1 1 21 11.5z"/><path d="M8.8 9c.4 2.8 3.4 5.8 6.2 6.2l1.3-1.6-2-1-.9 1a6.6 6.6 0 0 1-3-3l1-.9-1-2z"/></svg>',
 };
 
 // ---------- estado ----------
@@ -363,6 +372,7 @@ function desenhar() {
   const email = d.documentos && d.documentos.email;
   $('pe-contato').hidden = !email;
   if (email) $('pe-contato').innerHTML = 'Dúvidas: <a href="mailto:' + esc(email) + '">' + esc(email) + '</a>';
+  desenharFale(d.escritorio);
   const quando = [d.entregas && d.entregas.atualizadoEm, d.documentos && d.documentos.atualizadoEm].filter(Boolean).sort().pop();
   $('atualizado').textContent = quando ? 'Atualizado em ' + dataHora(quando) + '.' : '';
 }
@@ -407,17 +417,22 @@ function cartaoDaGuia(e, recebidos, comMes) {
   if (!falha) {
     h += '<div class="acoes">';
     if (e.pagamento && e.pagamento.codigo) {
-      h += '<button type="button" data-acao="copiar">' + ICO.copiar + '<span>' + (e.pagamento.tipo === 'pix' ? 'Copiar código PIX' : 'Copiar código de barras') + '</span></button>' +
+      h += '<button type="button" class="principal" data-acao="copiar">' + ICO.copiar + '<span>' + (e.pagamento.tipo === 'pix' ? 'Copiar código PIX' : 'Copiar código de barras') + '</span></button>' +
         '<div data-caixa="codigo" hidden><label for="cod-' + esc(e.id) + '">Código para pagar</label><input id="cod-' + esc(e.id) + '" type="text" readonly value="' + esc(codigoLimpo(e)) + '">' +
         '<p class="dica">Se não copiou sozinho, segure o dedo no código e toque em Copiar.</p></div>';
     }
     if (e.temGuia) h += '<button type="button" data-acao="guia" aria-expanded="false">' + ICO.guia + '<span>Ver a guia</span></button><div class="caixa-img" data-caixa="guia"></div>';
-    if (e.vencimento && diasAte(e.vencimento) >= 0) h += '<button type="button" data-acao="agenda">' + ICO.agenda + '<span>Pôr o vencimento no calendário</span></button>';
+    // Copiar o código é o que a pessoa veio fazer. O resto desce um degrau:
+    // cinco botões do mesmo tamanho não são cinco opções, são nenhuma.
+    let menos = '';
+    if (e.vencimento && diasAte(e.vencimento) >= 0) menos += '<button type="button" class="menor" data-acao="agenda">' + ICO.agenda + '<span>Pôr no calendário</span></button>';
     // "já paguei" é recado pro escritório não cobrar de novo, não comprovante
     if (!pago && !ehEquipe && e.pagamento && e.pagamento.codigo) {
-      h += '<button type="button" data-acao="paguei">' + ICO.certo + '<span>Já paguei esta guia</span></button>';
+      menos += '<button type="button" class="menor" data-acao="paguei">' + ICO.certo + '<span>Já paguei</span></button>';
     }
-    if (entregue && e.temAssinatura) h += '<button type="button" data-acao="assinatura" aria-expanded="false">' + ICO.certo + '<span>Ver a assinatura de quem recebeu</span></button><div class="caixa-img" data-caixa="assinatura"></div>';
+    if (entregue && e.temAssinatura) menos += '<button type="button" class="menor" data-acao="assinatura" aria-expanded="false">' + ICO.certo + '<span>Ver quem recebeu</span></button>';
+    if (menos) h += '<div class="acoes-menores">' + menos + '</div>';
+    if (entregue && e.temAssinatura) h += '<div class="caixa-img" data-caixa="assinatura"></div>';
     h += '</div>';
   }
   if (noLink) {
@@ -430,9 +445,14 @@ function cartaoDaGuia(e, recebidos, comMes) {
 }
 const codigoLimpo = e => (e.pagamento.tipo === 'pix' || /^000201/.test(e.pagamento.codigo)) ? e.pagamento.codigo : String(e.pagamento.codigo).replace(/\D/g, '');
 
+// O que "Para pagar" já mostrou não repete lá embaixo: eram dois cartões da
+// mesma guia, com o mesmo id de campo — o rótulo do segundo apontava pro
+// código do primeiro, e copiar pegava a guia errada.
+const ehDeAgora = e => e.status !== 'falha' && e.vencimento && diasAte(e.vencimento) >= -10;
+
 function desenharAPagar(lista, recebidos) {
   // o que ainda vai vencer, mais o que venceu há pouco: é o que o cliente veio ver
-  const alvo = lista.filter(e => e.status !== 'falha' && e.vencimento && diasAte(e.vencimento) >= -10)
+  const alvo = lista.filter(ehDeAgora)
     .sort((a, b) => a.vencimento.localeCompare(b.vencimento));
   $('secAPagar').hidden = !alvo.length;
   if (!alvo.length) return;
@@ -568,8 +588,15 @@ function prepararEnvio(opcoes) {
 }
 const docsAtuais = () => (dados && dados.documentos) || null;
 
-function desenharGuias(lista, recebidos) {
+function desenharGuias(todas, recebidos) {
   const caixa = $('guias');
+  const lista = todas.filter(e => !ehDeAgora(e));
+  $('secGuias').hidden = false;
+  $('tGuias').textContent = todas.length && !lista.length ? 'Guias anteriores' : 'Suas guias';
+  if (todas.length && !lista.length) {
+    caixa.innerHTML = '<p class="sub">Tudo o que há para pagar está aqui em cima. Nada atrasado.</p>';
+    return;
+  }
   if (!lista.length) { caixa.innerHTML = '<p class="sub">Ainda não há guias aqui. Quando o escritório lançar, elas aparecem sozinhas.</p>'; return; }
   const porMes = new Map();
   lista.forEach(e => { const k = e.competencia || ''; if (!porMes.has(k)) porMes.set(k, []); porMes.get(k).push(e); });
@@ -706,6 +733,18 @@ async function copiarPix(codigo) {
 // ---------- honorário do escritório ----------
 // O app do escritório não guarda o valor do honorário, então aqui vai a
 // situação do mês e o PIX pra quem quiser pagar na hora.
+// Quem recebe um link pedindo pagamento precisa ver de quem ele é e ter
+// como perguntar. Sem isso a página parece golpe, por mais certa que esteja.
+function desenharFale(escr) {
+  const zap = escr && escr.whatsapp ? String(escr.whatsapp).replace(/\D/g, '') : '';
+  const cx = $('pe-zap');
+  if (!zap) { cx.hidden = true; return; }
+  cx.hidden = false;
+  const numero = zap.length <= 11 ? '55' + zap : zap;
+  cx.innerHTML = '<a class="botao" href="https://wa.me/' + esc(numero) + '" target="_blank" rel="noopener">' + ICO.zap +
+    '<span>Falar com o escritório no WhatsApp</span></a>';
+}
+
 function desenharHonorario(escr) {
   const sec = $('secHonorario');
   if (!escr || !escr.pix) { sec.hidden = true; return; }

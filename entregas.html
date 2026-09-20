@@ -2765,6 +2765,8 @@
           <input class="input" id="escPixNome" type="text" maxlength="25" placeholder="NILMA CONTABILIDADE"></label>
         <label><span class="sub-rotulo">Cidade</span>
           <input class="input" id="escPixCidade" type="text" maxlength="15" placeholder="TAIOBEIRAS"></label>
+        <label><span class="sub-rotulo">WhatsApp do escritório</span>
+          <input class="input" id="escWhatsapp" type="tel" inputmode="tel" maxlength="20" placeholder="(38) 99999-0000"></label>
         <label class="inteira"><span class="sub-rotulo">Recado sobre o honorário (opcional)</span>
           <input class="input" id="escHonorarioTexto" type="text" maxlength="120" placeholder="Ex.: o boleto vence todo dia 10"></label>
       </div>
@@ -4802,6 +4804,7 @@
       $('escPixNome').value = escritorio_.pixNome || '';
       $('escPixCidade').value = escritorio_.pixCidade || '';
       $('escHonorarioTexto').value = escritorio_.honorarioTexto || '';
+      $('escWhatsapp').value = escritorio_.whatsapp || '';
     }
     atualizarPreviaDoPix_();
   }
@@ -11953,6 +11956,7 @@
       pixNome: $('escPixNome').value.trim().slice(0, 25),
       pixCidade: $('escPixCidade').value.trim().slice(0, 15),
       honorarioTexto: $('escHonorarioTexto').value.trim().slice(0, 120),
+      whatsapp: $('escWhatsapp').value.replace(/\D/g, '').slice(0, 13),
       atualizadoEm: new Date().toISOString(), atualizadoPor: currentUserNome || ''
     };
     botaoOcupado_(btn);
@@ -15393,6 +15397,7 @@
           pix: pixCopiaECola_(escritorio_.pixChave, escritorio_.pixNome, escritorio_.pixCidade),
           nome: escritorio_.pixNome || '',
           honorarioTexto: escritorio_.honorarioTexto || '',
+          whatsapp: escritorio_.whatsapp || '',
           honorarioMes: doHonorario.length ? comp : '',
           honorarioEntregue: entregue
         }
