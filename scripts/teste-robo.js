@@ -254,5 +254,19 @@ igual('HTML: logos e ícones anexados por cid, uma vez cada', [visual.imagens.so
 igual('prazo: no futuro', eh.textoDoPrazo('2026-08', 22, new Date(2026, 8, 19)).texto, 'Prazo: até 22/09 (faltam 3 dias)');
 igual('prazo: sem dia limite não aparece', eh.textoDoPrazo('2026-08', null), null);
 
+// ---------- lembretes do escritório ----------
+const lb = require('./lembretes');
+const semFeriado = new Set();
+const comFeriado = new Set(['2026-09-07']);
+igual('dia útil comum', lb.ehDiaUtil(new Date(2026, 8, 10), semFeriado), true);
+igual('sábado não é dia útil', lb.ehDiaUtil(new Date(2026, 8, 5), semFeriado), false);
+igual('feriado não é dia útil', lb.ehDiaUtil(new Date(2026, 8, 7), comFeriado), false);
+igual('dia 10 (quinta) sai no próprio dia', lb.diaDoAviso(2026, 8, 10, semFeriado), '2026-09-10');
+igual('dia 5 (sábado) escorrega pra segunda', lb.diaDoAviso(2026, 8, 5, semFeriado), '2026-09-07');
+igual('dia 5 com a segunda feriado vai pra terça', lb.diaDoAviso(2026, 8, 5, comFeriado), '2026-09-08');
+const lembretes = [{ texto: 'GFIP', dia: 5, quem: 'contabil' }, { texto: 'Boletos', dia: 25 }, { texto: 'sem dia' }];
+igual('só o que cai hoje', lb.lembretesDeHoje(lembretes, new Date(2026, 8, 7), semFeriado).map(l => l.texto), ['GFIP']);
+igual('dia sem lembrete devolve vazio', lb.lembretesDeHoje(lembretes, new Date(2026, 8, 10), semFeriado), []);
+
 console.log(falhas ? '\n' + falhas + ' de ' + total + ' testes FALHARAM' : total + ' testes, todos passaram');
 process.exit(falhas ? 1 : 0);

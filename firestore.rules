@@ -157,7 +157,9 @@ service cloud.firestore {
       allow read: if logado();
       allow create, delete: if ehAdmin();
       allow update: if ehAdmin() ||
-        (logado() && so(['geo', 'zona', 'grupoLocal', 'honorarioForma', 'honorarioDia', 'pontoReferencia', 'email', 'emails', 'entrega']));
+        // 'ocorrencias' é anotação de atendimento (reclamou, elogiou,
+        // combinou): quem atende registra, não é mexer no cadastro.
+        (logado() && so(['geo', 'zona', 'grupoLocal', 'honorarioForma', 'honorarioDia', 'pontoReferencia', 'email', 'emails', 'entrega', 'ocorrencias']));
     }
 
     // ---------- entregas ----------
@@ -284,6 +286,22 @@ service cloud.firestore {
         && request.resource.data.assinado == true
         && so(['assinado', 'assinadoEm', 'assinatura', 'recebedor']);
 
+      allow delete: if ehAdmin();
+    }
+
+    // ---------- documento que o escritório pegou emprestado ----------
+    // Livro, contrato, CNH que veio pro escritório e tem que voltar. Some
+    // quando some de verdade, então quem pegou registra e qualquer um da
+    // equipe dá baixa; apagar é só do admin, pra não sumir o rastro.
+    match /emprestimos/{id} {
+      allow read: if logado();
+      allow create: if logado()
+        && request.resource.data.oque is string && request.resource.data.oque.size() <= 200
+        && request.resource.data.clienteNome is string && request.resource.data.clienteNome.size() <= 200
+        && request.resource.data.pegouEm is string
+        && request.resource.data.pegouPor is string;
+      // dar baixa (ou corrigir a descrição): o que não muda é quem pegou e quando
+      allow update: if logado() && naoMexeuEm(['pegouEm', 'pegouPor', 'clienteId']);
       allow delete: if ehAdmin();
     }
 

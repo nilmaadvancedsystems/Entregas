@@ -701,6 +701,18 @@
   /* ---------- comprimidos de documento ---------- */
   .chip-grid { display: flex; flex-wrap: wrap; gap: 6px; }
 
+  /* ocorrências, empréstimos e lembretes */
+  .ocorrencia { display: flex; gap: 10px; align-items: flex-start; padding: var(--esp-2) 0; border-bottom: 1px solid var(--border); }
+  .ocorrencia:last-child { border-bottom: 0; }
+  .ocorrencia-ico { flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-2); color: var(--ink-faint); }
+  .ocorrencia-ico.elogio { background: var(--success-soft); color: var(--success-forte); }
+  .ocorrencia-ico.reclamacao { background: var(--danger-soft); color: var(--danger-forte); }
+  .ocorrencia-ico.combinado { background: var(--accent-soft); color: var(--accent-forte); }
+  .ocorrencia-texto { font-size: var(--t-base); line-height: 1.45; }
+  .ocorrencia-sub { font-size: var(--t-xs); color: var(--ink-faint); margin-top: 2px; }
+  .emprestimo-atrasado { color: var(--danger-forte); font-weight: 600; }
+  .lembrete-edit { display: grid; grid-template-columns: 1fr 88px auto; gap: 6px; align-items: center; margin-bottom: 6px; }
+
   /* agenda de obrigações e montagem do dia */
   .obrig-linha { display: flex; align-items: center; justify-content: space-between; gap: var(--esp-3); padding: var(--esp-2) 0; border-bottom: 1px solid var(--border); }
   .obrig-linha:last-child { border-bottom: 0; }
@@ -2585,6 +2597,15 @@
         </div>
       </div>
     </form>
+    <div class="card" id="lembretesCard" hidden>
+      <div class="card-head-row">
+        <h2><i class="ph ph-bell-simple-ringing" aria-hidden="true"></i> Lembretes do escritório</h2>
+        <button type="button" class="btn-chip accent" id="lembreteAddBtn"><i class="ph ph-plus" aria-hidden="true"></i> Incluir</button>
+      </div>
+      <p class="card-hint">O que se repete todo mês ("dia 5, mandar a GFIP"). O PC do robô avisa no celular de quem tem o cargo escolhido, no dia, de manhã.</p>
+      <div id="lembretesEdit"></div>
+      <button type="button" class="btn btn-primary" id="lembretesSalvarBtn">Salvar lembretes</button>
+    </div>
     <div class="card" id="obrigacoesConfigCard" hidden>
       <div class="card-head-row">
         <h2><i class="ph ph-calendar-dots" aria-hidden="true"></i> Obrigações do mês</h2>
@@ -2732,6 +2753,14 @@
       </div>
       <p class="card-hint">O que falta preencher. Clique num número pra ver quem é.</p>
       <div class="saude-grid" id="saudeGrid"></div>
+    </div>
+    <div class="card" id="emprestimosCard">
+      <div class="card-head-row">
+        <h2><i class="ph ph-hand-arrow-down" aria-hidden="true"></i> Documentos com o escritório</h2>
+        <button type="button" class="btn-chip accent" id="emprestimoNovoBtn"><i class="ph ph-plus" aria-hidden="true"></i> Pegamos um documento</button>
+      </div>
+      <p class="card-hint">Livro, contrato, CNH — o que veio pro escritório e tem que voltar pro cliente.</p>
+      <div id="emprestimosList"><div class="empty-state">Nada emprestado no momento.</div></div>
     </div>
     <div class="card" id="linkParadoCard" hidden>
       <div class="card-head-row">
@@ -3726,6 +3755,168 @@
     });
     if (faixa.children.length) aba.appendChild(faixa);
   });
+
+  // ---------- ocorrências do cliente ----------
+  // Reclamação, elogio e combinado. Ficam num campo do próprio cliente
+  // (nenhuma leitura a mais), no máximo 40, do mais novo pro mais velho.
+  var TIPOS_DE_OCORRENCIA_ = [
+    { id: 'combinado', rotulo: 'Combinado', icone: 'ph-handshake' },
+    { id: 'reclamacao', rotulo: 'Reclamação', icone: 'ph-warning' },
+    { id: 'elogio', rotulo: 'Elogio', icone: 'ph-heart' },
+    { id: 'nota', rotulo: 'Anotação', icone: 'ph-note' }
+  ];
+  function ocorrenciasDe_(c) { return Array.isArray(c && c.ocorrencias) ? c.ocorrencias : []; }
+  function htmlDasOcorrencias_(cliente) {
+    var lista = ocorrenciasDe_(cliente).slice(0, 6);
+    return '<div class="field" style="margin-bottom:var(--esp-3)"><span>Ocorrências</span>' +
+      '<div class="modal-acoes" style="margin:6px 0">' +
+        TIPOS_DE_OCORRENCIA_.map(function (t) {
+          return '<button type="button" class="btn-chip" data-ocorrencia="' + t.id + '"><i class="ph ' + t.icone + '" aria-hidden="true"></i> ' + t.rotulo + '</button>';
+        }).join('') +
+      '</div>' +
+      (lista.length
+        ? lista.map(function (o) {
+            var tipo = TIPOS_DE_OCORRENCIA_.filter(function (t) { return t.id === o.tipo; })[0] || TIPOS_DE_OCORRENCIA_[3];
+            return '<div class="ocorrencia"><span class="ocorrencia-ico ' + tipo.id + '"><i class="ph ' + tipo.icone + '" aria-hidden="true"></i></span>' +
+              '<div><div class="ocorrencia-texto">' + escapeHtml_(o.texto || '') + '</div>' +
+              '<div class="ocorrencia-sub">' + escapeHtml_(tipo.rotulo + ' · ' + (o.por || 'alguém') + ' · ' + fmtDateTime(o.em)) + '</div></div></div>';
+          }).join('')
+        : '<p class="card-hint" style="margin:0">Nada registrado ainda.</p>') +
+      '</div>';
+  }
+  function registrarOcorrencia_(cliente, tipo, aoTerminar) {
+    var texto = prompt('O que aconteceu? (aparece na ficha e na linha do tempo)');
+    if (!texto || !texto.trim()) return;
+    var nova = { tipo: tipo, texto: texto.trim().slice(0, 240), por: currentUserNome || '', em: new Date().toISOString() };
+    var lista = [nova].concat(ocorrenciasDe_(cliente)).slice(0, 40);
+    db.doc('clientes/' + cliente.id).update({ ocorrencias: lista })
+      .then(function () {
+        cliente.ocorrencias = lista;
+        registrarAuditoria_('ocorrencia_cliente', clienteLabel(cliente) + ' · ' + tipo);
+        showToast('Ocorrência registrada.');
+        if (aoTerminar) aoTerminar();
+      })
+      .catch(function (err) { showToast(errMsg(err, 'Não foi possível registrar.'), 'error'); });
+  }
+
+  // ---------- documentos que o escritório pegou ----------
+  var emprestimosCache_ = [];
+  function ouvirEmprestimos_() {
+    if (!db) return;
+    // só os abertos: quando alguém devolve, o documento sai da consulta
+    db.collection('emprestimos').where('devolvidoEm', '==', null).limit(60).onSnapshot(function (snap) {
+      emprestimosCache_ = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+      renderEmprestimos_();
+    }, function () { /* sem permissão ou offline: o cartão fica como está */ });
+  }
+  function renderEmprestimos_() {
+    var el = $('emprestimosList');
+    if (!el) return;
+    var lista = emprestimosCache_.slice().sort(function (a, b) { return String(a.devolverAte || '9999').localeCompare(String(b.devolverAte || '9999')); });
+    if (!lista.length) { el.innerHTML = '<div class="empty-state">Nada emprestado no momento.</div>'; return; }
+    el.innerHTML = '';
+    lista.forEach(function (x) {
+      var dias = x.devolverAte ? diasAte_(x.devolverAte) : null;
+      var row = document.createElement('div');
+      row.className = 'client-row';
+      row.innerHTML = '<div><div class="cr-name"></div><div class="cr-sub"></div></div>' +
+        '<div class="cr-actions"><button class="btn-chip">Devolvido</button></div>';
+      row.querySelector('.cr-name').textContent = x.oque + ' · ' + (x.clienteNome || 'sem cliente');
+      row.querySelector('.cr-sub').innerHTML = escapeHtml_('pegou ' + fmtDateTime(x.pegouEm).split(',')[0] + (x.pegouPor ? ' · ' + x.pegouPor : '')) +
+        (dias !== null ? ' · <span class="' + (dias < 0 ? 'emprestimo-atrasado' : '') + '">' + escapeHtml_(textoPrazo_(dias)) + '</span>' : '');
+      row.querySelector('.btn-chip').addEventListener('click', function () {
+        var btn = this;
+        botaoOcupado_(btn);
+        db.doc('emprestimos/' + x.id).update({ devolvidoEm: new Date().toISOString(), devolvidoPor: currentUserNome || '' })
+          .then(function () { registrarAuditoria_('emprestimo_devolvido', x.oque + ' · ' + (x.clienteNome || '')); showToast('Devolução registrada.'); })
+          .catch(function (err) { showToast(errMsg(err, 'Não foi possível dar baixa.'), 'error'); botaoLivre_(btn, 'Devolvido'); });
+      });
+      el.appendChild(row);
+    });
+  }
+  function abrirNovoEmprestimo_(clientePreferido) {
+    var root = $('modalRoot');
+    var clientes = clientesDoEntregas_().filter(function (c) { return c.ativo !== false; });
+    root.innerHTML =
+      '<div class="modal-overlay" id="overlay"><div class="modal" id="modalInner">' +
+        '<div class="modal-head"><div><h2>Pegamos um documento</h2>' +
+          '<div class="card-hint modal-head-sub">Fica na lista até alguém dar baixa.</div></div>' +
+          '<button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button></div>' +
+        '<label class="field"><span>De quem</span><select class="input" id="empCliente">' +
+          '<option value="">— escolher cliente —</option>' +
+          clientes.map(function (c) { return '<option value="' + escapeHtml_(c.id) + '"' + (clientePreferido && clientePreferido.id === c.id ? ' selected' : '') + '>' + escapeHtml_(clienteLabel(c)) + '</option>'; }).join('') +
+        '</select></label>' +
+        '<label class="field"><span>O que veio</span><input class="input" id="empOque" type="text" maxlength="200" placeholder="Ex.: livro caixa 2025, contrato social original"></label>' +
+        '<label class="field"><span>Devolver até (opcional)</span><input class="input" id="empAte" type="date"></label>' +
+        '<button type="button" class="btn btn-primary" id="empSalvarBtn">Registrar</button>' +
+      '</div></div>';
+    $('overlay').addEventListener('click', function (e) { if (e.target.id === 'overlay') closeModal(); });
+    $('modalClose').addEventListener('click', closeModal);
+    $('empSalvarBtn').addEventListener('click', function () {
+      var btn = this;
+      var id = $('empCliente').value;
+      var cliente = clientesCache.get(id);
+      var oque = $('empOque').value.trim();
+      if (!cliente) { showToast('Escolha de quem é o documento.', 'error'); return; }
+      if (!oque) { $('empOque').focus(); showToast('Escreva o que veio.', 'error'); return; }
+      botaoOcupado_(btn);
+      db.collection('emprestimos').add({
+        clienteId: cliente.id, clienteNome: clienteLabel(cliente), oque: oque.slice(0, 200),
+        pegouEm: new Date().toISOString(), pegouPor: currentUserNome || '',
+        devolverAte: $('empAte').value || null, devolvidoEm: null
+      }).then(function () {
+        registrarAuditoria_('emprestimo_novo', oque + ' · ' + clienteLabel(cliente));
+        showToast('Documento registrado.');
+        closeModal();
+      }).catch(function (err) { showToast(errMsg(err, 'Não foi possível registrar.'), 'error'); botaoLivre_(btn, 'Registrar'); });
+    });
+  }
+
+  // ---------- lembretes do escritório ----------
+  // Ficam em config/lembretes; quem avisa é o PC do robô (scripts/lembretes.js).
+  var lembretes_ = [];
+  var PAPEIS_DO_LEMBRETE_ = [['admin', 'Admin'], ['contabil', 'Contábil'], ['fiscal', 'Fiscal'], ['office_boy', 'Office boy'], ['', 'Todo mundo']];
+  function renderLembretes_() {
+    var card = $('lembretesCard');
+    if (!card) return;
+    card.hidden = !temPapel('admin');
+    if (card.hidden) return;
+    var el = $('lembretesEdit');
+    el.innerHTML = '';
+    lembretes_.forEach(function (l) {
+      var linha = document.createElement('div');
+      linha.className = 'lembrete-edit';
+      linha.innerHTML =
+        '<input class="input" data-l="texto" type="text" maxlength="120" placeholder="Ex.: mandar a GFIP">' +
+        '<input class="input" data-l="dia" type="number" min="1" max="28" placeholder="Dia">' +
+        '<button type="button" class="btn-chip danger" title="Tirar"><i class="ph ph-trash" aria-hidden="true"></i></button>' +
+        '<select class="input" data-l="quem" style="grid-column:1 / -1">' + PAPEIS_DO_LEMBRETE_.map(function (p) {
+          return '<option value="' + p[0] + '">' + p[1] + '</option>';
+        }).join('') + '</select>';
+      linha.querySelector('[data-l="texto"]').value = l.texto || '';
+      linha.querySelector('[data-l="dia"]').value = l.dia || '';
+      linha.querySelector('[data-l="quem"]').value = l.quem || '';
+      linha.querySelector('.btn-chip').addEventListener('click', function () { linha.remove(); });
+      el.appendChild(linha);
+    });
+  }
+  function lerLembretesDoForm_() {
+    return Array.from(document.querySelectorAll('#lembretesEdit .lembrete-edit')).map(function (linha) {
+      return {
+        texto: linha.querySelector('[data-l="texto"]').value.trim().slice(0, 120),
+        dia: Number(linha.querySelector('[data-l="dia"]').value),
+        quem: linha.querySelector('[data-l="quem"]').value
+      };
+    }).filter(function (l) { return l.texto && l.dia >= 1 && l.dia <= 28; }).slice(0, 20);
+  }
+  function carregarLembretes_() {
+    if (!db || !temPapel('admin')) return;
+    db.collection('config').doc('lembretes').get().then(function (snap) {
+      var d = snap.exists ? snap.data() : null;
+      lembretes_ = (d && Array.isArray(d.itens)) ? d.itens : [];
+      renderLembretes_();
+    }).catch(function () {});
+  }
 
   // ---------- link do cliente que ninguém abriu ----------
   // portais/{token}.visto guarda a primeira e a última vez que a página foi
@@ -8842,6 +9033,7 @@
         '<button type="button" class="btn-chip" id="corrigirLocalBtn"><i class="ph ph-map-pin-line" aria-hidden="true"></i> Corrigir localização</button>' +
         '<button type="button" class="btn-chip" id="aglutinarBtn"><i class="ph ph-link-simple" aria-hidden="true"></i> Aglutinar com outra empresa</button>' +
         '<button type="button" class="btn-chip" id="copiarDadosBtn"><i class="ph ph-copy" aria-hidden="true"></i> Copiar dados</button>' +
+        '<button type="button" class="btn-chip" id="emprestimoFichaBtn"><i class="ph ph-hand-arrow-down" aria-hidden="true"></i> Pegamos um documento</button>' +
         (temPapel('admin')
           ? '<button type="button" class="btn-chip" id="levarDadosBtn" title="Arquivo com tudo que o sistema tem deste cliente"><i class="ph ph-download-simple" aria-hidden="true"></i> Levar os dados (LGPD)</button>' +
             '<button type="button" class="btn-chip danger" id="apagarDadosBtn" title="Tira telefone, e-mail, endereço, contatos e derruba a página do cliente"><i class="ph ph-eraser" aria-hidden="true"></i> Apagar dados pessoais</button>'
@@ -8897,6 +9089,7 @@
       etiquetasHtml +
       recadoHtml +
       contatosHtml +
+      htmlDasOcorrencias_(cliente) +
       infoHonorario +
       receitaHtml +
       acoesHtml +
@@ -8926,12 +9119,20 @@
         window.open(whatsAppUrl_('Olá! Aqui é da Nilma Contabilidade.', c.telefone), '_blank');
       });
     });
+    inner.querySelectorAll('[data-ocorrencia]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        registrarOcorrencia_(cliente, b.dataset.ocorrencia, function () { renderHistoricoList(cliente, historico); });
+      });
+    });
     inner.querySelectorAll('[data-extrato]').forEach(function (b) {
       b.addEventListener('click', function (ev) {
         ev.stopPropagation();
         abrirExtratoDoMes_(cliente, b.dataset.extrato, historico);
       });
     });
+    if ($('emprestimoFichaBtn')) {
+      $('emprestimoFichaBtn').addEventListener('click', function () { abrirNovoEmprestimo_(cliente); });
+    }
     if ($('levarDadosBtn')) {
       $('levarDadosBtn').addEventListener('click', function () { baixarDadosDoCliente_(cliente, historico); });
     }
@@ -10585,6 +10786,27 @@
   $('clientesBusca').addEventListener('input', aoParar(renderClientesList));
   $('clientesOrdem').addEventListener('change', renderClientesList);
   $('etiquetasBtn').addEventListener('click', imprimirEtiquetas_);
+  $('emprestimoNovoBtn').addEventListener('click', function () { abrirNovoEmprestimo_(null); });
+  $('lembreteAddBtn').addEventListener('click', function () {
+    lembretes_ = lerLembretesDoForm_().concat([{ texto: '', dia: 5, quem: '' }]);
+    renderLembretes_();
+    var campos = document.querySelectorAll('#lembretesEdit [data-l="texto"]');
+    if (campos.length) campos[campos.length - 1].focus();
+  });
+  $('lembretesSalvarBtn').addEventListener('click', function () {
+    var btn = this;
+    var itens = lerLembretesDoForm_();
+    botaoOcupado_(btn);
+    db.collection('config').doc('lembretes').set({ itens: itens, atualizadoEm: new Date().toISOString(), atualizadoPor: currentUserNome || '' })
+      .then(function () {
+        lembretes_ = itens;
+        registrarAuditoria_('config_lembretes', itens.length + ' lembrete(s)');
+        renderLembretes_();
+        showToast('Lembretes salvos. O robô passa a avisar.');
+      })
+      .catch(function (err) { showToast(errMsg(err, 'Não foi possível salvar.'), 'error'); })
+      .then(function () { botaoLivre_(btn, 'Salvar lembretes'); });
+  });
   $('obrigacoesAddBtn').addEventListener('click', function () {
     obrigacoes_ = lerObrigacoesDoForm_().concat([{ id: 'novo', nome: '', dia: 20, casa: '' }]);
     renderObrigacoesConfig_();
@@ -12105,7 +12327,7 @@
     updateDashStrip();
     renderRota();
     sincronizarRotaLinks_();
-    if (primeiraCargaClientes_) { primeiraCargaClientes_ = false; restaurarRascunhoSeExistir_(); atualizarAlertaSemEntrega_(); carregarObrigacoes_(); atualizarLinkParado_(); }
+    if (primeiraCargaClientes_) { primeiraCargaClientes_ = false; restaurarRascunhoSeExistir_(); atualizarAlertaSemEntrega_(); carregarObrigacoes_(); atualizarLinkParado_(); carregarLembretes_(); ouvirEmprestimos_(); }
     if (completo) {
       esperandoTodosOsClientes_.splice(0).forEach(function (f) { f(); });
       preencherClientesDeEntrega_();

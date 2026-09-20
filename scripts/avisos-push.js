@@ -32,7 +32,8 @@ function iniciarAvisos(db, log) {
     (await usuarios()).forEach(d => {
       const u = d.data();
       const papeis = Array.isArray(u.roles) ? u.roles : [];
-      if (!papeis.includes(papel)) return;
+      // papel vazio = todo mundo que tem aviso ligado (usado pelos lembretes do escritório)
+      if (papel && !papeis.includes(papel)) return;
       if (menosEmail && String(u.email || '').toLowerCase() === String(menosEmail).toLowerCase()) return;
       (Array.isArray(u.fcmTokens) ? u.fcmTokens : []).forEach(t => alvos.push({ uid: d.id, token: t }));
     });
