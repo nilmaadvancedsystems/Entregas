@@ -39,7 +39,8 @@
     // demais preferências de aparência, aplicadas antes da primeira pintura
     [['nilma_texto', 'texto', 'normal'],
      ['nilma_densidade', 'densidade', 'confortavel'],
-     ['nilma_animacao', 'animacao', 'completa']].forEach(function (item) {
+     ['nilma_animacao', 'animacao', 'completa'],
+     ['nilma_explicacoes', 'explicacoes', 'mostrar']].forEach(function (item) {
       var v = localStorage.getItem(item[0]);
       if (v && v !== item[2]) document.documentElement.dataset[item[1]] = v;
     });
@@ -163,6 +164,9 @@
     /* Altura de linha de lista. É o número que traduz "celular largo, PC
        denso" — tudo que é linha clicável lê daqui. */
     --linha: 52px;
+    /* Altura mínima de qualquer coisa que se toca. No celular é dedo na
+       calçada: 44px. No PC (media de 900px) cai, porque lá é mouse. */
+    --alvo: 44px;
     --card-pad: 16px;
 
     /* --- tipografia ---
@@ -313,11 +317,25 @@
   html[data-densidade="compacto"] .view { gap: var(--esp-3); }
   html[data-densidade="compacto"] .field { margin-bottom: var(--esp-3); }
 
+  /* Quem já conhece o app não precisa reler 24 parágrafos de ajuda. As
+     dicas que o próprio app escreve na hora (têm id) continuam. */
+  html[data-explicacoes="esconder"] .card-hint:not([id]):not(.modal-head-sub) { display: none; }
+
   html[data-animacao="reduzida"] *,
   html[data-animacao="reduzida"] *::before,
   html[data-animacao="reduzida"] *::after {
     transition: none !important; animation: none !important;
   }
+
+  /* ---------- duas utilidades ----------
+     .sr-only já era usada na marcação sem existir no CSS: os rótulos
+     apareciam na tela. .ink-faint substitui o cinza cravado no HTML, que
+     sumia contra o fundo escuro. */
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+    overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0;
+  }
+  .ink-faint { color: var(--ink-faint); }
 
   /* ---------- barra de rolagem ----------
      Fina e neutra. Barra colorida é decoração: numa ferramenta ela só precisa
@@ -489,7 +507,7 @@
     max-width: calc(100% - 20px);
   }
   .tab {
-    border: none; background: transparent; padding: 9px 11px; border-radius: var(--r-pill);
+    border: none; background: transparent; padding: 0 12px; min-height: var(--alvo); border-radius: var(--r-pill);
     font-weight: 600; font-size: var(--t-base); color: var(--ink-faint); cursor: pointer;
     display: flex; align-items: center; position: relative; flex: none;
   }
@@ -509,7 +527,7 @@
      e limita o rótulo da ativa. */
   @media (max-width: 899px) {
     .tabs { gap: 0; padding: 4px; }
-    .tab { padding: 9px 9px; }
+    .tab { padding: 0 10px; }
     .tab.active .tab-label { max-width: 92px; overflow: hidden; text-overflow: ellipsis; }
   }
 
@@ -823,7 +841,7 @@
 
   .clientes-filtros { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: var(--esp-3); }
   .clientes-filtros .btn-chip.ativo { background: var(--accent); border-color: transparent; color: var(--accent-ink); font-weight: 600; }
-  .clientes-ordem { margin-left: auto; min-height: 34px; padding: 0 10px; width: auto; }
+  .clientes-ordem { margin-left: auto; min-height: var(--alvo); padding: 0 10px; width: auto; }
 
   .etq-linha { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
   .etq {
@@ -834,7 +852,6 @@
   .cr-recado { color: var(--warning-forte); flex: none; }
 
   .contato-row { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 6px; margin-bottom: 6px; align-items: center; }
-  .contato-row .btn-chip { min-height: 38px; }
   @media (max-width: 600px) { .contato-row { grid-template-columns: 1fr 1fr; } }
   .recado-cliente {
     border: 1px solid var(--warning-soft); background: var(--warning-soft); color: var(--warning-forte);
@@ -843,7 +860,7 @@
   .chip { position: relative; }
   .chip input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
   .chip span {
-    display: inline-flex; align-items: center; position: relative; min-height: 34px; padding: 0 12px;
+    display: inline-flex; align-items: center; position: relative; min-height: var(--alvo); padding: 0 12px;
     border: 1px solid var(--border); border-radius: var(--r-sm);
     background: var(--surface); font-size: var(--t-base); font-weight: 500; cursor: pointer;
     transition: background-color var(--dur-rapido) var(--ease), border-color var(--dur-rapido) var(--ease), color var(--dur-rapido) var(--ease);
@@ -895,7 +912,7 @@
 
   .btn-chip {
     border: 1px solid var(--border); background: var(--surface); border-radius: var(--r-sm);
-    padding: 0 12px; min-height: 34px; font-size: var(--t-base); font-weight: 500; cursor: pointer;
+    padding: 0 12px; min-height: var(--alvo); font-size: var(--t-base); font-weight: 500; cursor: pointer;
     display: inline-flex; align-items: center; justify-content: center; gap: 0; color: var(--ink);
   }
   .btn-chip:hover { background: var(--surface-2); border-color: var(--border-forte); }
@@ -949,6 +966,12 @@
   .client-row > div:first-child, .rota-item-conteudo { min-width: 0; flex: 1; }
   .er-nome, .cr-name { font-weight: 500; overflow-wrap: break-word; word-break: break-word; line-height: 1.3; }
   .er-sub, .cr-sub { font-size: var(--t-sm); color: var(--ink-faint); margin-top: 2px; overflow-wrap: break-word; word-break: break-word; }
+  /* aviso que evita viagem perdida: cor de atenção, uma linha, nunca cinza */
+  .er-aviso {
+    display: flex; gap: 5px; align-items: flex-start; margin-top: 3px;
+    font-size: var(--t-sm); font-weight: 600; color: var(--warning-forte);
+  }
+  .er-aviso .ph { flex: none; margin-top: 1px; }
   .client-row.inactive { opacity: .55; }
   .cr-clickable { display: flex; align-items: center; justify-content: space-between; gap: var(--esp-3); }
   .cr-actions { display: flex; gap: 6px; flex: none; }
@@ -967,10 +990,34 @@
   .entrega-row.st-pendente { --row-cor: var(--ink-faint); }
 
   .rota-drag-handle {
-    display: flex; align-items: center; padding: 0 6px; margin-left: -6px;
+    display: flex; align-items: center; justify-content: center;
+    min-width: var(--alvo); padding: 0; margin-left: -10px; border: none; background: none;
     color: var(--ink-faint); cursor: grab; touch-action: none; flex: none; align-self: stretch;
   }
   .rota-drag-handle:active { cursor: grabbing; }
+  .rota-item.movida-pelo-teclado { background: var(--accent-soft); }
+  .empty-state .vazio-acao { display: inline-flex; margin: var(--esp-3) auto 0; }
+
+  .ajustes-busca { position: relative; margin-bottom: var(--esp-4); }
+  .ajustes-busca .ph {
+    position: absolute; left: var(--esp-3); top: 50%; transform: translateY(-50%);
+    color: var(--ink-faint); pointer-events: none;
+  }
+  .ajustes-busca .input { padding-left: 38px; }
+  .ajustes-busca .card-hint { margin: var(--esp-2) 0 0; }
+
+  .menu-acoes { position: relative; display: inline-flex; }
+  .menu-acoes-painel {
+    position: absolute; top: calc(100% + 4px); right: 0; z-index: var(--z-suspenso);
+    min-width: 232px; padding: var(--esp-1); background: var(--surface);
+    border: 1px solid var(--border); border-radius: var(--r-md); box-shadow: var(--shadow);
+  }
+  .menu-acoes-item {
+    display: flex; align-items: center; gap: var(--esp-2); width: 100%;
+    min-height: var(--alvo); padding: 0 var(--esp-3); border: none; border-radius: var(--r-sm);
+    background: none; color: var(--ink); font-size: var(--t-base); text-align: left; cursor: pointer;
+  }
+  .menu-acoes-item:hover { background: var(--surface-2); }
   .rota-item.arrastando { background: var(--surface-2); box-shadow: var(--shadow); position: relative; z-index: var(--z-conteudo); }
 
   /* Cabeçalho de grupo dentro de uma lista. */
@@ -1028,7 +1075,6 @@
       display: grid; grid-template-columns: minmax(0,1.6fr) 120px 70px minmax(0,1.3fr) 108px 190px;
       gap: 0 var(--esp-2); padding: 8px var(--esp-3); background: var(--surface-2);
       font-size: var(--t-xs); font-weight: 600; color: var(--ink-soft);
-      text-transform: uppercase; letter-spacing: .03em;
     }
     .honorario-linha {
       grid-template-columns: minmax(0,1.6fr) 120px 70px minmax(0,1.3fr) 108px 190px;
@@ -1204,6 +1250,8 @@
     width: 44px; height: 44px; border-radius: 50%; background: var(--surface);
     display: grid; place-items: center; font-size: var(--t-base); font-weight: 600; color: var(--ink);
   }
+  /* O quanto já recebeu é o assunto do cartão, não enfeite em cima do mapa. */
+  .painel-resumo { display: flex; gap: var(--esp-3); align-items: center; margin: var(--esp-3) 0 0; }
   .summary-text { font-size: var(--t-base); line-height: 1.45; }
   .summary-text b { font-weight: 600; color: var(--ink); }
 
@@ -1349,7 +1397,7 @@
 
   /* motivos de não entrega em um toque */
   .motivos-rapidos { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 var(--esp-2); }
-  .motivos-rapidos .btn-chip { min-height: 34px; font-size: var(--t-sm); }
+  .motivos-rapidos .btn-chip { font-size: var(--t-sm); }
   .dica-cliente { display: flex; gap: 6px; align-items: flex-start; margin: 0 0 var(--esp-3); }
   .dica-cliente .ph { margin-top: 2px; color: var(--ink-faint); }
   .leitor-video { width: 100%; max-height: 50vh; background: #000; border-radius: var(--r-md); display: block; margin-bottom: var(--esp-2); object-fit: cover; }
@@ -1361,7 +1409,7 @@
 
   /* nomes de quem costuma receber, logo abaixo do campo */
   .recebedor-sugestoes { display: flex; flex-wrap: wrap; gap: 6px; margin: calc(var(--esp-2) - var(--esp-4)) 0 var(--esp-4); }
-  .recebedor-sugestoes .btn-chip { min-height: 32px; font-size: var(--t-sm); color: var(--ink-soft); }
+  .recebedor-sugestoes .btn-chip { font-size: var(--t-sm); color: var(--ink-soft); }
 
   /* ---------- módulo Clientes (entrada própria no início) ---------- */
   /* Aqui é cadastro: o que é assunto de rota fica em Entregas. */
@@ -1414,7 +1462,7 @@
   .portal-receber .btn { margin: 0; }
   .portal-guia img { display: block; width: 100%; margin-top: var(--esp-3); background: #fff; border: 1px solid var(--border); border-radius: var(--r-sm); }
   .portal-avisar { margin: var(--esp-4) 0 0; }
-  .portal-avisar .btn-chip { gap: 8px; width: 100%; min-height: 40px; }
+  .portal-avisar .btn-chip { gap: 8px; width: 100%; }
   .portal-avisar .card-hint { margin: 6px 0 0; }
   .portal-avisar .card-hint:empty { display: none; }
   .portal-comprovante img { display: block; width: 100%; max-width: 320px; background: #fff; border: 1px solid var(--border); border-radius: var(--r-sm); }
@@ -1573,7 +1621,7 @@
     .hub-novas { grid-column: 1; margin-top: 0; }
     .hub-sair {
       grid-column: 1; grid-row: auto; justify-self: start; align-self: start;
-      width: auto; min-height: 34px; padding: 0 12px; gap: 8px; margin-top: var(--esp-2);
+      width: auto; padding: 0 12px; gap: 8px; margin-top: var(--esp-2);
     }
     .hub-sair span { display: inline; }
     .hub-card { min-height: 88px; padding: var(--esp-5); }
@@ -1853,8 +1901,8 @@
   @media (min-width: 900px) {
     /* 14px e não 13px: 13 é agressivo demais em tela 1x. A densidade vem de
        --linha (a altura da linha), não de espremer a letra. */
-    :root { --linha: 40px; --card-pad: 20px; --t-md: .875rem; }
-    html[data-densidade="compacto"] { --linha: 34px; --card-pad: 16px; }
+    :root { --linha: 40px; --alvo: 34px; --card-pad: 20px; --t-md: .875rem; }
+    html[data-densidade="compacto"] { --linha: 34px; --alvo: 30px; --card-pad: 16px; }
 
     body { padding-left: 224px; font-size: var(--t-md); }
 
@@ -2410,11 +2458,16 @@
     <div class="card">
       <div class="card-head-row">
         <h2><i class="ph ph-path" aria-hidden="true"></i> Rota de entregas</h2>
-        <button type="button" class="btn-chip" id="rotaProximidadeBtn"><i class="ph ph-navigation-arrow" aria-hidden="true"></i> Ordenar por proximidade</button>
-        <button type="button" class="btn-chip" id="rotaLerGuiaBtn" hidden><i class="ph ph-barcode" aria-hidden="true"></i> Ler guia</button>
-        <button type="button" class="btn-chip" id="rotaMapsBtn"><i class="ph ph-map-trifold" aria-hidden="true"></i> Abrir no Maps</button>
-        <button type="button" class="btn-chip" id="rotaEnviarLinkBtn"><i class="ph ph-share-network" aria-hidden="true"></i> Enviar rota pro cliente</button>
         <button type="button" class="btn-chip accent" id="rotaAddBtn">+ Adicionar à rota</button>
+        <div class="menu-acoes">
+          <button type="button" class="btn-chip" id="rotaMaisBtn" aria-haspopup="true" aria-expanded="false" aria-controls="rotaMaisPainel" aria-label="Mais ações da rota"><i class="ph ph-dots-three" aria-hidden="true"></i></button>
+          <div class="menu-acoes-painel" id="rotaMaisPainel" role="menu" hidden>
+            <button type="button" class="menu-acoes-item" role="menuitem" id="rotaProximidadeBtn"><i class="ph ph-navigation-arrow" aria-hidden="true"></i> Ordenar por proximidade</button>
+            <button type="button" class="menu-acoes-item" role="menuitem" id="rotaLerGuiaBtn" hidden><i class="ph ph-barcode" aria-hidden="true"></i> Ler guia</button>
+            <button type="button" class="menu-acoes-item" role="menuitem" id="rotaMapsBtn"><i class="ph ph-map-trifold" aria-hidden="true"></i> Abrir no Maps</button>
+            <button type="button" class="menu-acoes-item" role="menuitem" id="rotaEnviarLinkBtn"><i class="ph ph-share-network" aria-hidden="true"></i> Enviar rota pro cliente</button>
+          </div>
+        </div>
       </div>
       <p class="card-hint">Documentos e valores já prontos — falta só colher a assinatura na hora da entrega.</p>
       <p class="card-hint" id="rotaPrevisao" hidden></p>
@@ -2432,10 +2485,10 @@
         <div class="filtro">
           <label for="rotaFiltroZonaBtn">Região</label>
           <div class="multiselect" id="rotaFiltroZonaMulti">
-            <button type="button" class="input multiselect-btn" id="rotaFiltroZonaBtn">
+            <button type="button" class="input multiselect-btn" id="rotaFiltroZonaBtn" aria-haspopup="listbox" aria-expanded="false" aria-controls="rotaFiltroZonaPainel">
               <span id="rotaFiltroZonaBtnTexto">Todas as regiões</span><i class="ph ph-caret-down" aria-hidden="true"></i>
             </button>
-            <div class="multiselect-painel" id="rotaFiltroZonaPainel" hidden>
+            <div class="multiselect-painel" id="rotaFiltroZonaPainel" role="listbox" aria-multiselectable="true" aria-label="Regiões" hidden>
               <label class="multiselect-opcao"><input type="checkbox" data-zona="superior"><span>Parte superior</span></label>
               <label class="multiselect-opcao"><input type="checkbox" data-zona="central"><span>Central</span></label>
               <label class="multiselect-opcao"><input type="checkbox" data-zona="inferior"><span>Parte inferior</span></label>
@@ -2532,7 +2585,7 @@
         <h2><i class="ph ph-list-checks" aria-hidden="true"></i> Fechamento do mês</h2>
         <div style="display:flex;gap:6px;align-items:center">
           <label class="sr-only" for="fechamentoMesSelect">Competência</label>
-          <input class="input" id="fechamentoMesSelect" type="month" style="width:auto;min-height:34px;padding:0 8px">
+          <input class="input" id="fechamentoMesSelect" type="month" style="width:auto;padding:0 8px">
           <button type="button" class="btn-chip" id="relatorioPessoaBtn"><i class="ph ph-printer" aria-hidden="true"></i> Relatório do mês</button>
         </div>
       </div>
@@ -2559,18 +2612,19 @@
     <div class="card">
       <div class="card-head-row">
         <h2><i class="ph ph-map-trifold" aria-hidden="true"></i> Mapa de entregas</h2>
+        <button type="button" class="btn-chip" id="painelMapaBtn" aria-expanded="false" aria-controls="painelMapaCaixa">Mostrar</button>
       </div>
       <p class="card-hint">Pontos capturados nas entregas confirmadas e nas não realizadas desta competência.</p>
-      <div class="map-wrap">
+      <div class="painel-resumo">
+        <div class="summary-ring" id="summaryRing" style="--pct:0"><span id="summaryPct">–</span></div>
+        <div class="summary-text"><span class="skeleton skeleton-linha"></span></div>
+      </div>
+      <div class="map-wrap" id="painelMapaCaixa" hidden>
         <div id="painelMapaVazio" class="empty-state" hidden>Nenhuma entrega com localização capturada ainda.</div>
         <div id="painelMapa"></div>
         <div class="map-legend">
           <span><i class="map-legend-dot" style="background:var(--success)"></i> Entregue</span>
           <span><i class="map-legend-dot" style="background:var(--danger)"></i> Não entregue</span>
-        </div>
-        <div class="map-floating-summary">
-          <div class="summary-ring" id="summaryRing" style="--pct:0"><span id="summaryPct">–</span></div>
-          <div class="summary-text"><span class="skeleton skeleton-linha"></span></div>
         </div>
       </div>
       <details class="numeros-do-mes" id="numerosDoMes" hidden>
@@ -3095,6 +3149,8 @@
 </div>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<!-- recado curto pra leitor de tela, sem ocupar a tela de ninguém -->
+<div class="sr-only" id="avisoLeitor" role="status" aria-live="polite"></div>
 <div id="modalRoot"></div>
 
 <!-- Consulta rápida. Fica na moldura (fora das .view) pra aparecer em
@@ -3646,6 +3702,11 @@
   // pessoa digitar algo com "@" (como a conta antiga sistemasnilma@gmail.com),
   // usamos o valor literal, pra não quebrar contas já existentes.
   var DIACRITICS_RE = new RegExp('[' + String.fromCharCode(0x0300) + '-' + String.fromCharCode(0x036f) + ']', 'g');
+  // Buscar "orcamento" tem que achar "orçamento": ninguém digita acento correndo.
+  function semAcento_(texto) {
+    return String(texto || '').normalize('NFD').replace(DIACRITICS_RE, '');
+  }
+
   function emailFromNome(nome) {
     var slug = nome.trim().toLowerCase()
       .normalize('NFD').replace(DIACRITICS_RE, '')
@@ -3894,6 +3955,8 @@
       if (btn.dataset.tab === 'perfil' && !temPapel('admin')) return;
       if (btn.dataset.tab === 'perfil') voltarParaEquipe();
       if (btn.dataset.tab === 'clientes') garantirTodosOsClientes_();
+      acenderOuvintesDaAba_(btn.dataset.tab);
+      renderPendenteDaAba_(btn.dataset.tab);
       document.querySelectorAll('.tab').forEach(function (b) {
         b.classList.remove('active');
         b.setAttribute('aria-selected', 'false');
@@ -4320,7 +4383,7 @@
         radius: naRota ? 10 : 7, color: '#fff', weight: 2, fillColor: cor, fillOpacity: naRota ? 1 : .75
       }).addTo(carteiraMap);
       m.bindPopup('<b>' + escapeHtml_(clienteLabel(c)) + '</b><br>' +
-        '<span style="color:#6C6C6C">' + escapeHtml_([c.zona ? ZONA_LABEL[c.zona] : 'sem região', naRota ? 'na rota hoje' : ''].filter(Boolean).join(' · ')) + '</span>');
+        '<span class="ink-faint">' + escapeHtml_([c.zona ? ZONA_LABEL[c.zona] : 'sem região', naRota ? 'na rota hoje' : ''].filter(Boolean).join(' · ')) + '</span>');
       m.on('click', function () { setTimeout(function () { openClienteHistorico(c); }, 250); });
       carteiraMarkers.push(m);
       bounds.push([c.geo.lat, c.geo.lng]);
@@ -4995,6 +5058,18 @@
     ajustes.appendChild(pessoal);
     while (abaPerfil.firstChild) ajustes.appendChild(abaPerfil.firstChild);
 
+    // Treze cartões de configuração empilhados: achar "Dados do escritório"
+    // era rolagem cega. O texto já está todo na tela, então filtrar aqui não
+    // custa uma leitura sequer.
+    var busca = document.createElement('div');
+    busca.className = 'ajustes-busca';
+    busca.innerHTML =
+      '<label class="sr-only" for="ajustesBusca">Buscar ajuste</label>' +
+      '<i class="ph ph-magnifying-glass" aria-hidden="true"></i>' +
+      '<input class="input" id="ajustesBusca" type="search" autocomplete="off" placeholder="Buscar ajuste: escritório, acesso, rota, lembrete...">' +
+      '<p class="card-hint" id="ajustesBuscaVazio" hidden>Nenhum ajuste com esse nome.</p>';
+    ajustes.insertBefore(busca, ajustes.firstChild);
+
     var nav = document.createElement('div');
     nav.className = 'mode-toggle clientes-subnav';
     nav.id = 'clientesSubnav';
@@ -5016,6 +5091,26 @@
       });
     });
     $('ajustesPessoaisBtn').addEventListener('click', abrirConfiguracoes);
+    $('ajustesBusca').addEventListener('input', function () { filtrarAjustes_(this.value); });
+  }
+
+  // Filtra pelos títulos e pelas explicações dos cartões — as mesmas
+  // palavras que a pessoa leu da última vez que passou por aqui.
+  function filtrarAjustes_(termo) {
+    var ajustes = $('clientesAjustes');
+    if (!ajustes) return;
+    var alvo = semAcento_(String(termo || '').trim().toLowerCase());
+    var achou = 0, cartoes = 0;
+    ajustes.querySelectorAll(':scope > .card').forEach(function (card) {
+      cartoes++;
+      if (!alvo) { card.hidden = false; achou++; return; }
+      var titulo = (card.querySelector('h2') || {}).textContent || '';
+      var dica = Array.from(card.querySelectorAll('.card-hint')).map(function (p) { return p.textContent; }).join(' ');
+      var bate = semAcento_((titulo + ' ' + dica).toLowerCase()).indexOf(alvo) !== -1;
+      card.hidden = !bate;
+      if (bate) achou++;
+    });
+    $('ajustesBuscaVazio').hidden = !(cartoes && !achou);
   }
 
   function mostrarParteDeClientes_(parte) {
@@ -6701,8 +6796,43 @@
   });
   $('rotaFiltroZonaBtn').addEventListener('click', function (ev) {
     ev.stopPropagation();
-    $('rotaFiltroZonaPainel').hidden = !$('rotaFiltroZonaPainel').hidden;
+    var aberto = $('rotaFiltroZonaPainel').hidden;
+    $('rotaFiltroZonaPainel').hidden = !aberto;
+    this.setAttribute('aria-expanded', aberto ? 'true' : 'false');
   });
+  // Esc fecha e devolve o foco pro botão — o painel some com clique fora,
+  // mas quem está no teclado ficava preso dentro dele.
+  $('rotaFiltroZonaPainel').addEventListener('keydown', function (ev) {
+    if (ev.key !== 'Escape') return;
+    this.hidden = true;
+    $('rotaFiltroZonaBtn').setAttribute('aria-expanded', 'false');
+    $('rotaFiltroZonaBtn').focus();
+  });
+
+  // ---------- menu de ações da rota ----------
+  // A ação de todo dia é tocar numa parada. Os quatro botões de apoio saem
+  // da frente e ficam aqui, a um toque.
+  $('rotaMaisBtn').addEventListener('click', function (ev) {
+    ev.stopPropagation();
+    var p = $('rotaMaisPainel');
+    var abrir = p.hidden;
+    p.hidden = !abrir;
+    this.setAttribute('aria-expanded', abrir ? 'true' : 'false');
+    if (abrir) { var primeiro = p.querySelector('.menu-acoes-item:not([hidden])'); if (primeiro) primeiro.focus(); }
+  });
+  $('rotaMaisPainel').addEventListener('click', function () { fecharMenuDaRota_(); });
+  $('rotaMaisPainel').addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape') { fecharMenuDaRota_(); $('rotaMaisBtn').focus(); }
+  });
+  document.addEventListener('click', function (ev) {
+    if (!ev.target.closest('.menu-acoes')) fecharMenuDaRota_();
+  });
+  function fecharMenuDaRota_() {
+    var p = $('rotaMaisPainel');
+    if (!p || p.hidden) return;
+    p.hidden = true;
+    $('rotaMaisBtn').setAttribute('aria-expanded', 'false');
+  }
   $('rotaAddBtn').addEventListener('click', function () {
     document.querySelector('.tab[data-tab="nova"]').click();
     document.querySelector('#modeToggle .mode-btn[data-mode="rota"]').click();
@@ -7119,7 +7249,7 @@
     });
     el.innerHTML = '';
     if (!vivos.length) {
-      el.innerHTML = '<div class="empty-state">Nenhum recado. Use pra avisar a equipe de algo do dia a dia.</div>';
+      el.innerHTML = vazioCom_('Nenhum recado. Use pra avisar a equipe de algo do dia a dia.', '+ Novo recado', 'recadoNovoBtn');
       return;
     }
     var meuEmail = (auth.currentUser && auth.currentUser.email) || '';
@@ -8464,6 +8594,47 @@
     });
   }
 
+  // Um aviso por parada, na ordem de quanto custa ignorar: porta fechada
+  // agora > dia errado > já foi e não deu certo. Três linhas de cinza claro
+  // no meio dos pontinhos não faziam ninguém desviar da viagem perdida.
+  function avisoDaParada_(e, cliente) {
+    if (cliente && foraDaJanela_(cliente)) return textoDaJanela_(cliente);
+    if (cliente && !recebeHoje_(cliente)) return 'Recebe ' + textoDiasDeEntrega_(cliente);
+    if (e.tentativa > 1) {
+      return e.tentativa + 'ª tentativa' + (e.motivoTentativaAnterior ? ' — antes: ' + e.motivoTentativaAnterior : '');
+    }
+    return '';
+  }
+
+  // Tela vazia sem saída parece tela quebrada. Onde existe uma ação óbvia,
+  // ela vem junto: o botão é o mesmo que já está no cabeçalho do cartão,
+  // clicado por tabela (data-clicar), sem duplicar comportamento.
+  function vazioCom_(texto, rotulo, idDoAlvo) {
+    // Sem botão quando o alvo não está à mão: quem não é admin não vê o
+    // cadastro de cliente, e oferecer o caminho seria oferecer um beco.
+    var alvo = idDoAlvo ? document.getElementById(idDoAlvo) : null;
+    var cabe = rotulo && alvo && !alvo.hidden;
+    return '<div class="empty-state">' + escapeHtml_(texto) +
+      (cabe ? '<button type="button" class="btn-chip accent vazio-acao" data-clicar="' + idDoAlvo + '">' + escapeHtml_(rotulo) + '</button>' : '') +
+      '</div>';
+  }
+  document.addEventListener('click', function (ev) {
+    var b = ev.target.closest('.vazio-acao');
+    if (!b) return;
+    var alvo = document.getElementById(b.dataset.clicar);
+    if (!alvo) return;
+    if (alvo.tagName === 'BUTTON') { alvo.click(); return; }
+    // é um cartão: leva a pessoa até ele e já deixa o cursor no primeiro campo
+    alvo.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    var campo = alvo.querySelector('input:not([type=hidden]), select, textarea');
+    if (campo) setTimeout(function () { campo.focus(); }, 300);
+  });
+
+  function anunciar_(texto) {
+    var el = document.getElementById("avisoLeitor");
+    if (el) el.textContent = texto;
+  }
+
   function renderRota() {
     var badge = $('rotaBadge');
     atualizarBadge_(badge, pendentesCache.length);
@@ -8511,26 +8682,18 @@
       var itensStr = (e.itens || []).map(function (i) { return typeof i === 'string' ? i : i.tipo; }).join(', ');
       var total = (e.itens || []).reduce(function (s, i) { return s + ((i && i.valor) || 0); }, 0);
       var subtitle = fmtCompetencia(e.competencia) + ' · ' + itensStr + (total > 0 ? ' · ' + fmtMoney(total) : '') + (e.zona ? ' · ' + ZONA_LABEL[e.zona] : '');
-      // já foi lá e não deu certo: avisa a tentativa e o motivo da anterior,
-      // pra não repetir o mesmo erro (ex.: chegar de novo no horário do almoço)
-      if (e.tentativa > 1) {
-        subtitle += ' · ' + e.tentativa + 'ª tentativa' + (e.motivoTentativaAnterior ? ' (antes: ' + e.motivoTentativaAnterior + ')' : '');
-      }
-      // cliente que só recebe em certos dias: avisa antes da viagem perdida
+      // O que faz voltar de viagem perdida não pode ter o mesmo peso de
+      // "DAS": sai do subtítulo e vira um aviso só, o mais caro dos três.
       var clienteDaLinha = e.clienteId ? clientesCache.get(e.clienteId) : null;
-      if (clienteDaLinha && !recebeHoje_(clienteDaLinha)) {
-        subtitle += ' · recebe ' + textoDiasDeEntrega_(clienteDaLinha);
-      }
-      // porta fechada por causa do horário: avisa antes da viagem
-      if (clienteDaLinha && foraDaJanela_(clienteDaLinha)) {
-        subtitle += ' · ' + textoDaJanela_(clienteDaLinha);
-      }
+      var aviso = avisoDaParada_(e, clienteDaLinha);
       row.innerHTML =
-        '<span class="rota-drag-handle" aria-label="Arrastar para reordenar"><i class="ph ph-dots-six-vertical" aria-hidden="true"></i></span>' +
-        '<div class="rota-item-conteudo"><div class="er-nome"></div><div class="er-sub"></div></div>' +
+        '<button type="button" class="rota-drag-handle" aria-label="Mover ' + escapeHtml_(e.clienteNome || 'parada') + ' na ordem da rota. Alt com seta para cima ou para baixo."><i class="ph ph-dots-six-vertical" aria-hidden="true"></i></button>' +
+        '<div class="rota-item-conteudo"><div class="er-nome"></div><div class="er-sub"></div>' +
+        (aviso ? '<div class="er-aviso"><i class="ph ph-warning-circle" aria-hidden="true"></i><span></span></div>' : '') + '</div>' +
         '<span class="status-pill ' + (e.tentativa > 1 ? 'falha' : 'rota') + '">' + (e.tentativa > 1 ? e.tentativa + 'ª vez' : 'Assinar') + '</span>';
       row.querySelector('.er-nome').textContent = e.clienteNome;
       row.querySelector('.er-sub').textContent = subtitle;
+      if (aviso) row.querySelector('.er-aviso span').textContent = aviso;
       row.addEventListener('click', function (ev) {
         if (ev.target.closest('.rota-drag-handle')) return;
         openConfirmPendingModal(e);
@@ -8607,6 +8770,25 @@
   // atual em "ordemRota" pra sobreviver a um recarregamento da página.
   function habilitarDragRota_(row) {
     var handle = row.querySelector('.rota-drag-handle');
+    // No PC, arrastar 40 linhas com o mouse é pior que Alt+seta. E quem usa
+    // teclado não tinha caminho nenhum pra montar a ordem.
+    handle.addEventListener('keydown', function (ev) {
+      var passo = { ArrowUp: -1, ArrowDown: 1 }[ev.key];
+      if (!passo || !ev.altKey) return;
+      ev.preventDefault();
+      var listEl = $('rotaList');
+      var irmaos = Array.from(listEl.querySelectorAll('.rota-item'));
+      var i = irmaos.indexOf(row);
+      var destino = i + passo;
+      if (destino < 0 || destino >= irmaos.length) return;
+      if (passo < 0) listEl.insertBefore(row, irmaos[destino]);
+      else listEl.insertBefore(row, irmaos[destino].nextSibling);
+      row.classList.add('movida-pelo-teclado');
+      setTimeout(function () { row.classList.remove('movida-pelo-teclado'); }, 600);
+      handle.focus();
+      anunciar_((row.querySelector('.er-nome') || {}).textContent + ': posição ' + (destino + 1) + ' de ' + irmaos.length);
+      salvarNovaOrdemRota_();
+    });
     handle.addEventListener('pointerdown', function (ev) {
       ev.preventDefault();
       var listEl = $('rotaList');
@@ -8913,7 +9095,14 @@
       }
       primeiraCargaEnviadas = false;
     }, function (err) { showToast(errMsg(err, 'Não foi possível carregar as solicitações.'), 'error'); });
-    unsubSolicitacoesConcluidas = db.collection('solicitacoes').where('concluidoPor', '==', email).limit(300).onSnapshot(function (snap) {
+  }
+
+  // O que EU já concluí é histórico: só interessa com a aba aberta. Antes
+  // subia no login e custava até 300 leituras que ninguém ia olhar.
+  function subscribeSolicitacoesConcluidasPorMim_() {
+    if (!db || !auth.currentUser || temPapel('office_boy')) return;
+    if (unsubSolicitacoesConcluidas) return;
+    unsubSolicitacoesConcluidas = db.collection('solicitacoes').where('concluidoPor', '==', auth.currentUser.email).limit(300).onSnapshot(function (snap) {
       solicitacoesConcluidasPorMimCache = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
       solicitacoesCache = mesclarCachesSolicitacoes_();
       renderSolicitacoes();
@@ -9094,7 +9283,9 @@
     var listEl = $('solicitacoesList');
     listEl.innerHTML = '';
     if (lista.length === 0) {
-      listEl.innerHTML = '<div class="empty-state">' + (solVerConcluidas ? 'Nenhuma solicitação concluída ainda.' : 'Nenhuma solicitação pendente.') + '</div>';
+      listEl.innerHTML = solVerConcluidas
+        ? vazioCom_('Nenhuma solicitação concluída ainda.', 'Ver as pendentes', 'solVerConcluidasBtn')
+        : vazioCom_('Nenhuma solicitação pendente.', '+ Nova solicitação', 'form-solicitacao');
       return;
     }
     lista.forEach(function (s) {
@@ -9239,8 +9430,11 @@
   // ---------- mapa de entregas (Leaflet + OpenStreetMap, sem chave de API) ----------
   var painelMap = null;
   var painelMarkers = [];
+  // O Leaflet só sobe quando alguém quer o mapa. Abrir o Painel pra
+  // conferir a lista não precisa carregar dois mapas no celular.
+  var painelMapaAberto_ = false;
   function renderPainelMapa() {
-    if (typeof L === 'undefined' || !$('painelMapa')) return;
+    if (typeof L === 'undefined' || !$('painelMapa') || !painelMapaAberto_) return;
     var pontos = entregasPainelCache.filter(function (e) {
       return (e.status === 'confirmada' || e.status === 'falha') && e.geo && typeof e.geo.lat === 'number' && typeof e.geo.lng === 'number';
     });
@@ -9273,7 +9467,7 @@
           // cor fixa, não var(--ink-faint): o popup do Leaflet é sempre
           // fundo branco (não segue o tema escuro do app), então usa o
           // mesmo tom que --ink-faint tem no claro
-          '<span style="color:#6C6C6C">' + escapeHtml_(fmtDateTime(e.confirmadoEm || e.criadoEm)) + '</span>'
+          '<span class="ink-faint">' + escapeHtml_(fmtDateTime(e.confirmadoEm || e.criadoEm)) + '</span>'
         );
         painelMarkers.push(m);
         bounds.push([e.geo.lat, e.geo.lng]);
@@ -11733,6 +11927,14 @@
   $('fechamentoMesSelect').addEventListener('change', function () { carregarFechamentoDoMes_(competenciaDoFechamento_()); });
   $('rotaFixaConferirBtn').addEventListener('click', conferirRotaFixa_);
   $('rotaFixaSalvarBtn').addEventListener('click', function () { salvarRotaFixa_(this); });
+  $('painelMapaBtn').addEventListener('click', function () {
+    var caixa = $('painelMapaCaixa');
+    caixa.hidden = !caixa.hidden;
+    painelMapaAberto_ = !caixa.hidden;
+    this.textContent = caixa.hidden ? 'Mostrar' : 'Esconder';
+    this.setAttribute('aria-expanded', caixa.hidden ? 'false' : 'true');
+    if (painelMapaAberto_) renderPainelMapa();
+  });
   $('carteiraMapaBtn').addEventListener('click', function () {
     var caixa = $('carteiraMapaCaixa');
     caixa.hidden = !caixa.hidden;
@@ -11817,7 +12019,7 @@
       renderEquipeList();
     }, function (err) {
       $('equipeContador').textContent = '–';
-      $('equipeList').innerHTML = '<div class="empty-state"></div>';
+      $('equipeList').innerHTML = '<div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div>';
       $('equipeList').querySelector('.empty-state').textContent =
         errMsg(err, 'Não foi possível carregar a lista de acessos.');
     });
@@ -12229,7 +12431,7 @@
       (filtroDaBase_ !== 'todos' || etiquetaEscolhida_ || busca ? ' nesta seleção' : '');
     listEl.innerHTML = '';
     if (all.length === 0) {
-      listEl.innerHTML = '<div class="empty-state">Nenhum cliente encontrado.</div>';
+      listEl.innerHTML = vazioCom_('Nenhum cliente encontrado.', '+ Novo cliente', 'form-cliente');
       listaChegou_(listEl);
       return;
     }
@@ -12498,6 +12700,14 @@
       ]
     },
     {
+      campo: 'explicacoes', atributo: 'explicacoes', padrao: 'mostrar', rotulo: 'Explicações dos cartões',
+      dica: 'Na primeira semana ajudam. Depois são três linhas a menos por cartão.',
+      opcoes: [
+        { valor: 'mostrar', rotulo: 'Mostrar' },
+        { valor: 'esconder', rotulo: 'Esconder' }
+      ]
+    },
+    {
       campo: 'animacao', atributo: 'animacao', padrao: 'completa', rotulo: 'Animações',
       opcoes: [
         { valor: 'completa', rotulo: 'Normais' },
@@ -12530,7 +12740,7 @@
     if (!ev.key) return;
     if (ev.key === 'nilma_tema') aplicarTema(ev.newValue || 'auto');
     else if (ev.key === 'nilma_paleta') aplicarPaleta(ev.newValue || 'padrao');
-    else if (/^nilma_(texto|densidade|animacao)$/.test(ev.key)) {
+    else if (/^nilma_(texto|densidade|animacao|explicacoes)$/.test(ev.key)) {
       var campo = ev.key.slice('nilma_'.length);
       var pref = PREFERENCIAS.filter(function (p) { return p.campo === campo; })[0];
       aplicarPreferencia(campo, ev.newValue || (pref && pref.padrao));
@@ -13103,7 +13313,7 @@
     var el = $('competenciasFechadasLista');
     if (!el) return;
     if (!competenciasFechadas.length) {
-      el.innerHTML = '<div class="empty-state">Nenhuma competência fechada ainda.</div>';
+      el.innerHTML = vazioCom_('Nenhuma competência fechada ainda. Fechar guarda os números do mês e impede alteração depois.', 'Fechar uma competência', 'fecharCompetenciaBtn');
       return;
     }
     el.innerHTML = '';
@@ -13163,7 +13373,7 @@
     db.collection('auditoria').orderBy('quando', 'desc').limit(100).get().then(function (snap) {
       lista.innerHTML = '';
       if (snap.empty) {
-        lista.innerHTML = '<div class="empty-state">Nenhuma ação registrada ainda.</div>';
+        lista.innerHTML = vazioCom_('Nenhuma ação registrada ainda. A auditoria guarda quem mexeu em quê.', '', '');
       }
       snap.docs.forEach(function (d) {
         var a = d.data();
@@ -13245,6 +13455,9 @@
     unsubUsuarios = unsubNotas = unsubCompetencias = null;
 
     appStarted = false;
+    // sair zera quais abas já acenderam: o próximo login acende de novo
+    abaAcesa_ = {};
+    precisaRender_ = {};
     currentUserRoles = ['staff'];
     currentUserNome = '';
     clientesCache = new Map();
@@ -13300,12 +13513,7 @@
   function aoChegarClientes_(snap, completo) {
     clientesCache = new Map(snap.docs.map(function (d) { return [d.id, Object.assign({ id: d.id }, d.data())]; }));
     clientesCompletos_ = completo;
-    renderClientesList();
-    renderQualidadeRota_();
-    renderHonorariosTab_();
-    renderPainel();
-    updateDashStrip();
-    renderRota();
+    pedirRender_(['clientes', 'honorarios', 'painel', 'nova', 'rota']);
     sincronizarRotaLinks_();
     if (primeiraCargaClientes_) { primeiraCargaClientes_ = false; restaurarRascunhoSeExistir_(); atualizarAlertaSemEntrega_(); carregarObrigacoes_(); atualizarLinkParado_(); carregarLembretes_(); ouvirEmprestimos_(); carregarEscritorio_(); ouvirRecadosDoCliente_(); carregarRotaFixa_();
       $('fechamentoMesSelect').value = competenciaAnterior_();
@@ -13388,6 +13596,60 @@
     }).catch(function () {});
   }
 
+  // ---------- ouvintes e desenho por aba ----------
+  // Entrar no app abria onze ouvintes de uma vez, inclusive os caros
+  // (Painel: 1500 documentos; Honorários: 1000 + 500), para quem talvez só
+  // fosse usar a Rota. Agora cada aba acende os seus na primeira abertura.
+  var abaAcesa_ = {};
+  var OUVINTES_DA_ABA_ = {
+    painel: function () { subscribePainel($('painelCompetencia').value); },
+    honorarios: function () {
+      if (!(temPapel('admin') || temPapel('office_boy'))) return;
+      subscribeHonorariosMes_($('honorariosMes').value);
+      subscribeHonorarioNaoAplicavel_($('honorariosMes').value);
+    },
+    solicitacoes: function () { subscribeSolicitacoesConcluidasPorMim_(); }
+  };
+  function acenderOuvintesDaAba_(nome) {
+    if (!appStarted || abaAcesa_[nome] || modoDemonstracaoLigado_()) return;
+    abaAcesa_[nome] = true;
+    var f = OUVINTES_DA_ABA_[nome];
+    if (f) f();
+  }
+
+  // Desenhar seis telas a cada retrato de clientes travava o celular e fazia
+  // a lista pular no meio da rolagem. Só a aba aberta desenha; as outras
+  // ficam marcadas e desenham quando forem abertas. O que é contador de
+  // aba (badge) continua atualizando sempre, porque é o que se vê de fora.
+  var precisaRender_ = {};
+  var RENDER_DA_ABA_ = {
+    clientes: function () { renderClientesList(); renderQualidadeRota_(); },
+    honorarios: function () { renderHonorariosTab_(); },
+    painel: function () { renderPainel(); },
+    rota: function () { renderRota(); },
+    nova: function () { updateDashStrip(); }
+  };
+  var BADGE_DA_ABA_ = {
+    rota: function () { atualizarBadge_($('rotaBadge'), pendentesCache.length); }
+  };
+  function abaAtual_() {
+    var t = document.querySelector('.tab.active');
+    return t ? t.dataset.tab : 'nova';
+  }
+  function pedirRender_(abas) {
+    var atual = abaAtual_();
+    abas.forEach(function (nome) {
+      if (nome === atual) { precisaRender_[nome] = false; RENDER_DA_ABA_[nome](); return; }
+      precisaRender_[nome] = true;
+      if (BADGE_DA_ABA_[nome]) BADGE_DA_ABA_[nome]();
+    });
+  }
+  function renderPendenteDaAba_(nome) {
+    if (!precisaRender_[nome]) return;
+    precisaRender_[nome] = false;
+    if (RENDER_DA_ABA_[nome]) RENDER_DA_ABA_[nome]();
+  }
+
   function startApp() {
     if (appStarted) return;
     appStarted = true;
@@ -13433,13 +13695,10 @@
     primeiraCargaClientes_ = true;
     ouvirClientes_(false);
 
-    subscribePainel($('painelCompetencia').value);
     subscribeHoje_();
     setTimeout(processarFilaPortal_, 8000);
-    if (temPapel('admin') || temPapel('office_boy')) {
-      subscribeHonorariosMes_($('honorariosMes').value);
-      subscribeHonorarioNaoAplicavel_($('honorariosMes').value);
-    }
+    // Painel e Honorários agora sobem em OUVINTES_DA_ABA_, na primeira
+    // vez que a aba é aberta.
     subscribePendentes();
     subscribeRotaLinks_();
     subscribeSolicitacoes();
