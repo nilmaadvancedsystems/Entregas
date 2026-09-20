@@ -537,6 +537,8 @@ async function iniciar() {
   catch (err) { log('entrega pelo link desligada:', err.message); }
   try { require('./resumo-semanal').iniciarResumoSemanal({ db, log, enviar, destino: destinoDosAvisos }); }
   catch (err) { log('resumo da semana desligado:', err.message); }
+  try { require('./papeis-vencendo').iniciarPapeisVencendo({ db, log, avisos }); }
+  catch (err) { log('aviso de documento vencendo desligado:', err.message); }
   try { require('./lembretes').iniciarLembretes({ db, log, avisos }); }
   catch (err) { log('lembretes do escritório desligados:', err.message); }
   try { require('./pedidos-do-portal').iniciarPedidosDoPortal(db, log, avisos); }

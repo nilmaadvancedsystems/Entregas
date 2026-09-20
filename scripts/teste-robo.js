@@ -280,5 +280,26 @@ igual('assunto desconhecido cai em "outro"', pp.solicitacaoDoPedido({ assunto: '
 igual('texto comprido é cortado em 400', pp.solicitacaoDoPedido({ assunto: 'duvida', texto: 'a'.repeat(500) }, { nome: 'X' }).descricao.length,
   'Dúvida do cliente — X: '.length + 400);
 
+// ---------- certidão, procuração e certificado vencendo ----------
+const pv = require('./papeis-vencendo');
+const hojePv = new Date(2026, 8, 20);            // 20/09/2026
+igual('dias até uma data futura', pv.diasAte('2026-10-05', hojePv), 15);
+igual('data passada dá negativo', pv.diasAte('2026-09-18', hojePv), -2);
+igual('data inválida não conta', pv.diasAte('', hojePv), null);
+const clientesPv = [
+  { nome: 'PADARIA', papeis: [{ tipo: 'certificado', vence: '2026-10-20' }, { tipo: 'cnd-federal', vence: '2026-10-05' }, { tipo: 'outro', vence: '2026-09-25' }] },
+  { nome: 'MERCEARIA', papeis: [{ tipo: 'procuracao', vence: '2026-09-19' }] },
+  { nome: 'INATIVO', ativo: false, papeis: [{ tipo: 'fgts', vence: '2026-09-23' }] },
+  { nome: 'SEM PAPEL' }
+];
+const avisar = pv.papeisParaAvisar(clientesPv, hojePv);
+igual('avisa só nos marcos (30, 15, 3) e no dia seguinte ao vencimento',
+  avisar.map(x => x.nome + '/' + x.dias), ['Procuração eletrônica/-1', 'CND Federal/15', 'Certificado digital/30']);
+igual('cliente inativo fica de fora', avisar.some(x => x.cliente === 'INATIVO'), false);
+igual('dia sem marco não avisa nada', pv.papeisParaAvisar(clientesPv, new Date(2026, 8, 21)), []);
+igual('texto de um documento só', pv.textoDoAviso([{ nome: 'CND Federal', cliente: 'PADARIA', dias: 15 }]),
+  { titulo: 'Documento vencendo', corpo: 'CND Federal de PADARIA vence em 15 dias' });
+igual('texto de vários', pv.textoDoAviso(avisar).titulo, '3 documentos vencendo');
+
 console.log(falhas ? '\n' + falhas + ' de ' + total + ' testes FALHARAM' : total + ' testes, todos passaram');
 process.exit(falhas ? 1 : 0);

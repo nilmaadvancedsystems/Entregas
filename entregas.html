@@ -722,6 +722,13 @@
   .ajuda-item mark { background: var(--accent-soft); color: var(--accent-forte); border-radius: var(--r-xs); padding: 0 2px; }
   .ajuda-vazio { color: var(--ink-faint); font-size: var(--t-base); padding: var(--esp-4) 0; }
 
+  /* papéis com validade (certidão, procuração, certificado) */
+  .papel-edit { display: grid; grid-template-columns: 1fr 150px 130px auto; gap: 6px; align-items: center; margin-bottom: 6px; }
+  @media (max-width: 700px) { .papel-edit { grid-template-columns: 1fr 1fr; } }
+  .papel-prazo { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .papel-prazo.perto { color: var(--warning-forte); }
+  .papel-prazo.vencido { color: var(--danger-forte); }
+
   /* ocorrências, empréstimos e lembretes */
   .ocorrencia { display: flex; gap: 10px; align-items: flex-start; padding: var(--esp-2) 0; border-bottom: 1px solid var(--border); }
   .ocorrencia:last-child { border-bottom: 0; }
@@ -2800,6 +2807,14 @@
       <p class="card-hint">O que falta preencher. Clique num número pra ver quem é.</p>
       <div class="saude-grid" id="saudeGrid"></div>
     </div>
+    <div class="card" id="papeisVencendoCard" hidden>
+      <div class="card-head-row">
+        <h2><i class="ph ph-certificate" aria-hidden="true"></i> Vencendo nos clientes</h2>
+        <span class="card-hint" id="papeisVencendoContador"></span>
+      </div>
+      <p class="card-hint">Certidão, procuração e certificado digital com data chegando ou já passada. A data é guardada no cadastro de cada cliente.</p>
+      <div id="papeisVencendoList"></div>
+    </div>
     <div class="card" id="emprestimosCard">
       <div class="card-head-row">
         <h2><i class="ph ph-hand-arrow-down" aria-hidden="true"></i> Documentos com o escritório</h2>
@@ -4044,6 +4059,82 @@
       lembretes_ = (d && Array.isArray(d.itens)) ? d.itens : [];
       renderLembretes_();
     }).catch(function () {});
+  }
+
+  // ---------- papéis com validade ----------
+  // Certidão negativa, procuração eletrônica, certificado A1: tudo vence e
+  // ninguém lembra até precisar. Fica em clientes.papeis (no máximo 12 por
+  // cliente), então não custa leitura nenhuma — já vem com o cadastro.
+  var TIPOS_DE_PAPEL_ = [
+    ['cnd-federal', 'CND Federal'], ['cnd-estadual', 'CND Estadual'], ['cnd-municipal', 'CND Municipal'],
+    ['fgts', 'CRF do FGTS'], ['trabalhista', 'Certidão trabalhista'],
+    ['procuracao', 'Procuração eletrônica'], ['certificado', 'Certificado digital'], ['outro', 'Outro documento']
+  ];
+  function nomeDoPapel_(tipo) {
+    var achado = TIPOS_DE_PAPEL_.filter(function (t) { return t[0] === tipo; })[0];
+    return achado ? achado[1] : 'Documento';
+  }
+  function papeisDe_(c) {
+    return (Array.isArray(c && c.papeis) ? c.papeis : []).filter(function (p) { return p && p.tipo && p.vence; });
+  }
+  // O que está vencido ou vence nos próximos dias, do mais urgente pro resto.
+  function papeisVencendo_(dias) {
+    var limite = dias == null ? 45 : dias;
+    var fora = [];
+    Array.from(clientesCache.values()).forEach(function (c) {
+      if (c.ativo === false) return;
+      papeisDe_(c).forEach(function (p) {
+        var faltam = diasAte_(p.vence);
+        if (faltam === null || faltam > limite) return;
+        fora.push({ cliente: c, papel: p, dias: faltam });
+      });
+    });
+    return fora.sort(function (a, b) { return a.dias - b.dias; });
+  }
+  function renderPapeisVencendo_() {
+    var card = $('papeisVencendoCard');
+    if (!card) return;
+    var lista = papeisVencendo_(45);
+    card.hidden = !lista.length;
+    if (!lista.length) return;
+    $('papeisVencendoContador').textContent = lista.length + (lista.length === 1 ? ' documento' : ' documentos');
+    var el = $('papeisVencendoList');
+    el.innerHTML = '';
+    lista.slice(0, 15).forEach(function (x) {
+      var row = document.createElement('div');
+      row.className = 'client-row';
+      row.innerHTML = '<div class="cr-clickable"><div><div class="cr-name"></div><div class="cr-sub"></div></div>' +
+        '<span class="papel-prazo ' + (x.dias < 0 ? 'vencido' : (x.dias <= 15 ? 'perto' : '')) + '"></span></div>';
+      row.querySelector('.cr-name').textContent = nomeDoPapel_(x.papel.tipo) + ' · ' + clienteLabel(x.cliente);
+      row.querySelector('.cr-sub').textContent = (x.papel.observacao || 'vence em ' + String(x.papel.vence).split('-').reverse().join('/'));
+      row.querySelector('.papel-prazo').textContent = textoPrazo_(x.dias);
+      row.querySelector('.cr-clickable').addEventListener('click', function () { openClienteHistorico(x.cliente); });
+      el.appendChild(row);
+    });
+    if (lista.length > 15) {
+      var resto = document.createElement('p');
+      resto.className = 'card-hint';
+      resto.style.margin = '8px 0 0';
+      resto.textContent = 'e mais ' + (lista.length - 15) + '.';
+      el.appendChild(resto);
+    }
+  }
+
+  // ---------- janela de horário do cliente ----------
+  function janelaDe_(c) {
+    var j = c && c.janela;
+    return (j && j.de && j.ate) ? j : null;
+  }
+  function textoDaJanela_(c) {
+    var j = janelaDe_(c);
+    return j ? 'atende ' + j.de + '–' + j.ate : '';
+  }
+  function foraDaJanela_(c, agora) {
+    var j = janelaDe_(c);
+    if (!j) return false;
+    var d = agora || new Date();
+    var hhmm = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+    return hhmm < j.de || hhmm > j.ate;
   }
 
   // ---------- dados do escritório (PIX) ----------
@@ -6274,6 +6365,19 @@
             acao: function () { openClienteHistorico(c); }
           });
         });
+
+      // guias que estão na rota: acha por valor ("1.240,55" ou "1240"), por
+      // tipo ("DAS"), por competência ("08/2026") e pelo nome do cliente
+      entregasQueCombinam_(q).slice(0, 8).forEach(function (e) {
+        var itens = (e.itens || []).map(function (i) { return typeof i === 'string' ? i : i.tipo; }).join(', ');
+        var total = (e.itens || []).reduce(function (t, i) { return t + ((i && i.valor) || 0); }, 0);
+        buscaGlobalResultados.push({
+          nome: (e.clienteNome || 'sem cliente') + ' · ' + (itens || 'documentos'),
+          sub: [fmtCompetencia(e.competencia), total ? fmtMoney(total) : '', 'na rota'].filter(Boolean).join(' · '),
+          icone: 'ph-receipt',
+          acao: function () { $('tabbtn-rota').click(); openConfirmPendingModal(e); }
+        });
+      });
     }
 
     lista.innerHTML = '';
@@ -6292,6 +6396,35 @@
       b.querySelector('.busca-global-item-sub').textContent = r.sub;
       b.addEventListener('click', function () { fecharBuscaGlobal_(); r.acao(); });
       lista.appendChild(b);
+    });
+  }
+
+  // Casa o que foi digitado com o que está na rota. Valor entra nos dois
+  // formatos (1.240,55 e 1240,55 e 1240.55), porque o papel na mão do cliente
+  // e o app nem sempre escrevem igual.
+  function numerosDaBusca_(q) {
+    var achados = [];
+    (q.match(/[\d.,]+/g) || []).forEach(function (bruto) {
+      var limpo = bruto.replace(/\./g, '').replace(',', '.');
+      var n = parseFloat(limpo);
+      if (!isNaN(n) && n > 0) achados.push(n);
+    });
+    return achados;
+  }
+  function entregasQueCombinam_(q) {
+    var termo = q.toLowerCase();
+    var numeros = numerosDaBusca_(termo);
+    return pendentesCache.filter(function (e) {
+      var itens = (e.itens || []).map(function (i) { return typeof i === 'string' ? i : (i && i.tipo) || ''; }).join(' ').toLowerCase();
+      var texto = [e.clienteNome || '', itens, e.competencia || '', fmtCompetencia(e.competencia || ''), e.vencimento || '',
+        (e.codigoPagamento && e.codigoPagamento.codigo) || ''].join(' ').toLowerCase();
+      if (texto.indexOf(termo) !== -1) return true;
+      if (!numeros.length) return false;
+      var valores = (e.itens || []).map(function (i) { return (i && i.valor) || 0; });
+      var total = valores.reduce(function (t, v) { return t + v; }, 0);
+      return numeros.some(function (n) {
+        return valores.some(function (v) { return Math.abs(v - n) < 0.005; }) || Math.abs(total - n) < 0.005;
+      });
     });
   }
 
@@ -7809,6 +7942,10 @@
       if (clienteDaLinha && !recebeHoje_(clienteDaLinha)) {
         subtitle += ' · recebe ' + textoDiasDeEntrega_(clienteDaLinha);
       }
+      // porta fechada por causa do horário: avisa antes da viagem
+      if (clienteDaLinha && foraDaJanela_(clienteDaLinha)) {
+        subtitle += ' · ' + textoDaJanela_(clienteDaLinha);
+      }
       row.innerHTML =
         '<span class="rota-drag-handle" aria-label="Arrastar para reordenar"><i class="ph ph-dots-six-vertical" aria-hidden="true"></i></span>' +
         '<div class="rota-item-conteudo"><div class="er-nome"></div><div class="er-sub"></div></div>' +
@@ -9301,6 +9438,18 @@
         '<button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button>' +
       '</div>' +
       etiquetasHtml +
+      (function () {
+        var papeis = papeisDe_(cliente).map(function (p) { return { p: p, dias: diasAte_(p.vence) }; })
+          .sort(function (a, b) { return (a.dias === null ? 9999 : a.dias) - (b.dias === null ? 9999 : b.dias); });
+        if (!papeis.length) return '';
+        return '<div class="field" style="margin-bottom:var(--esp-3)"><span>Documentos com validade</span>' +
+          papeis.map(function (x) {
+            var classe = x.dias === null ? '' : (x.dias < 0 ? 'vencido' : (x.dias <= 15 ? 'perto' : ''));
+            return '<div class="entrega-row" style="cursor:default"><div><div class="er-nome">' + escapeHtml_(nomeDoPapel_(x.p.tipo)) + '</div>' +
+              '<div class="er-sub">' + escapeHtml_([String(x.p.vence).split('-').reverse().join('/'), x.p.observacao].filter(Boolean).join(' · ')) + '</div></div>' +
+              '<span class="papel-prazo ' + classe + '">' + escapeHtml_(x.dias === null ? '' : textoPrazo_(x.dias)) + '</span></div>';
+          }).join('') + '</div>';
+      })() +
       recadoHtml +
       contatosHtml +
       htmlDasOcorrencias_(cliente) +
@@ -11467,6 +11616,7 @@
 
   function renderClientesList() {
     renderAvisosDaReceita_();
+    renderPapeisVencendo_();
     renderLinkParado_();
     renderSaudeDaBase_();
     renderFiltrosDeCliente_();
@@ -13102,6 +13252,9 @@
       { quem: [], icone: 'ph-device-mobile', titulo: 'Página do cliente leve', texto: 'O link do cliente agora abre uma página própria de 30 KB, com "Para pagar" no topo e letras grandes. O endereço antigo continua valendo.' },
       { quem: [], icone: 'ph-seal-check', titulo: 'Protocolo com código de conferência', texto: 'O protocolo do mês sai com um QR e um código. Quem recebe o papel confere na página do cliente se ele saiu do escritório como está.' },
       { quem: ['admin', 'contabil'], icone: 'ph-robot', titulo: 'Cobrança e comprovante automáticos', texto: 'Pendências › Configurações › Automático: o robô cobra sozinho quem não mandou os documentos nos dias escolhidos e manda o comprovante de cada entrega por e-mail. Vem desligado.' },
+      { quem: ['admin', 'contabil'], icone: 'ph-certificate', titulo: 'Certidão e certificado com validade', texto: 'No cadastro do cliente dá pra guardar CND, procuração e certificado digital com a data de vencimento. A aba mostra o que está vencendo e o robô avisa 30, 15 e 3 dias antes.' },
+      { quem: [], icone: 'ph-clock', titulo: 'Horário em que o cliente atende', texto: 'Além dos dias, agora tem a hora: fecha meio-dia, só de tarde. A rota avisa quando a parada cai fora do horário dele.' },
+      { quem: [], icone: 'ph-magnifying-glass', titulo: 'Busca acha a guia pelo valor', texto: 'No Ctrl+K (ou na busca), digitar "1.240,55", "DAS" ou a competência traz as guias que estão na rota, não só os clientes.' },
       { quem: [], icone: 'ph-currency-circle-dollar', titulo: 'PIX do escritório na página do cliente', texto: 'Em Clientes e ajustes você guarda a chave PIX do escritório; a página do cliente passa a mostrar a situação do honorário do mês e um botão de copiar o PIX.' },
       { quem: [], icone: 'ph-check-square', titulo: '"Já paguei" e recado do cliente', texto: 'O cliente marca a guia como paga na página dele (some da lista de cobrança) e pode pedir segunda via, buscar documento ou tirar dúvida — o recado vira solicitação na fila, pelo PC do robô.' },
       { quem: [], icone: 'ph-question', titulo: 'Ajuda com busca', texto: 'O botão de interrogação, ao lado da engrenagem, abre as perguntas frequentes com busca: como assinar junto, o que fazer quando o cliente não está, como usar o link, o que é cada cartão. Mostra só o que vale pro seu cargo. A página do cliente também ganhou um "Dúvidas".' },
@@ -13467,7 +13620,18 @@
             var posto = diasDeEntregaDe_(cliente).indexOf(d[0]) !== -1;
             return '<button type="button" class="btn-chip' + (posto ? ' accent' : '') + '" data-dia="' + d[0] + '">' + d[1] + '</button>';
           }).join('') + '</div>' +
-          '<p class="card-hint" style="margin:6px 0 0">Nenhum marcado = recebe em qualquer dia. A rota avisa quando a parada cai fora desses dias.</p></div>' +
+          '<p class="card-hint" style="margin:6px 0 0">Nenhum marcado = recebe em qualquer dia. A rota avisa quando a parada cai fora desses dias.</p>' +
+          '<div class="row2" style="margin-top:10px">' +
+            '<div><label class="sub-rotulo" for="cadJanelaDe">Atende das</label>' +
+              '<input class="input" id="cadJanelaDe" type="time"></div>' +
+            '<div><label class="sub-rotulo" for="cadJanelaAte">até</label>' +
+              '<input class="input" id="cadJanelaAte" type="time"></div>' +
+          '</div>' +
+          '<p class="card-hint" style="margin:6px 0 0">Vazio = qualquer hora. Fora desse horário, a rota avisa antes de você bater na porta.</p></div>' +
+        '<div class="field" style="margin-top:var(--esp-4)"><span>Documentos com validade</span>' +
+          '<div id="cadPapeis"></div>' +
+          '<button type="button" class="btn-chip" id="cadPapelAddBtn"><i class="ph ph-plus" aria-hidden="true"></i> Adicionar documento</button>' +
+          '<p class="card-hint" style="margin:6px 0 0">Certidão, procuração, certificado digital. O sistema avisa quando a data chega perto.</p></div>' +
         '<div class="field" style="margin-top:var(--esp-4)"><span>Etiquetas</span>' +
           '<div class="chip-grid" id="cadEtiquetas"></div>' +
           '<div class="linha-busca-cnpj" style="margin-top:8px">' +
@@ -13496,6 +13660,34 @@
     $('modalClose').addEventListener('click', fechar);
     root.querySelectorAll('[data-banco]').forEach(function (c) {
       c.addEventListener('change', function () { c.closest('.banco-opcao').classList.toggle('ligado', c.checked); });
+    });
+
+    // --- janela de horário e documentos com validade ---
+    var janelaDoCliente = janelaDe_(cliente) || {};
+    $('cadJanelaDe').value = janelaDoCliente.de || '';
+    $('cadJanelaAte').value = janelaDoCliente.ate || '';
+
+    function linhaDePapel(p) {
+      var div = document.createElement('div');
+      div.className = 'papel-edit';
+      div.innerHTML =
+        '<select class="input" data-p="tipo">' + TIPOS_DE_PAPEL_.map(function (tp) {
+          return '<option value="' + tp[0] + '">' + tp[1] + '</option>';
+        }).join('') + '</select>' +
+        '<input class="input" data-p="vence" type="date">' +
+        '<input class="input" data-p="observacao" type="text" maxlength="60" placeholder="Anotação">' +
+        '<button type="button" class="btn-chip danger" title="Tirar"><i class="ph ph-trash" aria-hidden="true"></i></button>';
+      div.querySelector('[data-p="tipo"]').value = (p && p.tipo) || 'cnd-federal';
+      div.querySelector('[data-p="vence"]').value = (p && p.vence) || '';
+      div.querySelector('[data-p="observacao"]').value = (p && p.observacao) || '';
+      div.querySelector('.btn-chip').addEventListener('click', function () { div.remove(); });
+      return div;
+    }
+    papeisDe_(cliente).forEach(function (p) { $('cadPapeis').appendChild(linhaDePapel(p)); });
+    $('cadPapelAddBtn').addEventListener('click', function () {
+      var linha = linhaDePapel(null);
+      $('cadPapeis').appendChild(linha);
+      linha.querySelector('[data-p="vence"]').focus();
     });
 
     // --- dias da semana ---
@@ -13587,6 +13779,15 @@
       Object.assign(dados, bancosQueFicam_(cliente, Array.from(root.querySelectorAll('[data-banco]'))
         .filter(function (c) { return c.checked; }).map(function (c) { return c.dataset.banco; })));
       dados.diasEntrega = diasDoForm.slice().sort();
+      var jDe = $('cadJanelaDe').value, jAte = $('cadJanelaAte').value;
+      dados.janela = (jDe && jAte) ? { de: jDe, ate: jAte } : null;
+      dados.papeis = Array.from(root.querySelectorAll('#cadPapeis .papel-edit')).map(function (linha) {
+        return {
+          tipo: linha.querySelector('[data-p="tipo"]').value,
+          vence: linha.querySelector('[data-p="vence"]').value,
+          observacao: linha.querySelector('[data-p="observacao"]').value.trim().slice(0, 60)
+        };
+      }).filter(function (p) { return p.vence; }).slice(0, 12);
       dados.etiquetas = etiquetasDoForm.slice(0, 12);
       dados.observacao = $('cadObservacao').value.trim().slice(0, 280);
       dados.contatos = Array.from(root.querySelectorAll('#cadContatos .contato-row')).map(function (linha) {
