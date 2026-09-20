@@ -30,6 +30,31 @@ a { color: var(--accent-forte); }
 .badge-erro { color: var(--danger); font-weight: 600; }
 .dropzone.lendo { opacity: .7; pointer-events: none; }
 
+/* No celular, 8 colunas não cabem: a linha vira cartão e o rótulo da coluna
+   vem junto do dado. Os alvos sobem pra 44px — é dedo, não mouse. */
+@media (max-width: 800px) {
+  .tablewrap { overflow-x: visible; }
+  table.t thead { display: none; }
+  table.t tr { display: block; padding: var(--esp-3) 0; border-bottom: 1px solid var(--border); }
+  table.t td { display: flex; gap: var(--esp-2); align-items: center; padding: 3px 0; border: none; text-align: left !important; }
+  table.t td[data-rot]::before { content: attr(data-rot); flex: none; min-width: 96px; font-size: var(--t-xs); color: var(--ink-faint); }
+  table.t td select, table.t td .tbl-input { width: 100%; min-height: 44px; }
+  .icon-btn, .chev { min-width: 44px; min-height: 44px; }
+  .bulkbar select { min-width: 0; width: 100%; min-height: 44px; }
+  .row-detail td { display: block; }
+}
+
+/* pendências agrupadas: uma decisão para as notas que são a mesma coisa */
+.grupos-revisar { margin-bottom: var(--esp-4); }
+.grupo-revisar {
+  display: flex; gap: var(--esp-3); align-items: center; flex-wrap: wrap;
+  padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--r-sm);
+  background: var(--surface); margin-bottom: var(--esp-2);
+}
+.grupo-topo { flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.grupo-topo .small { color: var(--ink-faint); }
+.grupo-revisar select { flex: 0 1 260px; }
+
 /* progresso da revisão: a pergunta é "dá pra exportar?", não "quantos são?" */
 .progresso-lcdpr { margin: var(--esp-4) 0; }
 .progresso-topo { display: flex; justify-content: space-between; gap: var(--esp-3); font-size: var(--t-md); font-weight: 600; margin-bottom: 6px; }
@@ -916,6 +941,34 @@ function render(){
 }
 
 /* ============================== TELA: IMPORTAR ============================== */
+// Agrupa o que falta classificar pelo que ele tem em comum: mesmo NCM e
+// mesmo fornecedor quase sempre é a mesma conta.
+function gruposDeRevisar(){
+  const mapa = new Map();
+  state.lancamentos.filter(r=>r.revisar).forEach(r=>{
+    const ncm = ncmDaLinha(r).slice(0,4);
+    const chave = ncm + '|' + (r.fornecedor||'').toUpperCase();
+    if(!mapa.has(chave)) mapa.set(chave, {chave, ncm, fornecedor:r.fornecedor||'(sem fornecedor)', linhas:[], valor:0});
+    const g = mapa.get(chave);
+    g.linhas.push(r);
+    g.valor += Number(r.valor)||0;
+  });
+  return Array.from(mapa.values()).sort((a,b)=>b.linhas.length-a.linhas.length || b.valor-a.valor);
+}
+
+function aplicarNoGrupo(chave, catNome){
+  const g = gruposDeRevisar().find(x=>x.chave===chave);
+  if(!g || !catNome) return;
+  const antes = g.linhas.map(r=>({id:r.id, dados:Object.assign({}, r)}));
+  g.linhas.forEach(r=>applyCategoriaToRow(r, catNome));
+  if(g.linhas[0]) talvezVirarRegra(g.linhas[0]);
+  save(); render();
+  toastComDesfazer(g.linhas.length + ' lançamento(s) classificados.', ()=>{
+    antes.forEach(x=>{ const i = state.lancamentos.findIndex(r=>r.id===x.id); if(i!==-1) state.lancamentos[i] = x.dados; });
+    save(); render();
+  });
+}
+
 function visibleLancamentos(){
   let list = state.lancamentos;
   if(state.ui.showOnlyRevisar) list = list.filter(r=>r.revisar);
@@ -979,6 +1032,16 @@ function screenImportar(){
       <label class="small" style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="selectAllVisible"> selecionar visíveis</label>
     </div>
 
+    ${state.ui.showOnlyRevisar && revisar ? `<div class="grupos-revisar">
+      <p class="small">Agrupado pelo que essas notas têm em comum. Classificar o grupo vale para todas as linhas dele.</p>
+      ${gruposDeRevisar().map(g=>`<div class="grupo-revisar">
+        <div class="grupo-topo">
+          <strong>${esc(g.fornecedor)}</strong>
+          <span class="small">${g.ncm ? 'NCM ' + esc(g.ncm) + '… · ' : ''}${g.linhas.length} nota(s) · R$ ${fmtMoney(g.valor)}</span>
+        </div>
+        <select data-grupo="${esc(g.chave)}">${catOptions}</select>
+      </div>`).join('')}
+    </div>` : ''}
     ${(state.importacoes||[]).length ? `<details class="dobra registro-import">
       <summary>Arquivos lidos nesta sessão (${state.importacoes.length})</summary>
       <table class="t registro-tab"><tbody>${state.importacoes.map(i=>`<tr>
@@ -1019,11 +1082,11 @@ function rowHtml(r){
   const compact = `<tr class="${r.revisar?'revisar':''}" data-row="${r.id}" data-ncm="${esc(r.ncm||'')}">
     <td style="text-align:center"><input type="checkbox" data-sel="${r.id}" ${r.selected?'checked':''}></td>
     <td><div class="status-cell"><span class="tag ${r.origem==='NF'?'tag-nf':'tag-cte'}">${r.origem}</span>${r.revisar?'<span class="tag tag-warn">REVISAR</span>':origemTagHtml}</div></td>
-    <td><select data-catsel="${r.id}">${catOptions}</select></td>
-    <td class="mono small" style="white-space:nowrap">${fmtDateBR(r.data)}</td>
-    <td><span class="truncate" title="${esc(r.fornecedor)}">${esc(r.fornecedor)}</span></td>
-    <td style="white-space:nowrap">${esc(r.documento)}</td>
-    <td style="text-align:right;white-space:nowrap" class="mono">${fmtMoney(r.valor)}</td>
+    <td data-rot="Categoria"><select data-catsel="${r.id}">${catOptions}</select></td>
+    <td class="mono small" data-rot="Data" style="white-space:nowrap">${fmtDateBR(r.data)}</td>
+    <td data-rot="Fornecedor"><span class="truncate" title="${esc(r.fornecedor)}">${esc(r.fornecedor)}</span></td>
+    <td data-rot="Documento" style="white-space:nowrap">${esc(r.documento)}</td>
+    <td data-rot="Valor" style="text-align:right;white-space:nowrap" class="mono">${fmtMoney(r.valor)}</td>
     <td style="text-align:center"><button class="chev${open?' open':''}" data-expand="${r.id}" title="Ver/editar detalhes">▸</button></td>
   </tr>`;
   if(!open) return compact;
@@ -1274,6 +1337,9 @@ function wireScreen(){
   if(toggleRev) toggleRev.addEventListener('click', ()=>{ state.ui.showOnlyRevisar = !state.ui.showOnlyRevisar; save(); render(); });
   const btnExport = document.getElementById('btnExport');
   if(btnExport) btnExport.addEventListener('click', exportPlanilha);
+  document.querySelectorAll('[data-grupo]').forEach(sel=>{
+    sel.addEventListener('change', ()=>aplicarNoGrupo(sel.dataset.grupo, sel.value));
+  });
   document.querySelectorAll('[data-desfazer]').forEach(b=>{
     b.addEventListener('click', ()=>desfazerImportacao(b.dataset.desfazer));
   });

@@ -328,6 +328,23 @@
   .pagina-sub { font-size: var(--t-sm); color: var(--ink-faint); margin-top: 2px; max-width: 70ch; }
   /* Tabela larga rola dentro da própria caixa, não empurra a página: sem isto
      a lista de cobranças estourava 90px da tela no celular. */
+  /* régua A–Z: fica colada à direita da lista, alvo de dedo no celular */
+  .lista-com-regua { display: flex; gap: var(--esp-2); align-items: flex-start; }
+  .lista-com-regua #lista { flex: 1; min-width: 0; }
+  .az-regua {
+    position: sticky; top: 72px; display: flex; flex-direction: column; gap: 1px;
+    flex: none; padding: 2px 0;
+  }
+  .az-letra {
+    border: none; background: none; cursor: pointer; padding: 0;
+    width: 20px; min-height: 17px; border-radius: var(--r-xs);
+    font-size: 10px; font-weight: 600; color: var(--ink-faint); line-height: 1;
+  }
+  .az-letra:hover:not(:disabled) { background: var(--accent-soft); color: var(--accent-forte); }
+  .az-letra.vazia { opacity: .28; cursor: default; }
+  @media (max-width: 700px) { .az-letra { width: 24px; min-height: 20px; font-size: 11px; } }
+  @media print { .az-regua { display: none; } }
+
   .btn-mini { min-height: 30px; padding: 0 var(--esp-3); font-size: var(--t-sm); margin-left: var(--esp-2); }
   .tab-rolagem { overflow-x: auto; max-width: 100%; -webkit-overflow-scrolling: touch; }
   /* No celular, tabela de 4 colunas não rola de lado: cada linha vira um
@@ -1167,13 +1184,14 @@
             <button type="button" class="busca-limpar" id="buscaLimpar" aria-label="Limpar busca" hidden><i class="ph ph-x" aria-hidden="true"></i></button>
           </div>
         </div>
+        <!-- A ação forte estava escondida atrás de um menu chamado "Ações".
+             Agora ela é o botão da barra; o que é de papelada desce pro menu. -->
         <div class="toolbar-grupo direita">
+          <button type="button" class="btn btn-primary" id="cobrarLote"><i class="ph ph-paper-plane-tilt" aria-hidden="true"></i> <span id="cobrarLoteRotulo">Cobrar os visíveis</span></button>
           <details class="mais" id="acoesLista">
-            <summary class="btn btn-secondary" title="Ações sobre a lista visível"><i class="ph ph-dots-three-outline" aria-hidden="true"></i> Ações</summary>
+            <summary class="btn btn-secondary" title="Exportar e imprimir" aria-label="Mais ações"><i class="ph ph-dots-three-outline" aria-hidden="true"></i></summary>
             <div class="mais-lista">
-              <button type="button" class="btn" id="cobrarLote"><i class="ph ph-paper-plane-tilt" aria-hidden="true"></i> Cobrar todos os visíveis no Gmail</button>
               <button type="button" class="btn" id="copiarEmails"><i class="ph ph-copy" aria-hidden="true"></i> Copiar e-mails dos pendentes</button>
-              <div class="mais-sep"></div>
               <button type="button" class="btn" id="btnExportar"><i class="ph ph-download-simple" aria-hidden="true"></i> Exportar lista (CSV)</button>
               <button type="button" class="btn" id="btnImprimir"><i class="ph ph-printer" aria-hidden="true"></i> Imprimir lista</button>
             </div>
@@ -1244,7 +1262,10 @@
               <div class="lc-atualizado"><button type="button" class="cab-btn" data-ordem="atualizado">Atualizado <i class="ph ph-arrow-up" aria-hidden="true"></i></button></div>
               <div class="lc-acoes" style="display:block"></div>
             </div>
-            <div id="lista" role="list" aria-label="Clientes"></div>
+            <div class="lista-com-regua">
+              <div id="lista" role="list" aria-label="Clientes"></div>
+              <nav class="az-regua" id="azRegua" aria-label="Ir para a letra" hidden></nav>
+            </div>
           </div>
           <div id="painelCartoes" class="cartoes" hidden></div>
           <div id="listaAviso" class="vazio" hidden></div>
@@ -3132,6 +3153,43 @@
     elm.appendChild(b);
   }
 
+  // A régua só faz sentido com a lista em ordem de nome; em qualquer outra
+  // ordem a letra não diz onde a pessoa está.
+  function renderReguaAZ() {
+    var regua = $('azRegua');
+    if (!regua) return;
+    var porNome = $('ordem').value === 'nome';
+    regua.hidden = !porNome || idsVisiveis.length < 25;
+    if (regua.hidden) { regua.innerHTML = ''; return; }
+    var temLetra = {};
+    idsVisiveis.forEach(function (id) {
+      var c = clientesPorId.get(id);
+      var l = primeiraLetra(c && (c.nome || ''));
+      if (l && !temLetra[l]) temLetra[l] = id;
+    });
+    if (regua.dataset.letras === Object.keys(temLetra).join('')) return;
+    regua.dataset.letras = Object.keys(temLetra).join('');
+    regua.innerHTML = '';
+    'ABCDEFGHIJKLMNOPQRSTUVWXYZ#'.split('').forEach(function (letra) {
+      var b = el('button', 'az-letra' + (temLetra[letra] ? '' : ' vazia'));
+      b.type = 'button';
+      b.textContent = letra;
+      b.disabled = !temLetra[letra];
+      b.setAttribute('aria-label', 'Ir para a letra ' + letra);
+      b.addEventListener('click', function () {
+        var alvo = linhas.get(temLetra[letra]);
+        if (alvo) alvo.row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      });
+      regua.appendChild(b);
+    });
+  }
+  // Nome sem acento, e o que não começa com letra cai no #.
+  function primeiraLetra(nome) {
+    var t = String(nome || '').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (!t) return '';
+    return /[A-Z]/.test(t[0]) ? t[0] : '#';
+  }
+
   function rotularColunas() {
     document.querySelectorAll('table.tab-simples').forEach(function (tab) {
       var cabs = [].map.call(tab.querySelectorAll('thead th'), function (th) { return th.textContent.trim(); });
@@ -3544,6 +3602,16 @@
       tc.appendChild(tbody2);
     }
     rotularColunas();
+    renderReguaAZ();
+    var rot = $('cobrarLoteRotulo');
+    if (rot) {
+      var alvo = idsVisiveis.filter(function (id) {
+        var c = clientesPorId.get(id);
+        return c && c.email && faltandoDe(id).length > 0;
+      }).length;
+      rot.textContent = alvo ? 'Cobrar ' + alvo + ' visíveis' : 'Nada a cobrar na lista';
+      $('cobrarLote').disabled = !alvo;
+    }
   }
 
   // ==========================================================================
