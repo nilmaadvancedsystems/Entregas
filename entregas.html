@@ -10496,6 +10496,19 @@
     }
   }
 
+  // A tela de Pendências (aba do lado ou dentro do hub) mexe nas MESMAS
+  // chaves. Sem isto, mudar a cor lá só valia aqui depois de recarregar.
+  window.addEventListener('storage', function (ev) {
+    if (!ev.key) return;
+    if (ev.key === 'nilma_tema') aplicarTema(ev.newValue || 'auto');
+    else if (ev.key === 'nilma_paleta') aplicarPaleta(ev.newValue || 'padrao');
+    else if (/^nilma_(texto|densidade|animacao)$/.test(ev.key)) {
+      var campo = ev.key.slice('nilma_'.length);
+      var pref = PREFERENCIAS.filter(function (p) { return p.campo === campo; })[0];
+      aplicarPreferencia(campo, ev.newValue || (pref && pref.padrao));
+    }
+  });
+
   // Aba em que o app abre: office boy vive em Solicitações, quem faz rota
   // abre em Rota. Guardar isso evita dois toques toda vez que entra.
   function aplicarAbaInicial(aba) {
@@ -11645,6 +11658,7 @@
       { quem: ['admin', 'contabil'], icone: 'ph-bank', titulo: 'Cobrança com os bancos do cliente', texto: 'O e-mail de cobrança sai com visual próprio e o logo de cada banco do cliente. O robô aprende os bancos pelos extratos; no cadastro dá pra corrigir.' },
       { quem: ['admin', 'contabil'], icone: 'ph-upload-simple', titulo: 'Cliente manda documento pelo link', texto: 'Na página dele, "Enviar daqui do celular": PDF ou foto do extrato. O PC do robô guarda no Drive e marca o mês como recebido.' },
       { quem: ['admin'], icone: 'ph-download-simple', titulo: 'Página do cliente na tela inicial', texto: 'O cliente guarda a página dele como aplicativo e abre as guias direto pelo ícone.' },
+      { quem: ['admin', 'contabil'], icone: 'ph-paint-brush', titulo: 'Aparência igual nas duas telas', texto: 'Pendências ganhou "Aparência" no pé do menu, com as mesmas opções daqui: cor, tamanho do texto, espaçamento e animações. Mudou num lado, muda no outro.' },
       { quem: [], icone: 'ph-arrows-clockwise', titulo: 'Versão nova sem Ctrl+F5', texto: 'O app confere com o servidor sozinho. E este quadro passou a guardar o que veio em cada versão.' },
       { quem: ['admin'], icone: 'ph-shield-check', titulo: 'Revisão de segurança', texto: 'Entrega confirmada não pode mais ser desfeita por quem não é admin, e o robô ficou à prova de abuso pelo link do cliente.' }
     ] },
