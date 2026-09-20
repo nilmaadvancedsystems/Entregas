@@ -55,5 +55,45 @@ igual('a chave vai dentro do código', codigoPix.indexOf('nilma@exemplo.com.br')
 igual('nome sem acento, em maiúscula e cortado em 25', pix.gerar('x', 'Contabilidade Ação Muito Comprida Demais', 'Taiobeiras').indexOf('CONTABILIDADE ACAO MUITO ') !== -1, true);
 igual('sem chave não há código', pix.gerar('', 'X', 'Y'), '');
 
+// ---------- ordem fixa da rota: casar o apelido com a razão social ----------
+const listaVazias = s.match(/var VAZIAS_NO_NOME_ = (\[[^\]]+\]);/)[1];
+const zonasDaRota = s.slice(s.indexOf('var ZONAS_DA_ROTA_ = ['), s.indexOf('];', s.indexOf('var ZONAS_DA_ROTA_ = [')) + 2);
+const rota = new Function(
+  zonasDaRota + 'var VAZIAS_NO_NOME_ = ' + listaVazias + ';' +
+  pega('palavrasDoNome_') + pega('quantoCombina_') + pega('acharClienteDaLinha_') + pega('zonaDaMarca_') + pega('lerListaDaRota_') +
+  '; return { ler: lerListaDaRota_, combina: quantoCombina_, zona: zonaDaMarca_ };')();
+
+const carteira = [
+  { id: 'a', nome: 'ASSOCIACAO DOS DIRIGENTES LOJISTAS' },
+  { id: 'b', nome: 'LOCADORA DANUBIO LTDA ME' },
+  { id: 'c', nome: 'MADEIREIRA MIRANDA COMERCIO DE MADEIRAS LTDA' },
+  { id: 'd', nome: 'EMPORIO DAS CARNES EIRELI' },
+  { id: 'e', nome: 'JANIO JOSE DE ALMEIDA' },
+  { id: 'f', nome: 'POSTO BEIRA RIO LTDA' }
+];
+igual('acento e Ltda não atrapalham', rota.combina('madeireira Miranda', carteira[2]), 1);
+igual('nome que não existe não casa', rota.combina('padaria do zé', carteira[0]) < 0.6, true);
+igual('marca de região é reconhecida', [rota.zona('encima'), rota.zona('parte inferior'), rota.zona('centro -'), rota.zona('selma')],
+  ['superior', 'inferior', 'central', null]);
+
+const lidas = rota.ler(['encima','associacao dos dirigentes','locadora danubio','nao existe esse ai','','parte inferior','madeireira Miranda','','centro','emporio das carnes','janio jose de almeida'].join(String.fromCharCode(10)), carteira);
+igual('cada linha vai pra sua região, na ordem', lidas.map(function (x) { return x.zona + ':' + (x.cliente ? x.cliente.id : '-'); }),
+  ['superior:a', 'superior:b', 'superior:-', 'inferior:c', 'central:d', 'central:e']);
+igual('linha sem cliente fica marcada pra conferência', lidas.filter(function (x) { return !x.cliente; }).length, 1);
+
+// ---------- a rota sai na ordem fixa quando ninguém arrastou ----------
+const mapaDasZonas = s.slice(s.indexOf('var ORDEM_DAS_ZONAS_ ='), s.indexOf(';', s.indexOf('var ORDEM_DAS_ZONAS_ =')) + 1);
+const ordenar = new Function('rotaFixa_', mapaDasZonas + pega('posicaoNaRotaFixa_') + pega('ordenarPendentes_') + '; return ordenarPendentes_;')(
+  { zonas: { c1: 'superior', c2: 'central', c3: 'inferior' }, ordem: { c1: 2, c2: 1, c3: 1 } });
+const naRota = [
+  { id: 'e1', clienteId: 'c3', criadoEm: '2026-09-01T10:00:00Z' },
+  { id: 'e2', clienteId: 'c2', criadoEm: '2026-09-01T09:00:00Z' },
+  { id: 'e3', clienteId: 'c1', criadoEm: '2026-09-01T08:00:00Z' },
+  { id: 'e4', clienteId: 'foraDaLista', criadoEm: '2026-09-01T07:00:00Z' }
+];
+igual('cima, centro, baixo — e quem não está na lista vai pro fim', ordenar(naRota).map(function (e) { return e.id; }), ['e3', 'e2', 'e1', 'e4']);
+igual('o que foi arrastado hoje manda mais que a ordem fixa',
+  ordenar(naRota.concat([{ id: 'e5', clienteId: 'c3', ordemRota: 0, criadoEm: '2026-09-02T07:00:00Z' }]))[0].id, 'e5');
+
 console.log(falhas ? falhas + ' de ' + total + ' FALHARAM' : total + ' testes, todos passaram');
 process.exit(falhas ? 1 : 0);
