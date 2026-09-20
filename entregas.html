@@ -722,6 +722,31 @@
   .ajuda-item mark { background: var(--accent-soft); color: var(--accent-forte); border-radius: var(--r-xs); padding: 0 2px; }
   .ajuda-vazio { color: var(--ink-faint); font-size: var(--t-base); padding: var(--esp-4) 0; }
 
+  /* mapa da carteira */
+  #carteiraMapa { height: 420px; border-radius: var(--r-md); border: 1px solid var(--border); }
+  @media (max-width: 700px) { #carteiraMapa { height: 300px; } }
+  .carteira-legenda { display: flex; flex-wrap: wrap; gap: var(--esp-3); margin-top: var(--esp-2); font-size: var(--t-sm); color: var(--ink-faint); }
+  .carteira-legenda span { display: inline-flex; align-items: center; gap: 6px; }
+  .carteira-bola { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+  /* tour do primeiro dia */
+  .tour-passo { display: flex; gap: 12px; align-items: flex-start; padding: var(--esp-3) 0; border-bottom: 1px solid var(--border); }
+  .tour-passo:last-of-type { border-bottom: 0; }
+  .tour-n { flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+    background: var(--accent-soft); color: var(--accent-forte); font-weight: 700; font-size: var(--t-base); }
+  .tour-titulo { font-weight: 600; }
+  .tour-texto { font-size: var(--t-base); color: var(--ink-soft); line-height: 1.5; margin-top: 2px; }
+
+  /* modo demonstração: faixa fixa, pra ninguém confundir com o de verdade */
+  body.demo { border-top: 3px solid var(--warning); }
+  .demo-faixa {
+    position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%); z-index: var(--z-toast, 90);
+    background: var(--warning-soft); color: var(--warning-forte); border: 1px solid var(--warning);
+    border-radius: var(--r-pill); padding: 6px 14px; font-size: var(--t-sm); font-weight: 600;
+    display: flex; align-items: center; gap: 10px; box-shadow: var(--shadow);
+  }
+  .demo-faixa button { border: 0; background: none; color: inherit; font: inherit; text-decoration: underline; cursor: pointer; padding: 0; }
+
   /* checklist do fechamento */
   .fecha-linha { display: flex; align-items: flex-start; gap: 10px; padding: var(--esp-2) 0; border-bottom: 1px solid var(--border); cursor: pointer; }
   .fecha-linha:last-child { border-bottom: 0; }
@@ -2830,6 +2855,17 @@
       <p class="card-hint">O que falta preencher. Clique num número pra ver quem é.</p>
       <div class="saude-grid" id="saudeGrid"></div>
     </div>
+    <div class="card" id="carteiraMapaCard" hidden>
+      <div class="card-head-row">
+        <h2><i class="ph ph-map-trifold" aria-hidden="true"></i> Mapa da carteira</h2>
+        <button type="button" class="btn-chip" id="carteiraMapaBtn">Mostrar</button>
+      </div>
+      <p class="card-hint">Onde estão os clientes ativos com ponto no mapa. Toque num ponto pra abrir a ficha.</p>
+      <div id="carteiraMapaCaixa" hidden>
+        <div id="carteiraMapa"></div>
+        <div class="carteira-legenda" id="carteiraLegenda"></div>
+      </div>
+    </div>
     <div class="card" id="papeisVencendoCard" hidden>
       <div class="card-head-row">
         <h2><i class="ph ph-certificate" aria-hidden="true"></i> Vencendo nos clientes</h2>
@@ -4082,6 +4118,190 @@
       lembretes_ = (d && Array.isArray(d.itens)) ? d.itens : [];
       renderLembretes_();
     }).catch(function () {});
+  }
+
+  // ---------- mapa da carteira ----------
+  // O mapa do Painel mostra ENTREGAS; este mostra CLIENTES. Serve pra planejar
+  // semana e pra enxergar quem está longe de tudo. Só monta quando alguém
+  // pede: o Leaflet desenhando 300 pontos à toa pesa no celular.
+  var carteiraMap = null;
+  var carteiraMarkers = [];
+  var CORES_DA_ZONA_ = { superior: '--accent', central: '--success', inferior: '--warning' };
+  function renderCarteiraMapa_() {
+    var caixa = $('carteiraMapaCaixa');
+    if (!caixa || caixa.hidden || typeof L === 'undefined') return;
+    var pontos = Array.from(clientesCache.values()).filter(function (c) {
+      return c.ativo !== false && c.geo && typeof c.geo.lat === 'number' && typeof c.geo.lng === 'number';
+    });
+    if (!carteiraMap) {
+      carteiraMap = L.map('carteiraMapa').setView([-15.79, -47.88], 4);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>', maxZoom: 19
+      }).addTo(carteiraMap);
+    }
+    carteiraMarkers.forEach(function (m) { carteiraMap.removeLayer(m); });
+    carteiraMarkers = [];
+    var estilo = getComputedStyle(document.documentElement);
+    var bounds = [];
+    pontos.forEach(function (c) {
+      var naRota = pendentesCache.some(function (e) { return e.clienteId === c.id; });
+      var cor = estilo.getPropertyValue(CORES_DA_ZONA_[c.zona] || '--ink-faint').trim();
+      var m = L.circleMarker([c.geo.lat, c.geo.lng], {
+        radius: naRota ? 10 : 7, color: '#fff', weight: 2, fillColor: cor, fillOpacity: naRota ? 1 : .75
+      }).addTo(carteiraMap);
+      m.bindPopup('<b>' + escapeHtml_(clienteLabel(c)) + '</b><br>' +
+        '<span style="color:#6C6C6C">' + escapeHtml_([c.zona ? ZONA_LABEL[c.zona] : 'sem região', naRota ? 'na rota hoje' : ''].filter(Boolean).join(' · ')) + '</span>');
+      m.on('click', function () { setTimeout(function () { openClienteHistorico(c); }, 250); });
+      carteiraMarkers.push(m);
+      bounds.push([c.geo.lat, c.geo.lng]);
+    });
+    $('carteiraLegenda').innerHTML = Object.keys(CORES_DA_ZONA_).map(function (z) {
+      return '<span><i class="carteira-bola" style="background:' + estilo.getPropertyValue(CORES_DA_ZONA_[z]).trim() + '"></i>' + escapeHtml_(ZONA_LABEL[z]) + '</span>';
+    }).join('') + '<span><i class="carteira-bola" style="background:' + estilo.getPropertyValue('--ink-faint').trim() + '"></i>sem região</span>' +
+      '<span>' + pontos.length + ' no mapa · ponto maior = está na rota</span>';
+    if (bounds.length === 1) carteiraMap.setView(bounds[0], 15);
+    else if (bounds.length) carteiraMap.fitBounds(bounds, { padding: [30, 30] });
+    setTimeout(function () { if (carteiraMap) carteiraMap.invalidateSize(); }, 150);
+  }
+
+  // ---------- primeiro dia: tour de três passos ----------
+  // Aparece uma vez por pessoa, com o que o cargo dela faz de verdade. Quem
+  // pular não vê de novo (fica no aparelho); a Ajuda continua no mesmo lugar.
+  var CHAVE_TOUR_ = 'nilma_tour_visto_v1';
+  var TOUR_ = {
+    office_boy: [
+      ['Veja a rota do dia', 'A aba Rota traz as paradas na ordem. "Montagem do dia" diz o que separar antes de sair.'],
+      ['Entregue e colha a assinatura', 'Toque na parada, colha a assinatura na tela (ou tire foto do protocolo) e confirme. Sem internet também funciona: sobe depois.'],
+      ['Não achou o cliente?', 'Toque em "Não entreguei", escolha o motivo em um toque e o app oferece pôr de volta na rota.']
+    ],
+    contabil: [
+      ['Cobre os documentos', 'A função Pendências mostra quem mandou extrato, comprovante e aplicação em cada mês.'],
+      ['Deixe o robô cobrar', 'Em Pendências › Configurações › Automático dá pra ligar a cobrança nos dias que você escolher.'],
+      ['Feche o mês', 'No Painel, o cartão "Fechamento do mês" tem os passos que se repetem, com risco.']
+    ],
+    fiscal: [
+      ['Importe os relatórios', 'No Importador LCDPR, envie os arquivos do SIEG: ele reconhece o tipo e classifica cada lançamento.'],
+      ['Confira o que ficou em REVISAR', 'São os que o NCM não decidiu sozinho. Corrigir uma vez ensina o sistema.'],
+      ['Baixe a planilha', 'O botão "Baixar planilha" gera o arquivo pronto pro programa da contabilidade.']
+    ],
+    admin: [
+      ['Comece pelos clientes', 'A aba Clientes e ajustes mostra o que falta no cadastro e guarda tudo que é do escritório.'],
+      ['Dê acesso à equipe', 'Em Ajustes do app, "Novo acesso" ou o link de convite. O cargo define o que cada um vê.'],
+      ['Ligue o PC do robô', 'É ele que manda aviso, lê o Gmail, faz backup e cobra sozinho. Em "Saúde do sistema" você vê se está de pé.']
+    ],
+    staff: [
+      ['Registre a entrega', 'Em Nova entrega, escolha o cliente e o que está entregando. O PDF da guia preenche o resto sozinho.'],
+      ['Acompanhe na Rota', 'Tudo que foi registrado vira parada, com vencimento e ordem de caminho.'],
+      ['Precisa de ajuda?', 'O botão de interrogação, ao lado da engrenagem, tem as perguntas mais comuns, com busca.']
+    ]
+  };
+  function tourDoCargo_() {
+    if (temPapel('office_boy')) return TOUR_.office_boy;
+    if (temPapel('fiscal')) return TOUR_.fiscal;
+    if (temPapel('contabil')) return TOUR_.contabil;
+    if (temPapel('admin')) return TOUR_.admin;
+    return TOUR_.staff;
+  }
+  function abrirTour_() {
+    var passos = tourDoCargo_();
+    var root = $('modalRoot');
+    root.innerHTML =
+      '<div class="modal-overlay" id="overlay"><div class="modal" id="modalInner">' +
+        '<div class="modal-head"><div><h2>Bem-vindo</h2>' +
+          '<div class="card-hint modal-head-sub">Três coisas e você já consegue trabalhar.</div></div>' +
+          '<button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button></div>' +
+        passos.map(function (p, i) {
+          return '<div class="tour-passo"><span class="tour-n">' + (i + 1) + '</span>' +
+            '<div><div class="tour-titulo">' + escapeHtml_(p[0]) + '</div>' +
+            '<div class="tour-texto">' + escapeHtml_(p[1]) + '</div></div></div>';
+        }).join('') +
+        '<button type="button" class="btn btn-primary" id="tourOkBtn">Entendi, vamos lá</button>' +
+        '<button type="button" class="btn-chip" id="tourAjudaBtn" style="width:100%;margin-top:var(--esp-2)">Ver todas as perguntas</button>' +
+      '</div></div>';
+    function guardar() { try { localStorage.setItem(CHAVE_TOUR_, '1'); } catch (e) {} }
+    $('overlay').addEventListener('click', function (e) { if (e.target.id === 'overlay') { guardar(); closeModal(); } });
+    $('modalClose').addEventListener('click', function () { guardar(); closeModal(); });
+    $('tourOkBtn').addEventListener('click', function () { guardar(); closeModal(); });
+    $('tourAjudaBtn').addEventListener('click', function () { guardar(); closeModal(); setTimeout(abrirAjuda_, 220); });
+  }
+  function talvezAbrirTour_() {
+    var visto = '';
+    try { visto = localStorage.getItem(CHAVE_TOUR_) || ''; } catch (e) {}
+    if (visto) return;
+    setTimeout(abrirTour_, 1200);
+  }
+
+  // ---------- modo demonstração ----------
+  // Base de mentira pra treinar gente nova e pra mostrar o sistema sem tocar
+  // no que é de verdade. Nada é gravado: os dados vivem só nesta aba, e a
+  // faixa amarela lembra o tempo todo que não é o app de verdade.
+  function ligarModoDemonstracao_() {
+    try { sessionStorage.setItem('nilma_demo', '1'); } catch (e) {}
+    location.href = location.pathname + '?demo=1';
+  }
+  function modoDemonstracaoLigado_() {
+    return /[?&]demo=1/.test(location.search);
+  }
+  // Nenhuma escrita sai daqui: set, update, delete e add viram promessa
+  // resolvida sem tocar no banco. É o que garante que treinar não suja nada.
+  function travarEscritasDaDemonstracao_() {
+    var avisou = false;
+    var fingir = function () {
+      if (!avisou) { avisou = true; showToast('Modo demonstração: nada é gravado de verdade.'); }
+      return Promise.resolve();
+    };
+    [db.doc('clientes/x'), db.collection('clientes')].forEach(function (amostra) {
+      ['set', 'update', 'delete', 'add'].forEach(function (metodo) {
+        var dono = donoDoMetodo_(amostra, metodo);
+        if (!dono || dono['__demo_' + metodo]) return;
+        dono['__demo_' + metodo] = true;
+        dono[metodo] = fingir;
+      });
+    });
+    var loteOriginal = db.batch;
+    db.batch = function () {
+      var lote = loteOriginal.call(db);
+      lote.commit = fingir;
+      return lote;
+    };
+  }
+
+  // Base pequena, com nome de mentira, pra tela não ficar vazia no treino.
+  function semearDemonstracao_() {
+    var hoje = new Date();
+    var comp = currentCompetencia();
+    var clientes = [
+      { id: 'demo1', nome: 'PADARIA PÃO DOURADO LTDA', codigoOrigem: '101', documento: '11222333000181', telefone: '38999990001', email: 'padaria@exemplo.com', endereco: 'Rua das Flores, 120', zona: 'central', ativo: true, entrega: true, etiquetas: ['Simples'], geo: { lat: -15.8084, lng: -42.2331, precisao: 'rua' } },
+      { id: 'demo2', nome: 'MERCEARIA BOA VISTA ME', codigoOrigem: '102', documento: '44555666000172', telefone: '38999990002', endereco: 'Av. Brasil, 900', zona: 'superior', ativo: true, entrega: true, etiquetas: ['MEI'], geo: { lat: -15.8020, lng: -42.2280, precisao: 'rua' } },
+      { id: 'demo3', nome: 'OFICINA IRMÃOS SILVA', codigoOrigem: '103', documento: '77888999000163', telefone: '38999990003', endereco: 'Rua do Comércio, 45', zona: 'inferior', ativo: true, entrega: true, geo: { lat: -15.8150, lng: -42.2400, precisao: 'rua' } }
+    ];
+    clientesCache.clear();
+    clientes.forEach(function (c) { clientesCache.set(c.id, c); });
+    todosOsClientesCarregados_ = true;
+
+    var entregas = [
+      { id: 'dem1', clienteId: 'demo1', clienteNome: clientes[0].nome, status: 'pendente', competencia: comp, itens: [{ tipo: 'DAS', valor: 480.9 }], criadoEm: hoje.toISOString(), entregadoPor: 'demo', ordemRota: 0, zona: 'central', vencimento: comp + '-20' },
+      { id: 'dem2', clienteId: 'demo2', clienteNome: clientes[1].nome, status: 'pendente', competencia: comp, itens: [{ tipo: 'Guia INSS', valor: 132.5 }], criadoEm: hoje.toISOString(), entregadoPor: 'demo', ordemRota: 1, zona: 'superior', vencimento: comp + '-20' },
+      { id: 'dem3', clienteId: 'demo3', clienteNome: clientes[2].nome, status: 'confirmada', competencia: comp, itens: [{ tipo: 'FGTS', valor: 210 }], criadoEm: hoje.toISOString(), confirmadoEm: hoje.toISOString(), recebedor: 'Maria', entregadoPorNome: 'Treino', temAssinatura: true }
+    ];
+    pendentesCache = entregas.filter(function (e) { return e.status === 'pendente'; });
+    entregasPainelCache = entregas;
+    if (typeof entregasHojeCache !== 'undefined') entregasHojeCache = entregas;
+
+    renderClientesList();
+    renderRota();
+    renderPainel();
+  }
+
+  function montarFaixaDeDemonstracao_() {
+    if (!modoDemonstracaoLigado_()) return;
+    document.body.classList.add('demo');
+    var faixa = document.createElement('div');
+    faixa.className = 'demo-faixa';
+    faixa.innerHTML = '<i class="ph ph-flask" aria-hidden="true"></i> Modo demonstração — nada aqui é real ' +
+      '<button type="button" id="demoSairBtn">sair</button>';
+    document.body.appendChild(faixa);
+    $('demoSairBtn').addEventListener('click', function () { location.href = location.pathname; });
   }
 
   // ---------- checklist do fechamento do mês ----------
@@ -11324,6 +11544,13 @@
   $('emprestimoNovoBtn').addEventListener('click', function () { abrirNovoEmprestimo_(null); });
   $('saudeSistemaAtualizarBtn').addEventListener('click', renderSaudeDoSistema_);
   $('fechamentoMesSelect').addEventListener('change', function () { carregarFechamentoDoMes_(competenciaDoFechamento_()); });
+  $('carteiraMapaBtn').addEventListener('click', function () {
+    var caixa = $('carteiraMapaCaixa');
+    caixa.hidden = !caixa.hidden;
+    this.textContent = caixa.hidden ? 'Mostrar' : 'Esconder';
+    if (!caixa.hidden) renderCarteiraMapa_();
+  });
+  montarFaixaDeDemonstracao_();
   $('relatorioPessoaBtn').addEventListener('click', function () { abrirRelatorioDoMes_(competenciaDoFechamento_()); });
   ['escPixChave', 'escPixNome', 'escPixCidade'].forEach(function (id) {
     $(id).addEventListener('input', atualizarPreviaDoPix_);
@@ -11791,6 +12018,8 @@
   function renderClientesList() {
     renderAvisosDaReceita_();
     renderPapeisVencendo_();
+    var temPontoNoMapa = Array.from(clientesCache.values()).some(function (c) { return c.ativo !== false && c.geo && typeof c.geo.lat === 'number'; });
+    if ($('carteiraMapaCard')) $('carteiraMapaCard').hidden = !temPontoNoMapa;
     renderLinkParado_();
     renderSaudeDaBase_();
     renderFiltrosDeCliente_();
@@ -12999,6 +13228,19 @@
     ajustarSubnavDeClientes_();
     if (temPapel('admin')) subscribeUsuarios();
 
+    if (modoDemonstracaoLigado_()) {
+      // treinar gente nova (ou mostrar o sistema) sem tocar no que é de
+      // verdade: os ouvintes não sobem, os dados são de mentira e toda
+      // escrita é descartada.
+      travarEscritasDaDemonstracao_();
+      semearDemonstracao_();
+      atualizarBotaoNotificacoes();
+      var brandDemo = $('brandName');
+      brandDemo.textContent = currentUserNome;
+      talvezAbrirTour_();
+      return;
+    }
+
     primeiraCargaClientes_ = true;
     ouvirClientes_(false);
 
@@ -13029,6 +13271,7 @@
       var alvo = document.querySelector('.tab[data-tab="' + abaInicial + '"]');
       if (alvo && !alvo.hidden) alvo.click();
     }
+    talvezAbrirTour_();
   }
 
   // ---------- instalar na tela inicial ----------
@@ -13428,6 +13671,9 @@
       { quem: [], icone: 'ph-device-mobile', titulo: 'Página do cliente leve', texto: 'O link do cliente agora abre uma página própria de 30 KB, com "Para pagar" no topo e letras grandes. O endereço antigo continua valendo.' },
       { quem: [], icone: 'ph-seal-check', titulo: 'Protocolo com código de conferência', texto: 'O protocolo do mês sai com um QR e um código. Quem recebe o papel confere na página do cliente se ele saiu do escritório como está.' },
       { quem: ['admin', 'contabil'], icone: 'ph-robot', titulo: 'Cobrança e comprovante automáticos', texto: 'Pendências › Configurações › Automático: o robô cobra sozinho quem não mandou os documentos nos dias escolhidos e manda o comprovante de cada entrega por e-mail. Vem desligado.' },
+      { quem: [], icone: 'ph-hand-waving', titulo: 'Primeiro dia com três passos', texto: 'Quem entra pela primeira vez vê um aviso curto com o que o cargo dele faz: office boy vê rota e assinatura, contábil vê cobrança e fechamento, admin vê cadastro e acessos.' },
+      { quem: ['admin'], icone: 'ph-flask', titulo: 'Modo demonstração', texto: 'Abrir o app com ?demo=1 no endereço liga uma base de mentira, com faixa amarela e nenhuma gravação — pra treinar gente nova ou mostrar o sistema sem tocar no que é de verdade.' },
+      { quem: [], icone: 'ph-map-trifold', titulo: 'Mapa da carteira', texto: 'Na aba Clientes e ajustes: todos os clientes ativos no mapa, com cor por região e ponto maior pra quem está na rota hoje. Tocar no ponto abre a ficha.' },
       { quem: ['admin', 'contabil'], icone: 'ph-list-checks', titulo: 'Fechamento do mês no Painel', texto: 'Os sete passos que se repetem todo mês, com risco e barra de progresso. Fica guardado por competência e mostra quem marcou cada passo.' },
       { quem: ['admin', 'contabil'], icone: 'ph-printer', titulo: 'Relatório do mês por pessoa', texto: 'No Painel, uma folha por office boy: entregues, não entregues com motivo, média por dia e total em guias. Dá pra imprimir ou salvar em PDF.' },
       { quem: ['admin', 'contabil'], icone: 'ph-certificate', titulo: 'Certidão e certificado com validade', texto: 'No cadastro do cliente dá pra guardar CND, procuração e certificado digital com a data de vencimento. A aba mostra o que está vencendo e o robô avisa 30, 15 e 3 dias antes.' },
