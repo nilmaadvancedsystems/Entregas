@@ -2785,7 +2785,7 @@
   <button class="tab" data-tab="painel" role="tab" id="tabbtn-painel" aria-controls="tab-painel" aria-selected="false" tabindex="-1"><span class="tab-ico"><i class="ph ph-chart-bar" aria-hidden="true"></i></span><span class="tab-label">Painel</span></button>
   <button class="tab" data-tab="solicitacoes" role="tab" id="tabbtn-solicitacoes" aria-controls="tab-solicitacoes" aria-selected="false" tabindex="-1"><span class="tab-ico"><i class="ph ph-envelope-simple" aria-hidden="true"></i></span><span class="tab-label">Solicitações</span><span class="tab-badge" id="solicitacoesBadge" hidden>0</span></button>
   <button class="tab" data-tab="honorarios" role="tab" id="tabHonorarios" aria-controls="tab-honorarios" aria-selected="false" tabindex="-1" hidden><span class="tab-ico"><i class="ph ph-hand-coins" aria-hidden="true"></i></span><span class="tab-label">Honorários</span><span class="tab-badge" id="honorariosBadge" hidden>0</span></button>
-  <button class="tab" data-tab="clientes" role="tab" id="tabbtn-clientes" aria-controls="tab-clientes" aria-selected="false" tabindex="-1"><span class="tab-ico"><i class="ph ph-users" aria-hidden="true"></i></span><span class="tab-label">Clientes</span></button>
+  <button class="tab" data-tab="clientes" role="tab" id="tabbtn-clientes" aria-controls="tab-clientes" aria-selected="false" tabindex="-1"><span class="tab-ico"><i class="ph ph-users" aria-hidden="true"></i></span><span class="tab-label">Clientes e ajustes</span></button>
   <button class="tab" data-tab="perfil" role="tab" id="tabPerfil" aria-controls="tab-perfil" aria-selected="false" tabindex="-1" hidden><span class="tab-ico"><i class="ph ph-identification-badge" aria-hidden="true"></i></span><span class="tab-label">Perfil</span></button>
   <button class="tab" data-tab="conciliador" role="tab" id="tabbtn-conciliador" aria-controls="tab-conciliador" aria-selected="false" tabindex="-1" hidden><span class="tab-ico"><i class="ph ph-credit-card" aria-hidden="true"></i></span><span class="tab-label">Conciliadorzinho</span></button>
   <button class="tab" data-tab="cheque" role="tab" id="tabbtn-cheque" aria-controls="tab-cheque" aria-selected="false" tabindex="-1" hidden><span class="tab-ico"><i class="ph ph-bank" aria-hidden="true"></i></span><span class="tab-label">Cheque especial</span></button>
@@ -2817,8 +2817,8 @@
       </button>
       <button type="button" class="hub-card" id="hubClientes">
         <span class="hub-card-ico"><i class="ph ph-users" aria-hidden="true"></i></span>
-        <span class="hub-card-nome">Clientes</span>
-        <span class="hub-card-desc">Cadastro, contatos e o link de cada cliente</span>
+        <span class="hub-card-nome">Clientes e ajustes</span>
+        <span class="hub-card-desc">Cadastro, contatos, link do cliente e o que vale pro escritório</span>
         <span class="hub-card-fim"><kbd aria-hidden="true"></kbd><i class="ph ph-caret-right" aria-hidden="true"></i></span>
       </button>
       <button type="button" class="hub-card" id="hubContabil" data-cargo="contabil" hidden>
@@ -5587,8 +5587,7 @@
     { aba: 'rota', nome: 'Rota', icone: 'ph-truck' },
     { aba: 'painel', nome: 'Painel', icone: 'ph-chart-bar' },
     { aba: 'solicitacoes', nome: 'Solicitações', icone: 'ph-envelope-simple' },
-    { aba: 'clientes', nome: 'Clientes', icone: 'ph-users' },
-    { aba: 'perfil', nome: 'Perfil', icone: 'ph-identification-badge' }
+    { aba: 'clientes', nome: 'Clientes e ajustes', icone: 'ph-users' }
   ];
   var buscaGlobalResultados = [];
 
@@ -10891,9 +10890,8 @@
           '<div class="field"><label class="campo-rotulo" for="abaInicialSelect">Abrir o app em</label>' +
             '<select class="input" id="abaInicialSelect">' +
               [['nova', 'Nova entrega'], ['rota', 'Rota'], ['painel', 'Painel'],
-               ['solicitacoes', 'Solicitações'], ['clientes', 'Clientes']]
+               ['solicitacoes', 'Solicitações'], ['clientes', 'Clientes e ajustes']]
                 .concat((temPapel('admin') || temPapel('office_boy')) ? [['honorarios', 'Honorários']] : [])
-                .concat(temPapel('admin') ? [['perfil', 'Perfil']] : [])
                 .map(function (o) { return '<option value="' + o[0] + '">' + o[1] + '</option>'; }).join('') +
             '</select>' +
           '</div>' +
@@ -11736,7 +11734,7 @@
     // Abre direto na aba escolhida nas configurações (Perfil só se for admin).
     var abaInicial = 'nova';
     try { abaInicial = localStorage.getItem('nilma_aba_inicial') || 'nova'; } catch (e) {}
-    if (abaInicial === 'perfil' && !temPapel('admin')) abaInicial = 'nova';
+    if (abaInicial === 'perfil') abaInicial = temPapel('admin') ? 'clientes' : 'nova';
     if (abaInicial !== 'nova') {
       var alvo = document.querySelector('.tab[data-tab="' + abaInicial + '"]');
       if (alvo && !alvo.hidden) alvo.click();
