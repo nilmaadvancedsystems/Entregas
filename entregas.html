@@ -2625,6 +2625,24 @@
       </div>
       <div id="saudeSistemaCorpo"></div>
     </div>
+    <div class="card" id="escritorioCard" hidden>
+      <div class="card-head-row">
+        <h2><i class="ph ph-buildings" aria-hidden="true"></i> Dados do escritório</h2>
+      </div>
+      <p class="card-hint">Aparecem na página do cliente. O PIX é o do escritório, pra quem quiser pagar o honorário na hora.</p>
+      <div class="cadastro-grade">
+        <label class="inteira"><span class="sub-rotulo">Chave PIX</span>
+          <input class="input" id="escPixChave" type="text" maxlength="77" placeholder="CNPJ, telefone, e-mail ou chave aleatória"></label>
+        <label><span class="sub-rotulo">Nome que aparece no PIX</span>
+          <input class="input" id="escPixNome" type="text" maxlength="25" placeholder="NILMA CONTABILIDADE"></label>
+        <label><span class="sub-rotulo">Cidade</span>
+          <input class="input" id="escPixCidade" type="text" maxlength="15" placeholder="TAIOBEIRAS"></label>
+        <label class="inteira"><span class="sub-rotulo">Recado sobre o honorário (opcional)</span>
+          <input class="input" id="escHonorarioTexto" type="text" maxlength="120" placeholder="Ex.: o boleto vence todo dia 10"></label>
+      </div>
+      <p class="card-hint" id="escPixPreview" style="margin:6px 0 var(--esp-3)"></p>
+      <button type="button" class="btn btn-primary" id="escSalvarBtn">Salvar dados do escritório</button>
+    </div>
     <div class="card" id="lembretesCard" hidden>
       <div class="card-head-row">
         <h2><i class="ph ph-bell-simple-ringing" aria-hidden="true"></i> Lembretes do escritório</h2>
@@ -2789,6 +2807,14 @@
       </div>
       <p class="card-hint">Livro, contrato, CNH — o que veio pro escritório e tem que voltar pro cliente.</p>
       <div id="emprestimosList"><div class="empty-state">Nada emprestado no momento.</div></div>
+    </div>
+    <div class="card" id="recadosClienteCard" hidden>
+      <div class="card-head-row">
+        <h2><i class="ph ph-chat-teardrop-text" aria-hidden="true"></i> Recados dos clientes</h2>
+        <span class="card-hint" id="recadosClienteContador"></span>
+      </div>
+      <p class="card-hint">Pedidos feitos na página do cliente que ainda não viraram solicitação — o PC do robô converte sozinho; aqui dá pra ver antes.</p>
+      <div id="recadosClienteList"></div>
     </div>
     <div class="card" id="linkParadoCard" hidden>
       <div class="card-head-row">
@@ -4018,6 +4044,91 @@
       lembretes_ = (d && Array.isArray(d.itens)) ? d.itens : [];
       renderLembretes_();
     }).catch(function () {});
+  }
+
+  // ---------- dados do escritório (PIX) ----------
+  // Ficam em config/escritorio e viajam junto da projeção do portal, pra
+  // página do cliente não precisar de leitura a mais.
+  var escritorio_ = { pixChave: '', pixNome: '', pixCidade: '', honorarioTexto: '' };
+
+  // BR Code estático do PIX, montado aqui (o app já tem o CRC16 que confere
+  // código de guia). Sem valor: o cliente digita quanto vai pagar.
+  function pixCopiaECola_(chave, nome, cidade) {
+    if (!chave) return '';
+    var limpa = function (t, n) {
+      return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .toUpperCase().replace(/[^A-Z0-9 ]/g, '').trim().slice(0, n) || 'NA';
+    };
+    var campo = function (id, valor) { return id + String(valor.length).padStart(2, '0') + valor; };
+    var conta = campo('00', 'BR.GOV.BCB.PIX') + campo('01', String(chave).trim());
+    var payload = campo('00', '01') + campo('26', conta) + campo('52', '0000') + campo('53', '986') +
+      campo('58', 'BR') + campo('59', limpa(nome, 25)) + campo('60', limpa(cidade, 15)) +
+      campo('62', campo('05', '***')) + '6304';
+    return payload + crc16Pix_(payload);
+  }
+  // A prévia acompanha o que está sendo digitado; preencher os campos é outra
+  // coisa, e só acontece quando os dados chegam do banco (senão cada tecla
+  // apagava o que a pessoa estava escrevendo).
+  function atualizarPreviaDoPix_() {
+    if (!$('escPixPreview')) return;
+    var codigo = pixCopiaECola_($('escPixChave').value.trim(), $('escPixNome').value.trim(), $('escPixCidade').value.trim());
+    $('escPixPreview').textContent = codigo
+      ? 'O cliente vai ver um botão "Copiar PIX do escritório" com este código (' + codigo.length + ' caracteres).'
+      : 'Sem chave, a página do cliente não mostra o bloco do honorário.';
+  }
+  function renderEscritorio_(preencher) {
+    var card = $('escritorioCard');
+    if (!card) return;
+    card.hidden = !temPapel('admin');
+    if (card.hidden) return;
+    if (preencher) {
+      $('escPixChave').value = escritorio_.pixChave || '';
+      $('escPixNome').value = escritorio_.pixNome || '';
+      $('escPixCidade').value = escritorio_.pixCidade || '';
+      $('escHonorarioTexto').value = escritorio_.honorarioTexto || '';
+    }
+    atualizarPreviaDoPix_();
+  }
+  function carregarEscritorio_() {
+    if (!db) return;
+    db.collection('config').doc('escritorio').get().then(function (snap) {
+      if (snap.exists) escritorio_ = Object.assign(escritorio_, snap.data());
+      renderEscritorio_(true);
+    }).catch(function () {});
+  }
+
+  // ---------- recados vindos da página do cliente ----------
+  var recadosClienteCache_ = [];
+  var ASSUNTO_DO_RECADO_ = {
+    'segunda-via': 'Segunda via de guia',
+    'buscar-documento': 'Buscar documento',
+    'duvida': 'Dúvida',
+    'outro': 'Outro assunto'
+  };
+  function ouvirRecadosDoCliente_() {
+    if (!db || !temPapel('admin')) return;
+    db.collection('pedidosDoPortal').limit(30).onSnapshot(function (snap) {
+      recadosClienteCache_ = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+      renderRecadosDoCliente_();
+    }, function () { /* sem permissão ou offline */ });
+  }
+  function renderRecadosDoCliente_() {
+    var card = $('recadosClienteCard');
+    if (!card) return;
+    card.hidden = !recadosClienteCache_.length;
+    if (card.hidden) return;
+    $('recadosClienteContador').textContent = recadosClienteCache_.length + (recadosClienteCache_.length === 1 ? ' recado' : ' recados');
+    var el = $('recadosClienteList');
+    el.innerHTML = '';
+    recadosClienteCache_.forEach(function (p) {
+      var dono = Array.from(clientesCache.values()).filter(function (c) { return c.portalToken === p.token; })[0];
+      var row = document.createElement('div');
+      row.className = 'client-row';
+      row.innerHTML = '<div><div class="cr-name"></div><div class="cr-sub"></div></div>';
+      row.querySelector('.cr-name').textContent = (ASSUNTO_DO_RECADO_[p.assunto] || 'Recado') + ' · ' + (dono ? clienteLabel(dono) : 'cliente do link');
+      row.querySelector('.cr-sub').textContent = (p.texto || '') + ' · ' + fmtDateTime(p.criadoEm);
+      el.appendChild(row);
+    });
   }
 
   // ---------- link do cliente que ninguém abriu ----------
@@ -10891,6 +11002,29 @@
   $('etiquetasBtn').addEventListener('click', imprimirEtiquetas_);
   $('emprestimoNovoBtn').addEventListener('click', function () { abrirNovoEmprestimo_(null); });
   $('saudeSistemaAtualizarBtn').addEventListener('click', renderSaudeDoSistema_);
+  ['escPixChave', 'escPixNome', 'escPixCidade'].forEach(function (id) {
+    $(id).addEventListener('input', atualizarPreviaDoPix_);
+  });
+  $('escSalvarBtn').addEventListener('click', function () {
+    var btn = this;
+    var dados = {
+      pixChave: $('escPixChave').value.trim().slice(0, 77),
+      pixNome: $('escPixNome').value.trim().slice(0, 25),
+      pixCidade: $('escPixCidade').value.trim().slice(0, 15),
+      honorarioTexto: $('escHonorarioTexto').value.trim().slice(0, 120),
+      atualizadoEm: new Date().toISOString(), atualizadoPor: currentUserNome || ''
+    };
+    botaoOcupado_(btn);
+    db.collection('config').doc('escritorio').set(dados)
+      .then(function () {
+        escritorio_ = Object.assign(escritorio_, dados);
+        registrarAuditoria_('config_escritorio', dados.pixChave ? 'PIX definido' : 'PIX vazio');
+        renderEscritorio_(false);
+        showToast('Dados salvos. Os links dos clientes recebem na próxima atualização.');
+      })
+      .catch(function (err) { showToast(errMsg(err, 'Não foi possível salvar.'), 'error'); })
+      .then(function () { botaoLivre_(btn, 'Salvar dados do escritório'); });
+  });
   $('lembreteAddBtn').addEventListener('click', function () {
     lembretes_ = lerLembretesDoForm_().concat([{ texto: '', dia: 5, quem: '' }]);
     renderLembretes_();
@@ -12431,7 +12565,7 @@
     updateDashStrip();
     renderRota();
     sincronizarRotaLinks_();
-    if (primeiraCargaClientes_) { primeiraCargaClientes_ = false; restaurarRascunhoSeExistir_(); atualizarAlertaSemEntrega_(); carregarObrigacoes_(); atualizarLinkParado_(); carregarLembretes_(); ouvirEmprestimos_(); }
+    if (primeiraCargaClientes_) { primeiraCargaClientes_ = false; restaurarRascunhoSeExistir_(); atualizarAlertaSemEntrega_(); carregarObrigacoes_(); atualizarLinkParado_(); carregarLembretes_(); ouvirEmprestimos_(); carregarEscritorio_(); ouvirRecadosDoCliente_(); }
     if (completo) {
       esperandoTodosOsClientes_.splice(0).forEach(function (f) { f(); });
       preencherClientesDeEntrega_();
@@ -12968,6 +13102,8 @@
       { quem: [], icone: 'ph-device-mobile', titulo: 'Página do cliente leve', texto: 'O link do cliente agora abre uma página própria de 30 KB, com "Para pagar" no topo e letras grandes. O endereço antigo continua valendo.' },
       { quem: [], icone: 'ph-seal-check', titulo: 'Protocolo com código de conferência', texto: 'O protocolo do mês sai com um QR e um código. Quem recebe o papel confere na página do cliente se ele saiu do escritório como está.' },
       { quem: ['admin', 'contabil'], icone: 'ph-robot', titulo: 'Cobrança e comprovante automáticos', texto: 'Pendências › Configurações › Automático: o robô cobra sozinho quem não mandou os documentos nos dias escolhidos e manda o comprovante de cada entrega por e-mail. Vem desligado.' },
+      { quem: [], icone: 'ph-currency-circle-dollar', titulo: 'PIX do escritório na página do cliente', texto: 'Em Clientes e ajustes você guarda a chave PIX do escritório; a página do cliente passa a mostrar a situação do honorário do mês e um botão de copiar o PIX.' },
+      { quem: [], icone: 'ph-check-square', titulo: '"Já paguei" e recado do cliente', texto: 'O cliente marca a guia como paga na página dele (some da lista de cobrança) e pode pedir segunda via, buscar documento ou tirar dúvida — o recado vira solicitação na fila, pelo PC do robô.' },
       { quem: [], icone: 'ph-question', titulo: 'Ajuda com busca', texto: 'O botão de interrogação, ao lado da engrenagem, abre as perguntas frequentes com busca: como assinar junto, o que fazer quando o cliente não está, como usar o link, o que é cada cartão. Mostra só o que vale pro seu cargo. A página do cliente também ganhou um "Dúvidas".' },
       { quem: [], icone: 'ph-package', titulo: 'Montagem do dia e etiqueta de envelope', texto: 'Na Rota, a lista do que separar antes de sair, com risco por parada, e o botão Etiquetas: uma etiqueta por cliente pra imprimir, com o que vai dentro, o vencimento e o QR da página dele.' },
       { quem: [], icone: 'ph-calendar-dots', titulo: 'Obrigações do mês na Rota', texto: 'FGTS, DAE, DARF, DAS e ICMS com a data já jogada pro dia útil anterior, e quantas guias daquele tipo ainda estão na rota. Admin muda a lista em Clientes e ajustes.' },
@@ -14166,9 +14302,26 @@
           if (empresas.length > 1) p.empresa = nomeDe[e.clienteId] || '';
           return p;
         });
+      // honorário do mês: o app não guarda valor, então vai só a situação —
+      // se a guia/boleto do mês já foi entregue ou ainda não
+      var comp = currentCompetencia();
+      var doHonorario = todas.filter(function (e) {
+        return e.competencia === comp && (e.itens || []).some(function (i) {
+          var tipo = (typeof i === 'string' ? i : (i && i.tipo) || '').toLowerCase();
+          return tipo.indexOf('honor') !== -1 || tipo.indexOf('boleto') !== -1;
+        });
+      });
+      var entregue = doHonorario.some(function (e) { return e.status === 'confirmada'; });
       return db.doc('portais/' + c.portalToken).update({
         clienteNome: (c.nome || '') + (empresas.length > 1 ? ' e mais ' + (empresas.length - 1) + (empresas.length === 2 ? ' empresa' : ' empresas') : ''),
-        entregas: { atualizadoEm: new Date().toISOString(), lista: lista }
+        entregas: { atualizadoEm: new Date().toISOString(), lista: lista },
+        escritorio: {
+          pix: pixCopiaECola_(escritorio_.pixChave, escritorio_.pixNome, escritorio_.pixCidade),
+          nome: escritorio_.pixNome || '',
+          honorarioTexto: escritorio_.honorarioTexto || '',
+          honorarioMes: doHonorario.length ? comp : '',
+          honorarioEntregue: entregue
+        }
       }).then(function () { return true; });
     });
   }

@@ -289,6 +289,22 @@ service cloud.firestore {
       allow delete: if ehAdmin();
     }
 
+    // ---------- recado do cliente pela página dele ----------
+    // "Fale com o escritório": vira solicitação na fila do office boy, feita
+    // pelo PC do robô. Só cria quem tem um link que existe, um recado curto
+    // por vez; ninguém lê nem lista pelo app do cliente.
+    match /pedidosDoPortal/{id} {
+      allow create: if request.resource.data.token is string
+        && request.resource.data.token.matches('^[A-Za-z0-9_-]{20,64}$')
+        && exists(/databases/$(database)/documents/portais/$(request.resource.data.token))
+        && request.resource.data.keys().hasOnly(['token', 'assunto', 'texto', 'criadoEm'])
+        && request.resource.data.assunto in ['segunda-via', 'buscar-documento', 'duvida', 'outro']
+        && request.resource.data.texto is string && request.resource.data.texto.size() <= 400
+        && request.resource.data.criadoEm is string && request.resource.data.criadoEm.size() <= 40;
+      allow read, delete: if ehAdmin();
+      allow update: if false;
+    }
+
     // ---------- documento que o escritório pegou emprestado ----------
     // Livro, contrato, CNH que veio pro escritório e tem que voltar. Some
     // quando some de verdade, então quem pegou registra e qualquer um da
@@ -430,7 +446,7 @@ service cloud.firestore {
         && request.resource.data.criadoEm is string;
 
       // A equipe só regrava a projeção. De quem é o portal não muda nunca.
-      allow update: if logado() && so(['clienteNome', 'entregas', 'documentos']);
+      allow update: if logado() && so(['clienteNome', 'entregas', 'documentos', 'escritorio']);
 
       // Quem tem o link (sem login) grava DUAS coisas, e só nesse formato:
       //  - visto: quando abriu, quando copiou o código, quando viu a guia.
@@ -458,6 +474,16 @@ service cloud.firestore {
         && request.resource.data.recebido.diff(resource.data.get('recebido', {})).addedKeys().size() == 1
         && request.resource.data.recebido.diff(resource.data.get('recebido', {})).removedKeys().size() == 0
         && request.resource.data.recebido.diff(resource.data.get('recebido', {})).changedKeys().size() == 0;
+      // "já paguei": marca uma guia por vez. Não é comprovante — é recado, pro
+      // escritório não cobrar quem já pagou. Mesma trava do 'recebido': um
+      // acrescentado por vez, nenhum tirado nem alterado.
+      allow update: if so(['pago'])
+        && request.resource.data.pago is map
+        && request.resource.data.pago.size() <= 60
+        && request.resource.data.pago.diff(resource.data.get('pago', {})).addedKeys().size() == 1
+        && request.resource.data.pago.diff(resource.data.get('pago', {})).removedKeys().size() == 0
+        && request.resource.data.pago.diff(resource.data.get('pago', {})).changedKeys().size() == 0;
+
       allow update: if so(['avisar'])
         && request.resource.data.avisar is list
         && request.resource.data.avisar.size() <= 5

@@ -268,5 +268,17 @@ const lembretes = [{ texto: 'GFIP', dia: 5, quem: 'contabil' }, { texto: 'Boleto
 igual('só o que cai hoje', lb.lembretesDeHoje(lembretes, new Date(2026, 8, 7), semFeriado).map(l => l.texto), ['GFIP']);
 igual('dia sem lembrete devolve vazio', lb.lembretesDeHoje(lembretes, new Date(2026, 8, 10), semFeriado), []);
 
+// ---------- recado da página do cliente ----------
+const pp = require('./pedidos-do-portal');
+const solic = pp.solicitacaoDoPedido(
+  { assunto: 'segunda-via', texto: 'Perdi a guia do DAS de agosto' },
+  { id: 'c1', nome: 'PADARIA SAO JORGE LTDA', nomeFantasia: 'Padaria São Jorge' },
+  new Date('2026-09-20T12:00:00Z'));
+igual('recado vira solicitação com nome e texto', [solic.tipo, solic.status, solic.clienteId, solic.descricao],
+  ['documento', 'pendente', 'c1', 'Segunda via de guia — Padaria São Jorge: Perdi a guia do DAS de agosto']);
+igual('assunto desconhecido cai em "outro"', pp.solicitacaoDoPedido({ assunto: 'xxx', texto: 'oi' }, { nome: 'X' }).tipo, 'outro');
+igual('texto comprido é cortado em 400', pp.solicitacaoDoPedido({ assunto: 'duvida', texto: 'a'.repeat(500) }, { nome: 'X' }).descricao.length,
+  'Dúvida do cliente — X: '.length + 400);
+
 console.log(falhas ? '\n' + falhas + ' de ' + total + ' testes FALHARAM' : total + ' testes, todos passaram');
 process.exit(falhas ? 1 : 0);

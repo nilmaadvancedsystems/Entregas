@@ -539,6 +539,8 @@ async function iniciar() {
   catch (err) { log('resumo da semana desligado:', err.message); }
   try { require('./lembretes').iniciarLembretes({ db, log, avisos }); }
   catch (err) { log('lembretes do escritório desligados:', err.message); }
+  try { require('./pedidos-do-portal').iniciarPedidosDoPortal(db, log, avisos); }
+  catch (err) { log('recados da página do cliente desligados:', err.message); }
   try { require('./envios-do-portal').iniciarEnviosDoPortal(db, log); }
   catch (err) { log('documentos pelo link desligados:', err.message); }
   // Os dois abaixo mandam e-mail pra CLIENTE e vêm desligados: quem liga é o

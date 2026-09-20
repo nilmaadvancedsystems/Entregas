@@ -47,5 +47,13 @@ igual('desmarcar banco que o robô aprendeu vira recusado', ficam({ bancos: ['bb
 igual('desmarcar banco posto à mão não vira recusado', ficam({ bancos: ['bb', 'itau'], bancosPeloRobo: [] }, ['bb']), { bancos: ['bb'], bancosRecusados: [] });
 igual('marcar de novo tira da lista de recusados', ficam({ bancos: [], bancosRecusados: ['itau'] }, ['itau']), { bancos: ['itau'], bancosRecusados: [] });
 
+// ---------- PIX do escritório (mostrado na página do cliente) ----------
+const pix = new Function(pega('crc16Pix_') + pega('pixValido_') + pega('pixCopiaECola_') + '; return { gerar: pixCopiaECola_, valido: pixValido_ };')();
+const codigoPix = pix.gerar('nilma@exemplo.com.br', 'Nilma Contabilidade', 'Taiobeiras');
+igual('o PIX gerado passa no verificador do próprio app', pix.valido(codigoPix), true);
+igual('a chave vai dentro do código', codigoPix.indexOf('nilma@exemplo.com.br') !== -1, true);
+igual('nome sem acento, em maiúscula e cortado em 25', pix.gerar('x', 'Contabilidade Ação Muito Comprida Demais', 'Taiobeiras').indexOf('CONTABILIDADE ACAO MUITO ') !== -1, true);
+igual('sem chave não há código', pix.gerar('', 'X', 'Y'), '');
+
 console.log(falhas ? falhas + ' de ' + total + ' FALHARAM' : total + ' testes, todos passaram');
 process.exit(falhas ? 1 : 0);

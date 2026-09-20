@@ -125,6 +125,14 @@
   .instalar button { width: auto; min-height: 40px; padding: 6px 14px; flex: none; }
   .instalar .fechar { min-height: 40px; width: 40px; padding: 0; border: 0; background: transparent; color: var(--ink-faint); }
 
+  .pago { color: var(--ok); font-size: .875rem; font-weight: 600; margin-top: 8px; display: flex; gap: 6px; align-items: center; }
+  .fale { margin-top: 14px; }
+  .fale select, .fale textarea {
+    font: inherit; width: 100%; min-height: 48px; padding: 10px 12px; border-radius: 10px;
+    border: 1px solid var(--border); background: var(--surface); color: var(--ink);
+  }
+  .fale textarea { min-height: 84px; resize: vertical; }
+
   /* dúvidas: o que o cliente pergunta no WhatsApp, respondido aqui */
   .duvidas { margin-top: 28px; }
   .duvidas h2 { margin-bottom: 4px; }
@@ -164,6 +172,11 @@
         <button type="button" id="avisarBtn"></button>
         <p class="dica" id="avisarDica"></p>
       </div>
+    </section>
+
+    <section id="secHonorario" hidden aria-labelledby="tHonorario">
+      <h2 id="tHonorario">Honorário do escritório</h2>
+      <div class="bloco" id="honorarioBloco"></div>
     </section>
 
     <section aria-labelledby="tGuias">
@@ -208,6 +221,25 @@
       </details>
     </section>
 
+    <section class="fale" aria-labelledby="tFale">
+      <h2 id="tFale">Falar com o escritório</h2>
+      <p class="sub">Pedido rápido, sem precisar ligar. Chega na mesma fila que a equipe usa.</p>
+      <div class="bloco">
+        <label for="faleAssunto">Sobre o quê</label>
+        <select id="faleAssunto">
+          <option value="segunda-via">Preciso de outra via de uma guia</option>
+          <option value="buscar-documento">Quero que busquem um documento aqui</option>
+          <option value="duvida">Tenho uma dúvida</option>
+          <option value="outro">Outro assunto</option>
+        </select>
+        <label for="faleTexto" style="margin-top:10px">Escreva aqui</label>
+        <textarea id="faleTexto" maxlength="400" placeholder="Ex.: perdi a guia do DAS de agosto"></textarea>
+        <p class="erro" id="faleErro" hidden></p>
+        <div class="acoes"><button type="button" class="principal" id="faleBtn">Enviar pro escritório</button></div>
+        <p class="dica" id="faleOk" hidden></p>
+      </div>
+    </section>
+
     <footer>
       <p>Esta página é da <span id="pe-escritorio">Nilma Contabilidade</span> para <span id="pe-cliente">você</span>. Quem tem este endereço vê estas guias, então não repasse a quem não deve ver.</p>
       <p>Guardamos quando a página é aberta e quando um código é copiado, para o escritório saber que a guia chegou. <a href="privacidade.html">Como cuidamos dos seus dados</a>.</p>
@@ -232,6 +264,7 @@
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
 import { getFirestore, doc, getDoc, updateDoc, addDoc, collection } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-lite.js';
+const ICO_PIX = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 12l8 9 8-9z"/><path d="M8.5 12 12 8.5l3.5 3.5L12 15.5z"/></svg>';
 
 const CONFIG = {
   apiKey: 'AIzaSyD6xg7XhX8dKTKmaYup4hRX5k9XFHEkb98', authDomain: 'entregas-2e5e2.firebaseapp.com', projectId: 'entregas-2e5e2',
@@ -321,6 +354,7 @@ function desenhar() {
 
   const lista = (d.entregas && Array.isArray(d.entregas.lista)) ? d.entregas.lista : [];
   const recebidos = d.recebido && typeof d.recebido === 'object' ? d.recebido : {};
+  desenharHonorario(d.escritorio);
   desenharAPagar(lista, recebidos);
   desenharDocumentos(d.documentos);
   desenharGuias(lista, recebidos);
@@ -342,6 +376,9 @@ function textoDoPrazo(e) {
   return { texto: 'Vence dia ' + diaMes(e.vencimento) + (n <= 7 ? ' (em ' + n + ' dias)' : ''), urgente: false };
 }
 
+function jaPagou(e) {
+  return !!(dados && dados.pago && dados.pago[e.id]);
+}
 function cartaoDaGuia(e, recebidos, comMes) {
   const toque = recebidos[e.id] ? String(recebidos[e.id]).split('|') : null;
   const noLink = e.status === 'link' && !toque;
@@ -365,6 +402,8 @@ function cartaoDaGuia(e, recebidos, comMes) {
 
   if (prazo && prazo.vencida && e.pagamento) h += '<p class="dica">Se ainda não pagou, peça a guia atualizada ao escritório: depois do vencimento o código costuma não passar no banco.</p>';
 
+  const pago = jaPagou(e);
+  if (pago) h += '<p class="pago">' + ICO.certo + '<span>Você marcou como pago em ' + esc(dataHora(dados.pago[e.id])) + '.</span></p>';
   if (!falha) {
     h += '<div class="acoes">';
     if (e.pagamento && e.pagamento.codigo) {
@@ -374,6 +413,10 @@ function cartaoDaGuia(e, recebidos, comMes) {
     }
     if (e.temGuia) h += '<button type="button" data-acao="guia" aria-expanded="false">' + ICO.guia + '<span>Ver a guia</span></button><div class="caixa-img" data-caixa="guia"></div>';
     if (e.vencimento && diasAte(e.vencimento) >= 0) h += '<button type="button" data-acao="agenda">' + ICO.agenda + '<span>Pôr o vencimento no calendário</span></button>';
+    // "já paguei" é recado pro escritório não cobrar de novo, não comprovante
+    if (!pago && !ehEquipe && e.pagamento && e.pagamento.codigo) {
+      h += '<button type="button" data-acao="paguei">' + ICO.certo + '<span>Já paguei esta guia</span></button>';
+    }
     if (entregue && e.temAssinatura) h += '<button type="button" data-acao="assinatura" aria-expanded="false">' + ICO.certo + '<span>Ver a assinatura de quem recebeu</span></button><div class="caixa-img" data-caixa="assinatura"></div>';
     h += '</div>';
   }
@@ -572,6 +615,8 @@ document.addEventListener('click', async ev => {
     registrar('copiou');
   }
 
+  if (acao === 'paguei') { marcarPago(e, btn); return; }
+
   if (acao === 'guia' || acao === 'assinatura') {
     const caixa = cartao.querySelector('[data-caixa="' + acao + '"]');
     if (caixa.firstChild) { caixa.innerHTML = ''; btn.setAttribute('aria-expanded', 'false'); return; }
@@ -646,6 +691,86 @@ function porNoCalendario(e) {
     'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
   // sem "download": no iPhone isso abre direto a tela de adicionar ao calendário
   location.href = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(ics);
+}
+
+async function copiarPix(codigo) {
+  const btn = $('pixBtn');
+  const rotulo = btn.querySelector('span');
+  let copiou = false;
+  try { await navigator.clipboard.writeText(codigo); copiou = true; } catch (err) {}
+  const antes = rotulo.textContent;
+  rotulo.textContent = copiou ? 'Copiado. Cole no app do banco' : 'Não consegui copiar — peça o PIX ao escritório';
+  setTimeout(() => { rotulo.textContent = antes; }, 4000);
+}
+
+// ---------- honorário do escritório ----------
+// O app do escritório não guarda o valor do honorário, então aqui vai a
+// situação do mês e o PIX pra quem quiser pagar na hora.
+function desenharHonorario(escr) {
+  const sec = $('secHonorario');
+  if (!escr || !escr.pix) { sec.hidden = true; return; }
+  sec.hidden = false;
+  const mes = escr.honorarioMes ? mesPorExtenso(escr.honorarioMes).toLowerCase() : '';
+  const situacao = !escr.honorarioMes
+    ? 'O escritório ainda não lançou o honorário deste mês.'
+    : (escr.honorarioEntregue
+      ? 'O honorário de ' + mes + ' já foi entregue a você.'
+      : 'O honorário de ' + mes + ' está com o escritório e ainda não foi entregue.');
+  $('honorarioBloco').innerHTML =
+    '<p class="sub">' + esc(situacao) + '</p>' +
+    (escr.honorarioTexto ? '<p class="sub">' + esc(escr.honorarioTexto) + '</p>' : '') +
+    '<div class="acoes"><button type="button" class="principal" id="pixBtn">' + ICO_PIX + '<span>Copiar PIX do escritório</span></button></div>' +
+    '<p class="dica">Cole no seu banco em "PIX copia e cola" e digite o valor combinado' +
+      (escr.nome ? '. O nome que aparece é ' + esc(escr.nome) + '.' : '.') + '</p>';
+  $('pixBtn').addEventListener('click', () => copiarPix(escr.pix));
+}
+
+// ---------- "já paguei" ----------
+// Não é comprovante: é recado pro escritório não cobrar quem já pagou. Uma
+// guia por vez, e o que já foi marcado não volta atrás (a regra trava isso).
+async function marcarPago(entrega, botao) {
+  const pagos = (dados.pago && typeof dados.pago === 'object') ? dados.pago : {};
+  if (pagos[entrega.id]) return;
+  botao.disabled = true;
+  try {
+    const novo = Object.assign({}, pagos);
+    novo[entrega.id] = new Date().toISOString();
+    await updateDoc(ref, { pago: novo });
+    dados.pago = novo;
+    desenhar();
+  } catch (err) {
+    botao.disabled = false;
+    dizer('Não consegui marcar agora. Tente de novo em instantes.');
+  }
+}
+
+// ---------- falar com o escritório ----------
+function prepararFale() {
+  const btn = $('faleBtn');
+  if (!btn || btn.dataset.pronto || ehEquipe) return;
+  btn.dataset.pronto = '1';
+  btn.addEventListener('click', async () => {
+    const texto = $('faleTexto').value.trim();
+    $('faleErro').hidden = true;
+    if (texto.length < 5) { $('faleErro').textContent = 'Escreva um pouco mais pra gente entender.'; $('faleErro').hidden = false; return; }
+    btn.disabled = true;
+    const rotulo = btn.innerHTML;
+    btn.textContent = 'Enviando…';
+    try {
+      await addDoc(collection(db, 'pedidosDoPortal'), {
+        token, assunto: $('faleAssunto').value, texto: texto.slice(0, 400), criadoEm: new Date().toISOString()
+      });
+      $('faleTexto').value = '';
+      $('faleOk').textContent = 'Recebemos. O escritório responde pelo telefone ou WhatsApp que está no seu cadastro.';
+      $('faleOk').hidden = false;
+    } catch (err) {
+      $('faleErro').textContent = 'Não deu para enviar agora. Veja a internet e tente de novo.';
+      $('faleErro').hidden = false;
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = rotulo;
+    }
+  });
 }
 
 // ---------- "o cliente viu" ----------
@@ -842,6 +967,7 @@ function oferecerInstalar() {
 
 montarManifesto();
 oferecerInstalar();
+prepararFale();
 carregar();
 </script>
 <noscript><p style="padding:20px">Esta página precisa de JavaScript ligado no navegador para mostrar suas guias.</p></noscript>
