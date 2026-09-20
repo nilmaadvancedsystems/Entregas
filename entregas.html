@@ -700,6 +700,39 @@
 
   /* ---------- comprimidos de documento ---------- */
   .chip-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+
+  /* aba Clientes: saúde da base, filtros, etiquetas e contatos */
+  .saude-grid { display: flex; flex-wrap: wrap; gap: var(--esp-5) var(--esp-6); }
+  .saude-item {
+    border: 0; background: none; padding: 0; text-align: left; cursor: pointer; min-width: 92px;
+    color: var(--ink); font: inherit;
+  }
+  .saude-item b { display: block; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 1.5rem; font-weight: 600; line-height: 1.1; }
+  .saude-item span { font-size: var(--t-sm); color: var(--ink-faint); }
+  .saude-item:hover b, .saude-item.ativo b { color: var(--accent-forte); }
+  .saude-item.ativo span { color: var(--accent-forte); }
+  .saude-item.zerado b { color: var(--ink-faint); }
+  .saude-item:disabled { cursor: default; }
+
+  .clientes-filtros { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: var(--esp-3); }
+  .clientes-filtros .btn-chip.ativo { background: var(--accent); border-color: transparent; color: var(--accent-ink); font-weight: 600; }
+  .clientes-ordem { margin-left: auto; min-height: 34px; padding: 0 10px; width: auto; }
+
+  .etq-linha { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+  .etq {
+    font-size: var(--t-xs); font-weight: 600; padding: 1px 8px; border-radius: var(--r-pill);
+    background: var(--surface-2); color: var(--ink-soft); white-space: nowrap;
+  }
+  .etq.escolhida { background: var(--accent-soft); color: var(--accent-forte); }
+  .cr-recado { color: var(--warning-forte); flex: none; }
+
+  .contato-row { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 6px; margin-bottom: 6px; align-items: center; }
+  .contato-row .btn-chip { min-height: 38px; }
+  @media (max-width: 600px) { .contato-row { grid-template-columns: 1fr 1fr; } }
+  .recado-cliente {
+    border: 1px solid var(--warning-soft); background: var(--warning-soft); color: var(--warning-forte);
+    border-radius: var(--r-md); padding: 10px 12px; font-size: var(--t-base); line-height: 1.45; margin: 0 0 var(--esp-3);
+  }
   .chip { position: relative; }
   .chip input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
   .chip span {
@@ -2644,6 +2677,14 @@
         <div id="qualidadeEnderecoList"></div>
       </div>
     </div>
+    <div class="card" id="saudeBaseCard">
+      <div class="card-head-row">
+        <h2><i class="ph ph-clipboard-text" aria-hidden="true"></i> Como está a base</h2>
+        <span class="card-hint" id="saudeResumo"></span>
+      </div>
+      <p class="card-hint">O que falta preencher. Clique num número pra ver quem é.</p>
+      <div class="saude-grid" id="saudeGrid"></div>
+    </div>
     <div class="card" id="receitaAvisosCard" hidden>
       <div class="card-head-row">
         <h2><i class="ph ph-bank" aria-hidden="true"></i> Mudou na Receita</h2>
@@ -2698,8 +2739,17 @@
       </div>
       <div class="filtro" style="margin:var(--esp-3) 0;">
         <label for="clientesBusca">Buscar cliente</label>
-        <input class="input" id="clientesBusca" enterkeyhint="search" type="text" placeholder="Nome, código ou CNPJ">
+        <input class="input" id="clientesBusca" enterkeyhint="search" type="text" placeholder="Nome, código, CNPJ ou etiqueta">
       </div>
+      <div class="clientes-filtros" id="clientesFiltros">
+        <label class="sr-only" for="clientesOrdem">Ordem da lista</label>
+        <select class="input clientes-ordem" id="clientesOrdem">
+          <option value="nome">Por nome</option>
+          <option value="codigo">Por código</option>
+          <option value="recentes">Cadastrados por último</option>
+        </select>
+      </div>
+      <p class="card-hint" id="clientesContador" style="margin:0 0 var(--esp-2)"></p>
       <div id="clientesList"><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
     </div>
   </section>
@@ -8252,6 +8302,7 @@
         ((cliente.portalToken || temPapel('admin')) ? '<button type="button" class="btn-chip" id="linkClienteBtn"><i class="ph ph-link" aria-hidden="true"></i> Link do cliente</button>' : '') +
         '<button type="button" class="btn-chip" id="corrigirLocalBtn"><i class="ph ph-map-pin-line" aria-hidden="true"></i> Corrigir localização</button>' +
         '<button type="button" class="btn-chip" id="aglutinarBtn"><i class="ph ph-link-simple" aria-hidden="true"></i> Aglutinar com outra empresa</button>' +
+        '<button type="button" class="btn-chip" id="copiarDadosBtn"><i class="ph ph-copy" aria-hidden="true"></i> Copiar dados</button>' +
       '</div>' + avisoLocal;
 
     var receitaHtml = htmlDaReceita_(cliente);
@@ -8267,12 +8318,42 @@
         '</p>'
       : '';
 
+    var etiquetasFicha = etiquetasDe_(cliente);
+    var etiquetasHtml = etiquetasFicha.length
+      ? '<div class="etq-linha" style="margin:0 0 var(--esp-3)">' + etiquetasFicha.map(function (e) { return '<span class="etq escolhida">' + escapeHtml_(e) + '</span>'; }).join('') + '</div>'
+      : '';
+    var recadoHtml = cliente.observacao
+      ? '<p class="recado-cliente"><i class="ph ph-note" aria-hidden="true"></i> ' + escapeHtml_(cliente.observacao) + '</p>'
+      : '';
+    // contatos extras: o telefone principal já tem botão lá em cima
+    var contatosFicha = contatosDe_(cliente);
+    var contatosHtml = contatosFicha.length
+      ? '<div class="field" style="margin-bottom:var(--esp-3)"><span>Contatos</span>' +
+          contatosFicha.map(function (c, i) {
+            var zap = whatsAppNumero_(c.telefone);
+            return '<div class="entrega-row" style="border-bottom:0;min-height:0;padding:4px 0">' +
+              '<div><div class="er-nome">' + escapeHtml_(c.nome || c.telefone) + '</div>' +
+              '<div class="er-sub">' + escapeHtml_([c.papel, c.telefone].filter(Boolean).join(' · ')) + '</div></div>' +
+              (c.telefone
+                ? '<div class="cr-actions">' +
+                    (zap ? '<button type="button" class="btn-chip" data-zap="' + i + '" title="WhatsApp"><i class="ph ph-whatsapp-logo" aria-hidden="true"></i></button>' : '') +
+                    '<a class="btn-chip" href="tel:' + escapeHtml_(c.telefone.replace(/[^0-9+]/g, '')) + '" title="Ligar"><i class="ph ph-phone" aria-hidden="true"></i></a>' +
+                  '</div>'
+                : '') +
+            '</div>';
+          }).join('') +
+        '</div>'
+      : '';
+
     inner.innerHTML =
       '<div class="modal-head">' +
         '<div><h2>' + escapeHtml_(clienteLabel(cliente)) + '</h2><div class="card-hint modal-head-sub">' +
           historico.length + ' entrega(s) em ' + porCompetencia.length + ' competência(s)</div></div>' +
         '<button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button>' +
       '</div>' +
+      etiquetasHtml +
+      recadoHtml +
+      contatosHtml +
       infoHonorario +
       receitaHtml +
       acoesHtml +
@@ -8294,6 +8375,27 @@
     if ($('falarClienteBtn')) {
       $('falarClienteBtn').addEventListener('click', function () {
         window.open(whatsAppUrl_('Olá! Aqui é da Nilma Contabilidade.', cliente.telefone), '_blank');
+      });
+    }
+    inner.querySelectorAll('[data-zap]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var c = contatosFicha[Number(b.dataset.zap)];
+        window.open(whatsAppUrl_('Olá! Aqui é da Nilma Contabilidade.', c.telefone), '_blank');
+      });
+    });
+    if ($('copiarDadosBtn')) {
+      $('copiarDadosBtn').addEventListener('click', function () {
+        // o bloco que se cola no outro sistema, sem precisar abrir campo por campo
+        var linhas = [
+          clienteLabel(cliente),
+          cliente.documento ? 'CNPJ/CPF: ' + cliente.documento : '',
+          cliente.endereco ? 'Endereço: ' + cliente.endereco : '',
+          cliente.telefone ? 'Telefone: ' + cliente.telefone : '',
+          cliente.email ? 'E-mail: ' + cliente.email : ''
+        ].filter(Boolean).concat(contatosFicha.map(function (c) {
+          return 'Contato: ' + [c.nome, c.papel, c.telefone].filter(Boolean).join(' · ');
+        }));
+        copiarOuMostrar_('Dados do cliente', linhas.join('\n'), 'Dados do cliente copiados.');
       });
     }
     if ($('receitaVistoBtn')) $('receitaVistoBtn').addEventListener('click', function () {
@@ -9924,6 +10026,7 @@
   });
 
   $('clientesBusca').addEventListener('input', aoParar(renderClientesList));
+  $('clientesOrdem').addEventListener('change', renderClientesList);
 
   // ---------- perfil: quem tem acesso (só admin) ----------
   var unsubUsuarios = null;
@@ -10197,12 +10300,151 @@
     });
   }
 
+  // ---------- etiquetas, recado e contatos ----------
+  // Três campos que o cadastro não tinha e que o escritório carregava na
+  // cabeça: como o cliente é ("MEI", "Rural"), o que lembrar dele ("atende
+  // só de manhã") e quem procurar além do telefone principal.
+  var ETIQUETAS_SUGERIDAS_ = ['MEI', 'Simples', 'Lucro presumido', 'Rural', 'Só WhatsApp', 'Paga atrasado', 'Entrega no contador', 'Fecha no almoço'];
+  function etiquetasDe_(c) { return Array.isArray(c && c.etiquetas) ? c.etiquetas : []; }
+  function contatosDe_(c) { return Array.isArray(c && c.contatos) ? c.contatos.filter(function (x) { return x && (x.nome || x.telefone); }) : []; }
+
+  // ---------- como está a base ----------
+  // Tudo calculado do que já está na memória: nenhuma leitura nova no banco.
+  function semPontoNoMapa_(c) { return !c.geo || c.geo.precisao === 'cidade'; }
+  function textoDoCliente_(c) {
+    return [c.nome, c.nomeFantasia, c.codigoOrigem, c.documento, c.endereco, c.email, (c.observacao || ''),
+      etiquetasDe_(c).join(' '), contatosDe_(c).map(function (x) { return (x.nome || '') + ' ' + (x.papel || ''); }).join(' ')]
+      .filter(Boolean).join(' ').toLowerCase();
+  }
+  function chaveDeNome_(c) {
+    return String(c.nome || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/\b(ltda|me|epp|eireli|sa|s\/a|mei)\b/g, '').replace(/[^a-z0-9]/g, '');
+  }
+  // Repetido é o mesmo CNPJ (sem contar filial, que muda os 4 dígitos do meio)
+  // ou o mesmo nome depois de tirar acento, pontuação e o tipo da empresa.
+  function duplicadosDaBase_() {
+    var porChave = {};
+    Array.from(clientesCache.values()).forEach(function (c) {
+      var doc = String(c.documento || '').replace(/\D/g, '');
+      var chaves = [];
+      if (doc.length === 14 || doc.length === 11) chaves.push('doc:' + doc);
+      var nome = chaveDeNome_(c);
+      if (nome.length >= 6) chaves.push('nome:' + nome);
+      chaves.forEach(function (k) { (porChave[k] = porChave[k] || []).push(c); });
+    });
+    var vistos = {}, fora = [];
+    Object.keys(porChave).forEach(function (k) {
+      if (porChave[k].length < 2) return;
+      porChave[k].forEach(function (c) { if (!vistos[c.id]) { vistos[c.id] = 1; fora.push(c); } });
+    });
+    return fora;
+  }
+
+  var FILTROS_DA_BASE_ = [
+    { id: 'todos', rotulo: 'Todos', vale: function () { return true; } },
+    { id: 'rota', rotulo: 'Na rota hoje', vale: function (c) { return pendentesCache.some(function (e) { return e.clienteId === c.id; }); } },
+    { id: 'sem-email', rotulo: 'Sem e-mail', vale: function (c) { return !c.email && !(c.emails || []).length; } },
+    { id: 'sem-telefone', rotulo: 'Sem telefone', vale: function (c) { return !c.telefone; } },
+    { id: 'sem-endereco', rotulo: 'Sem endereço', vale: function (c) { return !c.endereco; } },
+    { id: 'sem-mapa', rotulo: 'Sem ponto no mapa', vale: semPontoNoMapa_ },
+    { id: 'sem-link', rotulo: 'Sem link do cliente', vale: function (c) { return !c.portalToken; } },
+    { id: 'receita', rotulo: 'Mudou na Receita', vale: function (c) { return mudancasDaReceita_(c).length > 0; } },
+    { id: 'sem-entrega', rotulo: 'Sem entrega há 3 meses', vale: function (c) { return clientesSemEntregaCache.some(function (x) { return x.id === c.id; }); } },
+    { id: 'repetidos', rotulo: 'Repetidos', vale: function (c) { return duplicadosDaBase_().some(function (x) { return x.id === c.id; }); } },
+    { id: 'inativos', rotulo: 'Inativos', vale: function (c) { return c.ativo === false; } }
+  ];
+  var filtroDaBase_ = 'todos';
+  var etiquetaEscolhida_ = '';
+
+  function clientesDaBase_() {
+    // os filtros olham a carteira ativa; "Inativos" é o único que inclui quem saiu
+    return Array.from(clientesCache.values()).filter(function (c) {
+      return filtroDaBase_ === 'inativos' ? c.ativo === false : c.ativo !== false;
+    });
+  }
+
+  function renderSaudeDaBase_() {
+    var grid = $('saudeGrid');
+    if (!grid) return;
+    var ativos = Array.from(clientesCache.values()).filter(function (c) { return c.ativo !== false; });
+    var repetidos = duplicadosDaBase_().filter(function (c) { return c.ativo !== false; });
+    var contas = [
+      { id: 'todos', n: ativos.length, rotulo: ativos.length === 1 ? 'cliente ativo' : 'clientes ativos' },
+      { id: 'sem-email', n: ativos.filter(FILTROS_DA_BASE_[2].vale).length, rotulo: 'sem e-mail' },
+      { id: 'sem-telefone', n: ativos.filter(FILTROS_DA_BASE_[3].vale).length, rotulo: 'sem telefone' },
+      { id: 'sem-endereco', n: ativos.filter(FILTROS_DA_BASE_[4].vale).length, rotulo: 'sem endereço' },
+      { id: 'sem-mapa', n: ativos.filter(semPontoNoMapa_).length, rotulo: 'sem ponto no mapa' },
+      { id: 'sem-link', n: ativos.filter(FILTROS_DA_BASE_[6].vale).length, rotulo: 'sem link' },
+      { id: 'repetidos', n: repetidos.length, rotulo: repetidos.length === 1 ? 'repetido' : 'repetidos' }
+    ];
+    grid.innerHTML = contas.map(function (x) {
+      return '<button type="button" class="saude-item' + (filtroDaBase_ === x.id ? ' ativo' : '') + (x.n ? '' : ' zerado') + '"' +
+        (x.n || x.id === 'todos' ? '' : ' disabled') + ' data-saude="' + x.id + '"><b>' + x.n + '</b><span>' + escapeHtml_(x.rotulo) + '</span></button>';
+    }).join('');
+    var faltando = contas.slice(1).reduce(function (t, x) { return t + x.n; }, 0);
+    $('saudeResumo').textContent = faltando ? faltando + ' ponto(s) a arrumar' : 'nada a arrumar';
+    grid.querySelectorAll('[data-saude]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        filtroDaBase_ = b.dataset.saude;
+        etiquetaEscolhida_ = '';
+        renderClientesList();
+        $('clientesList').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    });
+  }
+
+  function renderFiltrosDeCliente_() {
+    var caixa = $('clientesFiltros');
+    if (!caixa) return;
+    var ordem = $('clientesOrdem');
+    var etiquetas = {};
+    Array.from(clientesCache.values()).forEach(function (c) {
+      if (c.ativo === false) return;
+      etiquetasDe_(c).forEach(function (e) { etiquetas[e] = (etiquetas[e] || 0) + 1; });
+    });
+    var nomes = Object.keys(etiquetas).sort(function (a, b) { return etiquetas[b] - etiquetas[a] || a.localeCompare(b, 'pt-BR'); });
+    var html = FILTROS_DA_BASE_.filter(function (f) {
+      // só mostra o filtro que tem alguém nele (fora "Todos", que é a saída)
+      if (f.id === 'todos') return true;
+      return Array.from(clientesCache.values()).some(function (c) { return (f.id === 'inativos' ? true : c.ativo !== false) && f.vale(c); });
+    }).map(function (f) {
+      return '<button type="button" class="btn-chip' + (filtroDaBase_ === f.id && !etiquetaEscolhida_ ? ' ativo' : '') + '" data-filtro="' + f.id + '">' + escapeHtml_(f.rotulo) + '</button>';
+    }).join('') + nomes.map(function (e) {
+      return '<button type="button" class="btn-chip' + (etiquetaEscolhida_ === e ? ' ativo' : '') + '" data-etiqueta="' + escapeHtml_(e) + '">' + escapeHtml_(e) + ' <span class="card-hint" style="margin:0 0 0 4px">' + etiquetas[e] + '</span></button>';
+    }).join('');
+    caixa.innerHTML = html;
+    caixa.appendChild(ordem);
+    caixa.querySelectorAll('[data-filtro]').forEach(function (b) {
+      b.addEventListener('click', function () { filtroDaBase_ = b.dataset.filtro; etiquetaEscolhida_ = ''; renderClientesList(); });
+    });
+    caixa.querySelectorAll('[data-etiqueta]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        etiquetaEscolhida_ = etiquetaEscolhida_ === b.dataset.etiqueta ? '' : b.dataset.etiqueta;
+        filtroDaBase_ = 'todos';
+        renderClientesList();
+      });
+    });
+  }
+
   function renderClientesList() {
     renderAvisosDaReceita_();
+    renderSaudeDaBase_();
+    renderFiltrosDeCliente_();
     var busca = $('clientesBusca').value.trim().toLowerCase();
     var listEl = $('clientesList');
-    var all = Array.from(clientesCache.values()).sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); });
-    if (busca) all = all.filter(function (c) { return clienteCombina_(c, busca); });
+    var filtro = FILTROS_DA_BASE_.filter(function (f) { return f.id === filtroDaBase_; })[0] || FILTROS_DA_BASE_[0];
+    var all = clientesDaBase_().filter(filtro.vale);
+    if (etiquetaEscolhida_) all = all.filter(function (c) { return etiquetasDe_(c).indexOf(etiquetaEscolhida_) !== -1; });
+    var ordem = $('clientesOrdem') ? $('clientesOrdem').value : 'nome';
+    all.sort(function (a, b) {
+      if (ordem === 'codigo') return String(a.codigoOrigem || 'zzz').localeCompare(String(b.codigoOrigem || 'zzz'), 'pt-BR', { numeric: true });
+      if (ordem === 'recentes') return String(b.criadoEm || '').localeCompare(String(a.criadoEm || ''));
+      return a.nome.localeCompare(b.nome, 'pt-BR');
+    });
+    // a busca também acha por etiqueta, recado e nome de contato
+    if (busca) all = all.filter(function (c) { return clienteCombina_(c, busca) || textoDoCliente_(c).indexOf(busca) !== -1; });
+    $('clientesContador').textContent = all.length + (all.length === 1 ? ' cliente' : ' clientes') +
+      (filtroDaBase_ !== 'todos' || etiquetaEscolhida_ || busca ? ' nesta seleção' : '');
     listEl.innerHTML = '';
     if (all.length === 0) {
       listEl.innerHTML = '<div class="empty-state">Nenhum cliente encontrado.</div>';
@@ -10224,8 +10466,12 @@
         localizacao += ' · aglutinado com ' + (ancoraLista ? clienteLabel(ancoraLista) : 'outra empresa');
       }
       var sub = (c.endereco ? c.endereco + localizacao : [c.documento, c.telefone].filter(Boolean).join(' · ')) || 'sem dados adicionais';
+      var etiquetas = etiquetasDe_(c);
       row.innerHTML =
-        '<div class="cr-clickable"><div><div class="cr-name"></div><div class="cr-sub"></div></div>' +
+        '<div class="cr-clickable"><div><div class="cr-name"></div><div class="cr-sub"></div>' +
+        (etiquetas.length ? '<div class="etq-linha">' + etiquetas.map(function (e) { return '<span class="etq">' + escapeHtml_(e) + '</span>'; }).join('') + '</div>' : '') +
+        '</div>' +
+        (c.observacao ? '<i class="ph ph-note cr-recado" title="' + escapeHtml_(c.observacao) + '" aria-hidden="true"></i>' : '') +
         (naRota ? '<span class="status-pill rota">Na rota</span>' : '') + '</div>' +
         (temPapel('admin') ? '<div class="cr-actions"><button class="btn-chip">' + (c.ativo === false ? 'Reativar' : 'Desativar') + '</button></div>' : '');
       row.querySelector('.cr-name').textContent = clienteLabel(c);
@@ -11655,6 +11901,7 @@
       { quem: [], icone: 'ph-device-mobile', titulo: 'Página do cliente leve', texto: 'O link do cliente agora abre uma página própria de 30 KB, com "Para pagar" no topo e letras grandes. O endereço antigo continua valendo.' },
       { quem: [], icone: 'ph-seal-check', titulo: 'Protocolo com código de conferência', texto: 'O protocolo do mês sai com um QR e um código. Quem recebe o papel confere na página do cliente se ele saiu do escritório como está.' },
       { quem: ['admin', 'contabil'], icone: 'ph-robot', titulo: 'Cobrança e comprovante automáticos', texto: 'Pendências › Configurações › Automático: o robô cobra sozinho quem não mandou os documentos nos dias escolhidos e manda o comprovante de cada entrega por e-mail. Vem desligado.' },
+      { quem: [], icone: 'ph-users', titulo: 'Clientes: o que falta na base, etiquetas e recados', texto: 'A aba mostra quem está sem e-mail, telefone, endereço, ponto no mapa ou link, e quem está repetido. Cada cliente pode ter etiquetas (MEI, Rural, Só WhatsApp), um recado interno e outros contatos, com WhatsApp na ficha.' },
       { quem: ['admin', 'contabil'], icone: 'ph-bank', titulo: 'Cobrança com os bancos do cliente', texto: 'O e-mail de cobrança sai com visual próprio e o logo de cada banco do cliente. O robô aprende os bancos pelos extratos; no cadastro dá pra corrigir.' },
       { quem: ['admin', 'contabil'], icone: 'ph-upload-simple', titulo: 'Cliente manda documento pelo link', texto: 'Na página dele, "Enviar daqui do celular": PDF ou foto do extrato. O PC do robô guarda no Drive e marca o mês como recebido.' },
       { quem: ['admin'], icone: 'ph-download-simple', titulo: 'Página do cliente na tela inicial', texto: 'O cliente guarda a página dele como aplicativo e abre as guias direto pelo ícone.' },
@@ -11996,6 +12243,20 @@
             return '<label><input type="checkbox" data-doc="' + d.chave + '"' + (naoAplica.indexOf(d.chave) === -1 ? ' checked' : '') + '> ' + d.rotulo + '</label>';
           }).join('') + '</div>' +
           '<p class="card-hint" style="margin:6px 0 0">O que ficar desmarcado não aparece como pendência dele.</p></div>' +
+        '<div class="field" style="margin-top:var(--esp-4)"><span>Etiquetas</span>' +
+          '<div class="chip-grid" id="cadEtiquetas"></div>' +
+          '<div class="linha-busca-cnpj" style="margin-top:8px">' +
+            '<input class="input" id="cadEtiquetaNova" type="text" maxlength="24" placeholder="Outra etiqueta">' +
+            '<button type="button" class="btn btn-secondary" id="cadEtiquetaAddBtn">Incluir</button>' +
+          '</div>' +
+          '<p class="card-hint" style="margin:6px 0 0">Servem pra filtrar a lista. Ex.: MEI, Rural, Só WhatsApp.</p></div>' +
+        '<label class="field"><span>Recado interno</span>' +
+          '<textarea class="input" id="cadObservacao" rows="2" maxlength="280" placeholder="Ex.: atende só de manhã; o portão é pelos fundos"></textarea>' +
+          '<span class="card-hint">Só a equipe vê. Aparece na ficha e como bilhete na lista.</span></label>' +
+        '<div class="field"><span>Outros contatos</span>' +
+          '<div id="cadContatos"></div>' +
+          '<button type="button" class="btn-chip" id="cadContatoAddBtn"><i class="ph ph-plus" aria-hidden="true"></i> Adicionar contato</button>' +
+          '<p class="card-hint" style="margin:6px 0 0">Quem assina, quem paga, quem manda os documentos.</p></div>' +
         '<div class="field" style="margin-top:var(--esp-4)"><span>Bancos dele</span>' +
           '<div class="bancos-grade">' + BANCOS_.map(function (b) {
             var marcado = bancosDele.indexOf(b[0]) !== -1;
@@ -12010,6 +12271,60 @@
     $('modalClose').addEventListener('click', fechar);
     root.querySelectorAll('[data-banco]').forEach(function (c) {
       c.addEventListener('change', function () { c.closest('.banco-opcao').classList.toggle('ligado', c.checked); });
+    });
+
+    // --- etiquetas: as sugeridas mais as que este cliente já tem ---
+    var etiquetasDoForm = etiquetasDe_(cliente).slice();
+    function desenharEtiquetas() {
+      var todas = ETIQUETAS_SUGERIDAS_.slice();
+      etiquetasDoForm.forEach(function (e) { if (todas.indexOf(e) === -1) todas.push(e); });
+      $('cadEtiquetas').innerHTML = todas.map(function (e) {
+        var posta = etiquetasDoForm.indexOf(e) !== -1;
+        return '<button type="button" class="btn-chip' + (posta ? ' accent' : '') + '" data-etq="' + escapeHtml_(e) + '"' +
+          (posta ? ' aria-pressed="true"' : '') + '>' + (posta ? '<i class="ph ph-check" aria-hidden="true"></i> ' : '') + escapeHtml_(e) + '</button>';
+      }).join('');
+      $('cadEtiquetas').querySelectorAll('[data-etq]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          var e = b.dataset.etq;
+          var i = etiquetasDoForm.indexOf(e);
+          if (i === -1) etiquetasDoForm.push(e); else etiquetasDoForm.splice(i, 1);
+          desenharEtiquetas();
+        });
+      });
+    }
+    desenharEtiquetas();
+    function incluirEtiqueta() {
+      var nova = $('cadEtiquetaNova').value.trim();
+      if (!nova) return;
+      if (etiquetasDoForm.indexOf(nova) === -1) etiquetasDoForm.push(nova);
+      $('cadEtiquetaNova').value = '';
+      desenharEtiquetas();
+    }
+    $('cadEtiquetaAddBtn').addEventListener('click', incluirEtiqueta);
+    $('cadEtiquetaNova').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { ev.preventDefault(); incluirEtiqueta(); } });
+
+    $('cadObservacao').value = cliente.observacao || '';
+
+    // --- contatos: linhas de nome, papel e telefone ---
+    function linhaDeContato(c) {
+      var div = document.createElement('div');
+      div.className = 'contato-row';
+      div.innerHTML =
+        '<input class="input" data-c="nome" type="text" maxlength="60" placeholder="Nome">' +
+        '<input class="input" data-c="papel" type="text" maxlength="40" placeholder="Papel (ex.: quem assina)">' +
+        '<input class="input" data-c="telefone" type="tel" maxlength="20" placeholder="Telefone">' +
+        '<button type="button" class="btn-chip danger" title="Tirar este contato"><i class="ph ph-trash" aria-hidden="true"></i></button>';
+      div.querySelector('[data-c="nome"]').value = (c && c.nome) || '';
+      div.querySelector('[data-c="papel"]').value = (c && c.papel) || '';
+      div.querySelector('[data-c="telefone"]').value = (c && c.telefone) || '';
+      div.querySelector('.btn-chip').addEventListener('click', function () { div.remove(); });
+      return div;
+    }
+    contatosDe_(cliente).forEach(function (c) { $('cadContatos').appendChild(linhaDeContato(c)); });
+    $('cadContatoAddBtn').addEventListener('click', function () {
+      var linha = linhaDeContato(null);
+      $('cadContatos').appendChild(linha);
+      linha.querySelector('input').focus();
     });
     $('cadSalvarBtn').addEventListener('click', function () {
       var btn = this;
@@ -12036,6 +12351,15 @@
       };
       Object.assign(dados, bancosQueFicam_(cliente, Array.from(root.querySelectorAll('[data-banco]'))
         .filter(function (c) { return c.checked; }).map(function (c) { return c.dataset.banco; })));
+      dados.etiquetas = etiquetasDoForm.slice(0, 12);
+      dados.observacao = $('cadObservacao').value.trim().slice(0, 280);
+      dados.contatos = Array.from(root.querySelectorAll('#cadContatos .contato-row')).map(function (linha) {
+        return {
+          nome: linha.querySelector('[data-c="nome"]').value.trim().slice(0, 60),
+          papel: linha.querySelector('[data-c="papel"]').value.trim().slice(0, 40),
+          telefone: linha.querySelector('[data-c="telefone"]').value.trim().slice(0, 20)
+        };
+      }).filter(function (c) { return c.nome || c.telefone; }).slice(0, 8);
       botaoOcupado_(btn);
       db.doc('clientes/' + cliente.id).update(dados).then(function () {
         registrarAuditoria_('cliente_editado', clienteLabel(Object.assign({}, cliente, dados)));
