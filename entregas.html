@@ -701,6 +701,27 @@
   /* ---------- comprimidos de documento ---------- */
   .chip-grid { display: flex; flex-wrap: wrap; gap: 6px; }
 
+  /* ajuda */
+  .ajuda-busca { margin-bottom: var(--esp-3); }
+  .ajuda-grupo { font-size: var(--t-sm); color: var(--ink-faint); margin: var(--esp-4) 0 2px; }
+  .ajuda-grupo:first-of-type { margin-top: 0; }
+  .ajuda-item { border-bottom: 1px solid var(--border); }
+  .ajuda-item:last-child { border-bottom: 0; }
+  .ajuda-item > summary {
+    list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; justify-content: space-between;
+    min-height: 44px; padding: 6px 0; font-size: var(--t-md); font-weight: 500; color: var(--ink);
+  }
+  .ajuda-item > summary::-webkit-details-marker { display: none; }
+  .ajuda-item > summary::after {
+    content: ""; flex: none; width: 7px; height: 7px; border-right: 1.5px solid var(--ink-faint);
+    border-bottom: 1.5px solid var(--ink-faint); transform: rotate(45deg); margin-right: 4px;
+    transition: transform var(--dur-rapido) var(--ease);
+  }
+  .ajuda-item[open] > summary::after { transform: rotate(-135deg); }
+  .ajuda-item > div { font-size: var(--t-base); color: var(--ink-soft); line-height: 1.55; padding: 0 0 var(--esp-3); max-width: 72ch; }
+  .ajuda-item mark { background: var(--accent-soft); color: var(--accent-forte); border-radius: var(--r-xs); padding: 0 2px; }
+  .ajuda-vazio { color: var(--ink-faint); font-size: var(--t-base); padding: var(--esp-4) 0; }
+
   /* ocorrências, empréstimos e lembretes */
   .ocorrencia { display: flex; gap: 10px; align-items: flex-start; padding: var(--esp-2) 0; border-bottom: 1px solid var(--border); }
   .ocorrencia:last-child { border-bottom: 0; }
@@ -2883,6 +2904,7 @@
   <span class="user-avatar" id="userAvatar" aria-hidden="true"></span>
   <span class="brand-name" id="brandName">Nilma</span>
   <button type="button" class="icon-btn notas-btn" id="notasBtn" hidden title="Minhas anotações"><i class="ph ph-note" aria-hidden="true"></i><span class="tab-badge" id="notasBadge" hidden>0</span></button>
+  <button type="button" class="icon-btn" id="ajudaBtn" hidden title="Ajuda" aria-label="Ajuda"><i class="ph ph-question" aria-hidden="true"></i></button>
   <button type="button" class="icon-btn" id="settingsBtn" hidden title="Configurações"><i class="ph ph-gear" aria-hidden="true"></i></button>
   <button type="button" class="icon-btn" id="contabilVoltarBtn" hidden title="Trocar de função" aria-label="Trocar de função"><i class="ph ph-squares-four" aria-hidden="true"></i></button>
 </div>
@@ -2947,7 +2969,8 @@
     </div>
     <div class="hub-pe">
       <span class="hub-dica">Enter abre a última função · os números abrem as outras</span>
-      <button type="button" class="link-btn hub-versao" id="hubVersaoBtn" title="Ver o que mudou em cada versão"></button>
+      <button type="button" class="link-btn hub-versao" id="hubAjudaBtn" title="Perguntas frequentes">ajuda</button>
+      <button type="button" class="link-btn hub-versao" id="hubVersaoBtn" style="margin-left:10px" title="Ver o que mudou em cada versão"></button>
     </div>
   </div>
 </div>
@@ -12833,6 +12856,103 @@
     });
   }
 
+  // ---------- ajuda ----------
+  // As perguntas que a equipe faz de verdade, na ordem em que aparecem no dia.
+  // "quem" vazio = todo mundo vê; senão, só quem tem o cargo (admin vê tudo).
+  var AJUDA_ = [
+    { grupo: 'No dia a dia', itens: [
+      { p: 'Como faço uma entrega?', quem: [], r: 'Em <b>Nova entrega</b>: escolha o cliente, diga o que está entregando (ou anexe o PDF da guia, que preenche sozinho tipo, competência, valor e vencimento) e salve. A entrega entra na <b>Rota</b>. Lá, quando chegar no cliente, toque na parada, colha a assinatura na tela ou tire foto do protocolo e confirme.' },
+      { p: 'O cliente não estava. O que eu faço?', quem: [], r: 'Na tela de confirmar, toque em <b>Não entreguei</b> e escolha o motivo com um toque (fechado, ausente, recusou, endereço errado) — dá pra completar por escrito. Depois o app oferece <b>pôr de volta na rota</b>, e o admin recebe aviso no celular.' },
+      { p: 'Dá pra assinar várias guias de uma vez?', quem: [], r: 'Dá. Quando a mesma parada tem mais de uma guia (inclusive de empresas aglutinadas), aparece o botão <b>Assinar as N juntas</b> abaixo das linhas. Uma assinatura vale pra todas, e cada entrega fica registrada separada.' },
+      { p: 'Como o cliente assina pelo celular dele?', quem: [], r: 'Na tela de confirmar, toque em <b>Assinar no celular do cliente</b>: aparece um QR. Ele aponta a câmera, assina no próprio aparelho e a assinatura cai na entrega. Serve quando o seu celular está sem bateria ou ele prefere o dele.' },
+      { p: 'O que é a Montagem do dia?', quem: [], r: 'Na Rota, é a lista do que separar antes de sair: um risco por cliente. A marcação fica só no seu aparelho e some amanhã. O botão <b>Etiquetas</b> imprime uma etiqueta por envelope, com o que vai dentro, o vencimento e o QR da página do cliente.' },
+      { p: 'O app funciona sem internet?', quem: [], r: 'Funciona. O que você registrar sem sinal fica guardado no aparelho e sobe sozinho quando a internet voltar — inclusive assinatura e foto. Evite trocar de aparelho antes de a barra dizer que está tudo enviado.' }
+    ] },
+    { grupo: 'Página do cliente', itens: [
+      { p: 'O que é o link do cliente?', quem: [], r: 'É uma página só dele, sem senha, com as guias do mês, o código pra pagar, os comprovantes de entrega e o que falta mandar pro escritório. Você cria na ficha do cliente, em <b>Link do cliente</b>, e manda pelo WhatsApp. O endereço é fixo: serve pra sempre.' },
+      { p: 'O cliente pode receber a guia sem eu ir até lá?', quem: [], r: 'Pode. Em Nova entrega escolha <b>Pelo link</b> e anexe o PDF. A guia aparece na página dele; quando ele toca em "confirmar que recebi", a entrega vira confirmada e entra no protocolo, com o nome de quem confirmou.' },
+      { p: 'O cliente consegue me mandar documento por ali?', quem: [], r: 'Consegue: na página dele tem <b>Enviar daqui do celular</b>, que aceita PDF ou foto até 700 KB. O PC do robô guarda no Drive, marca o mês como recebido e apaga o arquivo do banco.' },
+      { p: 'Mandei o link e o cliente não usa. E agora?', quem: ['admin'], r: 'Em <b>Clientes e ajustes</b> tem o cartão "Link que ninguém abriu", com quem nunca entrou na página e um botão pra mandar de novo no WhatsApp.' }
+    ] },
+    { grupo: 'Documentos e cobrança', itens: [
+      { p: 'Como cobro os documentos do mês?', quem: ['admin', 'contabil'], r: 'Na função <b>Pendências</b>. Ela mostra quem mandou extrato, comprovante e aplicação em cada mês. A cobrança sai por e-mail (com os bancos do cliente e o logo de cada um) ou WhatsApp, e fica registrada no histórico do cliente.' },
+      { p: 'Dá pra cobrar sozinho, sem eu clicar?', quem: ['admin', 'contabil'], r: 'Dá: em Pendências › Configurações › <b>Automático</b>, ligue a régua e escolha os dias do mês. O PC do robô manda a cobrança pra quem ainda deve, usando os mesmos textos, e pula quem já foi cobrado nos últimos 3 dias. Vem desligada.' },
+      { p: 'O robô lê meus e-mails?', quem: ['admin', 'contabil'], r: 'Só a caixa do escritório, e só pra reconhecer anexo de cliente (extrato, comprovante, aplicação) e marcar o mês. Quando o anexo é extrato em PDF, ele também descobre o banco e guarda no cadastro do cliente.' }
+    ] },
+    { grupo: 'Clientes', itens: [
+      { p: 'Pra que servem as etiquetas do cliente?', quem: [], r: 'Pra separar a carteira do seu jeito: MEI, Rural, Só WhatsApp, Paga atrasado. Elas aparecem na linha da lista, viram filtro e entram na busca.' },
+      { p: 'Onde anoto algo do cliente?', quem: [], r: 'Dois lugares: o <b>recado interno</b> (no cadastro) é o aviso curto que aparece sempre — "atende só de manhã". As <b>ocorrências</b> (na ficha) são o histórico: combinado, reclamação, elogio, com data e quem registrou.' },
+      { p: 'Pegamos um documento do cliente. Como não esquecer de devolver?', quem: [], r: 'Registre em <b>Documentos com o escritório</b>, na aba Clientes e ajustes, ou pelo botão na ficha do cliente. Dá pra pôr prazo; a lista mostra o que está atrasado e a baixa é um toque.' },
+      { p: 'O cliente pediu os dados dele (LGPD). O que faço?', quem: ['admin'], r: 'Na ficha, <b>Levar os dados</b> baixa um arquivo com cadastro, entregas, documentos dos últimos 12 meses e a página dele. Se ele pedir pra apagar, use <b>Apagar dados pessoais</b>: limpa contato e endereço, derruba a página e desativa o cliente. As entregas ficam, porque são prova do serviço prestado.' }
+    ] },
+    { grupo: 'Quando algo não funciona', itens: [
+      { p: 'Parou de chegar aviso no celular. Por quê?', quem: [], r: 'Os avisos saem do PC do escritório. Com ele desligado, não sai aviso, o Gmail não é lido e o backup não roda — mas o app continua funcionando normal. Em Clientes e ajustes, o cartão <b>Saúde do sistema</b> mostra se o PC está dando sinal.' },
+      { p: 'O app disse que o limite do banco acabou.', quem: ['admin', 'contabil'], r: 'O plano gratuito dá 50 mil leituras por dia pro escritório inteiro. Quando estoura, o app para pra todo mundo até a meia-noite. Em <b>Saúde do sistema</b> dá pra ver quanto este aparelho já gastou hoje. Evite deixar o app aberto em várias telas à toa.' },
+      { p: 'Mudei algo e não apareceu no celular da equipe.', quem: [], r: 'Peça pra fechar e abrir o app de novo. Ele confere a versão sozinho, mas uma aba aberta há horas pode estar na versão antiga. No PC, Ctrl+F5 resolve.' },
+      { p: 'Entrou uma entrega errada. Dá pra apagar?', quem: [], r: 'Enquanto ela está na rota (ou no link, esperando o cliente), quem criou pode apagar — toque na parada e use Excluir. Depois de confirmada ela é prova do que aconteceu: corrija pelo admin, que registra na auditoria.' }
+    ] },
+    { grupo: 'Ajustes e acessos', itens: [
+      { p: 'Como mudo cor, tema ou tamanho do texto?', quem: [], r: 'Na engrenagem, no canto da tela. O que você escolher vale nas outras telas da Nilma (Pendências, LCDPR, Conciliadorzinho, Cheque especial) e em qualquer aparelho onde você entrar com a sua conta.' },
+      { p: 'Como dou acesso a alguém?', quem: ['admin'], r: 'Em <b>Clientes e ajustes › Ajustes do app</b>: "Novo acesso" cria nome e senha na hora, ou "Gerar link de convite" manda um link pra pessoa escolher a própria senha. O cargo define o que ela vê.' },
+      { p: 'O que cada cargo vê?', quem: ['admin'], r: 'Equipe: entregas, rota e clientes. Office boy: o mesmo, mais honorários. Contábil: Pendências e as ferramentas contábeis. Fiscal: o importador LCDPR. Admin: tudo, mais os ajustes do escritório e a auditoria.' }
+    ] }
+  ];
+
+  function ajudaPraMim_() {
+    return AJUDA_.map(function (g) {
+      return { grupo: g.grupo, itens: g.itens.filter(function (i) { return !i.quem.length || temPapel('admin') || i.quem.some(temPapel); }) };
+    }).filter(function (g) { return g.itens.length; });
+  }
+  function escaparBusca_(t) {
+    // tira o que tem significado em expressão regular, pra buscar por "R$" ou "(" não quebrar
+    return String(t).replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+  }
+  function marcarBusca_(texto, termo) {
+    if (!termo) return texto;
+    // marca só o que está FORA das tags, pra não quebrar o <b> das respostas
+    return texto.replace(/>([^<]+)</g, function (tudo, dentro) {
+      return '>' + dentro.replace(new RegExp('(' + escaparBusca_(termo) + ')', 'ig'), '<mark>$1</mark>') + '<';
+    });
+  }
+  function abrirAjuda_() {
+    var root = $('modalRoot');
+    root.innerHTML =
+      '<div class="modal-overlay" id="overlay"><div class="modal" id="modalInner">' +
+        '<div class="modal-head"><div><h2>Ajuda</h2>' +
+          '<div class="card-hint modal-head-sub">As perguntas que mais aparecem por aqui.</div></div>' +
+          '<button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button></div>' +
+        '<label class="field ajuda-busca"><span class="sr-only">Buscar na ajuda</span>' +
+          '<input class="input" id="ajudaBusca" type="search" placeholder="Buscar: assinatura, link, cobrança, aviso..."></label>' +
+        '<div id="ajudaLista"></div>' +
+      '</div></div>';
+    function desenhar() {
+      var termo = $('ajudaBusca').value.trim().toLowerCase();
+      var grupos = ajudaPraMim_().map(function (g) {
+        return {
+          grupo: g.grupo,
+          itens: g.itens.filter(function (i) {
+            return !termo || (i.p + ' ' + i.r).toLowerCase().indexOf(termo) !== -1;
+          })
+        };
+      }).filter(function (g) { return g.itens.length; });
+      $('ajudaLista').innerHTML = grupos.length
+        ? grupos.map(function (g) {
+            return '<div class="ajuda-grupo">' + escapeHtml_(g.grupo) + '</div>' + g.itens.map(function (i) {
+              return '<details class="ajuda-item"' + (termo ? ' open' : '') + '><summary>' + marcarBusca_('<span>' + escapeHtml_(i.p) + '</span>', termo) + '</summary>' +
+                '<div>' + marcarBusca_('<span>' + i.r + '</span>', termo) + '</div></details>';
+            }).join('');
+          }).join('')
+        : '<p class="ajuda-vazio">Nada com essa palavra. Tente outra, ou fale com quem cuida do sistema.</p>';
+    }
+    desenhar();
+    $('ajudaBusca').addEventListener('input', desenhar);
+    $('overlay').addEventListener('click', function (e) { if (e.target.id === 'overlay') closeModal(); });
+    $('modalClose').addEventListener('click', closeModal);
+    $('ajudaBusca').focus();
+  }
+  $('ajudaBtn').addEventListener('click', abrirAjuda_);
+  $('hubAjudaBtn').addEventListener('click', abrirAjuda_);
+
   // ---------- o que mudou, versão por versão ----------
   // A história do sistema em linguagem de quem usa. A primeira da lista é a
   // versão atual: quando ela muda, a tela de funções mostra o selo de novidades
@@ -12848,6 +12968,7 @@
       { quem: [], icone: 'ph-device-mobile', titulo: 'Página do cliente leve', texto: 'O link do cliente agora abre uma página própria de 30 KB, com "Para pagar" no topo e letras grandes. O endereço antigo continua valendo.' },
       { quem: [], icone: 'ph-seal-check', titulo: 'Protocolo com código de conferência', texto: 'O protocolo do mês sai com um QR e um código. Quem recebe o papel confere na página do cliente se ele saiu do escritório como está.' },
       { quem: ['admin', 'contabil'], icone: 'ph-robot', titulo: 'Cobrança e comprovante automáticos', texto: 'Pendências › Configurações › Automático: o robô cobra sozinho quem não mandou os documentos nos dias escolhidos e manda o comprovante de cada entrega por e-mail. Vem desligado.' },
+      { quem: [], icone: 'ph-question', titulo: 'Ajuda com busca', texto: 'O botão de interrogação, ao lado da engrenagem, abre as perguntas frequentes com busca: como assinar junto, o que fazer quando o cliente não está, como usar o link, o que é cada cartão. Mostra só o que vale pro seu cargo. A página do cliente também ganhou um "Dúvidas".' },
       { quem: [], icone: 'ph-package', titulo: 'Montagem do dia e etiqueta de envelope', texto: 'Na Rota, a lista do que separar antes de sair, com risco por parada, e o botão Etiquetas: uma etiqueta por cliente pra imprimir, com o que vai dentro, o vencimento e o QR da página dele.' },
       { quem: [], icone: 'ph-calendar-dots', titulo: 'Obrigações do mês na Rota', texto: 'FGTS, DAE, DARF, DAS e ICMS com a data já jogada pro dia útil anterior, e quantas guias daquele tipo ainda estão na rota. Admin muda a lista em Clientes e ajustes.' },
       { quem: ['admin', 'contabil'], icone: 'ph-file-text', titulo: 'Extrato do mês do cliente', texto: 'Na ficha, ao lado de Protocolo: uma folha com o que entregamos e o que o cliente mandou ou deixou de mandar no mês. Boa pra mandar junto com o honorário.' },
@@ -13068,6 +13189,7 @@
     cfg.botoes.forEach(function (id) { $(id).hidden = false; });
     $('notasBtn').hidden = true;
     $('settingsBtn').hidden = true;
+    $('ajudaBtn').hidden = true;
     $('contabilVoltarBtn').hidden = false;
     // A ferramenta embutida traz o próprio menu — dois menus lado a lado
     // pareciam dois apps colados. Ver a regra "body.modo-secundario" na
@@ -13107,6 +13229,7 @@
     ajustarSubnavDeClientes_();
     $('notasBtn').hidden = false;
     $('settingsBtn').hidden = false;
+    $('ajudaBtn').hidden = false;
     // volta a aba ativa pra "Nova entrega" (sem disparar os efeitos de
     // troca de aba — captureGeo/setupCanvas —, que startApp() já cuida
     // de inicializar sozinho toda vez que entra em Entregas).
@@ -13680,6 +13803,7 @@
     if (user) {
       $('authGate').hidden = true;
       $('settingsBtn').hidden = false;
+      $('ajudaBtn').hidden = false;
       $('notasBtn').hidden = false;
       ensureUsuarioDoc(user).then(function () {
         aplicarFotoPerfil(fotoPerfilAtual);
@@ -13694,6 +13818,7 @@
       // não deve aparecer por cima
       $('authGate').hidden = !$('conviteGate').hidden || !$('assinaturaGate').hidden || !$('rotaGate').hidden;
       $('settingsBtn').hidden = true;
+      $('ajudaBtn').hidden = true;
       $('notasBtn').hidden = true;
       $('contabilVoltarBtn').hidden = true;
       // Sai a consulta rápida junto com o resto: fora do login não há o que

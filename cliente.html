@@ -125,6 +125,14 @@
   .instalar button { width: auto; min-height: 40px; padding: 6px 14px; flex: none; }
   .instalar .fechar { min-height: 40px; width: 40px; padding: 0; border: 0; background: transparent; color: var(--ink-faint); }
 
+  /* dúvidas: o que o cliente pergunta no WhatsApp, respondido aqui */
+  .duvidas { margin-top: 28px; }
+  .duvidas h2 { margin-bottom: 4px; }
+  .duvidas details { border-top: 1px solid var(--border); }
+  .duvidas details:first-of-type { border-top: 0; }
+  .duvidas summary { font-size: 1rem; }
+  .duvidas p { color: var(--ink-soft); font-size: .9375rem; line-height: 1.55; padding: 0 0 14px; }
+
   footer { margin-top: 32px; color: var(--ink-faint); font-size: .875rem; }
   footer p + p { margin-top: 8px; }
   footer a { color: inherit; }
@@ -161,6 +169,43 @@
     <section aria-labelledby="tGuias">
       <h2 id="tGuias">Suas guias</h2>
       <div class="bloco" id="guias"></div>
+    </section>
+
+    <section class="duvidas" aria-labelledby="tDuvidas">
+      <h2 id="tDuvidas">Dúvidas</h2>
+      <p class="sub">As perguntas que mais chegam pra gente.</p>
+      <details>
+        <summary>O que é esta página?</summary>
+        <p>É a sua página no escritório. Traz as guias dos últimos meses, o código pra pagar cada uma, o comprovante de quem recebeu na entrega e o que ainda falta você nos mandar. Ela se atualiza sozinha: não precisa baixar nada nem criar senha.</p>
+      </details>
+      <details>
+        <summary>Quem mais consegue ver isso?</summary>
+        <p>Quem tiver este endereço. Por isso ele é só seu e não deve ser repassado. Se você repassou sem querer, peça ao escritório pra trocar — o endereço antigo para de funcionar na hora.</p>
+      </details>
+      <details>
+        <summary>Como pago a guia daqui?</summary>
+        <p>Toque em <b>Copiar código de barras</b> (ou o código PIX, quando a guia tem) e cole no aplicativo do seu banco, na opção de pagar com código. O valor e o vencimento aparecem na própria guia. Se preferir, toque em <b>Ver a guia</b> pra abrir o documento inteiro.</p>
+      </details>
+      <details>
+        <summary>Como mando um documento pro escritório?</summary>
+        <p>Em "Documentos que ainda precisamos de você", toque em <b>Enviar daqui do celular</b>, escolha qual documento é e mande o PDF ou uma foto. Também dá pra responder o e-mail de cobrança com o arquivo em anexo — nos dois casos o recebimento é registrado sozinho.</p>
+      </details>
+      <details>
+        <summary>Recebi a guia em mãos. Preciso fazer algo aqui?</summary>
+        <p>Não. Quando alguém do escritório entrega pessoalmente, a assinatura é colhida na hora. O botão <b>Confirmar que recebi</b> só aparece nas guias que foram publicadas aqui, sem visita.</p>
+      </details>
+      <details>
+        <summary>Dá pra ser avisado antes de vencer?</summary>
+        <p>Dá: toque em <b>Me avise um dia antes de vencer</b> e aceite a permissão do celular. O aviso sai do computador do escritório, então pode chegar em horário comercial. Você também pode usar <b>Pôr o vencimento no calendário</b> em cada guia.</p>
+      </details>
+      <details>
+        <summary>Como deixo esta página na tela inicial?</summary>
+        <p>No Android, aparece a faixa "Guarde esta página" com o botão Guardar. No iPhone, toque no botão de compartilhar do navegador e depois em "Adicionar à Tela de Início". Fica um ícone que abre direto nas suas guias.</p>
+      </details>
+      <details>
+        <summary>Não reconheço uma guia. O que faço?</summary>
+        <p>Fale com o escritório antes de pagar. O endereço de contato está logo abaixo, e a guia continua aqui — nada é apagado por você ter perguntado.</p>
+      </details>
     </section>
 
     <footer>
