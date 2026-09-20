@@ -701,6 +701,10 @@
   /* ---------- comprimidos de documento ---------- */
   .chip-grid { display: flex; flex-wrap: wrap; gap: 6px; }
 
+  /* aba Clientes: seletor entre carteira e ajustes do app */
+  .clientes-subnav { margin: 0 0 var(--esp-4); }
+  .clientes-subnav .mode-btn { flex: 1; }
+
   /* aba Clientes: saúde da base, filtros, etiquetas e contatos */
   .saude-grid { display: flex; flex-wrap: wrap; gap: var(--esp-5) var(--esp-6); }
   .saude-item {
@@ -3670,6 +3674,79 @@
     });
     if (faixa.children.length) aba.appendChild(faixa);
   });
+
+  // ---------- Clientes: carteira e ajustes do app ----------
+  // Os ajustes do app moravam numa aba "Perfil" que quase ninguém achava
+  // (nome não dizia o que era, e só admin via). Agora são a segunda parte da
+  // aba Clientes, que já é o lugar de cuidar da base.
+  function montarAjustesNaAbaClientes_() {
+    var abaClientes = $('tab-clientes');
+    var abaPerfil = $('tab-perfil');
+    if (!abaClientes || !abaPerfil || $('clientesCarteira')) return;
+
+    var carteira = document.createElement('div');
+    carteira.id = 'clientesCarteira';
+    while (abaClientes.firstChild) carteira.appendChild(abaClientes.firstChild);
+
+    var ajustes = document.createElement('div');
+    ajustes.id = 'clientesAjustes';
+    ajustes.hidden = true;
+    // cartão de atalho pro que é de cada pessoa (tema, cor, senha, foto)
+    var pessoal = document.createElement('div');
+    pessoal.className = 'card';
+    pessoal.innerHTML =
+      '<div class="card-head-row"><h2><i class="ph ph-paint-brush" aria-hidden="true"></i> Aparência e conta</h2>' +
+        '<button type="button" class="btn-chip accent" id="ajustesPessoaisBtn"><i class="ph ph-gear" aria-hidden="true"></i> Abrir</button></div>' +
+      '<p class="card-hint">Tema, cor, tamanho do texto, espaçamento, aba em que o app abre, foto e senha. Vale só pra você — os cartões abaixo valem pro escritório inteiro.</p>';
+    ajustes.appendChild(pessoal);
+    while (abaPerfil.firstChild) ajustes.appendChild(abaPerfil.firstChild);
+
+    var nav = document.createElement('div');
+    nav.className = 'mode-toggle clientes-subnav';
+    nav.id = 'clientesSubnav';
+    nav.setAttribute('role', 'group');
+    nav.setAttribute('aria-label', 'O que mostrar na aba Clientes');
+    nav.innerHTML =
+      '<button type="button" class="mode-btn active" data-parte="carteira"><i class="ph ph-users" aria-hidden="true"></i> Carteira</button>' +
+      '<button type="button" class="mode-btn" data-parte="ajustes"><i class="ph ph-sliders-horizontal" aria-hidden="true"></i> Ajustes do app</button>';
+
+    abaClientes.appendChild(nav);
+    abaClientes.appendChild(carteira);
+    abaClientes.appendChild(ajustes);
+
+    nav.querySelectorAll('.mode-btn').forEach(function (b) {
+      b.addEventListener('click', function () {
+        nav.querySelectorAll('.mode-btn').forEach(function (x) { x.classList.remove('active'); });
+        b.classList.add('active');
+        mostrarParteDeClientes_(b.dataset.parte);
+      });
+    });
+    $('ajustesPessoaisBtn').addEventListener('click', abrirConfiguracoes);
+  }
+
+  function mostrarParteDeClientes_(parte) {
+    var carteira = $('clientesCarteira');
+    var ajustes = $('clientesAjustes');
+    if (!carteira || !ajustes) return;
+    var querAjustes = parte === 'ajustes' && temPapel('admin');
+    carteira.hidden = querAjustes;
+    ajustes.hidden = !querAjustes;
+    var nav = $('clientesSubnav');
+    if (nav) nav.querySelectorAll('.mode-btn').forEach(function (b) {
+      b.classList.toggle('active', b.dataset.parte === (querAjustes ? 'ajustes' : 'carteira'));
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // quem não é admin não tem ajustes de escritório: fica só a carteira
+  function ajustarSubnavDeClientes_() {
+    var nav = $('clientesSubnav');
+    if (!nav) return;
+    nav.hidden = !temPapel('admin');
+    if (!temPapel('admin')) mostrarParteDeClientes_('carteira');
+  }
+
+  montarAjustesNaAbaClientes_();
 
   // ---------- signature (reusable pad factory) ----------
   function createSignaturePad(canvasEl, initialCssHeight) {
@@ -10846,12 +10923,17 @@
             '<div class="field-error" id="err-senha" style="display:block;"></div>' +
             '<button type="submit" class="btn btn-primary" style="margin-top:10px;">Salvar nova senha</button>' +
           '</form>' +
+          (temPapel('admin')
+            ? '<button type="button" class="btn btn-secondary" id="modalAjustesAppBtn" style="margin-top:var(--esp-5);"><i class="ph ph-sliders-horizontal" aria-hidden="true"></i> Ajustes do escritório</button>' +
+              '<p class="card-hint" style="margin:6px 0 0">Quem tem acesso, auditoria, competências fechadas e o resto ficam em Clientes › Ajustes do app.</p>'
+            : '') +
           '<button type="button" class="btn btn-secondary btn-perigo" id="modalLogoutBtn" style="margin-top:var(--esp-5);"><i class="ph ph-sign-out" aria-hidden="true"></i> Sair da conta</button>' +
           '</div>' +
         '</div>' +
       '</div>';
     $('overlay').addEventListener('click', function (e) { if (e.target.id === 'overlay') closeModal(); });
     $('modalClose').addEventListener('click', closeModal);
+    if ($('modalAjustesAppBtn')) $('modalAjustesAppBtn').addEventListener('click', function () { closeModal(); irParaAjustesDoApp_(); });
     $('modalLogoutBtn').addEventListener('click', function () { closeModal(); auth.signOut(); });
 
     // Instalar na tela inicial: o Chrome só libera depois de guardar o evento
@@ -11625,7 +11707,8 @@
     $('tabHonorarios').hidden = !(temPapel('admin') || temPapel('office_boy'));
     $('importHonorariosBtn').hidden = !temPapel('admin');
     // Perfil é a página de administração de acessos: só admin enxerga.
-    $('tabPerfil').hidden = !temPapel('admin');
+    $('tabPerfil').hidden = true;          // virou "Ajustes do app", dentro de Clientes
+    ajustarSubnavDeClientes_();
     if (temPapel('admin')) subscribeUsuarios();
 
     primeiraCargaClientes_ = true;
@@ -11901,6 +11984,7 @@
       { quem: [], icone: 'ph-device-mobile', titulo: 'Página do cliente leve', texto: 'O link do cliente agora abre uma página própria de 30 KB, com "Para pagar" no topo e letras grandes. O endereço antigo continua valendo.' },
       { quem: [], icone: 'ph-seal-check', titulo: 'Protocolo com código de conferência', texto: 'O protocolo do mês sai com um QR e um código. Quem recebe o papel confere na página do cliente se ele saiu do escritório como está.' },
       { quem: ['admin', 'contabil'], icone: 'ph-robot', titulo: 'Cobrança e comprovante automáticos', texto: 'Pendências › Configurações › Automático: o robô cobra sozinho quem não mandou os documentos nos dias escolhidos e manda o comprovante de cada entrega por e-mail. Vem desligado.' },
+      { quem: ['admin'], icone: 'ph-sliders-horizontal', titulo: 'Ajustes do app dentro de Clientes', texto: 'A aba Perfil saiu da barra. Quem tem acesso, novo acesso, auditoria, competências fechadas e o reforço de IA agora ficam em Clientes › Ajustes do app. A engrenagem continua com o que é seu: tema, cor, foto e senha.' },
       { quem: [], icone: 'ph-users', titulo: 'Clientes: o que falta na base, etiquetas e recados', texto: 'A aba mostra quem está sem e-mail, telefone, endereço, ponto no mapa ou link, e quem está repetido. Cada cliente pode ter etiquetas (MEI, Rural, Só WhatsApp), um recado interno e outros contatos, com WhatsApp na ficha.' },
       { quem: ['admin', 'contabil'], icone: 'ph-bank', titulo: 'Cobrança com os bancos do cliente', texto: 'O e-mail de cobrança sai com visual próprio e o logo de cada banco do cliente. O robô aprende os bancos pelos extratos; no cadastro dá pra corrigir.' },
       { quem: ['admin', 'contabil'], icone: 'ph-upload-simple', titulo: 'Cliente manda documento pelo link', texto: 'Na página dele, "Enviar daqui do celular": PDF ou foto do extrato. O PC do robô guarda no Drive e marca o mês como recebido.' },
@@ -12097,6 +12181,12 @@
   // própria (card do hub -> Pendencias-e-envio-automatico-via-Gmail.html),
   // exatamente como é sozinha — sem moldura do Entregas em volta.
   var TABS_ENTREGAS_ = ['tabbtn-nova', 'tabbtn-rota', 'tabbtn-painel', 'tabbtn-solicitacoes', 'tabHonorarios', 'tabbtn-clientes', 'tabPerfil'];
+  // atalho: quem chamava a aba Perfil agora cai em Clientes › Ajustes do app
+  function irParaAjustesDoApp_() {
+    if (!temPapel('admin')) return;
+    $('tabbtn-clientes').click();
+    mostrarParteDeClientes_('ajustes');
+  }
   // cada "aba secundária" registrada aqui: botões de aba, seções de
   // conteúdo (pra esconder ao voltar) e frames (pra carregar sob demanda)
   var ABAS_SECUNDARIAS_ = {
@@ -12144,7 +12234,8 @@
     $('tabbtn-solicitacoes').hidden = false;
     $('tabbtn-clientes').hidden = false;
     $('tabHonorarios').hidden = !(temPapel('admin') || temPapel('office_boy'));
-    $('tabPerfil').hidden = !temPapel('admin');
+    $('tabPerfil').hidden = true;          // virou "Ajustes do app", dentro de Clientes
+    ajustarSubnavDeClientes_();
     $('notasBtn').hidden = false;
     $('settingsBtn').hidden = false;
     // volta a aba ativa pra "Nova entrega" (sem disparar os efeitos de
