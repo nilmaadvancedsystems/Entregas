@@ -6,120 +6,41 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<!-- Aparência (tema, cor, texto, espaçamento, animação) igual à das outras
+     telas. Sem defer: precisa valer antes da primeira pintura. -->
+<script src="nilma-ui.js"></script>
+<link rel="stylesheet" href="nilma-ui.css">
 <style>
   /* ---------------------------------- tokens ---------------------------------- */
   :root{
-    /* Tokens remapeados pros valores do app Entregas (Nilma Protocolos) —
-       mesmos nomes de variável de sempre (nenhum uso no resto do arquivo
-       precisou mudar), só o valor de cada um trocado. */
-    --bg:#FFFFFF;
-    --surface:#FFFFFF;
-    --surface-2:#F2F2F2;
+    /* Os valores vêm de nilma-ui.css (gerado do entregas.html). Aqui só se
+       dá o nome antigo pro token novo, pra não precisar mexer nas 600 linhas
+       de estilo desta tela. Trocar a cor ou o tema muda tudo junto. */
     --surface-3:color-mix(in srgb, var(--surface-2) 70%, var(--border));
-    --border:#E3E3E3;
-    --border-strong:#C9C9C9;
-    --ink:#1A1A1A;
-    --ink-muted:#525252;
-    --ink-faint:#6C6C6C;
-    --accent:#9A2B24;
-    --accent-strong:color-mix(in srgb, var(--accent) 80%, black);
-    --accent-soft:#F7E7E5;
-    --accent-ink:color-mix(in srgb, var(--accent) 62%, var(--ink));
-    /* texto por cima do accent PREENCHIDO (botão primário etc.) — separado
-       do --accent-ink de cima, que é pra texto colorido sobre --accent-soft */
-    --accent-ink-on-fill:#FFFFFF;
-    --success:#17694A;
-    --success-soft:#E2F2EA;
-    --success-ink:color-mix(in srgb, var(--success) 62%, var(--ink));
-    --btn-confirm:#17694A;
-    --btn-confirm-strong:color-mix(in srgb, var(--btn-confirm) 80%, black);
-    --btn-confirm-ink:#FFFFFF;
-    --danger:#A8322F;
-    --danger-strong:color-mix(in srgb, var(--danger) 80%, black);
-    --danger-ink-on-fill:#FFFFFF;
-    --danger-soft:#FAE6E4;
-    --danger-ink:color-mix(in srgb, var(--danger) 62%, var(--ink));
-    --shadow-xs:0 1px 2px rgba(26,21,20,.05);
-    --shadow:0 1px 2px rgba(26,21,20,.04), 0 6px 18px -10px rgba(26,21,20,.14);
-    --shadow-md:0 2px 6px rgba(26,21,20,.05), 0 14px 32px -16px rgba(26,21,20,.22);
-    --shadow-lg:0 8px 40px -14px rgba(26,21,20,.26);
-    --shadow-success:0 2px 6px rgba(23,105,74,.10), 0 14px 30px -14px rgba(23,105,74,.42);
-    --shadow-accent:0 2px 6px rgba(154,43,36,.10), 0 14px 30px -14px rgba(154,43,36,.38);
-    --radius:10px;
-    --radius-sm:6px;
-    --font-display:'Inter',ui-sans-serif,system-ui,-apple-system,sans-serif;
-    --font-body:'Inter',ui-sans-serif,system-ui,-apple-system,sans-serif;
-    --font-mono:'JetBrains Mono',ui-sans-serif,system-ui,-apple-system,sans-serif;
+    --border-strong:var(--border-forte);
+    --ink-muted:var(--ink-soft);
+    /* Antes esta tela chamava de --accent-ink o texto COLORIDO sobre fundo
+       claro; no resto do sistema esse nome é o texto POR CIMA da cor cheia.
+       Os poucos usos foram renomeados (--accent-forte / --accent-ink), então
+       aqui não sobra apelido trocado. */
+    --accent-strong:color-mix(in srgb, var(--accent) 88%, var(--ink));
+    --btn-confirm:var(--success);
+    --btn-confirm-strong:color-mix(in srgb, var(--success) 88%, var(--ink));
+    --btn-confirm-ink:var(--accent-ink);
+    --danger-strong:color-mix(in srgb, var(--danger) 88%, var(--ink));
+    --shadow-xs:none;
+    --shadow-md:var(--shadow);
+    --shadow-lg:var(--shadow);
+    --shadow-success:none;
+    --shadow-accent:none;
+    --radius:var(--r-md);
+    --radius-sm:var(--r-sm);
+    --font-display:var(--font-body);
   }
-  @media (prefers-color-scheme: dark){
-    :root:not([data-theme="light"]){
-      --bg:#141414;
-      --surface:#141414;
-      --surface-2:#1E1E1E;
-      --surface-3:color-mix(in srgb, var(--surface-2) 70%, var(--border));
-      --border:#2C2C2C;
-      --border-strong:#404040;
-      --ink:#F0F0F0;
-      --ink-muted:#ADADAD;
-      --ink-faint:#8C8C8C;
-      --accent:#DE756B;
-      --accent-strong:color-mix(in srgb, var(--accent) 85%, white);
-      --accent-soft:#38201D;
-      --accent-ink:color-mix(in srgb, var(--accent) 92%, var(--ink));
-      --accent-ink-on-fill:#26100E;
-      --success:#4FC188;
-      --success-soft:#14301F;
-      --success-ink:color-mix(in srgb, var(--success) 92%, var(--ink));
-      --btn-confirm:#4FC188;
-      --btn-confirm-strong:color-mix(in srgb, var(--btn-confirm) 85%, white);
-      --btn-confirm-ink:#0B2B1E;
-      --danger:#E8827A;
-      --danger-strong:color-mix(in srgb, var(--danger) 85%, white);
-      --danger-ink-on-fill:#2E100E;
-      --danger-soft:#381C1A;
-      --danger-ink:color-mix(in srgb, var(--danger) 92%, var(--ink));
-      --shadow-xs:0 1px 2px rgba(0,0,0,.3);
-      --shadow:0 1px 2px rgba(0,0,0,.3), 0 6px 18px -10px rgba(0,0,0,.6);
-      --shadow-md:0 2px 6px rgba(0,0,0,.35), 0 14px 32px -16px rgba(0,0,0,.7);
-      --shadow-lg:0 8px 40px -14px rgba(0,0,0,.75);
-      --shadow-success:0 2px 6px rgba(79,193,136,.10), 0 14px 30px -14px rgba(79,193,136,.34);
-      --shadow-accent:0 2px 6px rgba(222,117,107,.08), 0 14px 30px -14px rgba(222,117,107,.30);
-    }
-  }
-  :root[data-theme="dark"]{
-    --bg:#141414;
-    --surface:#141414;
-    --surface-2:#1E1E1E;
-    --surface-3:color-mix(in srgb, var(--surface-2) 70%, var(--border));
-    --border:#2C2C2C;
-    --border-strong:#404040;
-    --ink:#F0F0F0;
-    --ink-muted:#ADADAD;
-    --ink-faint:#8C8C8C;
-    --accent:#DE756B;
-    --accent-strong:color-mix(in srgb, var(--accent) 85%, white);
-    --accent-soft:#38201D;
-    --accent-ink:color-mix(in srgb, var(--accent) 92%, var(--ink));
-    --accent-ink-on-fill:#26100E;
-    --success:#4FC188;
-    --success-soft:#14301F;
-    --success-ink:color-mix(in srgb, var(--success) 92%, var(--ink));
-    --btn-confirm:#4FC188;
-    --btn-confirm-strong:color-mix(in srgb, var(--btn-confirm) 85%, white);
-    --btn-confirm-ink:#0B2B1E;
-    --danger:#E8827A;
-    --danger-strong:color-mix(in srgb, var(--danger) 85%, white);
-    --danger-ink-on-fill:#2E100E;
-    --danger-soft:#381C1A;
-    --danger-ink:color-mix(in srgb, var(--danger) 92%, var(--ink));
-    --shadow-xs:0 1px 2px rgba(0,0,0,.3);
-    --shadow:0 1px 2px rgba(0,0,0,.3), 0 6px 18px -10px rgba(0,0,0,.6);
-    --shadow-md:0 2px 6px rgba(0,0,0,.35), 0 14px 32px -16px rgba(0,0,0,.7);
-    --shadow-lg:0 8px 40px -14px rgba(0,0,0,.75);
-    --shadow-success:0 2px 6px rgba(79,193,136,.10), 0 14px 30px -14px rgba(79,193,136,.34);
-    --shadow-accent:0 2px 6px rgba(222,117,107,.08), 0 14px 30px -14px rgba(222,117,107,.30);
-  }
+  /* tema escuro: vem de nilma-ui.css */
+  
 
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
@@ -204,7 +125,7 @@
   }
   .theme-toggle button svg{width:15px;height:15px;}
   .theme-toggle button:hover{color:var(--ink);transform:translateY(-1px);}
-  .theme-toggle button.active{background:var(--accent);color:var(--accent-ink-on-fill);box-shadow:var(--shadow-xs);}
+  .theme-toggle button.active{background:var(--accent);color:var(--accent-ink);box-shadow:var(--shadow-xs);}
 
   /* ---------------------------------- stepper (top, horizontal) ---------------------------------- */
   .layout{display:block;}
@@ -226,7 +147,7 @@
   .step-item.done .step-dot{background:var(--success);border-color:var(--success);color:var(--btn-confirm-ink);box-shadow:var(--shadow-success);}
   .step-item.done .line{background:var(--success);}
   .step-item.done .step-dot svg{width:14px;height:14px;}
-  .step-item.current .step-dot{background:var(--accent);border-color:var(--accent);color:var(--accent-ink-on-fill);box-shadow:0 0 0 4px var(--accent-soft),var(--shadow-accent);}
+  .step-item.current .step-dot{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);box-shadow:0 0 0 4px var(--accent-soft),var(--shadow-accent);}
   .step-body{padding:0 10px 0 0;min-width:0;}
   .step-label{
     font-weight:600;font-size:13px;color:var(--ink-faint);letter-spacing:-.012em;
@@ -280,7 +201,7 @@
     display:flex;align-items:center;gap:14px;border:1px solid var(--border);border-radius:var(--radius);
     background:var(--surface-2);padding:16px 18px;animation:popIn .3s ease both;
   }
-  .file-card-icon{width:40px;height:40px;border-radius:11px;background:var(--success-soft);color:var(--success-ink);display:flex;align-items:center;justify-content:center;flex:none;}
+  .file-card-icon{width:40px;height:40px;border-radius:11px;background:var(--success-soft);color:var(--success-forte);display:flex;align-items:center;justify-content:center;flex:none;}
   .file-card-icon svg{width:19px;height:19px;}
   .file-card-icon.is-reading{background:var(--accent-soft);color:var(--accent);}
   .file-card-name{font-weight:600;font-size:14px;word-break:break-all;}
@@ -300,9 +221,9 @@
     background:var(--surface);padding:11px 14px;box-shadow:var(--shadow-success);
     animation:popIn .3s ease both;
   }
-  .file-chip-icon{width:31px;height:31px;border-radius:9px;background:var(--success-soft);color:var(--success-ink);display:flex;align-items:center;justify-content:center;flex:none;}
+  .file-chip-icon{width:31px;height:31px;border-radius:9px;background:var(--success-soft);color:var(--success-forte);display:flex;align-items:center;justify-content:center;flex:none;}
   .file-chip-icon.is-reading{background:var(--accent-soft);color:var(--accent);}
-  .file-chip-icon.is-error{background:var(--danger-soft);color:var(--danger-ink);}
+  .file-chip-icon.is-error{background:var(--danger-soft);color:var(--danger-forte);}
   .file-chip-icon svg{width:15px;height:15px;}
   .file-chip-name{font-weight:600;font-size:13.5px;word-break:break-all;}
   .file-chip-meta{font-size:12px;color:var(--ink-faint);margin-top:1px;}
@@ -316,12 +237,12 @@
 
   .month-pill-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;}
   .month-pill{
-    background:var(--accent-soft);color:var(--accent-ink);border-radius:999px;padding:7px 14px;
+    background:var(--accent-soft);color:var(--accent-forte);border-radius:999px;padding:7px 14px;
     font-size:12.5px;font-weight:600;display:inline-flex;align-items:center;gap:6px;
     animation:popIn .3s ease both;
   }
   .month-pill .num{font-weight:500;opacity:.75;}
-  .month-pill.is-extra{background:var(--danger-soft);color:var(--danger-ink);}
+  .month-pill.is-extra{background:var(--danger-soft);color:var(--danger-forte);}
 
   /* ---------------------------------- buttons ---------------------------------- */
   .btn{
@@ -331,7 +252,7 @@
     transition:background .18s ease,color .18s ease,box-shadow .2s ease,opacity .18s ease,transform .16s ease;
   }
   .btn svg{width:16px;height:16px;flex:none;}
-  .btn-primary{background:var(--accent);color:var(--accent-ink-on-fill);box-shadow:var(--shadow-accent);}
+  .btn-primary{background:var(--accent);color:var(--accent-ink);box-shadow:var(--shadow-accent);}
   .btn-primary:hover:not(:disabled){background:var(--accent-strong);transform:translateY(-2px);}
   .btn-primary:disabled{opacity:.4;cursor:not-allowed;box-shadow:none;}
   .btn-primary:active:not(:disabled){transform:translateY(0);}
@@ -348,7 +269,7 @@
   /* ---------------------------------- alerts / toast ---------------------------------- */
   .alert{
     display:flex;gap:12px;align-items:flex-start;border-radius:var(--radius-sm);padding:15px 17px;
-    border:1px solid var(--danger);background:var(--danger-soft);color:var(--danger-ink);margin-top:18px;
+    border:1px solid var(--danger);background:var(--danger-soft);color:var(--danger-forte);margin-top:18px;
     animation:popIn .3s ease both;
   }
   .alert svg{width:19px;height:19px;flex:none;margin-top:1px;}
@@ -426,7 +347,7 @@
     background:var(--surface);transition:border-color .18s ease,background .18s ease,color .18s ease;
   }
   .radio-pill:hover span{border-color:var(--border-strong);}
-  .radio-pill input:checked + span{border-color:var(--accent);background:var(--accent-soft);color:var(--accent-ink);}
+  .radio-pill input:checked + span{border-color:var(--accent);background:var(--accent-soft);color:var(--accent-forte);}
   .radio-pill input:focus-visible + span{outline:2px solid var(--accent);outline-offset:2px;}
 
   /* ---------------------------------- brand selection (list) ---------------------------------- */
@@ -477,7 +398,7 @@
     transition:border-color .18s ease,background .18s ease,color .18s ease,transform .18s ease;
   }
   .brand-tab:hover{border-color:var(--border-strong);color:var(--ink);transform:translateY(-1px);}
-  .brand-tab.active{border-color:var(--accent);background:var(--accent-soft);color:var(--accent-ink);}
+  .brand-tab.active{border-color:var(--accent);background:var(--accent-soft);color:var(--accent-forte);}
   .brand-result-card{
     border:1px solid var(--border);border-radius:var(--radius);padding:21px 22px;background:var(--surface);
     margin-bottom:14px;box-shadow:var(--shadow-xs);animation:rise .35s ease both;
@@ -491,7 +412,7 @@
 
   .success-head{display:flex;align-items:center;gap:16px;margin-bottom:26px;}
   .success-icon{
-    width:52px;height:52px;border-radius:16px;background:var(--success-soft);color:var(--success-ink);
+    width:52px;height:52px;border-radius:16px;background:var(--success-soft);color:var(--success-forte);
     display:flex;align-items:center;justify-content:center;flex:none;box-shadow:var(--shadow-success);
     animation:popIn .45s cubic-bezier(.22,.8,.3,1) both;
   }
@@ -507,11 +428,11 @@
   .stat-label{font-size:13px;color:var(--ink-faint);font-weight:600;letter-spacing:-.008em;}
   .stat-value{font-size:24px;font-weight:700;margin-top:6px;font-variant-numeric:tabular-nums;letter-spacing:-.028em;}
   .stat.success{border-color:var(--success);background:var(--success-soft);box-shadow:var(--shadow-success);}
-  .stat.success .stat-value{color:var(--success-ink);}
+  .stat.success .stat-value{color:var(--success-forte);}
 
   .parity{
     display:flex;align-items:center;gap:11px;border:1px solid var(--success);background:var(--success-soft);
-    color:var(--success-ink);border-radius:var(--radius-sm);padding:15px 17px;font-size:14.5px;font-weight:500;
+    color:var(--success-forte);border-radius:var(--radius-sm);padding:15px 17px;font-size:14.5px;font-weight:500;
     margin-bottom:26px;box-shadow:var(--shadow-success);animation:rise .4s ease both;
   }
   .parity svg{width:18px;height:18px;flex:none;}
@@ -520,7 +441,7 @@
   .preview-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;flex-wrap:wrap;}
   .preview-head h3{font-size:16.5px;font-weight:700;letter-spacing:-.018em;}
   .badge{font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:999px;letter-spacing:.02em;}
-  .badge-match{background:var(--success-soft);color:var(--success-ink);}
+  .badge-match{background:var(--success-soft);color:var(--success-forte);}
   .badge-nomatch{background:var(--surface-3);color:var(--ink-muted);}
   .table-wrap{border:1px solid var(--border);border-radius:var(--radius-sm);overflow:auto;max-height:380px;background:var(--surface);}
   table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:760px;}
@@ -561,109 +482,37 @@
     .brand-logo{box-shadow:none;}
   }
 
-  /* ------------------ aparência unificada com o app de Entregas ------------------
-     Mesma cor de marca, tipografia e a mesma paleta de cores escolhível
-     nas três ferramentas — muda em Configurações aqui ou lá, muda em
-     todo lugar (fica salvo no cadastro da pessoa). */
-  :root{
-    --nilma-bg-base: #F1F3F5;
-    --nilma-surface-base: #FFFFFF;
-    --nilma-surface2-base: #F6F5F5;
-    --nilma-border-base: #DEDBDA;
-    --nilma-inkmuted-base: #5B5450;
-    --nilma-inkfaint-base: #6F6763;
-    --ink: #201C1B;
-    --accent: #9A2B24;
-    --accent-strong: #7A211B;
-    --accent-ink: #FFFFFF;
-    --radius: 20px;
-    --radius-sm: 14px;
-    --shadow: 0 1px 2px rgba(32,20,18,.06), 0 6px 18px rgba(32,20,18,.08);
-    --font-display: 'Plus Jakarta Sans', -apple-system, 'Segoe UI', sans-serif;
-    --font-body: 'Plus Jakarta Sans', -apple-system, 'Segoe UI', sans-serif;
-    --font-mono: 'JetBrains Mono', SFMono-Regular, Consolas, monospace;
-    --bg: color-mix(in srgb, var(--accent) 16%, var(--nilma-bg-base));
-    --surface: color-mix(in srgb, var(--accent) 9%, var(--nilma-surface-base));
-    --surface-2: color-mix(in srgb, var(--accent) 18%, var(--nilma-surface2-base));
-    --surface-3: color-mix(in srgb, var(--accent) 24%, var(--nilma-surface2-base));
-    --border: color-mix(in srgb, var(--accent) 38%, var(--nilma-border-base));
-    --border-strong: color-mix(in srgb, var(--accent) 50%, var(--nilma-border-base));
-    --accent-soft: color-mix(in srgb, var(--accent) 22%, var(--surface));
-    --ink-muted: color-mix(in srgb, var(--accent) 16%, var(--nilma-inkmuted-base));
-    --ink-faint: color-mix(in srgb, var(--accent) 16%, var(--nilma-inkfaint-base));
-  }
-  @media (prefers-color-scheme: dark){
-    :root:not([data-theme="light"]){
-      --nilma-bg-base: #1A1513;
-      --nilma-surface-base: #241D1B;
-      --nilma-surface2-base: #2B2220;
-      --nilma-border-base: #3D302C;
-      --nilma-inkmuted-base: #C7B7B3;
-      --nilma-inkfaint-base: #A6938E;
-      --ink: #F3EAE8;
-      --accent: #DE756B;
-      --accent-strong: #C85B51;
-      --accent-ink: #26100E;
-      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 18px rgba(0,0,0,.35);
-    }
-  }
-  :root[data-theme="dark"]{
-    --nilma-bg-base: #1A1513;
-    --nilma-surface-base: #241D1B;
-    --nilma-surface2-base: #2B2220;
-    --nilma-border-base: #3D302C;
-    --nilma-inkmuted-base: #C7B7B3;
-    --nilma-inkfaint-base: #A6938E;
-    --ink: #F3EAE8;
-    --accent: #DE756B;
-    --accent-strong: #C85B51;
-    --accent-ink: #26100E;
-    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 18px rgba(0,0,0,.35);
-  }
+  /* Cor, tema e paletas: nilma-ui.css (gerado do entregas.html). */
 
-  /* Paletas de cor opcionais (mesmas 6 do app de Entregas + a padrão,
-     que aqui também é um valor explícito de data-paleta). */
-  [data-paleta="padrao"] { --accent: #9A2B24; --accent-ink: #FFFFFF; }
-  [data-paleta="verde"] { --accent: #235347; --accent-ink: #FFFFFF; }
-  [data-paleta="vermelho"] { --accent: #DF2531; --accent-ink: #FFFFFF; }
-  [data-paleta="laranja"] { --accent: #804012; --accent-ink: #FFFFFF; }
-  [data-paleta="azul"] { --accent: #1A3D63; --accent-ink: #F6FAFD; }
-  [data-paleta="ardosia"] { --accent: #57707A; --accent-ink: #FFFFFF; }
-  [data-paleta="nogueira"] { --accent: #5E4B43; --accent-ink: #FFFFFF; }
-  :root[data-theme="dark"][data-paleta="padrao"] { --accent: #DE756B; --accent-ink: #26100E; }
-  :root[data-theme="dark"][data-paleta="verde"] { --accent: #8EB69B; --accent-ink: #0B2B26; }
-  :root[data-theme="dark"][data-paleta="vermelho"] { --accent: #EF3340; --accent-ink: #2A0508; }
-  :root[data-theme="dark"][data-paleta="laranja"] { --accent: #DB9F75; --accent-ink: #3E2411; }
-  :root[data-theme="dark"][data-paleta="azul"] { --accent: #7FB3DC; --accent-ink: #0A1931; }
-  :root[data-theme="dark"][data-paleta="ardosia"] { --accent: #A8BAC4; --accent-ink: #191D23; }
-  :root[data-theme="dark"][data-paleta="nogueira"] { --accent: #C4A794; --accent-ink: #2E1F1B; }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"])[data-paleta="padrao"] { --accent: #DE756B; --accent-ink: #26100E; }
-    :root:not([data-theme="light"])[data-paleta="verde"] { --accent: #8EB69B; --accent-ink: #0B2B26; }
-    :root:not([data-theme="light"])[data-paleta="vermelho"] { --accent: #EF3340; --accent-ink: #2A0508; }
-    :root:not([data-theme="light"])[data-paleta="laranja"] { --accent: #DB9F75; --accent-ink: #3E2411; }
-    :root:not([data-theme="light"])[data-paleta="azul"] { --accent: #7FB3DC; --accent-ink: #0A1931; }
-    :root:not([data-theme="light"])[data-paleta="ardosia"] { --accent: #A8BAC4; --accent-ink: #191D23; }
-    :root:not([data-theme="light"])[data-paleta="nogueira"] { --accent: #C4A794; --accent-ink: #2E1F1B; }
+
+  /* ------------------------------------------------------------------
+     Alinhamento com as outras telas (Entregas, Pendências, LCDPR):
+     borda de 1px no lugar de sombra, canto menor, título na mesma escala
+     e nada de botão que levanta. Fica no fim da folha, então vale por cima
+     do que veio antes.
+     ------------------------------------------------------------------ */
+  body{font-family:var(--font-body);font-size:var(--t-md);line-height:1.45;}
+  .btn{
+    border-radius:var(--r-sm);font-size:var(--t-base);font-weight:600;
+    padding:9px 16px;min-height:38px;letter-spacing:0;box-shadow:none;
   }
-  /* Uma vez escolhida uma paleta (mesmo a padrão), fundo/cartões/bordas e
-     o tom "forte" do acento passam a puxar da cor escolhida. */
-  [data-paleta] {
-    --bg: color-mix(in srgb, var(--accent) 16%, var(--nilma-bg-base));
-    --surface: color-mix(in srgb, var(--accent) 9%, var(--nilma-surface-base));
-    --surface-2: color-mix(in srgb, var(--accent) 18%, var(--nilma-surface2-base));
-    --surface-3: color-mix(in srgb, var(--accent) 24%, var(--nilma-surface2-base));
-    --border: color-mix(in srgb, var(--accent) 38%, var(--nilma-border-base));
-    --border-strong: color-mix(in srgb, var(--accent) 50%, var(--nilma-border-base));
-    --accent-soft: color-mix(in srgb, var(--accent) 22%, var(--surface));
-    --accent-strong: color-mix(in srgb, black 18%, var(--accent));
-    --ink-muted: color-mix(in srgb, var(--accent) 16%, var(--nilma-inkmuted-base));
-    --ink-faint: color-mix(in srgb, var(--accent) 16%, var(--nilma-inkfaint-base));
-  }
-  :root[data-theme="dark"][data-paleta] { --accent-strong: color-mix(in srgb, white 18%, var(--accent)); }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"])[data-paleta] { --accent-strong: color-mix(in srgb, white 18%, var(--accent)); }
-  }
+  .btn:hover:not(:disabled),.btn-primary:hover:not(:disabled),
+  .btn-success:hover:not(:disabled),.btn-ghost:hover:not(:disabled){transform:none;box-shadow:none;}
+  .btn-primary{background:var(--accent);color:var(--accent-ink);}
+  .btn-primary:hover:not(:disabled){background:color-mix(in srgb, var(--accent) 88%, var(--ink));}
+  .btn-outline,.btn-outline-neutral{border:1px solid var(--border);background:var(--surface);color:var(--ink);}
+  .btn-outline:hover:not(:disabled),.btn-outline-neutral:hover:not(:disabled){background:var(--surface-2);border-color:var(--border-forte);}
+  .panel,.file-card,.progress-card,.stat,.alert,.table-wrap{box-shadow:none;}
+  .panel{border:1px solid var(--border);border-radius:var(--r-md);}
+  /* o passo já aparece no caminho da esquerda e no título; a etiqueta em
+     caixa alta em cima de cada seção era repetição */
+  .step-eyebrow{display:none;}
+  .step-title{font-size:var(--t-xl);font-weight:600;letter-spacing:-.01em;margin-bottom:6px;}
+  .step-desc{font-size:var(--t-base);color:var(--ink-soft);margin-bottom:var(--esp-5);}
+  .dropzone{border:1px dashed var(--border-forte);border-radius:var(--r-md);background:var(--surface);}
+  .dropzone:hover,.dropzone.is-dragging{border-color:var(--accent);background:var(--accent-soft);transform:none;box-shadow:none;}
+  .modal{border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow);}
+  input,select,textarea{min-height:38px;}
 </style>
 </head>
 <body>
@@ -687,7 +536,8 @@
     <div class="topbar-right">
       <div class="topbar-meta is-empty" id="topbarMeta"></div>
       <button class="cancel-btn" id="cancelBtn" type="button">Cancelar</button>
-      <button type="button" class="btn btn-ghost" id="configBtn" aria-label="Configurações" title="Configurações" style="padding:8px;line-height:0;"></button>
+      <a class="btn btn-outline-neutral" href="entregas.html" title="Voltar pra escolher outra função"><i class="ph ph-squares-four" aria-hidden="true"></i> Trocar de função</a>
+      <button type="button" class="btn btn-ghost" id="configBtn" aria-label="Aparência" title="Aparência: tema, cor, texto" style="padding:8px;line-height:0;"></button>
       <div class="theme-toggle" id="themeToggle" role="group" aria-label="Tema">
         <button type="button" data-theme-choice="light" aria-label="Tema claro" title="Claro"></button>
         <button type="button" data-theme-choice="dark" aria-label="Tema escuro" title="Escuro"></button>
@@ -924,7 +774,9 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
   document.getElementById('successIcon').innerHTML = svg('checkCircle');
 
   /* ============================== theme (claro / escuro / sistema) ============================== */
-  var THEME_KEY = 'conciliadorzinho-theme';
+  var THEME_KEY = 'nilma_tema';
+  var NOME_DO_TEMA = { light: 'claro', dark: 'escuro', system: 'auto' };
+  var ESCOLHA_DO_TEMA = { claro: 'light', escuro: 'dark', auto: 'system' };
   var themeToggle = document.getElementById('themeToggle');
   themeToggle.querySelector('[data-theme-choice="light"]').innerHTML = svg('sun');
   themeToggle.querySelector('[data-theme-choice="dark"]').innerHTML = svg('moon');
@@ -937,7 +789,8 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
       choice = 'system';
       document.documentElement.removeAttribute('data-theme');
     }
-    try{ localStorage.setItem(THEME_KEY, choice); }catch(e){}
+    try{ localStorage.setItem(THEME_KEY, NOME_DO_TEMA[choice] || 'auto'); }catch(e){}
+    if (window.NilmaUI && typeof window.NilmaUI.aoSalvar === 'function') window.NilmaUI.aoSalvar('tema', NOME_DO_TEMA[choice] || 'auto');
     Array.prototype.forEach.call(themeToggle.querySelectorAll('button'), function(b){
       b.classList.toggle('active', b.dataset.themeChoice === choice);
     });
@@ -948,8 +801,20 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
     applyTheme(btn.dataset.themeChoice);
   });
   var savedTheme = 'system';
-  try{ savedTheme = localStorage.getItem(THEME_KEY) || 'system'; }catch(e){}
+  try{ savedTheme = ESCOLHA_DO_TEMA[localStorage.getItem(THEME_KEY)] || 'system'; }catch(e){}
   applyTheme(savedTheme);
+  // trocou o tema em outra tela (Entregas, Pendências, Aparência): acompanha
+  window.addEventListener('storage', function (ev) {
+    if (ev && ev.key === 'nilma_tema') applyTheme(ESCOLHA_DO_TEMA[ev.newValue] || 'system');
+  });
+  // trocou pela janela de Aparência, nesta mesma tela: remarca os três botões
+  if (window.NilmaUI) window.NilmaUI.aoAplicar = function (campo, valor) {
+    if (campo !== 'tema') return;
+    var escolha = ESCOLHA_DO_TEMA[valor] || 'system';
+    Array.prototype.forEach.call(themeToggle.querySelectorAll('button'), function (b) {
+      b.classList.toggle('active', b.dataset.themeChoice === escolha);
+    });
+  };
 
   /* ============================== helpers ============================== */
   var MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
@@ -2484,8 +2349,10 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
   if (configBtn) {
     configBtn.innerHTML = GEAR_SVG;
     configBtn.addEventListener('click', function () {
-      renderPaletaSwatches_();
-      configOverlay.hidden = false;
+      // a janela de Aparência é a mesma das outras telas (nilma-ui.js):
+      // cor, tema, tamanho do texto, espaçamento e animações
+      if (window.NilmaUI) window.NilmaUI.abrirAparencia();
+      else { renderPaletaSwatches_(); configOverlay.hidden = false; }
     });
   }
   var configModalIcon = document.getElementById('configModalIcon');
@@ -2515,6 +2382,13 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
       db.collection('usuarios').doc(user.uid).get().then(function (snap) {
         var data = snap.exists ? snap.data() : {};
         aplicarPaleta_(data.paleta || 'padrao');
+        if (window.NilmaUI) {
+          window.NilmaUI.daConta(data);
+          window.NilmaUI.aoSalvar = function (campo, valor) {
+            var dados = {}; dados[campo] = valor;
+            db.collection('usuarios').doc(user.uid).update(dados).catch(function () {});
+          };
+        }
         var roles = Array.isArray(data.roles) && data.roles.length ? data.roles : (data.role ? [data.role] : ['staff']);
         var liberado = roles.indexOf('admin') !== -1 || roles.indexOf('contabil') !== -1;
         if (!liberado) bloquear('Só admins e a equipe contábil abrem essa ferramenta. Peça a um admin pra te dar o cargo "Contábil" em Configurações → Quem tem acesso.');

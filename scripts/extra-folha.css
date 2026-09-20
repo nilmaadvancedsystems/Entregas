@@ -1,0 +1,97 @@
+/* ---------------------------------------------------------------
+   Só destas telas: janela de Aparência (nilma-ui.js) e a moldura
+   (menu lateral, cabeçalho de página). O entregas.html tem a
+   moldura dele próprio; aqui ela é recriada na mesma linguagem.
+   --------------------------------------------------------------- */
+.ap-janela {
+  border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); color: var(--ink);
+  padding: var(--esp-5); width: min(420px, calc(100vw - 32px)); box-shadow: var(--shadow);
+}
+.ap-janela::backdrop { background: var(--scrim); }
+.ap-cab { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--esp-3); margin-bottom: var(--esp-4); }
+.ap-cab h2 { font-size: var(--t-lg); margin: 0; }
+.ap-dica { color: var(--ink-faint); font-size: var(--t-sm); line-height: 1.45; }
+.ap-fechar {
+  flex: none; width: 32px; height: 32px; display: grid; place-items: center; cursor: pointer;
+  border: 1px solid var(--border); border-radius: var(--r-sm); background: transparent; color: var(--ink-faint);
+}
+.ap-fechar:hover { background: var(--surface-2); color: var(--ink); }
+.ap-grupo { margin-bottom: var(--esp-5); }
+.ap-grupo:last-child { margin-bottom: 0; }
+.ap-rotulo { font-weight: 600; font-size: var(--t-md); margin-bottom: 6px; }
+.ap-grupo .ap-dica { margin-bottom: 6px; }
+.ap-opcoes { display: flex; flex-wrap: wrap; gap: 6px; }
+.ap-opcoes button {
+  font: inherit; font-size: var(--t-base); min-height: 38px; padding: 0 14px; cursor: pointer;
+  border: 1px solid var(--border); border-radius: var(--r-pill); background: var(--surface); color: var(--ink-soft);
+}
+.ap-opcoes button:hover { border-color: var(--border-forte); color: var(--ink); }
+.ap-opcoes button[aria-pressed="true"] { border-color: transparent; background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.ap-cores { display: flex; flex-wrap: wrap; gap: 8px; }
+.ap-cores button {
+  width: 38px; height: 38px; padding: 0; border-radius: 50%; cursor: pointer;
+  border: 2px solid transparent; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .12);
+}
+.ap-cores button[aria-pressed="true"] { border-color: var(--ink); }
+
+/* Moldura comum: menu lateral no PC, cabeçalho de página, rodapé do menu.
+   Mesma linguagem do Pendências — fio de 1px, uma superfície só. */
+.nilma-app { display: flex; align-items: stretch; min-height: 100vh; }
+.nilma-menu {
+  width: 232px; flex: 0 0 auto; position: sticky; top: 0; height: 100vh;
+  display: flex; flex-direction: column; background: var(--surface); border-right: 1px solid var(--border);
+}
+.nilma-marca { display: flex; align-items: center; gap: 10px; padding: var(--esp-4) var(--esp-4) var(--esp-3); }
+.nilma-marca-sigla {
+  width: 34px; height: 34px; flex: none; display: grid; place-items: center; border-radius: var(--r-md);
+  background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: var(--t-lg);
+}
+.nilma-marca-nome { font-weight: 600; font-size: var(--t-md); line-height: 1.2; }
+.nilma-marca-sub { font-size: var(--t-xs); color: var(--ink-faint); margin-top: 2px; }
+.nilma-lista { flex: 1; overflow-y: auto; padding: var(--esp-2) var(--esp-2) var(--esp-4); }
+.nilma-grupo { font-size: var(--t-xs); color: var(--ink-faint); padding: var(--esp-4) 10px 4px; }
+.nilma-item {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 40px; padding: 0 10px; cursor: pointer;
+  border: 0; border-radius: var(--r-md); background: transparent; color: var(--ink-soft);
+  font: inherit; font-size: var(--t-md); text-align: left; text-decoration: none;
+}
+.nilma-item .ph { font-size: 1.05rem; color: var(--ink-faint); }
+.nilma-item:hover { background: var(--surface-2); color: var(--ink); }
+.nilma-item.ativo { background: var(--accent-soft); color: var(--accent-forte); font-weight: 600; }
+.nilma-item.ativo .ph { color: var(--accent-forte); }
+.nilma-menu-pe { border-top: 1px solid var(--border); padding: var(--esp-2); display: grid; gap: 2px; }
+.nilma-menu-pe .nilma-estado { padding: 6px 10px; font-size: var(--t-xs); color: var(--ink-faint); line-height: 1.4; }
+.nilma-conteudo { flex: 1; min-width: 0; padding: var(--esp-5) var(--esp-6) var(--esp-6); }
+.nilma-topo {
+  display: flex; align-items: flex-end; justify-content: space-between; gap: var(--esp-4); flex-wrap: wrap;
+  padding-bottom: var(--esp-3); border-bottom: 1px solid var(--border); margin-bottom: var(--esp-5);
+}
+.nilma-topo h1 { font-size: var(--t-xl); letter-spacing: -.01em; }
+.nilma-topo .nilma-sub { color: var(--ink-soft); font-size: var(--t-base); margin: 4px 0 0; max-width: 76ch; line-height: 1.5; }
+.nilma-topo-acoes { display: flex; gap: 6px; flex-wrap: wrap; }
+
+@media (max-width: 900px) {
+  .nilma-app { display: block; }
+  .nilma-menu {
+    width: auto; height: auto; position: static; flex-direction: row; align-items: center; gap: var(--esp-2);
+    border-right: 0; border-bottom: 1px solid var(--border); overflow-x: auto; padding-right: var(--esp-3);
+  }
+  .nilma-marca { padding: var(--esp-3); }
+  .nilma-marca-texto { display: none; }
+  .nilma-lista { display: flex; gap: 4px; padding: var(--esp-2) 0; overflow-x: auto; }
+  .nilma-grupo { display: none; }
+  .nilma-item { white-space: nowrap; }
+  .nilma-menu-pe { display: flex; border-top: 0; margin-left: auto; }
+  .nilma-menu-pe .nilma-estado { display: none; }
+  .nilma-conteudo { padding: var(--esp-4) var(--esp-4) var(--esp-6); }
+}
+
+/* No Entregas o botão nasce da largura toda (celular na rua, alvo grande).
+   Aqui, telas de escritório em monitor: o botão fica do tamanho do texto,
+   menos quando alguém pedir .btn-bloco. */
+.btn { width: auto; padding: 9px 14px; min-height: 38px; font-size: var(--t-base); }
+.btn-bloco { width: 100%; }
+.btn-ghost { background: transparent; border-color: transparent; color: var(--accent-forte); }
+.btn-ghost:hover:not(:disabled) { background: var(--accent-soft); }
+.btn:disabled { opacity: .5; cursor: default; }
+input, select, textarea { min-height: 38px; }

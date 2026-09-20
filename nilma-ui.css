@@ -1,0 +1,735 @@
+/* ==========================================================================
+ Nilma — folha comum das telas menores
+
+ Isto NÃO é um tema novo: é o mesmo sistema do entregas.html (tokens, cores,
+ paletas, preferências de aparência e os componentes genéricos), recortado
+ pra quem não é um arquivo só — LCDPR, Conciliadorzinho e Cheque especial.
+
+ Como manter: este arquivo é gerado por scripts/monta-folha.js a partir do
+ entregas.html. Mudou o sistema lá, rode o script de novo em vez de editar
+ aqui na mão.
+
+ Quem usa esta folha também carrega nilma-ui.js, que aplica tema, cor,
+ tamanho de texto, espaçamento e animação antes da primeira pintura e
+ acompanha a troca feita em outra aba.
+ ========================================================================== */
+
+/* ---------------------------------------------------------------
+ tokens, tema escuro, paletas, preferências e barra de rolagem
+ (entregas.html, linhas 76-337)
+ --------------------------------------------------------------- */
+:root {
+  /* --- neutros ---
+     UMA SUPERFÍCIE SÓ. Barra de cima, menu lateral e conteúdo dividem o
+     mesmo fundo; o que separa é fio de 1px, não bloco de cor. Antes o
+     conteúdo era um painel claro boiando numa bandeja escura, e o vão
+     entre eles ficava gritando.
+
+     Cinza puro: R=G=B. Os neutros tinham até +8 de desvio pro azul e o app
+     saía preto-e-azul. O tom vem da paleta escolhida (3%), não de um viés
+     cravado na base. */
+  --bg-base: #FFFFFF;
+  --surface-base: #FFFFFF;
+  --surface-2-base: #F2F2F2;
+  --border-base: #E3E3E3;
+  --border-forte-base: #C9C9C9;
+  --bg: var(--bg-base);
+  --surface: var(--surface-base);
+  --surface-2: var(--surface-2-base);
+  --border: var(--border-base);
+  --border-forte: var(--border-forte-base);
+
+  /* Os cinzas de texto NÃO são tingidos. Eram eles que faziam a tela
+     inteira parecer pintada de vermelho. */
+  --ink: #1A1A1A;
+  --ink-soft: #525252;
+  --ink-faint: #6C6C6C;
+
+  /* --- cor da marca --- */
+  --accent: #9A2B24;
+  --accent-ink: #FFFFFF;
+  --accent-soft: #F7E7E5;
+  --accent-2: #6B6F75;
+  --accent-2-soft: #EAEAEC;
+
+  /* --- significado ---
+     Verde = feito, amarelo = atenção, vermelho = falhou. Não mudam com a
+     paleta escolhida: significado não é gosto. */
+  --success: #17694A;
+  --success-soft: #E2F2EA;
+  --warning: #8A5D12;
+  --warning-soft: #FAF0DC;
+  --danger: #A8322F;
+  --danger-soft: #FAE6E4;
+  --danger-ink: #FFFFFF;
+
+  /* Versão "de texto" de cada cor: a cor cheia preenche (botão, barra,
+     ponto no mapa); como texto ela não alcança 4,5:1 em todas as paletas.
+     Misturar com a cor do texto resolve — mas a dose NÃO pode ser a mesma
+     nos dois temas: no claro --ink é quase preto e a mistura escurece (é o
+     que dá contraste); no escuro --ink é quase branco e a mesma conta
+     desbotava a marca até virar quase branca. Resultado: dois verdes
+     diferentes na mesma tela, um no menu e outro no botão. */
+  --dose-forte: 62%;
+  --accent-forte: color-mix(in srgb, var(--accent) var(--dose-forte), var(--ink));
+  --accent-2-forte: color-mix(in srgb, var(--accent-2) var(--dose-forte), var(--ink));
+  --success-forte: color-mix(in srgb, var(--success) var(--dose-forte), var(--ink));
+  --warning-forte: color-mix(in srgb, var(--warning) var(--dose-forte), var(--ink));
+  --danger-forte: color-mix(in srgb, var(--danger) var(--dose-forte), var(--ink));
+
+  /* Véu único pra tudo que escurece o fundo. */
+  --scrim: rgba(14, 14, 18, .5);
+
+  /* --- elevação ---
+     Uma sombra só, e só pro que realmente flutua: modal, barra de abas do
+     celular, lista suspensa. Cartão não flutua — cartão tem borda. */
+  --shadow: 0 10px 28px -14px rgba(10, 10, 16, .45), 0 2px 6px -3px rgba(10, 10, 16, .18);
+
+  /* --- forma ---
+     Escala curta e fechada. Raio grande em cartão é o que fazia a tela
+     parecer app de banco em vez de ferramenta. */
+  --r-xs: 4px;
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-lg: 10px;
+  --r-pill: 999px;
+  /* nomes antigos, mantidos porque ainda há regra apontando pra eles */
+  --radius-s: var(--r-sm);
+  --radius-m: var(--r-md);
+  --radius-l: var(--r-lg);
+
+  /* --- espaço --- */
+  --esp-1: 4px;
+  --esp-2: 8px;
+  --esp-3: 12px;
+  --esp-4: 16px;
+  --esp-5: 24px;
+  --esp-6: 32px;
+  /* Altura de linha de lista. É o número que traduz "celular largo, PC
+     denso" — tudo que é linha clicável lê daqui. */
+  --linha: 52px;
+  --card-pad: 16px;
+
+  /* --- tipografia ---
+     Uma família só, em pesos diferentes, mais a mono irmã pros números.
+     Plex foi desenhada pra software técnico; a mono casa com a sans porque
+     vem do mesmo desenho, então número em coluna não parece remendo. */
+  /* Inter, e não IBM Plex Sans. Plex vem de tipografia impressa e tem
+     hinting fraco em corpo pequeno: numa tela 1x (sem retina) a 13px ela
+     serrilha de verdade — foi o que apareceu no monitor do escritório.
+     Inter foi desenhada pra exatamente isso: texto de interface, tamanho
+     pequeno, tela comum. A mono continua JetBrains, que rasteriza limpo. */
+  --font-body: 'Inter', -apple-system, 'Segoe UI', system-ui, sans-serif;
+  --font-display: var(--font-body);
+  --font-mono: 'JetBrains Mono', SFMono-Regular, Consolas, monospace;
+  --t-xs: .6875rem;
+  --t-sm: .75rem;
+  --t-base: .8125rem;
+  --t-md: .9375rem;
+  --t-lg: 1rem;
+  --t-xl: 1.25rem;
+
+  /* --- movimento ---
+     Saída exponencial, 120–280ms. Quem está numa tarefa não quer assistir
+     coreografia. */
+  --ease: cubic-bezier(.22, 1, .36, 1);
+  --dur-rapido: 120ms;
+  --dur: 180ms;
+  --dur-lento: 280ms;
+
+  /* --- empilhamento ---
+     Escala com nome, não número solto. Foi assim que o aviso saía atrás do
+     modal antes. */
+  --z-conteudo: 1;
+  --z-fixo: 20;
+  --z-nav: 30;
+  --z-suspenso: 40;
+  --z-veu: 50;
+  --z-modal: 60;
+  --z-aviso: 70;
+  --z-palheta: 80;
+  --z-tela: 90;
+  --z-assinatura: 100;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg-base: #141414;
+    --surface-base: #141414;
+    --surface-2-base: #1E1E1E;
+    --border-base: #2C2C2C;
+    --border-forte-base: #404040;
+    --ink: #F0F0F0;
+    --ink-soft: #ADADAD;
+    --ink-faint: #8C8C8C;
+    /* No escuro a marca já nasce clara — misturar com o texto só desbota. */
+    --dose-forte: 92%;
+    --accent: #DE756B;
+    --accent-ink: #26100E;
+    --accent-soft: #38201D;
+    --accent-2: #A9ADB2;
+    --accent-2-soft: #2C2E33;
+    --success: #4FC188;
+    --success-soft: #14301F;
+    --warning: #D9A857;
+    --warning-soft: #322614;
+    --danger: #E8827A;
+    --danger-soft: #381C1A;
+    --danger-ink: #2E100E;
+    --scrim: rgba(4, 4, 8, .62);
+    --shadow: 0 10px 28px -14px rgba(0, 0, 0, .7), 0 2px 6px -3px rgba(0, 0, 0, .5);
+  }
+}
+:root[data-theme="dark"] {
+  --bg-base: #141414;
+  --surface-base: #141414;
+  --surface-2-base: #1E1E1E;
+  --border-base: #2C2C2C;
+  --border-forte-base: #404040;
+  --ink: #F0F0F0;
+  --ink-soft: #ADADAD;
+  --ink-faint: #8C8C8C;
+  --dose-forte: 92%;
+  --accent: #DE756B;
+  --accent-ink: #26100E;
+  --accent-soft: #38201D;
+  --accent-2: #A9ADB2;
+  --accent-2-soft: #2C2E33;
+  --success: #4FC188;
+  --success-soft: #14301F;
+  --warning: #D9A857;
+  --warning-soft: #322614;
+  --danger: #E8827A;
+  --danger-soft: #381C1A;
+  --danger-ink: #2E100E;
+  --scrim: rgba(4, 4, 8, .62);
+  --shadow: 0 10px 28px -14px rgba(0, 0, 0, .7), 0 2px 6px -3px rgba(0, 0, 0, .5);
+}
+
+/* Paletas (Configurações → Cor). Trocam só a cor da marca. Sucesso, aviso e
+   falha continuam fixos: verde quer dizer ok em qualquer paleta. */
+[data-paleta="verde"] { --accent: #235347; --accent-ink: #FFFFFF; }
+[data-paleta="vermelho"] { --accent: #C01F29; --accent-ink: #FFFFFF; }
+[data-paleta="laranja"] { --accent: #804012; --accent-ink: #FFFFFF; }
+[data-paleta="azul"] { --accent: #1A3D63; --accent-ink: #F6FAFD; }
+[data-paleta="ardosia"] { --accent: #47606A; --accent-ink: #FFFFFF; }
+[data-paleta="nogueira"] { --accent: #5E4B43; --accent-ink: #FFFFFF; }
+/* No escuro o mesmo pigmento some no fundo, então cada paleta tem seu par. */
+:root[data-theme="dark"][data-paleta="verde"] { --accent: #8EB69B; --accent-ink: #0B2B26; }
+:root[data-theme="dark"][data-paleta="vermelho"] { --accent: #EF6A6A; --accent-ink: #2A0508; }
+:root[data-theme="dark"][data-paleta="laranja"] { --accent: #DB9F75; --accent-ink: #3E2411; }
+:root[data-theme="dark"][data-paleta="azul"] { --accent: #7FB3DC; --accent-ink: #0A1931; }
+:root[data-theme="dark"][data-paleta="ardosia"] { --accent: #A8BAC4; --accent-ink: #191D23; }
+:root[data-theme="dark"][data-paleta="nogueira"] { --accent: #C4A794; --accent-ink: #2E1F1B; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"])[data-paleta="verde"] { --accent: #8EB69B; --accent-ink: #0B2B26; }
+  :root:not([data-theme="light"])[data-paleta="vermelho"] { --accent: #EF6A6A; --accent-ink: #2A0508; }
+  :root:not([data-theme="light"])[data-paleta="laranja"] { --accent: #DB9F75; --accent-ink: #3E2411; }
+  :root:not([data-theme="light"])[data-paleta="azul"] { --accent: #7FB3DC; --accent-ink: #0A1931; }
+  :root:not([data-theme="light"])[data-paleta="ardosia"] { --accent: #A8BAC4; --accent-ink: #191D23; }
+  :root:not([data-theme="light"])[data-paleta="nogueira"] { --accent: #C4A794; --accent-ink: #2E1F1B; }
+}
+
+/* A gota de cor nos neutros. Parte sempre da versão "-base", nunca de
+   --bg/--surface direto, senão vira ciclo. */
+/* :root[data-paleta] e não [data-paleta]: o bloco do tema escuro é
+   :root[data-theme="dark"], que tem especificidade maior — com o seletor
+   curto, --accent-soft ficava travado na cor da paleta padrão em TODAS as
+   paletas no escuro (a amostra "Assinar" saía marrom com a paleta verde).
+   Empatando a especificidade, quem vem depois na folha ganha, que é este. */
+:root[data-paleta] {
+  /* --bg e --surface levam a MESMA dose: são a mesma superfície, e qualquer
+     diferença entre as duas reabre o vão que a gente acabou de fechar. */
+  --bg: color-mix(in srgb, var(--accent) 3%, var(--bg-base));
+  --surface: color-mix(in srgb, var(--accent) 3%, var(--surface-base));
+  --surface-2: color-mix(in srgb, var(--accent) 5%, var(--surface-2-base));
+  --border: color-mix(in srgb, var(--accent) 9%, var(--border-base));
+  --border-forte: color-mix(in srgb, var(--accent) 11%, var(--border-forte-base));
+  --accent-soft: color-mix(in srgb, var(--accent) 14%, var(--surface));
+}
+
+/* ---------- preferências de aparência ---------- */
+html[data-texto="grande"] { font-size: 17.5px; }
+html[data-texto="maior"] { font-size: 19px; }
+
+/* Compacto agora é diferença de verdade, não dois pixels: a linha encolhe
+   e o cartão aperta. */
+html[data-densidade="compacto"] { --linha: 42px; --card-pad: 13px; }
+html[data-densidade="compacto"] .view { gap: var(--esp-3); }
+html[data-densidade="compacto"] .field { margin-bottom: var(--esp-3); }
+
+html[data-animacao="reduzida"] *,
+html[data-animacao="reduzida"] *::before,
+html[data-animacao="reduzida"] *::after {
+  transition: none !important; animation: none !important;
+}
+
+/* ---------- barra de rolagem ----------
+   Fina e neutra. Barra colorida é decoração: numa ferramenta ela só precisa
+   sumir do caminho e continuar fácil de pegar. */
+* { scrollbar-width: thin; scrollbar-color: var(--border-forte) transparent; }
+::-webkit-scrollbar { width: 12px; height: 12px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--border-forte);
+  border-radius: var(--r-pill);
+  border: 3px solid var(--bg);
+  background-clip: padding-box;
+  transition: background-color var(--dur) var(--ease);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--ink-faint); background-clip: padding-box; }
+::-webkit-scrollbar-corner { background: transparent; }
+.suggestions::-webkit-scrollbar-thumb { border-color: var(--surface); }
+
+/* ---------------------------------------------------------------
+ base: corpo, tipografia, toque, ícones, foco
+ (entregas.html, linhas 339-407)
+ --------------------------------------------------------------- */
+/* ---------- base ---------- */
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: var(--t-md);
+  line-height: 1.45;
+  /* Sem -webkit-font-smoothing: no Windows ele não faz nada e no Mac afina
+     o traço, que é o contrário do que um app lido no sol precisa. */
+  font-synthesis: none;
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+h1, h2, h3 { font-family: var(--font-display); font-weight: 600; text-wrap: balance; margin: 0; }
+button, input, select, textarea { font-family: inherit; font-size: inherit; color: inherit; }
+[hidden] { display: none !important; }
+/* Todo número que pode aparecer em coluna: mesma largura por dígito, então
+   vírgula alinha com vírgula. */
+.num, .dash-num, .tab-badge, .auth-data, .historico-mes-total,
+.valor-row input, .summary-ring span, .busca-global-dica kbd {
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+}
+
+/* ---------- retorno ao toque ----------
+   O quadrado azul do Android saiu lá em cima. No lugar: o elemento afunda
+   e nasce uma onda no ponto exato do dedo, na cor dele mesmo. */
+button, .tab, .chip, .btn-chip, .link-btn, label, summary, a { -webkit-touch-callout: none; }
+button, .tab, .chip, .btn-chip, .link-btn {
+  position: relative;
+  transition:
+    transform var(--dur-rapido) var(--ease),
+    background-color var(--dur) var(--ease),
+    border-color var(--dur) var(--ease),
+    color var(--dur) var(--ease);
+}
+button:active, .tab:active, .chip:active, .btn-chip:active, .link-btn:active { transform: scale(.98); }
+.ripple::after {
+  content: '';
+  position: absolute;
+  left: var(--rx, 50%); top: var(--ry, 50%);
+  width: 12px; height: 12px;
+  margin: -6px 0 0 -6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: .2;
+  pointer-events: none;
+  animation: ripple var(--dur-lento) var(--ease) forwards;
+}
+@keyframes ripple { to { transform: scale(22); opacity: 0; } }
+/* O recorte só existe enquanto a onda existe — recortar sempre cortaria o
+   contador na quina do ícone. */
+.ripple { overflow: hidden; }
+
+/* ---------- ícones ---------- */
+.ph, [class^="ph-"], [class*=" ph-"] { line-height: 1; vertical-align: -.125em; flex: none; }
+.tab-ico .ph { font-size: 1.1rem; }
+.btn .ph, .btn-chip .ph, .link-btn .ph { margin-right: 6px; }
+.status-pill .ph, .card-hint .ph { margin-right: 4px; }
+
+/* ---------- foco ----------
+   Teclado vê contorno; campo ganha anel, que é o que parece campo ativo. */
+.tab:focus-visible, button:focus-visible, input:focus-visible,
+select:focus-visible, textarea:focus-visible, a:focus-visible, .chip:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+
+
+/* ---------------------------------------------------------------
+ cartão
+ (entregas.html, linhas 531-574)
+ --------------------------------------------------------------- */
+.card {
+  background: none; border: none; border-radius: 0;
+  padding: var(--card-pad) 0;
+  border-top: 1px solid var(--border);
+}
+.view > .card:first-child { border-top: none; padding-top: var(--esp-2); }
+.card h2, .modal h2 {
+  font-family: var(--font-display); font-size: var(--t-lg); font-weight: 600;
+  letter-spacing: -.011em; color: var(--ink); margin-bottom: 3px;
+  display: flex; align-items: center; gap: 8px; min-width: 0;
+}
+.card h2 .ph, .modal h2 .ph { color: var(--accent-forte); font-size: 1.05em; margin: 0; }
+.card-head-row { display: flex; align-items: center; gap: var(--esp-2); flex-wrap: wrap; }
+.card-head-row > h2 { margin-right: auto; margin-bottom: 0; }
+.card-hint { color: var(--ink-faint); font-size: var(--t-sm); margin: 0 0 var(--esp-3); line-height: 1.45; max-width: 68ch; }
+.card-hint:last-child { margin-bottom: 0; }
+
+/* ---------- indicadores ----------
+   Sem caixa, sem sombra, sem levantar no hover. Três células separadas por
+   um fio de 1px — o fio é o próprio fundo aparecendo pelo gap. */
+/* Sem caixa: três células divididas por um fio vertical, na mesma folha do
+   resto. */
+.dash-strip { display: flex; }
+.dash-item {
+  flex: 1; min-width: 0; background: none; border: none;
+  border-left: 1px solid var(--border);
+  padding: var(--esp-3) var(--esp-2); text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  cursor: pointer; position: relative; color: inherit;
+  transition: background-color var(--dur-rapido) var(--ease);
+}
+.dash-item:first-child { border-left: none; padding-left: 0; }
+.dash-item:hover { background: var(--surface-2); }
+.dash-item.ok { --dash-cor: var(--success-forte); }
+.dash-item.rota { --dash-cor: var(--accent-forte); }
+.dash-item.neutro { --dash-cor: var(--ink-soft); }
+.dash-item.falha { --dash-cor: var(--danger-forte); }
+.dash-ico { font-size: .85rem; line-height: 1; color: var(--ink-faint); }
+.dash-num { font-size: 1.5rem; font-weight: 600; line-height: 1.1; letter-spacing: -.02em; color: var(--dash-cor); }
+.dash-label { font-size: var(--t-xs); color: var(--ink-soft); font-weight: 500; line-height: 1.25; }
+
+/* ==========================================================================
+   Formulário
+   ========================================================================== */
+
+/* ---------------------------------------------------------------
+ campo, entrada e erro de campo
+ (entregas.html, linhas 575-624)
+ --------------------------------------------------------------- */
+.field { display: block; margin-bottom: var(--esp-4); }
+.field > span:first-child:not([class]),
+label.field > span,
+.campo-rotulo,
+.filtro > label {
+  display: block; font-size: var(--t-sm); font-weight: 500; color: var(--ink-soft); margin-bottom: 5px;
+}
+.sub-rotulo { display: block; font-size: var(--t-sm); font-weight: 500; color: var(--ink-soft); margin: 0 0 4px; }
+
+.input, input[type="text"], input[type="month"], input[type="tel"], textarea, select {
+  /* Com a folha toda na mesma cor, o campo precisa afundar pra parecer
+     campo — borda sozinha não basta. */
+  width: 100%; padding: 10px 11px; min-height: 42px;
+  border: 1px solid var(--border); border-radius: var(--r-sm);
+  background: var(--surface-2); color: var(--ink); font-size: var(--t-md);
+  transition: border-color var(--dur-rapido) var(--ease), box-shadow var(--dur-rapido) var(--ease);
+}
+.input:hover:not(:focus) { border-color: var(--border-forte); }
+.input::placeholder { color: var(--ink-faint); }
+textarea.input { resize: vertical; min-height: 76px; }
+.input:focus, input:focus, select:focus, textarea:focus {
+  outline: none; border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+/* O aviso de campo inválido aparecia estalando (display none/block) e
+   empurrava o resto do formulário de uma vez. Agora ele abre no lugar.
+   visibility (e não só opacidade) mantém o texto fora do leitor de tela
+   enquanto não há erro. */
+.field-error {
+  color: var(--danger-forte); font-size: var(--t-sm);
+  display: block; overflow: hidden;
+  max-height: 0; margin-top: 0; opacity: 0; visibility: hidden;
+  transition:
+    max-height var(--dur) var(--ease),
+    margin-top var(--dur) var(--ease),
+    opacity var(--dur) var(--ease),
+    visibility 0s linear var(--dur);
+}
+/* 8em é teto de segurança, não altura: mensagem comprida em tela estreita
+   chega a três ou quatro linhas, e cortar o aviso de erro seria pior do
+   que não animar nada. */
+.field-error.show {
+  max-height: 8em; margin-top: var(--esp-1); opacity: 1; visibility: visible;
+  transition-delay: 0s;
+}
+
+/* Um tamanho só de caixa de marcar. */
+input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); flex: none; }
+
+/* campo + botão na mesma linha; no celular o botão desce */
+
+/* ---------------------------------------------------------------
+ chip
+ (entregas.html, linhas 702-723)
+ --------------------------------------------------------------- */
+.chip-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { position: relative; }
+.chip input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.chip span {
+  display: inline-flex; align-items: center; position: relative; min-height: 34px; padding: 0 12px;
+  border: 1px solid var(--border); border-radius: var(--r-sm);
+  background: var(--surface); font-size: var(--t-base); font-weight: 500; cursor: pointer;
+  transition: background-color var(--dur-rapido) var(--ease), border-color var(--dur-rapido) var(--ease), color var(--dur-rapido) var(--ease);
+}
+.chip span:hover { border-color: var(--border-forte); }
+.chip input:checked + span {
+  background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600;
+  padding-left: 28px;
+}
+.chip input:checked + span::before {
+  content: "✓"; position: absolute; left: 11px; top: 50%; transform: translateY(-50%);
+  font-size: .78rem; font-weight: 700;
+}
+.chip input:active + span { transform: scale(.97); }
+.chip input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------- valores ---------- */
+
+/* ---------------------------------------------------------------
+ botão
+ (entregas.html, linhas 740-796)
+ --------------------------------------------------------------- */
+.btn {
+  border: 1px solid transparent; border-radius: var(--r-sm); padding: 12px 16px;
+  font-weight: 600; font-size: var(--t-md); cursor: pointer; width: 100%;
+  min-height: 46px; display: inline-flex; align-items: center; justify-content: center;
+  transition: transform var(--dur-rapido) var(--ease), background-color var(--dur) var(--ease),
+              border-color var(--dur) var(--ease), opacity var(--dur-rapido) var(--ease);
+}
+.btn:active:not(:disabled) { transform: scale(.98); }
+.btn-primary { background: var(--accent); color: var(--accent-ink); }
+.btn-primary:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 88%, var(--ink)); }
+.btn-primary:disabled { opacity: .5; cursor: default; }
+.btn-secondary { background: var(--surface); border-color: var(--border); color: var(--ink); }
+.btn-secondary:hover:not(:disabled) { background: var(--surface-2); border-color: var(--border-forte); }
+.btn-perigo { color: var(--danger-forte); }
+.btn-perigo:hover { border-color: var(--danger); background: var(--danger-soft); }
+
+.btn-chip {
+  border: 1px solid var(--border); background: var(--surface); border-radius: var(--r-sm);
+  padding: 0 12px; min-height: 34px; font-size: var(--t-base); font-weight: 500; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: 0; color: var(--ink);
+}
+.btn-chip:hover { background: var(--surface-2); border-color: var(--border-forte); }
+.btn-chip.accent { color: var(--accent-forte); }
+.btn-chip.accent:hover { border-color: var(--accent); background: var(--accent-soft); }
+.btn-chip.danger { color: var(--danger-forte); }
+.btn-chip.danger:hover { border-color: var(--danger); background: var(--danger-soft); }
+.btn-chip.danger.confirmando { background: var(--danger); border-color: var(--danger); color: var(--danger-ink); animation: confirmando-pulse 1s ease infinite; }
+@keyframes confirmando-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .72; } }
+/* Ação que vale pra linha inteira: no celular ocupa a largura toda porque é
+   o único alvo; no PC volta a ter tamanho de botão (ver media query). */
+.btn-chip.largura-total { width: 100%; margin-top: var(--esp-2); }
+
+/* "Assinar as N juntas": fica pendurado abaixo das linhas da parada,
+   recuado até a coluna de texto delas (fora do espaço da alça de
+   arrastar). O recuo vinha escrito no JS em pixel fixo — aqui ele
+   acompanha o modo compacto, e o rótulo (que agora traz nome e valor de
+   cada empresa) pode quebrar em vez de esticar a linha no celular. */
+.rota-lote-btn {
+  margin: 2px 0 4px 26px;
+  max-width: calc(100% - 26px);
+  justify-content: flex-start; text-align: left;
+  height: auto; padding-top: 6px; padding-bottom: 6px;
+  white-space: normal; line-height: 1.3;
+}
+html[data-densidade="compacto"] .rota-lote-btn { margin-left: 22px; max-width: calc(100% - 22px); }
+
+.link-btn {
+  border: none; background: none; color: var(--accent-forte); font-weight: 600;
+  font-size: var(--t-base); cursor: pointer; padding: 4px; flex: none;
+}
+.link-btn:hover { text-decoration: underline; }
+
+/* ==========================================================================
+   Linhas de lista — o coração do app
+   Celular: bloco de duas linhas, alvo de --linha (52px).
+   PC: linha de tabela de 40px (ver media query no fim).
+   ========================================================================== */
+
+/* ---------------------------------------------------------------
+ selo de situação e tela vazia
+ (entregas.html, linhas 853-868)
+ --------------------------------------------------------------- */
+.status-pill {
+  font-size: var(--t-xs); font-weight: 600; padding: 4px 9px; border-radius: var(--r-xs);
+  white-space: nowrap; flex-shrink: 0; letter-spacing: .005em;
+}
+.status-pill.entregue { background: var(--success-soft); color: var(--success-forte); }
+.status-pill.pendente { background: var(--warning-soft); color: var(--warning-forte); }
+.status-pill.rota { background: var(--accent-soft); color: var(--accent-forte); }
+.status-pill.falha { background: var(--danger-soft); color: var(--danger-forte); }
+.status-pill.neutro { background: var(--surface-2); color: var(--ink-soft); }
+
+.empty-state { color: var(--ink-faint); font-size: var(--t-base); text-align: center; padding: var(--esp-5) var(--esp-3); line-height: 1.5; }
+
+/* ---------- tabela de honorários ---------- */
+/* No celular cada "coluna" empilha com o rótulo na frente (1 coluna só
+   no grid); no PC (>=900px) as mesmas divs viram colunas de verdade,
+   lado a lado, como o cabeçalho já anuncia. */
+
+/* ---------------------------------------------------------------
+ aviso flutuante
+ (entregas.html, linhas 990-1002)
+ --------------------------------------------------------------- */
+.toast {
+  position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 10px); z-index: var(--z-aviso);
+  background: var(--ink); color: var(--bg); padding: 11px 16px; border-radius: var(--r-md);
+  font-size: var(--t-base); font-weight: 500; box-shadow: var(--shadow); opacity: 0; pointer-events: none;
+  max-width: calc(100% - 32px);
+  transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease);
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+.toast.error { background: var(--danger); color: var(--danger-ink); }
+
+/* ==========================================================================
+   Modal
+   ========================================================================== */
+
+/* ---------------------------------------------------------------
+ janela
+ (entregas.html, linhas 1003-1046)
+ --------------------------------------------------------------- */
+.modal-overlay {
+  position: fixed; inset: 0; background: var(--scrim); z-index: var(--z-veu);
+  display: flex; align-items: flex-end; justify-content: center;
+  animation: overlayEnter var(--dur) var(--ease);
+}
+@keyframes overlayEnter { from { opacity: 0; } to { opacity: 1; } }
+.modal {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-lg) var(--r-lg) 0 0; padding: var(--esp-4);
+  width: 100%; max-width: 540px; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow);
+  animation: modalEnter var(--dur-lento) var(--ease);
+}
+@keyframes modalEnter { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
+/* saída: mesmo caminho da entrada, ao contrário — ver closeModal() */
+.modal-overlay.modal-saindo { animation: overlaySai var(--dur) var(--ease) forwards; }
+.modal-overlay.modal-saindo .modal { animation: modalSai var(--dur) var(--ease) forwards; }
+@keyframes overlaySai { to { opacity: 0; } }
+@keyframes modalSai { to { opacity: 0; transform: translateY(20px); } }
+@media (min-width: 640px) {
+  .modal-overlay { align-items: center; }
+  .modal { border-radius: var(--r-lg); animation-name: modalEnterCentro; }
+  @keyframes modalEnterCentro { from { opacity: 0; transform: translateY(8px) scale(.99); } to { opacity: 1; transform: none; } }
+  .modal-overlay.modal-saindo .modal { animation-name: modalSaiCentro; }
+  @keyframes modalSaiCentro { to { opacity: 0; transform: translateY(8px) scale(.99); } }
+}
+.modal-head { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--esp-3); margin-bottom: var(--esp-4); }
+.modal-head > div:first-child { min-width: 0; flex: 1; overflow-wrap: break-word; word-break: break-word; }
+/* subtítulo (nome do cliente, competência etc.) embaixo do <h2> do
+   modal — ficava repetido como style="margin:2px 0 0" em ~20 modais */
+.modal-head-sub { margin: 2px 0 0; }
+.modal-close {
+  border: 1px solid var(--border); background: var(--surface); border-radius: var(--r-sm);
+  width: 34px; height: 34px; cursor: pointer; font-size: .95rem; flex: none;
+  display: inline-grid; place-items: center; color: var(--ink-soft);
+}
+.modal-close:hover { background: var(--surface-2); color: var(--ink); border-color: var(--border-forte); }
+.modal-acoes { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 var(--esp-4); }
+.modal .itens-list, .auth-form .itens-list { display: flex; flex-wrap: wrap; gap: 5px; margin: var(--esp-2) 0; }
+.auth-form .itens-list { margin-bottom: var(--esp-4); }
+.modal .itens-list span, .auth-form .itens-list span {
+  background: var(--surface-2); border: 1px solid var(--border); color: var(--ink-soft);
+  font-size: var(--t-sm); font-weight: 500; padding: 3px 9px; border-radius: var(--r-xs);
+}
+.modal img.sig-preview { width: 100%; border: 1px solid var(--border); border-radius: var(--r-sm); background: #fff; margin: var(--esp-2) 0; }
+/* ---------------------------------------------------------------
+   Só destas telas: janela de Aparência (nilma-ui.js) e a moldura
+   (menu lateral, cabeçalho de página). O entregas.html tem a
+   moldura dele próprio; aqui ela é recriada na mesma linguagem.
+   --------------------------------------------------------------- */
+.ap-janela {
+  border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); color: var(--ink);
+  padding: var(--esp-5); width: min(420px, calc(100vw - 32px)); box-shadow: var(--shadow);
+}
+.ap-janela::backdrop { background: var(--scrim); }
+.ap-cab { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--esp-3); margin-bottom: var(--esp-4); }
+.ap-cab h2 { font-size: var(--t-lg); margin: 0; }
+.ap-dica { color: var(--ink-faint); font-size: var(--t-sm); line-height: 1.45; }
+.ap-fechar {
+  flex: none; width: 32px; height: 32px; display: grid; place-items: center; cursor: pointer;
+  border: 1px solid var(--border); border-radius: var(--r-sm); background: transparent; color: var(--ink-faint);
+}
+.ap-fechar:hover { background: var(--surface-2); color: var(--ink); }
+.ap-grupo { margin-bottom: var(--esp-5); }
+.ap-grupo:last-child { margin-bottom: 0; }
+.ap-rotulo { font-weight: 600; font-size: var(--t-md); margin-bottom: 6px; }
+.ap-grupo .ap-dica { margin-bottom: 6px; }
+.ap-opcoes { display: flex; flex-wrap: wrap; gap: 6px; }
+.ap-opcoes button {
+  font: inherit; font-size: var(--t-base); min-height: 38px; padding: 0 14px; cursor: pointer;
+  border: 1px solid var(--border); border-radius: var(--r-pill); background: var(--surface); color: var(--ink-soft);
+}
+.ap-opcoes button:hover { border-color: var(--border-forte); color: var(--ink); }
+.ap-opcoes button[aria-pressed="true"] { border-color: transparent; background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.ap-cores { display: flex; flex-wrap: wrap; gap: 8px; }
+.ap-cores button {
+  width: 38px; height: 38px; padding: 0; border-radius: 50%; cursor: pointer;
+  border: 2px solid transparent; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .12);
+}
+.ap-cores button[aria-pressed="true"] { border-color: var(--ink); }
+
+/* Moldura comum: menu lateral no PC, cabeçalho de página, rodapé do menu.
+   Mesma linguagem do Pendências — fio de 1px, uma superfície só. */
+.nilma-app { display: flex; align-items: stretch; min-height: 100vh; }
+.nilma-menu {
+  width: 232px; flex: 0 0 auto; position: sticky; top: 0; height: 100vh;
+  display: flex; flex-direction: column; background: var(--surface); border-right: 1px solid var(--border);
+}
+.nilma-marca { display: flex; align-items: center; gap: 10px; padding: var(--esp-4) var(--esp-4) var(--esp-3); }
+.nilma-marca-sigla {
+  width: 34px; height: 34px; flex: none; display: grid; place-items: center; border-radius: var(--r-md);
+  background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: var(--t-lg);
+}
+.nilma-marca-nome { font-weight: 600; font-size: var(--t-md); line-height: 1.2; }
+.nilma-marca-sub { font-size: var(--t-xs); color: var(--ink-faint); margin-top: 2px; }
+.nilma-lista { flex: 1; overflow-y: auto; padding: var(--esp-2) var(--esp-2) var(--esp-4); }
+.nilma-grupo { font-size: var(--t-xs); color: var(--ink-faint); padding: var(--esp-4) 10px 4px; }
+.nilma-item {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 40px; padding: 0 10px; cursor: pointer;
+  border: 0; border-radius: var(--r-md); background: transparent; color: var(--ink-soft);
+  font: inherit; font-size: var(--t-md); text-align: left; text-decoration: none;
+}
+.nilma-item .ph { font-size: 1.05rem; color: var(--ink-faint); }
+.nilma-item:hover { background: var(--surface-2); color: var(--ink); }
+.nilma-item.ativo { background: var(--accent-soft); color: var(--accent-forte); font-weight: 600; }
+.nilma-item.ativo .ph { color: var(--accent-forte); }
+.nilma-menu-pe { border-top: 1px solid var(--border); padding: var(--esp-2); display: grid; gap: 2px; }
+.nilma-menu-pe .nilma-estado { padding: 6px 10px; font-size: var(--t-xs); color: var(--ink-faint); line-height: 1.4; }
+.nilma-conteudo { flex: 1; min-width: 0; padding: var(--esp-5) var(--esp-6) var(--esp-6); }
+.nilma-topo {
+  display: flex; align-items: flex-end; justify-content: space-between; gap: var(--esp-4); flex-wrap: wrap;
+  padding-bottom: var(--esp-3); border-bottom: 1px solid var(--border); margin-bottom: var(--esp-5);
+}
+.nilma-topo h1 { font-size: var(--t-xl); letter-spacing: -.01em; }
+.nilma-topo .nilma-sub { color: var(--ink-soft); font-size: var(--t-base); margin: 4px 0 0; max-width: 76ch; line-height: 1.5; }
+.nilma-topo-acoes { display: flex; gap: 6px; flex-wrap: wrap; }
+
+@media (max-width: 900px) {
+  .nilma-app { display: block; }
+  .nilma-menu {
+    width: auto; height: auto; position: static; flex-direction: row; align-items: center; gap: var(--esp-2);
+    border-right: 0; border-bottom: 1px solid var(--border); overflow-x: auto; padding-right: var(--esp-3);
+  }
+  .nilma-marca { padding: var(--esp-3); }
+  .nilma-marca-texto { display: none; }
+  .nilma-lista { display: flex; gap: 4px; padding: var(--esp-2) 0; overflow-x: auto; }
+  .nilma-grupo { display: none; }
+  .nilma-item { white-space: nowrap; }
+  .nilma-menu-pe { display: flex; border-top: 0; margin-left: auto; }
+  .nilma-menu-pe .nilma-estado { display: none; }
+  .nilma-conteudo { padding: var(--esp-4) var(--esp-4) var(--esp-6); }
+}
+
+/* No Entregas o botão nasce da largura toda (celular na rua, alvo grande).
+   Aqui, telas de escritório em monitor: o botão fica do tamanho do texto,
+   menos quando alguém pedir .btn-bloco. */
+.btn { width: auto; padding: 9px 14px; min-height: 38px; font-size: var(--t-base); }
+.btn-bloco { width: 100%; }
+.btn-ghost { background: transparent; border-color: transparent; color: var(--accent-forte); }
+.btn-ghost:hover:not(:disabled) { background: var(--accent-soft); }
+.btn:disabled { opacity: .5; cursor: default; }
+input, select, textarea { min-height: 38px; }
+

@@ -11,161 +11,131 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<!-- Aparência (tema, cor, texto, espaçamento, animação) igual à do Entregas:
+     o script vem ANTES da folha e sem defer, senão a tela pisca no tema errado. -->
+<script src="nilma-ui.js"></script>
+<link rel="stylesheet" href="nilma-ui.css">
 <style>
-/* Mesmos tokens do app Entregas/Nilma Protocolos (ver DESIGN.md daquele
-   repositório) — claro como padrão, uma superfície só, cor da marca contida. */
-:root{
-  --bg:#FFFFFF; --surface:#FFFFFF; --surface-2:#F2F2F2;
-  --border:#E3E3E3; --border-forte:#C9C9C9;
-  --ink:#1A1A1A; --ink-soft:#525252; --ink-faint:#6C6C6C;
-  --accent:#9A2B24; --accent-ink:#FFFFFF; --accent-soft:#F7E7E5;
-  --accent-2:#6B6F75; --accent-2-soft:#EAEAEC;
-  --success:#17694A; --success-soft:#E2F2EA;
-  --warning:#8A5D12; --warning-soft:#FAF0DC;
-  --danger:#A8322F; --danger-soft:#FAE6E4; --danger-ink:#FFFFFF;
-  --dose-forte:62%;
-  --accent-forte:color-mix(in srgb, var(--accent) var(--dose-forte), var(--ink));
-  --success-forte:color-mix(in srgb, var(--success) var(--dose-forte), var(--ink));
-  --warning-forte:color-mix(in srgb, var(--warning) var(--dose-forte), var(--ink));
-  --danger-forte:color-mix(in srgb, var(--danger) var(--dose-forte), var(--ink));
-  --shadow:0 10px 28px -14px rgba(10,10,16,.45), 0 2px 6px -3px rgba(10,10,16,.18);
-  --r-xs:4px; --r-sm:6px; --r-md:8px; --r-lg:10px; --r-pill:999px;
-  --font-body:'Inter',-apple-system,'Segoe UI',system-ui,sans-serif;
-  --font-mono:'JetBrains Mono',SFMono-Regular,Consolas,monospace;
-  --t-xs:.6875rem; --t-sm:.75rem; --t-base:.8125rem; --t-md:.875rem; --t-lg:1rem; --t-xl:1.25rem;
-  --dur:180ms; --ease:cubic-bezier(.22,1,.36,1);
+/* Tokens, base e componentes (botão, cartão, campo, chip, selo, aviso) vêm de
+   nilma-ui.css, gerado do entregas.html. Aqui fica só o que é do LCDPR:
+   a tabela de lançamentos, a área de arrastar arquivo e as etiquetas. */
+h1, h2, h3 { letter-spacing: -.01em; }
+h2 { font-size: var(--t-lg); margin: 0 0 var(--esp-2); }
+h3 { font-size: var(--t-md); margin: 0 0 var(--esp-2); }
+a { color: var(--accent-forte); }
+
+/* área de arrastar os relatórios do SIEG */
+.dropzone {
+  border: 1px dashed var(--border-forte); border-radius: var(--r-md); background: var(--surface);
+  padding: var(--esp-6) var(--esp-4); text-align: center; color: var(--ink-faint); cursor: pointer;
+  margin-bottom: var(--esp-4); transition: border-color var(--dur) var(--ease), background-color var(--dur) var(--ease);
 }
-@media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]){
-    --bg:#141414; --surface:#141414; --surface-2:#1E1E1E;
-    --border:#2C2C2C; --border-forte:#404040;
-    --ink:#F0F0F0; --ink-soft:#ADADAD; --ink-faint:#8C8C8C;
-    --dose-forte:92%;
-    --accent:#DE756B; --accent-ink:#26100E; --accent-soft:#38201D;
-    --accent-2:#A9ADB2; --accent-2-soft:#2C2E33;
-    --success:#4FC188; --success-soft:#14301F;
-    --warning:#D9A857; --warning-soft:#322614;
-    --danger:#E8827A; --danger-soft:#381C1A; --danger-ink:#2E100E;
-    --shadow:0 10px 28px -14px rgba(0,0,0,.7), 0 2px 6px -3px rgba(0,0,0,.5);
-  }
+.dropzone:hover, .dropzone.drag { border-color: var(--accent); background: var(--accent-soft); color: var(--ink-soft); }
+.dropzone .big { font-size: var(--t-md); color: var(--ink); font-weight: 600; margin-bottom: 4px; }
+
+/* números do topo: sem caixa dentro de caixa, só uma régua de 1px entre eles */
+.stats { display: flex; flex-wrap: wrap; gap: var(--esp-5); padding: 0 0 var(--esp-4); margin-bottom: var(--esp-4); border-bottom: 1px solid var(--border); }
+.stat b { display: block; font-size: 1.5rem; font-weight: 600; font-family: var(--font-mono); font-variant-numeric: tabular-nums; line-height: 1.1; }
+.stat span { font-size: var(--t-sm); color: var(--ink-faint); }
+
+.toolbar { display: flex; gap: var(--esp-2); flex-wrap: wrap; align-items: center; margin-bottom: var(--esp-3); }
+.toolbar input[type=search] { min-width: 260px; flex: 1 1 260px; }
+.bulkbar {
+  display: flex; gap: var(--esp-2); flex-wrap: wrap; align-items: center; margin-bottom: var(--esp-3);
+  padding: 8px 12px; background: var(--surface-2); border-radius: var(--r-md); font-size: var(--t-base); color: var(--ink-soft);
 }
-*,*::before,*::after{box-sizing:border-box}
-* { scrollbar-width: thin; scrollbar-color: var(--border-forte) transparent; }
-body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:14px;line-height:1.5}
-h1,h2,h3{font-weight:700;letter-spacing:-.01em;margin:0 0 8px}
-h1{font-size:1.7rem} h2{font-size:var(--t-lg)} h3{font-size:var(--t-md)}
-a{color:var(--accent-forte)}
-button{font-family:inherit;cursor:pointer}
-input,select,textarea{font-family:inherit;font-size:var(--t-md);color:var(--ink);background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r-sm);padding:8px 10px}
-input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
-.app{display:flex;align-items:stretch;min-height:100vh}
-.sidebar{width:250px;flex:0 0 auto;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
-.brand{padding:20px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
-.brand .logo{width:38px;height:38px;flex:0 0 auto;background:var(--accent);color:var(--accent-ink);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:17px;border-radius:var(--r-md)}
-.brand .t1{font-weight:700;font-size:13px;letter-spacing:-.01em}
-.brand .t2{font-size:var(--t-xs);color:var(--ink-faint);margin-top:2px}
-nav.navlist{padding:14px 0;flex:1;overflow-y:auto}
-.navgroup{font-size:var(--t-xs);font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);padding:16px 18px 6px}
-.navbtn{display:block;width:100%;text-align:left;background:none;border:none;color:var(--ink-soft);font-size:var(--t-md);padding:9px 18px;border-left:2px solid transparent;transition:background var(--dur) var(--ease),color var(--dur) var(--ease)}
-.navbtn:hover{background:var(--surface-2);color:var(--ink)}
-.navbtn.active{color:var(--accent-forte);background:var(--accent-soft);border-left-color:var(--accent);font-weight:600}
-.sidebar-foot{padding:12px 18px;border-top:1px solid var(--border);font-size:var(--t-xs);color:var(--ink-faint)}
-main{flex:1;min-width:0;padding:34px 40px 80px}
-.screen{max-width:1400px}
-.hdr{margin-bottom:22px;padding-bottom:16px;border-bottom:1px solid var(--border)}
-.kicker{font-size:var(--t-xs);font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent-forte);margin-bottom:6px}
-.desc{color:var(--ink-soft);max-width:76ch;margin:0}
-.btn{display:inline-flex;align-items:center;gap:6px;font-weight:600;font-size:var(--t-base);padding:8px 14px;border-radius:var(--r-sm);border:1px solid transparent;background:transparent;color:var(--ink);transition:background var(--dur) var(--ease),border-color var(--dur) var(--ease)}
-.btn-primary{background:var(--accent);color:var(--accent-ink)}
-.btn-primary:hover{background:color-mix(in srgb, var(--accent) 88%, black)}
-.btn-secondary{border-color:var(--border);background:var(--surface)}
-.btn-secondary:hover{background:var(--surface-2)}
-.btn-ghost{color:var(--accent-forte);padding:4px 8px}
-.btn-ghost:hover{background:var(--accent-soft)}
-.btn:disabled{opacity:.45;cursor:not-allowed}
-.dropzone{border:2px dashed var(--border);border-radius:var(--r-lg);padding:34px 20px;text-align:center;color:var(--ink-faint);cursor:pointer;margin-bottom:20px;transition:border-color var(--dur) var(--ease)}
-.dropzone:hover{border-color:var(--accent)}
-.dropzone.drag{border-color:var(--accent);background:var(--accent-soft)}
-.dropzone .big{font-size:var(--t-md);color:var(--ink);font-weight:600;margin-bottom:4px}
-.stats{display:flex;flex-wrap:wrap;margin-bottom:18px;border:1px solid var(--border);border-radius:var(--r-md);overflow:hidden}
-.stat{padding:12px 20px;min-width:130px;border-left:1px solid var(--border)}
-.stat:first-child{border-left:none}
-.stat b{display:block;font-size:1.35rem;font-weight:700;font-family:var(--font-mono);font-variant-numeric:tabular-nums}
-.stat span{font-size:var(--t-xs);letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint)}
-.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
-.toolbar input[type=search]{min-width:260px}
-.bulkbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;padding:9px 12px;background:var(--surface-2);border-radius:var(--r-sm);font-size:var(--t-base);color:var(--ink-soft)}
-.tablewrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--r-md)}
-table.t{width:100%;border-collapse:collapse;font-size:var(--t-base)}
-table.t th{text-align:left;font-size:var(--t-xs);letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint);padding:8px 10px;border-bottom:1px solid var(--border);white-space:nowrap;position:sticky;top:0;background:var(--surface)}
-table.t td{padding:6px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
-table.t tbody tr:hover{background:var(--surface-2)}
-table.t tbody tr.revisar{background:var(--warning-soft)}
-.tag{display:inline-flex;align-items:center;font-size:var(--t-xs);padding:2px 8px;border-radius:var(--r-pill);font-weight:600}
-.tag-nf{background:var(--accent-soft);color:var(--accent-forte)}
-.tag-cte{background:var(--accent-2-soft);color:var(--accent-2)}
-.tag-warn{background:var(--warning-soft);color:var(--warning-forte)}
-.tag-ncm{background:var(--success-soft);color:var(--success-forte)}
-.tag-palavra{background:var(--accent-soft);color:var(--accent-forte)}
-.tag-manual{background:var(--accent-2-soft);color:var(--accent-2)}
-.tag-neutro{background:var(--surface-2);color:var(--ink-faint)}
-.small{font-size:var(--t-sm);color:var(--ink-faint)}
-.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
-.hint{color:var(--ink-soft);font-size:var(--t-base);max-width:74ch;margin:0 0 12px}
-.card{border-top:1px solid var(--border);padding-top:16px;margin-bottom:26px}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
-.field label{display:block;font-size:var(--t-sm);color:var(--ink-soft);margin-bottom:5px}
-.field input,.field select{width:100%}
-.section-sep{height:1px;background:var(--border);margin:26px 0}
-.twocol{display:grid;grid-template-columns:1fr 1fr;gap:28px}
-@media (max-width: 900px){.twocol,.grid2{grid-template-columns:1fr}}
-.icon-btn{width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;border-radius:var(--r-sm);background:none;border:none;color:var(--ink-faint)}
-.icon-btn:hover{background:var(--accent-soft);color:var(--accent-forte)}
-.tbl-input{width:100%;min-width:70px;background:transparent;border:1px solid transparent;padding:4px 6px;border-radius:var(--r-xs)}
-.tbl-input:hover{border-color:var(--border)}
-.tbl-input:focus{background:var(--surface-2);border-color:var(--accent);box-shadow:none}
-.toast{position:fixed;bottom:20px;right:20px;background:var(--surface);border:1px solid var(--border);color:var(--ink);padding:11px 16px;border-radius:var(--r-sm);font-size:var(--t-base);box-shadow:var(--shadow);z-index:999;max-width:360px}
-.badge-count{background:var(--accent);color:var(--accent-ink);font-size:var(--t-xs);border-radius:var(--r-pill);padding:1px 6px;margin-left:6px}
-.truncate{max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
-.chev{width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;border-radius:var(--r-sm);background:none;border:none;color:var(--ink-faint);transition:transform var(--dur) var(--ease)}
-.chev:hover{background:var(--surface-2);color:var(--ink)}
-.chev.open{transform:rotate(90deg)}
-tr.row-detail td{background:var(--surface-2);padding:16px 18px;border-bottom:1px solid var(--border)}
-tr.row-detail-hidden{display:none}
-.detail-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:12px}
-.detail-field label{display:block;font-size:var(--t-xs);color:var(--ink-faint);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em}
-.detail-field input,.detail-field textarea{width:100%}
-textarea.tbl-input{resize:vertical;min-height:38px;font-family:inherit}
-.status-cell{display:flex;flex-direction:column;gap:3px;align-items:flex-start}
-.gate{position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;background:var(--bg);padding:20px}
-.gate[hidden],#app[hidden]{display:none}
-.gate-box{max-width:360px;text-align:center}
-.gate-box h1{font-size:var(--t-lg)}
-.gate-box p{color:var(--ink-soft);font-size:var(--t-base)}
-.back-link{display:flex;align-items:center;gap:6px;color:var(--ink-faint);font-size:var(--t-sm);text-decoration:none;padding:10px 18px;border-top:1px solid var(--border)}
-.back-link:hover{color:var(--ink)}
+.bulkbar select { min-height: 34px; padding: 4px 8px; width: auto; min-width: 220px; max-width: 100%; }
+
+/* tabela de lançamentos */
+.tablewrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--r-md); }
+table.t { width: 100%; border-collapse: collapse; font-size: var(--t-base); }
+table.t th {
+  text-align: left; font-size: var(--t-xs); font-weight: 600; color: var(--ink-faint); padding: 9px 10px;
+  border-bottom: 1px solid var(--border); white-space: nowrap; position: sticky; top: 0; background: var(--surface); z-index: 1;
+}
+table.t td { padding: 7px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+table.t tbody tr:last-child td { border-bottom: 0; }
+table.t tbody tr:hover { background: var(--surface-2); }
+table.t tbody tr.revisar { background: var(--warning-soft); }
+.tbl-input { width: 100%; min-width: 70px; background: transparent; border: 1px solid transparent; padding: 4px 6px; border-radius: var(--r-xs); min-height: 32px; }
+.tbl-input:hover { border-color: var(--border); }
+.tbl-input:focus { background: var(--surface); border-color: var(--accent); box-shadow: none; }
+textarea.tbl-input { resize: vertical; min-height: 38px; font-family: inherit; }
+tr.row-detail td { background: var(--surface-2); padding: var(--esp-4); }
+tr.row-detail-hidden { display: none; }
+.detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--esp-3); margin-bottom: var(--esp-3); }
+.detail-field label { display: block; font-size: var(--t-xs); color: var(--ink-faint); margin-bottom: 4px; }
+.detail-field input, .detail-field textarea { width: 100%; }
+.status-cell { display: flex; flex-direction: column; gap: 3px; align-items: flex-start; }
+
+/* etiquetas: o mesmo formato do selo de situação do Entregas */
+.tag { display: inline-flex; align-items: center; font-size: var(--t-xs); padding: 2px 8px; border-radius: var(--r-pill); font-weight: 600; }
+.tag-nf { background: var(--accent-soft); color: var(--accent-forte); }
+.tag-cte { background: var(--accent-2-soft); color: var(--accent-2-forte, var(--accent-2)); }
+.tag-warn { background: var(--warning-soft); color: var(--warning-forte); }
+.tag-ncm { background: var(--success-soft); color: var(--success-forte); }
+.tag-palavra { background: var(--accent-soft); color: var(--accent-forte); }
+.tag-manual { background: var(--accent-2-soft); color: var(--accent-2-forte, var(--accent-2)); }
+.tag-neutro { background: var(--surface-2); color: var(--ink-faint); }
+
+.small { font-size: var(--t-sm); color: var(--ink-faint); }
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.hint { color: var(--ink-soft); font-size: var(--t-base); max-width: 74ch; margin: 0 0 var(--esp-3); }
+.desc { color: var(--ink-soft); max-width: 76ch; margin: 0; }
+.card { border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface); padding: var(--esp-4); margin-bottom: var(--esp-4); }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--esp-4); }
+.twocol { display: grid; grid-template-columns: 1fr 1fr; gap: var(--esp-5); }
+@media (max-width: 900px) { .twocol, .grid2 { grid-template-columns: 1fr; } }
+.field label { display: block; font-size: var(--t-sm); color: var(--ink-soft); margin-bottom: 5px; }
+.field input, .field select { width: 100%; }
+.section-sep { height: 1px; background: var(--border); margin: var(--esp-5) 0; }
+.icon-btn, .chev {
+  width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--r-sm); background: none; border: 1px solid transparent; color: var(--ink-faint); cursor: pointer;
+}
+.icon-btn:hover { background: var(--accent-soft); color: var(--accent-forte); }
+.chev:hover { background: var(--surface-2); color: var(--ink); }
+.chev.open { transform: rotate(90deg); }
+.badge-count { background: var(--accent); color: var(--accent-ink); font-size: var(--t-xs); border-radius: var(--r-pill); padding: 1px 6px; margin-left: 6px; }
+.truncate { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+.toast { right: 20px; left: auto; bottom: 20px; transform: none; max-width: 360px; }
+.toast.show { transform: none; }
+
+/* porta de entrada (sem login ainda) */
+.gate { position: fixed; inset: 0; z-index: 200; display: flex; align-items: center; justify-content: center; background: var(--bg); padding: 20px; }
+.gate[hidden], #app[hidden] { display: none; }
+.gate-box { max-width: 380px; text-align: center; }
+.gate-box h1 { font-size: var(--t-lg); margin-bottom: 6px; }
+.gate-box p { color: var(--ink-soft); font-size: var(--t-base); margin: 0 0 var(--esp-2); }
 </style>
 </head>
 <body>
 <div class="gate" id="gate" hidden>
   <div class="gate-box">
-    <div class="brand" style="justify-content:center;margin-bottom:16px"><div class="logo">N</div></div>
+    <div class="nilma-marca" style="justify-content:center;padding:0 0 var(--esp-4)"><div class="nilma-marca-sigla">N</div></div>
     <h1 id="gateTitle">Conectando…</h1>
     <p id="gateMsg">Só um instante.</p>
     <p id="gateAction"></p>
   </div>
 </div>
-<div class="app" id="app" hidden>
-  <aside class="sidebar">
-    <div class="brand">
-      <div class="logo">N</div>
-      <div><div class="t1">IMPORTADOR LCDPR</div><div class="t2">Nilma Contabilidade</div></div>
+<div class="nilma-app" id="app" hidden>
+  <aside class="nilma-menu">
+    <div class="nilma-marca">
+      <div class="nilma-marca-sigla">N</div>
+      <div class="nilma-marca-texto">
+        <div class="nilma-marca-nome">Importador LCDPR</div>
+        <div class="nilma-marca-sub">Nilma Contabilidade</div>
+      </div>
     </div>
-    <nav class="navlist" id="navlist"></nav>
-    <a class="back-link" href="entregas.html">← Voltar ao Entregas</a>
-    <div class="sidebar-foot" id="sidebarFoot">Conectando à nuvem…</div>
+    <nav class="nilma-lista" id="navlist"></nav>
+    <div class="nilma-menu-pe">
+      <a class="nilma-item" href="entregas.html"><i class="ph ph-squares-four" aria-hidden="true"></i><span>Trocar de função</span></a>
+      <button type="button" class="nilma-item" id="aparenciaBtn"><i class="ph ph-paint-brush" aria-hidden="true"></i><span>Aparência</span></button>
+      <div class="nilma-estado" id="sidebarFoot">Conectando à nuvem…</div>
+    </div>
   </aside>
-  <main><div class="screen" id="screen"></div></main>
+  <main class="nilma-conteudo"><div class="screen" id="screen"></div></main>
 </div>
 
 <script>
@@ -500,17 +470,25 @@ function startAccessCheck(){
   auth.onAuthStateChanged(async function(user){
     if(!user){
       showGate('Faça login', 'Entre pelo Entregas pra acessar o Importador LCDPR.',
-        '<a class="back-link" style="border:none;display:inline-flex;justify-content:center" href="entregas.html">Ir para o login →</a>');
+        '<a class="btn btn-secondary" href="entregas.html">Ir para o login →</a>');
       return;
     }
     try{
       const snap = await db.collection('usuarios').doc(user.uid).get();
       const roles = snap.exists ? (snap.data().roles || []) : [];
+      // tema, cor, texto, espaçamento e animação: os mesmos do Entregas
+      if (snap.exists && window.NilmaUI) {
+        window.NilmaUI.daConta(snap.data());
+        window.NilmaUI.aoSalvar = function (campo, valor) {
+          const dados = {}; dados[campo] = valor;
+          db.collection('usuarios').doc(user.uid).update(dados).catch(function(){});
+        };
+      }
       if(roles.includes('admin') || roles.includes('fiscal')){
         showAppAndStart();
       }else{
         showGate('Sem permissão', 'Sua conta não tem acesso ao Importador LCDPR. Peça pra um admin liberar o cargo Fiscal.',
-          '<a class="back-link" style="border:none;display:inline-flex;justify-content:center" href="entregas.html">Voltar ao Entregas →</a>');
+          '<a class="btn btn-secondary" href="entregas.html">Voltar ao Entregas →</a>');
       }
     }catch(e){
       console.warn('Falha ao checar permissão', e);
@@ -518,6 +496,10 @@ function startAccessCheck(){
     }
   });
 }
+
+document.getElementById('aparenciaBtn').addEventListener('click', function(){
+  if (window.NilmaUI) window.NilmaUI.abrirAparencia();
+});
 
 const SETTINGS_FIELDS = ['config','categorias','planoContas','ncmRules','imoveis','ieDest','tipoDoc','tipoLanc'];
 
@@ -815,21 +797,22 @@ function exportPlanilha(){
 
 /* ============================== NAVEGAÇÃO / RENDER ============================== */
 const NAV = [
-  {group:true, label:'Importar & Conferir'},
-  {id:'importar', label:'Importar & Conferir'},
-  {group:true, label:'Regras de Classificação'},
-  {id:'plano', label:'Plano de Contas'},
-  {id:'regras', label:'NCM & Categorias'},
-  {id:'tabelas', label:'Tabelas de Apoio'},
+  {group:true, label:'Trabalho do mês'},
+  {id:'importar', label:'Importar e conferir', icone:'ph-tray-arrow-down'},
+  {group:true, label:'Regras de classificação'},
+  {id:'plano', label:'Plano de contas', icone:'ph-list-numbers'},
+  {id:'regras', label:'NCM e categorias', icone:'ph-tag'},
+  {id:'tabelas', label:'Tabelas de apoio', icone:'ph-table'},
   {group:true, label:'Sistema'},
-  {id:'config', label:'Configuração Geral'}
+  {id:'config', label:'Configuração geral', icone:'ph-gear'}
 ];
 function renderNav(){
   const el = document.getElementById('navlist');
   el.innerHTML = NAV.map(item=>{
-    if(item.group) return `<div class="navgroup">${esc(item.label)}</div>`;
-    const active = state.currentScreen===item.id ? ' active' : '';
-    return `<button class="navbtn${active}" data-nav="${item.id}">${esc(item.label)}</button>`;
+    if(item.group) return `<div class="nilma-grupo">${esc(item.label)}</div>`;
+    const ativo = state.currentScreen===item.id ? ' ativo' : '';
+    return `<button type="button" class="nilma-item${ativo}" data-nav="${item.id}">` +
+      `<i class="ph ${item.icone}" aria-hidden="true"></i><span>${esc(item.label)}</span></button>`;
   }).join('');
   el.querySelectorAll('[data-nav]').forEach(b=>b.addEventListener('click', ()=>{
     state.currentScreen = b.dataset.nav; save(); render();
@@ -867,10 +850,11 @@ function screenImportar(){
   ).join('');
   return `
   <section>
-    <div class="hdr">
-      <div class="kicker">Passo 1</div>
-      <h1>Importar relatórios do SIEG</h1>
-      <p class="desc">Envie um ou mais relatórios (.xlsx) — <strong>Detalhamento de Produtos</strong> (notas de compra) e/ou <strong>CT-e</strong> (fretes). O app reconhece o tipo de cada arquivo, agrupa por documento, descarta cancelados/notas de outros destinatários e classifica cada lançamento.</p>
+    <div class="nilma-topo">
+      <div>
+        <h1>Importar relatórios do SIEG</h1>
+      <p class="nilma-sub">Envie um ou mais relatórios (.xlsx) — <strong>Detalhamento de Produtos</strong> (notas de compra) e/ou <strong>CT-e</strong> (fretes). O app reconhece o tipo de cada arquivo, agrupa por documento, descarta cancelados/notas de outros destinatários e classifica cada lançamento.</p>
+      </div>
     </div>
 
     ${!cloudReady ? `<div class="dropzone" style="cursor:default;opacity:.6">
@@ -987,10 +971,11 @@ function screenPlano(){
     <td><button class="icon-btn" data-del="planoContas" data-i="${i}" title="Remover">✕</button></td>
   </tr>`).join('');
   return `<section>
-    <div class="hdr">
-      <div class="kicker">Regras de classificação</div>
-      <h1>Plano de contas</h1>
-      <p class="desc">Contas usadas para classificar débito/crédito. Só contas <strong>A</strong> analíticas recebem lançamento — as <strong>S</strong> sintéticas são só agrupadoras.</p>
+    <div class="nilma-topo">
+      <div>
+        <h1>Plano de contas</h1>
+      <p class="nilma-sub">Contas usadas para classificar débito/crédito. Só contas <strong>A</strong> analíticas recebem lançamento — as <strong>S</strong> sintéticas são só agrupadoras.</p>
+      </div>
     </div>
     <div class="toolbar"><span style="flex:1"></span><button class="btn btn-primary" data-add="planoContas">+ Nova conta</button></div>
     <div class="tablewrap"><table class="t">
@@ -1012,10 +997,11 @@ function ruleRows(arrName, cols){
 }
 function screenRegras(){
   return `<section>
-    <div class="hdr">
-      <div class="kicker">Regras de classificação</div>
-      <h1>NCM &amp; categorias</h1>
-      <p class="desc">A classificação de compras é feita <strong>só pelo NCM</strong> do produto — o código é lido de cada nota e fica guardado internamente (não aparece como coluna na tabela). Sem um prefixo de NCM cadastrado que bata com a nota, ela vai pra REVISAR.</p>
+    <div class="nilma-topo">
+      <div>
+        <h1>NCM &amp; categorias</h1>
+      <p class="nilma-sub">A classificação de compras é feita <strong>só pelo NCM</strong> do produto — o código é lido de cada nota e fica guardado internamente (não aparece como coluna na tabela). Sem um prefixo de NCM cadastrado que bata com a nota, ela vai pra REVISAR.</p>
+      </div>
     </div>
 
     <h2>Categorias rápidas</h2>
@@ -1041,10 +1027,11 @@ function screenRegras(){
 /* ============================== TELA: TABELAS DE APOIO ============================== */
 function screenTabelas(){
   return `<section>
-    <div class="hdr">
-      <div class="kicker">Regras de classificação</div>
-      <h1>Tabelas de apoio</h1>
-      <p class="desc">Imóveis, tipos de documento/lançamento e o mapeamento entre a Inscrição Estadual do destinatário e o imóvel correspondente.</p>
+    <div class="nilma-topo">
+      <div>
+        <h1>Tabelas de apoio</h1>
+      <p class="nilma-sub">Imóveis, tipos de documento/lançamento e o mapeamento entre a Inscrição Estadual do destinatário e o imóvel correspondente.</p>
+      </div>
     </div>
     <div class="twocol">
       <div>
@@ -1091,10 +1078,11 @@ function screenConfig(){
   const tipoLancOptions = state.tipoLanc.map(t=>`<option value="${esc(t.codigo)}" ${t.codigo===c.tipoLancPadrao?'selected':''}>${esc(t.codigo)} — ${esc(t.descricao)}</option>`).join('');
   const catOptions = state.categorias.map(cat=>`<option value="${esc(cat.nome)}" ${cat.nome===c.categoriaFretesCTe?'selected':''}>${esc(cat.nome)}</option>`).join('');
   return `<section>
-    <div class="hdr">
-      <div class="kicker">Sistema</div>
-      <h1>Configuração geral</h1>
-      <p class="desc">Padrões usados em toda linha gerada, e backup das suas configurações.</p>
+    <div class="nilma-topo">
+      <div>
+        <h1>Configuração geral</h1>
+      <p class="nilma-sub">Padrões usados em toda linha gerada, e backup das suas configurações.</p>
+      </div>
     </div>
     <div class="card">
       <div class="grid2">
