@@ -2733,6 +2733,14 @@
       <p class="card-hint">O que falta preencher. Clique num número pra ver quem é.</p>
       <div class="saude-grid" id="saudeGrid"></div>
     </div>
+    <div class="card" id="linkParadoCard" hidden>
+      <div class="card-head-row">
+        <h2><i class="ph ph-link-break" aria-hidden="true"></i> Link que ninguém abriu</h2>
+        <span class="card-hint" id="linkParadoContador"></span>
+      </div>
+      <p class="card-hint">Clientes que têm página própria e nunca entraram nela — são os que continuam ligando pra perguntar o que está lá.</p>
+      <div id="linkParadoList"></div>
+    </div>
     <div class="card" id="receitaAvisosCard" hidden>
       <div class="card-head-row">
         <h2><i class="ph ph-bank" aria-hidden="true"></i> Mudou na Receita</h2>
@@ -3718,6 +3726,191 @@
     });
     if (faixa.children.length) aba.appendChild(faixa);
   });
+
+  // ---------- link do cliente que ninguém abriu ----------
+  // portais/{token}.visto guarda a primeira e a última vez que a página foi
+  // aberta. Ler a coleção inteira custa uma leitura por cliente com link, então
+  // o resultado fica guardado meio dia no aparelho, como as outras listas caras.
+  var CHAVE_LINK_PARADO = 'nilma_link_parado_v1';
+  var linkParadoCache_ = [];
+  function linkParadoGuardado_() {
+    try {
+      var j = JSON.parse(localStorage.getItem(CHAVE_LINK_PARADO) || 'null');
+      if (j && Date.now() - j.em < 12 * 36e5) return j.ids;
+    } catch (e) {}
+    return null;
+  }
+  function atualizarLinkParado_() {
+    if (!db || !temPapel('admin')) return;
+    var guardado = linkParadoGuardado_();
+    if (guardado) { linkParadoCache_ = guardado; renderLinkParado_(); return; }
+    db.collection('portais').get().then(function (snap) {
+      var ids = [];
+      snap.forEach(function (d) {
+        var p = d.data() || {};
+        var visto = p.visto && p.visto.primeira;
+        if (!visto && p.clienteId) ids.push(p.clienteId);
+      });
+      linkParadoCache_ = ids;
+      try { localStorage.setItem(CHAVE_LINK_PARADO, JSON.stringify({ em: Date.now(), ids: ids })); } catch (e) {}
+      renderLinkParado_();
+    }).catch(function () { /* sem permissão ou offline: o cartão fica escondido */ });
+  }
+  function renderLinkParado_() {
+    var card = $('linkParadoCard');
+    if (!card) return;
+    var lista = linkParadoCache_.map(function (id) { return clientesCache.get(id); })
+      .filter(function (c) { return c && c.ativo !== false && c.portalToken; });
+    card.hidden = !lista.length;
+    if (!lista.length) return;
+    $('linkParadoContador').textContent = lista.length + (lista.length === 1 ? ' cliente' : ' clientes');
+    var el = $('linkParadoList');
+    el.innerHTML = '';
+    lista.slice(0, 12).forEach(function (c) {
+      var row = document.createElement('div');
+      row.className = 'client-row';
+      row.innerHTML = '<div class="cr-clickable"><div><div class="cr-name"></div><div class="cr-sub"></div></div></div>' +
+        (whatsAppNumero_(c.telefone) ? '<div class="cr-actions"><button class="btn-chip"><i class="ph ph-whatsapp-logo" aria-hidden="true"></i> Mandar de novo</button></div>' : '');
+      row.querySelector('.cr-name').textContent = clienteLabel(c);
+      row.querySelector('.cr-sub').textContent = c.telefone ? c.telefone : 'sem telefone no cadastro';
+      row.querySelector('.cr-clickable').addEventListener('click', function () { openClienteHistorico(c); });
+      var botao = row.querySelector('.cr-actions button');
+      if (botao) botao.addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        window.open(whatsAppUrl_('Olá! Esta é a sua página na Nilma Contabilidade — guias, código pra pagar e o que ainda falta: ' + linkDoPortal_(c.portalToken), c.telefone), '_blank');
+      });
+      el.appendChild(row);
+    });
+  }
+
+  // ---------- extrato do mês do cliente ----------
+  // Uma folha com os dois lados da relação do mês: o que o escritório
+  // entregou e o que o cliente mandou (ou deixou de mandar). Lê UM documento
+  // por competência em documentosMensal; o resto já está na tela.
+  function abrirExtratoDoMes_(cliente, comp, entregas) {
+    var aba = window.open('', '_blank');
+    if (!aba) { showToast('O navegador bloqueou a nova aba. Permita pop-ups para este site.', 'error'); return; }
+    aba.document.write('<!doctype html><meta charset="utf-8"><title>Extrato do mês</title><body style="font:14px system-ui;padding:24px">Montando o extrato...</body>');
+    var docId = cliente.id + '_' + comp;
+    db.collection('documentosMensal').doc(docId).get().catch(function () { return { exists: false }; }).then(function (snap) {
+      var doMes = (snap && snap.exists) ? snap.data() : {};
+      var h = function (t) { return escapeHtml_(t == null ? '' : String(t)); };
+      var TIPOS = [['extrato', 'Extrato bancário'], ['comprovante', 'Comprovantes de pagamento'], ['aplicacao', 'Extrato de aplicação']];
+      var naoAplica = Array.isArray(cliente.documentosNaoAplicaveis) ? cliente.documentosNaoAplicaveis : [];
+      var recebidos = TIPOS.filter(function (t) { return !naoAplica.indexOf(t[0]) && doMes[t[0]]; });
+      var faltando = TIPOS.filter(function (t) { return naoAplica.indexOf(t[0]) === -1 && !doMes[t[0]]; });
+      var doMesEntregas = entregas.filter(function (e) { return e.competencia === comp; });
+      var entregues = doMesEntregas.filter(function (e) { return e.status === 'confirmada'; });
+      var total = doMesEntregas.reduce(function (soma, e) {
+        return soma + (e.itens || []).reduce(function (t, i) { return t + ((i && i.valor) || 0); }, 0);
+      }, 0);
+      var linhas = doMesEntregas.map(function (e) {
+        var itens = (e.itens || []).map(function (i) {
+          var tipo = typeof i === 'string' ? i : i.tipo;
+          return h(tipo) + (i && i.valor != null ? ' <span class="m">' + h(fmtMoney(i.valor)) + '</span>' : '');
+        }).join('<br>');
+        var situacao = e.status === 'confirmada' ? (e.recebidoPeloLink ? 'Recebido pelo link' : 'Entregue')
+          : (e.status === 'falha' ? 'Não entregue' : (e.status === 'link' ? 'No link, aguardando' : 'Na rota'));
+        return '<tr><td>' + itens + '</td><td>' + h(situacao) + '<div class="m">' + h(fmtDateTime(e.confirmadoEm || e.criadoEm)) + '</div></td>' +
+          '<td>' + h(e.recebedor || (e.status === 'confirmada' ? 'não informado' : '')) + '</td></tr>';
+      }).join('');
+      var cobrancas = Array.isArray(doMes.cobrancas) ? doMes.cobrancas.length : 0;
+      var html = '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Extrato ' + h(fmtCompetencia(comp)) + ' - ' + h(cliente.nome) + '</title><style>' +
+        '@page{size:A4;margin:16mm}*{box-sizing:border-box}body{font:12px/1.45 -apple-system,"Segoe UI",Inter,Arial,sans-serif;color:#111;margin:0 auto;padding:24px;max-width:900px}' +
+        'h1{font-size:18px;margin:0 0 2px}h2{font-size:13px;margin:18px 0 6px}header{display:flex;justify-content:space-between;gap:24px;border-bottom:2px solid #111;padding-bottom:10px;margin-bottom:14px}' +
+        '.m{color:#555;font-size:11px}table{width:100%;border-collapse:collapse}th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#555;border-bottom:1px solid #999;padding:6px 8px}' +
+        'td{vertical-align:top;padding:8px;border-bottom:1px solid #ddd}ul{margin:4px 0 0;padding-left:18px}li{margin-bottom:2px}' +
+        '.linha{display:flex;gap:24px;flex-wrap:wrap}.bloco{flex:1;min-width:220px}.falta{color:#8A2018;font-weight:600}' +
+        'footer{margin-top:16px;font-size:11px;color:#555}.barra{margin:0 0 14px}.barra button{font:inherit;padding:8px 14px;cursor:pointer}' +
+        '@media print{.barra{display:none}body{padding:0}}</style></head><body>' +
+        '<div class="barra"><button onclick="window.print()">Imprimir ou salvar em PDF</button></div>' +
+        '<header><div><h1>Extrato do mês</h1><div class="m">Nilma Contabilidade</div></div>' +
+        '<div style="text-align:right"><b>' + h(cliente.nome) + '</b><div class="m">' + h([cliente.documento, cliente.codigoOrigem ? 'cód. ' + cliente.codigoOrigem : ''].filter(Boolean).join(' · ')) + '</div>' +
+        '<div class="m">Competência ' + h(fmtCompetencia(comp)) + '</div></div></header>' +
+        '<h2>O que entregamos a você</h2>' +
+        (linhas
+          ? '<table><thead><tr><th>Documentos</th><th>Situação</th><th>Quem recebeu</th></tr></thead><tbody>' + linhas + '</tbody></table>'
+          : '<p class="m">Nenhuma entrega registrada neste mês.</p>') +
+        '<div class="linha" style="margin-top:18px">' +
+          '<div class="bloco"><h2>O que você nos mandou</h2>' +
+            (recebidos.length ? '<ul>' + recebidos.map(function (t) { return '<li>' + h(t[1]) + '</li>'; }).join('') + '</ul>' : '<p class="m">Nada registrado neste mês.</p>') +
+          '</div>' +
+          '<div class="bloco"><h2>O que ainda falta</h2>' +
+            (faltando.length ? '<ul>' + faltando.map(function (t) { return '<li class="falta">' + h(t[1]) + '</li>'; }).join('') + '</ul>' : '<p class="m">Nada — está tudo em dia.</p>') +
+          '</div>' +
+        '</div>' +
+        '<footer>' + doMesEntregas.length + ' entrega(s), ' + entregues.length + ' confirmada(s)' + (total ? ' · total das guias ' + h(fmtMoney(total)) : '') +
+          (cobrancas ? ' · ' + cobrancas + ' cobrança(s) de documento neste mês' : '') +
+          '<br>Emitido em ' + h(fmtDateTime(new Date().toISOString())) + ' por ' + h(currentUserNome || '') + '</footer>' +
+        '</body></html>';
+      aba.document.open(); aba.document.write(html); aba.document.close();
+      registrarAuditoria_('extrato_mes', clienteLabel(cliente) + ' · ' + fmtCompetencia(comp));
+    }).catch(function (err) {
+      aba.close();
+      showToast(errMsg(err, 'Não foi possível montar o extrato.'), 'error');
+    });
+  }
+
+  // ---------- LGPD: levar e apagar ----------
+  // "Levar" junta tudo que o sistema tem do cliente num arquivo. "Apagar"
+  // tira os dados pessoais do cadastro e derruba a página dele; as entregas
+  // ficam, porque são prova de um serviço prestado — mas sem telefone,
+  // e-mail nem assinatura ligados ao nome.
+  function baixarDadosDoCliente_(cliente, entregas) {
+    var pacote = {
+      geradoEm: new Date().toISOString(),
+      geradoPor: currentUserNome || '',
+      cliente: Object.assign({}, cliente),
+      entregas: entregas.map(function (e) {
+        var copia = Object.assign({}, e);
+        delete copia.anexos;
+        return copia;
+      })
+    };
+    var comps = ultimasCompetencias_(12).map(function (comp) { return cliente.id + '_' + comp; });
+    Promise.all(comps.map(function (id) {
+      return db.collection('documentosMensal').doc(id).get().then(function (s) { return s.exists ? Object.assign({ id: s.id }, s.data()) : null; }).catch(function () { return null; });
+    })).then(function (docs) {
+      pacote.documentosMensais = docs.filter(Boolean);
+      return cliente.portalToken
+        ? db.collection('portais').doc(cliente.portalToken).get().then(function (s) { return s.exists ? s.data() : null; }).catch(function () { return null; })
+        : null;
+    }).then(function (portal) {
+      pacote.paginaDoCliente = portal;
+      var blob = new Blob([JSON.stringify(pacote, null, 2)], { type: 'application/json' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'dados-' + (cliente.codigoOrigem || cliente.nome).toString().replace(/[^\w-]+/g, '-').toLowerCase() + '.json';
+      a.click();
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
+      registrarAuditoria_('lgpd_exportou', clienteLabel(cliente));
+      showToast('Arquivo com os dados do cliente baixado.');
+    }).catch(function (err) {
+      showToast(errMsg(err, 'Não foi possível juntar os dados.'), 'error');
+    });
+  }
+
+  // O botão pede confirmação nele mesmo (mesmo jeito de apagar entrega):
+  // o primeiro toque avisa, o segundo apaga.
+  function apagarDadosDoCliente_(btn, cliente, aoTerminar) {
+    confirmarDuplo(btn, function () {
+      var limpo = {
+        telefone: '', email: '', emails: [], endereco: '', pontoReferencia: '',
+        contatos: [], observacao: '', etiquetas: [], geo: null,
+        ativo: false, anonimizadoEm: new Date().toISOString(), anonimizadoPor: currentUserNome || ''
+      };
+      var fila = db.doc('clientes/' + cliente.id).update(limpo);
+      if (cliente.portalToken) {
+        fila = fila.then(function () { return db.doc('portais/' + cliente.portalToken).delete().catch(function () {}); })
+          .then(function () { return db.doc('clientes/' + cliente.id).update({ portalToken: null }); });
+      }
+      fila.then(function () {
+        registrarAuditoria_('lgpd_apagou', clienteLabel(cliente));
+        showToast('Dados pessoais apagados e link derrubado.');
+        if (aoTerminar) aoTerminar();
+      }).catch(function (err) { showToast(errMsg(err, 'Não foi possível apagar.'), 'error'); });
+    });
+  }
 
   // ---------- Clientes: carteira e ajustes do app ----------
   // Os ajustes do app moravam numa aba "Perfil" que quase ninguém achava
@@ -8608,7 +8801,10 @@
           }, 0);
           var cabecalho = '<div class="historico-mes mes">' +
             '<span>' + escapeHtml_(grupo.comp === 'sem competência' ? grupo.comp : fmtCompetencia(grupo.comp)) +
-              (grupo.comp !== 'sem competência' ? ' <button type="button" class="link-btn protocolo-btn" data-protocolo="' + escapeHtml_(grupo.comp) + '" title="Documento do mês pra imprimir ou salvar em PDF">Protocolo</button>' : '') + '</span>' +
+              (grupo.comp !== 'sem competência'
+                ? ' <button type="button" class="link-btn protocolo-btn" data-protocolo="' + escapeHtml_(grupo.comp) + '" title="Documento do mês pra imprimir ou salvar em PDF">Protocolo</button>' +
+                  ' <button type="button" class="link-btn extrato-btn" data-extrato="' + escapeHtml_(grupo.comp) + '" title="O que entregamos e o que o cliente mandou no mês">Extrato</button>'
+                : '') + '</span>' +
             '<span class="historico-mes-total">' + grupo.entregas.length + ' entrega(s)' + (totalMes > 0 ? ' · ' + fmtMoney(totalMes) : '') + '</span>' +
           '</div>';
           var linhas = grupo.entregas.map(function (item) {
@@ -8646,6 +8842,10 @@
         '<button type="button" class="btn-chip" id="corrigirLocalBtn"><i class="ph ph-map-pin-line" aria-hidden="true"></i> Corrigir localização</button>' +
         '<button type="button" class="btn-chip" id="aglutinarBtn"><i class="ph ph-link-simple" aria-hidden="true"></i> Aglutinar com outra empresa</button>' +
         '<button type="button" class="btn-chip" id="copiarDadosBtn"><i class="ph ph-copy" aria-hidden="true"></i> Copiar dados</button>' +
+        (temPapel('admin')
+          ? '<button type="button" class="btn-chip" id="levarDadosBtn" title="Arquivo com tudo que o sistema tem deste cliente"><i class="ph ph-download-simple" aria-hidden="true"></i> Levar os dados (LGPD)</button>' +
+            '<button type="button" class="btn-chip danger" id="apagarDadosBtn" title="Tira telefone, e-mail, endereço, contatos e derruba a página do cliente"><i class="ph ph-eraser" aria-hidden="true"></i> Apagar dados pessoais</button>'
+          : '') +
       '</div>' + avisoLocal;
 
     var receitaHtml = htmlDaReceita_(cliente);
@@ -8726,6 +8926,20 @@
         window.open(whatsAppUrl_('Olá! Aqui é da Nilma Contabilidade.', c.telefone), '_blank');
       });
     });
+    inner.querySelectorAll('[data-extrato]').forEach(function (b) {
+      b.addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        abrirExtratoDoMes_(cliente, b.dataset.extrato, historico);
+      });
+    });
+    if ($('levarDadosBtn')) {
+      $('levarDadosBtn').addEventListener('click', function () { baixarDadosDoCliente_(cliente, historico); });
+    }
+    if ($('apagarDadosBtn')) {
+      $('apagarDadosBtn').addEventListener('click', function () {
+        apagarDadosDoCliente_(this, cliente, function () { closeModal(); });
+      });
+    }
     if ($('copiarDadosBtn')) {
       $('copiarDadosBtn').addEventListener('click', function () {
         // o bloco que se cola no outro sistema, sem precisar abrir campo por campo
@@ -10793,6 +11007,7 @@
 
   function renderClientesList() {
     renderAvisosDaReceita_();
+    renderLinkParado_();
     renderSaudeDaBase_();
     renderFiltrosDeCliente_();
     var busca = $('clientesBusca').value.trim().toLowerCase();
@@ -11890,7 +12105,7 @@
     updateDashStrip();
     renderRota();
     sincronizarRotaLinks_();
-    if (primeiraCargaClientes_) { primeiraCargaClientes_ = false; restaurarRascunhoSeExistir_(); atualizarAlertaSemEntrega_(); carregarObrigacoes_(); }
+    if (primeiraCargaClientes_) { primeiraCargaClientes_ = false; restaurarRascunhoSeExistir_(); atualizarAlertaSemEntrega_(); carregarObrigacoes_(); atualizarLinkParado_(); }
     if (completo) {
       esperandoTodosOsClientes_.splice(0).forEach(function (f) { f(); });
       preencherClientesDeEntrega_();
