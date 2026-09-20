@@ -328,7 +328,24 @@
   .pagina-sub { font-size: var(--t-sm); color: var(--ink-faint); margin-top: 2px; max-width: 70ch; }
   /* Tabela larga rola dentro da própria caixa, não empurra a página: sem isto
      a lista de cobranças estourava 90px da tela no celular. */
+  .btn-mini { min-height: 30px; padding: 0 var(--esp-3); font-size: var(--t-sm); margin-left: var(--esp-2); }
   .tab-rolagem { overflow-x: auto; max-width: 100%; -webkit-overflow-scrolling: touch; }
+  /* No celular, tabela de 4 colunas não rola de lado: cada linha vira um
+     bloco e o rótulo da coluna vem junto do dado (mesmo tratamento que a
+     tabela de entregas já tinha). */
+  @media (max-width: 700px) {
+    .tab-rolagem { overflow-x: visible; }
+    .tab-simples thead { display: none; }
+    .tab-simples tr { display: block; padding: var(--esp-2) 0; border-bottom: 1px solid var(--border); }
+    .tab-simples td { display: flex; gap: var(--esp-2); align-items: baseline; padding: 1px 0; border: none; }
+    .tab-simples td:empty { display: none; }
+    .tab-simples td[data-rot]::before {
+      content: attr(data-rot); flex: none; min-width: 108px;
+      font-size: var(--t-xs); color: var(--ink-faint);
+    }
+    .tab-simples td:first-child { font-weight: 600; }
+    .tab-simples td:first-child::before { content: none; }
+  }
   .tab-simples { width: 100%; border-collapse: collapse; font-size: var(--t-base); }
   .tab-simples th { text-align: left; font-size: var(--t-xs); font-weight: 600; color: var(--ink-soft); padding: 8px; border-bottom: 1px solid var(--border); background: var(--surface-3); white-space: nowrap; }
   .tab-simples td { padding: 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
@@ -516,6 +533,13 @@
   }
   @media (min-width: 700px) { .kpis { grid-template-columns: repeat(3, 1fr); } }
   @media (min-width: 1000px) { .kpis { grid-template-columns: repeat(var(--kpi-cols, 4), 1fr); } }
+  .situacao-linha {
+    margin: var(--esp-4) 0 var(--esp-2); font-size: var(--t-md); color: var(--ink-soft);
+  }
+  .filtros-situacao { margin-bottom: var(--esp-3); }
+  .filtros-situacao .chip b { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink-faint); }
+  .filtros-situacao .chip[aria-pressed="true"] b { color: inherit; }
+
   .kpi {
     display: flex; flex-direction: column; gap: 2px; text-align: left;
     padding: var(--esp-3) var(--esp-4); border: none; border-left: 1px solid var(--border);
@@ -656,7 +680,7 @@
   /* Colunas que só existem no PC. */
   .lc-atualizado, .lc-acoes { display: none; }
   .lc-atualizado { flex: 0 0 92px; font-size: var(--t-sm); color: var(--ink-faint); font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .lc-acoes { flex: 0 0 36px; gap: 2px; justify-content: flex-end; }
+  .lc-acoes { flex: 0 0 auto; gap: 2px; justify-content: flex-end; }
   .lc-acoes .btn:disabled { visibility: hidden; }
   .col-docs { flex: 0 0 102px; }
 
@@ -1157,23 +1181,16 @@
         </div>
       </div>
 
-      <div class="kpis kpis-abas" role="group" aria-label="Situação do mês">
-        <button type="button" class="kpi clicavel" id="filtroTodos" data-filtro="todos" aria-pressed="true">
-          <span class="kpi-rotulo"><i class="ph ph-users" aria-hidden="true"></i>Clientes ativos</span>
-          <span class="kpi-valor" id="numTodos"><span class="kpi-skel"></span></span>
-        </button>
-        <button type="button" class="kpi clicavel" id="filtroPendentes" data-filtro="pendentes" aria-pressed="false">
-          <span class="kpi-rotulo"><i class="ph ph-warning-circle" aria-hidden="true"></i>Com pendência</span>
-          <span class="kpi-valor pend" id="numPendentes"><span class="kpi-skel"></span></span>
-        </button>
-        <button type="button" class="kpi clicavel" id="filtroCompletos" data-filtro="completos" aria-pressed="false">
-          <span class="kpi-rotulo"><i class="ph ph-check-circle" aria-hidden="true"></i>Completos</span>
-          <span class="kpi-valor ok" id="numCompletos"><span class="kpi-skel"></span></span>
-        </button>
-        <button type="button" class="kpi clicavel" id="filtroSemEmail" data-filtro="semEmail" aria-pressed="false">
-          <span class="kpi-rotulo"><i class="ph ph-envelope-simple" aria-hidden="true"></i>Sem e-mail</span>
-          <span class="kpi-valor alerta" id="numSemEmail"><span class="kpi-skel"></span></span>
-        </button>
+      <!-- Isto é filtro, não painel: os números grandes só repetiam o que
+           o menu lateral já contava, e o formato de KPI convidava a ler em
+           vez de clicar. -->
+      <p class="situacao-linha" id="situacaoLinha" aria-live="polite"></p>
+      <div class="filtros-doc filtros-situacao" role="group" aria-label="Filtrar por situação">
+        <span class="rotulo">Mostrar:</span>
+        <button type="button" class="chip" id="filtroTodos" data-filtro="todos" aria-pressed="true"><i class="ph ph-users" aria-hidden="true"></i>Todos <b id="numTodos"></b></button>
+        <button type="button" class="chip" id="filtroPendentes" data-filtro="pendentes" aria-pressed="false"><i class="ph ph-warning-circle" aria-hidden="true"></i>Com pendência <b id="numPendentes"></b></button>
+        <button type="button" class="chip" id="filtroCompletos" data-filtro="completos" aria-pressed="false"><i class="ph ph-check-circle" aria-hidden="true"></i>Completos <b id="numCompletos"></b></button>
+        <button type="button" class="chip" id="filtroSemEmail" data-filtro="semEmail" aria-pressed="false"><i class="ph ph-envelope-simple" aria-hidden="true"></i>Sem e-mail <b id="numSemEmail"></b></button>
       </div>
 
       <div class="col-trabalho">
@@ -2797,6 +2814,16 @@
     bCobrar.appendChild(ico('ph-paper-plane-tilt'));
     bCobrar.addEventListener('click', function () { abrirModalCobranca(cliente.id); });
     acoes.appendChild(bCobrar);
+    // Sem e-mail, o caminho era: abrir cliente, Cobrar, WhatsApp. Aqui é um toque.
+    var bZap = el('button', 'btn btn-icone lc-zap');
+    bZap.type = 'button'; bZap.title = 'Cobrar pelo WhatsApp'; bZap.setAttribute('aria-label', 'Cobrar pelo WhatsApp');
+    bZap.appendChild(ico('ph-whatsapp-logo'));
+    bZap.hidden = true;
+    bZap.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      cobrarNoWhatsApp(clientesPorId.get(cliente.id) || cliente);
+    });
+    acoes.appendChild(bZap);
     row.appendChild(acoes);
 
     var obs = ico('ph-note');
@@ -2806,7 +2833,7 @@
     var semMov = badge('sem movimento', 'quieto', 'ph-minus-circle');
     semMov.hidden = true;
     inds.appendChild(semMov);
-    var registro = { row: row, info: info, codigo: codigo, nomeTxt: nomeTxt, sub: sub, semEmail: semEmail, inds: indPorTipo, atual: atual, cobrar: bCobrar, obs: obs, semMov: semMov };
+    var registro = { row: row, info: info, codigo: codigo, nomeTxt: nomeTxt, sub: sub, semEmail: semEmail, inds: indPorTipo, atual: atual, cobrar: bCobrar, zap: bZap, obs: obs, semMov: semMov };
     linhas.set(cliente.id, registro);
     return row;
   }
@@ -2851,6 +2878,8 @@
     var podeCobrar = !!cliente.email && faltandoDe(cliente.id).length > 0;
     linha.cobrar.disabled = !podeCobrar;
     linha.cobrar.title = !cliente.email ? 'Sem e-mail cadastrado' : !podeCobrar ? 'Nada a cobrar neste mês' : 'Cobrar por e-mail';
+    // WhatsApp só aparece onde resolve: sem e-mail, com telefone e com algo a cobrar.
+    linha.zap.hidden = !(!cliente.email && telefoneParaWa(cliente.telefone) && faltandoDe(cliente.id).length > 0);
   }
 
   // ---------- cartões ----------
@@ -3035,13 +3064,22 @@
     setNumero('numCompletos', pronto ? clientesCache.length - totalPendentes : '');
     setNumero('numTodos', clientesCarregados ? clientesCache.length : '');
     setNumero('numSemEmail', clientesCarregados ? totalSemEmail : '');
+    // Uma frase no lugar de quatro números soltos: diz o que fazer hoje.
+    var linha = $('situacaoLinha');
+    if (linha) {
+      linha.textContent = !clientesCarregados ? 'Carregando os clientes…'
+        : !pronto ? clientesCache.length + ' clientes ativos.'
+        : totalPendentes === 0 ? 'Tudo em dia: nenhum dos ' + clientesCache.length + ' clientes ativos está com pendência.'
+        : totalPendentes + ' de ' + clientesCache.length + ' clientes ainda devem documento'
+          + (totalSemEmail ? ' · ' + totalSemEmail + ' sem e-mail cadastrado' : '') + '.';
+    }
     $('menuNumTodos').textContent = clientesCarregados ? clientesCache.length : '';
     atualizarMenu();
     if (!pronto) {
-      ['numPendentes', 'numCompletos'].forEach(function (id) { if (!$(id).textContent) $(id).innerHTML = '<span class="kpi-skel"></span>'; });
+      ['numPendentes', 'numCompletos'].forEach(function (id) { if (!$(id).textContent) $(id).textContent = ''; });
     }
     if (!clientesCarregados) {
-      ['numTodos', 'numSemEmail'].forEach(function (id) { $(id).innerHTML = '<span class="kpi-skel"></span>'; });
+      ['numTodos', 'numSemEmail'].forEach(function (id) { $(id).textContent = ''; });
     }
 
     ['filtroPendentes', 'filtroCompletos', 'filtroTodos', 'filtroSemEmail'].forEach(function (id) {
@@ -3080,6 +3118,34 @@
     }
   }
   // Escreve o número e, se ele mudou depois de já ter aparecido, dá um pulso.
+  // Copia o cabeçalho da coluna pra cada célula. Serve as sete tabelas de
+  // uma vez, sem mexer em cada função de desenho.
+  // Mensagem de erro sem botão é beco: a pessoa vê o que deu errado e não
+  // tem o que fazer além de recarregar a página inteira.
+  function avisoComRetentar(elm, texto, retentar) {
+    elm.hidden = false;
+    elm.textContent = texto + ' ';
+    var b = el('button', 'btn btn-secondary btn-mini');
+    b.type = 'button';
+    b.textContent = 'Tentar de novo';
+    b.addEventListener('click', function () { elm.hidden = true; elm.textContent = ''; retentar(); });
+    elm.appendChild(b);
+  }
+
+  function rotularColunas() {
+    document.querySelectorAll('table.tab-simples').forEach(function (tab) {
+      var cabs = [].map.call(tab.querySelectorAll('thead th'), function (th) { return th.textContent.trim(); });
+      if (!cabs.length) return;
+      [].forEach.call(tab.querySelectorAll('tbody tr, tr'), function (tr) {
+        if (tr.closest('thead')) return;
+        [].forEach.call(tr.children, function (td, i) {
+          if (td.tagName !== 'TD') return;
+          if (cabs[i]) td.dataset.rot = cabs[i]; else td.removeAttribute('data-rot');
+        });
+      });
+    });
+  }
+
   function setNumero(id, valor) {
     var elm = $(id);
     var novo = String(valor);
@@ -3477,6 +3543,7 @@
       });
       tc.appendChild(tbody2);
     }
+    rotularColunas();
   }
 
   // ==========================================================================
@@ -3603,6 +3670,7 @@
     var fila = cobrar.filter(function (x) { return puladosHoje.indexOf(x.c.id) === -1; }).concat(cobrar.filter(function (x) { return puladosHoje.indexOf(x.c.id) !== -1; }));
     var atual = fila[0];
     if (!atual) {
+      focoAtual = null;
       foco.classList.add('vazio-foco');
       foco.appendChild(ico('ph-check-circle'));
       foco.appendChild(el('div', 'corpo', pendentes.length ? 'Todo pendente com e-mail já foi cobrado nos últimos 7 dias. Nada a fazer agora.' : 'Ninguém com pendência. Mês fechado.'));
@@ -3627,13 +3695,19 @@
       foco.appendChild(corpoF);
       var acoesF = el('div', 'acoes');
       var bCob = el('button', 'btn btn-primary'); bCob.type = 'button'; bCob.appendChild(ico('ph-paper-plane-tilt')); bCob.appendChild(document.createTextNode(' Cobrar'));
-      bCob.addEventListener('click', function () { abrirModalCobranca(atual.c.id); });
-      var bVer = el('button', 'btn btn-secondary'); bVer.type = 'button'; bVer.textContent = 'Abrir cliente';
+      bCob.title = 'Manda a cobrança padrão. Dá 6 segundos para desfazer. (tecla E)';
+      bCob.addEventListener('click', function () { cobrarDeUmToque(atual.c); });
+      var bRev = el('button', 'btn btn-secondary'); bRev.type = 'button'; bRev.textContent = 'Revisar antes';
+      bRev.title = 'Abre a mensagem para editar antes de mandar';
+      bRev.addEventListener('click', function () { abrirModalCobranca(atual.c.id); });
+      var bVer = el('button', 'btn btn-ghost'); bVer.type = 'button'; bVer.textContent = 'Abrir cliente';
       bVer.addEventListener('click', function () { abrirDetalhe(atual.c.id, 'abaDocs'); });
       var bPular = el('button', 'btn btn-ghost'); bPular.type = 'button'; bPular.textContent = 'Pular';
-      bPular.title = 'Deixa este para depois e mostra o próximo';
+      bPular.title = 'Deixa este para depois e mostra o próximo (tecla P)';
       bPular.addEventListener('click', function () { hojePulados.push(atual.c.id); renderPaginas(); });
-      acoesF.appendChild(bCob); acoesF.appendChild(bVer); if (fila.length > 1) acoesF.appendChild(bPular);
+      // quem cobra 40 por dia no PC não tira a mão do teclado
+      focoAtual = { cliente: atual.c, pular: function () { hojePulados.push(atual.c.id); renderPaginas(); } };
+      acoesF.appendChild(bCob); acoesF.appendChild(bRev); acoesF.appendChild(bVer); if (fila.length > 1) acoesF.appendChild(bPular);
       foco.appendChild(acoesF);
       if (feitasHoje) {
         var filaLinha = el('div', 'fila-linha');
@@ -3720,7 +3794,10 @@
       anualCache.set(anualAno, mapa);
       anualCarregando = null;
       renderAnual();
-    }).catch(function (err) { anualCarregando = null; $('anualAviso').hidden = false; $('anualAviso').textContent = 'Erro ao carregar: ' + err.message; });
+    }).catch(function (err) {
+      anualCarregando = null;
+      avisoComRetentar($('anualAviso'), 'Erro ao carregar: ' + err.message, carregarAnual);
+    });
   }
   function renderAnual() {
     $('anualLabel').textContent = String(anualAno);
@@ -4365,8 +4442,7 @@
       })
       .catch(function (err) {
         entregasBuscando = null;
-        $('entregasAviso').hidden = false;
-        $('entregasAviso').textContent = 'Erro ao carregar entregas: ' + err.message;
+        avisoComRetentar($('entregasAviso'), 'Erro ao carregar entregas: ' + err.message, carregarEntregas);
       });
   }
 
@@ -4664,6 +4740,64 @@
     return d;
   }
 
+  // ---------- cobrar em um toque ----------
+  // A mensagem já vinha montada e quase nunca era editada: eram duas
+  // aberturas de modal por cliente, 40 vezes por dia. Agora o toque manda e
+  // o envio só sai depois de 6 segundos — dentro deles, "Desfazer" cancela
+  // sem ter gravado nada. Quem quiser editar usa "Revisar antes".
+  var focoAtual = null;
+  var envioMarcado = null;
+  function cobrarDeUmToque(cliente) {
+    if (!cliente) return;
+    if (!cliente.email) { abrirModalCobranca(cliente.id); return; }
+    if (envioMarcado) return;
+    var faltando = faltandoDe(cliente.id);
+    var msg = montarMensagem(cliente, faltando);
+    var cancelado = false;
+    envioMarcado = setTimeout(function () {
+      envioMarcado = null;
+      if (cancelado) return;
+      pedirEnvio({
+        tipo: 'um', clienteId: cliente.id, clienteNome: cliente.nome, para: cliente.email,
+        assunto: msg.assunto, corpo: msg.corpo,
+        tipos: faltando.map(function (t) { return t.chave; })
+      }, {
+        fila: 'Cobrança de ' + nomeExibicao(cliente) + ' na fila de envio.',
+        ok: function () { return 'E-mail enviado para ' + nomeExibicao(cliente) + '.'; },
+        erro: 'O e-mail para ' + nomeExibicao(cliente) + ' não foi enviado'
+      }).catch(function (err) { toast('Não foi possível enviar: ' + err.message, 'erro'); });
+    }, 6000);
+    // O próximo da fila já aparece: quem cobra não volta pra lista entre um
+    // cliente e outro. O pulo é só visual até o envio sair.
+    hojePulados.push(cliente.id);
+    renderPaginas();
+    toast('Cobrando ' + nomeExibicao(cliente) + '…', 'ok', {
+      rotulo: 'Desfazer',
+      acao: function () {
+        cancelado = true;
+        clearTimeout(envioMarcado); envioMarcado = null;
+        var i = hojePulados.indexOf(cliente.id);
+        if (i !== -1) hojePulados.splice(i, 1);
+        renderPaginas();
+        toast('Cobrança cancelada. Nada foi enviado.', 'ok');
+      }
+    });
+  }
+
+  // E envia, P pula, C abre o cliente — só na página Hoje, e nunca enquanto
+  // alguém digita num campo ou com um modal aberto.
+  document.addEventListener('keydown', function (ev) {
+    if (!focoAtual || ev.ctrlKey || ev.altKey || ev.metaKey) return;
+    if ($('viewHoje').hidden) return;
+    if (document.querySelector('dialog[open]')) return;
+    var t = ev.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+    var k = ev.key.toLowerCase();
+    if (k === 'e') { ev.preventDefault(); cobrarDeUmToque(focoAtual.cliente); }
+    else if (k === 'p') { ev.preventDefault(); focoAtual.pular(); }
+    else if (k === 'c') { ev.preventDefault(); abrirDetalhe(focoAtual.cliente.id, 'abaDocs'); }
+  });
+
   function abrirModalCobranca(clienteId) {
     var cliente = clientesPorId.get(clienteId);
     if (!cliente) return;
@@ -4728,8 +4862,8 @@
     return !!aba;
   }
 
-  $('modalWhats').addEventListener('click', function () {
-    var cliente = clientesPorId.get(modalClienteId);
+  // Serve o botão da linha e o do modal: mesma cobrança, mesmo registro.
+  function cobrarNoWhatsApp(cliente, aoTerminar) {
     if (!cliente) return;
     var tel = telefoneParaWa(cliente.telefone);
     if (!tel) { toast('Cliente sem telefone cadastrado.', 'erro'); return; }
@@ -4738,7 +4872,11 @@
     registrarCobranca(cliente, 'whatsapp', cliente.telefone)
       .then(function () { toast('WhatsApp aberto e cobrança registrada para ' + nomeExibicao(cliente), 'ok'); })
       .catch(function (err) { toast('O WhatsApp abriu, mas o registro falhou: ' + err.message, 'erro'); })
-      .then(fecharModal);
+      .then(function () { if (aoTerminar) aoTerminar(); });
+  }
+
+  $('modalWhats').addEventListener('click', function () {
+    cobrarNoWhatsApp(clientesPorId.get(modalClienteId), fecharModal);
   });
 
   // ==========================================================================
