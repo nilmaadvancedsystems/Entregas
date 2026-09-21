@@ -923,7 +923,9 @@
   /* O gráfico é SVG escalável: o traço não engorda junto com a tela porque
      vector-effect trava a espessura. Cor sai dos tokens, então acompanha o
      tema e a paleta escolhida. */
-  .gsvg { width: 100%; height: auto; display: block; overflow: visible; }
+  /* teto de largura: o SVG escala proporcional, e num monitor de 1300px o
+     gráfico de seis pontos virava um painel de 390px de altura */
+  .gsvg { width: 100%; max-width: 720px; height: auto; display: block; overflow: visible; }
   .g-grade { stroke: var(--border); stroke-width: 1; vector-effect: non-scaling-stroke; }
   .g-escala, .g-rot { fill: var(--ink-faint); font-size: 10px; font-family: var(--font-body); }
   .g-area { fill: var(--accent); opacity: .12; }
@@ -951,20 +953,38 @@
   .mm-nome { flex: 0 0 168px; display: flex; align-items: center; gap: var(--esp-2); min-width: 0; font-size: var(--t-sm); }
   .mm-nome .banco-selo { width: 24px; height: 24px; font-size: 7px; }
   .mm-texto { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .mm-rot { flex: 1; text-align: center; font-size: 9px; color: var(--ink-faint); }
+  /* Tamanho FIXO: célula de mapa de calor é quadrada. Com flex:1 ela
+     esticava até a largura da tela e num monitor virava uma caixa de 185px. */
+  .mm-rot { flex: none; width: 36px; text-align: center; font-size: 10px; color: var(--ink-faint); }
   .mm-cab { margin-bottom: 2px; }
   .mm-cel {
-    flex: 1; height: 26px; border-radius: var(--r-xs); background: var(--surface-2);
-    box-shadow: inset 0 0 0 1px var(--border);
+    flex: none; width: 36px; height: 36px; border-radius: var(--r-xs);
+    display: grid; place-items: center;
+    font: 600 10px/1 var(--font-body); font-variant-numeric: tabular-nums;
   }
-  .mm-cel.mm-cheio { background: var(--success); box-shadow: none; }
-  .mm-cel.mm-parcial { background: var(--warning); box-shadow: none; }
-  .mm-cel.mm-vazio { background: transparent; }
-  .mm-cel.mm-sem-mov { background: repeating-linear-gradient(45deg, var(--surface-2), var(--surface-2) 3px, var(--surface-3) 3px, var(--surface-3) 6px); box-shadow: none; }
-  /* na legenda o quadradinho vira um selo pequeno, não uma coluna */
-  .grafico-pe .mm-cel { display: inline-block; flex: none; width: 14px; height: 14px; vertical-align: -2px; }
+  /* Mesmo par fundo-suave/tinta-forte dos selos do app: contraste garantido
+     nos dois temas, sem inventar cor de texto. */
+  .mm-cel.mm-cheio { background: var(--success-soft); color: var(--success-forte); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--success-forte) 30%, transparent); }
+  .mm-cel.mm-parcial { background: var(--warning-soft); color: var(--warning-forte); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--warning-forte) 30%, transparent); }
+  .mm-cel.mm-zero { background: var(--danger-soft); color: var(--danger-forte); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--danger-forte) 30%, transparent); }
+  .mm-cel.mm-sem-mov { background: var(--surface-2); color: var(--ink-faint); }
+  /* sem registro: tracejado e vazio — não é zero, é "não sabemos" */
+  .mm-cel.mm-sem-dado { box-shadow: none; border: 1px dashed var(--border-forte); background: transparent; }
+  /* o mês em aberto ainda está correndo: contorno, pra não ler como atraso */
+  .mm-cel.mm-atual { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .mm-resumo { margin-left: var(--esp-3); display: flex; align-items: baseline; gap: 6px; font-size: var(--t-sm); white-space: nowrap; }
+  .mm-resumo b { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .mm-resumo-det { color: var(--ink-faint); font-size: var(--t-xs); }
+  .mm-legenda { display: flex; flex-wrap: wrap; gap: 4px var(--esp-3); }
+  .mm-leg-item { display: inline-flex; align-items: center; gap: 5px; }
+  .mm-legenda .mm-cel { width: 14px; height: 14px; font-size: 0; }
   .resposta { max-width: 74ch; }
-  @media (max-width: 700px) { .mm-nome { flex-basis: 104px; } .mm-cel { height: 30px; } }
+  @media (max-width: 700px) {
+    .mm-nome { flex-basis: 96px; }
+    .mm-cel, .mm-rot { width: 32px; }
+    .mm-cel { height: 32px; }
+    .mm-resumo-det { display: none; }
+  }
 
   /* Seletor de banco: escolhe de qual banco é a conversa da ficha inteira. */
   .seletor-banco {
@@ -4057,8 +4077,8 @@
     bloco.appendChild(legLinha);
 
     var mapa = el('div', 'mapa-meses');
-    // rótulo do mês uma vez só, em cima — repetir embaixo de cada barra era
-    // a mesma palavra dezoito vezes na tela
+    var compAberta = competenciaStr(competenciaAtual);
+    // rótulo do mês uma vez só, em cima
     var cab = el('div', 'mm-linha mm-cab');
     cab.appendChild(el('span', 'mm-nome'));
     comps.forEach(function (comp) { cab.appendChild(el('span', 'mm-rot', rotuloCurtoDoMes(comp).slice(0, 3))); });
@@ -4069,31 +4089,56 @@
       nome.appendChild(seloDoBanco(bid));
       nome.appendChild(el('span', 'mm-texto', nomeDeBanco(bid)));
       linha.appendChild(nome);
+      var somaChegou = 0, somaDevia = 0;
       comps.forEach(function (comp) {
-        var dado = docs[comp] || {};
-        var chegaram = exigidos.filter(function (t) {
-          return bancosRecebidos(cliente.id, t.chave, dado).indexOf(bid) !== -1;
-        }).length;
-        // prefixo mm- de propósito: 'vazio' sozinho é a classe do estado
-        // vazio do app (um bloco flex com padding), e a célula virava caixa
-        var estado = dado.semMovimento ? 'mm-sem-mov'
-          : chegaram === exigidos.length ? 'mm-cheio'
-          : chegaram ? 'mm-parcial' : 'mm-vazio';
-        var cel = el('span', 'mm-cel ' + estado);
-        cel.title = rotuloCurtoDoMes(comp) + ': ' + (dado.semMovimento ? 'mês sem movimento'
-          : chegaram + ' de ' + exigidos.length + ' documentos do ' + nomeDeBanco(bid));
+        var dado = docs[comp];
+        var cel = el('span', 'mm-cel');
+        var descricao;
+        if (!dado) {
+          // Mês sem registro nenhum NÃO é o mesmo que mês com zero: pode ser de
+          // antes do cliente entrar, ou de antes deste controle existir.
+          cel.classList.add('mm-sem-dado');
+          descricao = 'sem registro';
+        } else if (dado.semMovimento) {
+          cel.classList.add('mm-sem-mov');
+          cel.textContent = '–';
+          descricao = 'mês sem movimento';
+        } else {
+          var chegaram = exigidos.filter(function (t) {
+            return bancosRecebidos(cliente.id, t.chave, dado).indexOf(bid) !== -1;
+          }).length;
+          somaChegou += chegaram; somaDevia += exigidos.length;
+          // prefixo mm- de propósito: 'vazio' sozinho é classe do app
+          cel.classList.add(chegaram === exigidos.length ? 'mm-cheio' : chegaram ? 'mm-parcial' : 'mm-zero');
+          // o valor dentro da célula: cor sozinha não diz se foi 1 ou 2 de 3
+          cel.textContent = chegaram + '/' + exigidos.length;
+          descricao = chegaram + ' de ' + exigidos.length + ' documentos';
+        }
+        if (comp === compAberta) cel.classList.add('mm-atual');
+        var nomeDaCelula = nomeDeBanco(bid) + ', ' + rotuloCurtoDoMes(comp) + ': ' + descricao + (comp === compAberta ? ' (mês em aberto)' : '');
+        cel.title = nomeDaCelula;
+        cel.setAttribute('role', 'img');
+        cel.setAttribute('aria-label', nomeDaCelula);
         linha.appendChild(cel);
       });
+      // resumo da linha, como em página de status: o número que fica na cabeça
+      var resumo = el('span', 'mm-resumo');
+      if (somaDevia) {
+        var pctLinha = Math.round(somaChegou / somaDevia * 100);
+        resumo.appendChild(el('b', null, pctLinha + '%'));
+        resumo.appendChild(el('span', 'mm-resumo-det', somaChegou + ' de ' + somaDevia + ' documentos'));
+      }
+      linha.appendChild(resumo);
       mapa.appendChild(linha);
     });
     bloco.appendChild(mapa);
-    var legenda = el('p', 'grafico-pe');
-    legenda.appendChild(el('span', 'mm-cel mm-cheio'));
-    legenda.appendChild(document.createTextNode(' tudo  '));
-    legenda.appendChild(el('span', 'mm-cel mm-parcial'));
-    legenda.appendChild(document.createTextNode(' parte  '));
-    legenda.appendChild(el('span', 'mm-cel mm-vazio'));
-    legenda.appendChild(document.createTextNode(' nada'));
+    var legenda = el('p', 'grafico-pe mm-legenda');
+    [['mm-cheio', 'tudo'], ['mm-parcial', 'parte'], ['mm-zero', 'nada'], ['mm-sem-mov', 'sem movimento'], ['mm-sem-dado', 'sem registro']].forEach(function (par) {
+      var item = el('span', 'mm-leg-item');
+      item.appendChild(el('span', 'mm-cel ' + par[0]));
+      item.appendChild(document.createTextNode(par[1]));
+      legenda.appendChild(item);
+    });
     bloco.appendChild(legenda);
     caixa.appendChild(bloco);
     caixa.appendChild(fraseDaCobranca(cliente, comps, docs));
