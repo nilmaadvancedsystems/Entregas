@@ -231,6 +231,28 @@ const bk = require('./bancos');
 igual('BB pelo cabeçalho', bk.bancosDoTexto('BANCO DO BRASIL S.A.\nSISBB - Sistema de Informações\nExtrato de conta corrente'), ['bb']);
 igual('Sicoob (Bancoob) pelo cabeçalho', bk.bancosDoTexto('SICOOB CREDINOR\nCooperativa de Crédito\nExtrato'), ['sicoob']);
 igual('banco citado no meio do extrato não conta', bk.bancosDoTexto('SICREDI Extrato\n' + 'x'.repeat(2000) + ' TED para BANCO DO BRASIL'), ['sicredi']);
+
+// Cabeçalhos de verdade, dos extratos que o escritório recebe. Só o pedaço
+// que identifica a instituição: sem nome de cliente, CNPJ, conta ou valor.
+// Dois destes NÃO eram reconhecidos — o banco não escreve o próprio nome.
+const miolo = ' PIX RECEBIDO REM: FULANO 03/08 1743583 1.400,00 '.repeat(60);
+igual('BB: o extrato não diz "Banco do Brasil" em lugar nenhum',
+  bk.bancosDoTexto('Extrato Mensal / Por Período\n\nFolha 1/4\n\nAgência | Conta Total Disponível (R$)\n' + miolo + '\nSaldos Invest Fácil / Plus'), ['bb']);
+igual('BB consolidado, mesmo caso',
+  bk.bancosDoTexto('Extrato Consolidado / Por Período\n\nFolha 1/5\n' + miolo), ['bb']);
+igual('BNB: o nome só aparece no fundo automático do saldo',
+  bk.bancosDoTexto('Extrato de Conta Corrente - no período\n\nAgência/Conta Corrente: 060 - SALINAS\n\nDetalhamento do Saldo\nInvestimentos BNB AUTOMATICO FIF (*)'), ['bnb']);
+igual('Sicoob do internet banking',
+  bk.bancosDoTexto('Sicoob | Internet banking\n\nEXTRATO DE CONTA CORRENTE 01/09/2026\n\nCooperativa: 3144-5 / SICOOB CREDINOR'), ['sicoob']);
+igual('Stone diz a instituição no alto',
+  bk.bancosDoTexto('Extrato de conta corrente Emitido em 14 setembro 2026\n\nDados da conta\n\nInstituição Stone Instituição de Pagamento S.A.'), ['stone']);
+// O Nubank só assina no rodapé; num extrato com movimento isso fica longe do topo.
+igual('Nubank assina no rodapé',
+  bk.bancosDoTexto('01 DE AGOSTO DE 2026 a 31 DE AGOSTO DE 2026 VALORES EM R$\nSaldo final do período\n' + miolo +
+    '\nNu Financeira S.A. - Sociedade de Credito, Financiamento e Investimento\nNu Pagamentos S.A. - Instituição de Pagamento'), ['nubank']);
+// e a assinatura no rodapé não pode abrir a porta pra nome de banco no miolo
+igual('assinatura no rodapé não vale pra nome solto no fim',
+  bk.bancosDoTexto('Sicoob | Internet banking\n' + miolo + '\nPIX ENVIADO DES: BANCO DO BRASIL'), ['sicoob']);
 igual('Nu Pagamentos', bk.bancosDoTexto('Nu Pagamentos S.A. - Instituição de Pagamento\nExtrato'), ['nubank']);
 igual('vários PDFs, cada um o seu', bk.bancosDosTextos(['Banco do Nordeste do Brasil', 'CAIXA ECONOMICA FEDERAL']).sort(), ['bnb', 'caixa']);
 igual('texto sem banco', bk.bancosDoTexto('Extrato mensal'), []);
