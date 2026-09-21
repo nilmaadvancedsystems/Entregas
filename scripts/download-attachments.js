@@ -558,19 +558,33 @@ async function main() {
 
       if (tipos.length && comBytes.length) {
         const agora = new Date().toISOString();
-        // extrato: de que banco(s). Serve pra cobrança dizer "falta o do Sicoob"
-        // e pro cadastro aprender os bancos do cliente sem ninguém digitar.
-        const bancos = tipos.includes('extrato') ? await bancosDosAnexos(comBytes) : [];
+        // De que banco(s) veio o anexo. Vale pros TRÊS documentos: extrato,
+        // comprovante e aplicação saem todos do banco, e a tela conta o mês
+        // banco a banco. Serve também pro cadastro aprender os bancos do
+        // cliente sem ninguém digitar.
+        const achados = await bancosDosAnexos(comBytes);
+        // Comprovante de pagamento traz o banco do RECEBEDOR junto com o de
+        // quem pagou. Só o extrato, onde o cabeçalho é sempre do dono da
+        // conta, pode ensinar banco novo ao cadastro; nos outros, vale só o
+        // que o cliente já tem — senão o boleto pago no Bradesco viraria
+        // conta dele no Bradesco.
+        const jaTem = new Set(cliente.bancos || []);
+        const bancosDoTipo = t => t === 'extrato' ? achados : achados.filter(b => jaTem.has(b));
         patch.atualizadoEm = agora;
         patch.detalhes = {};
+        if (achados.length) patch.bancosPorTipo = {};
         tipos.forEach(t => {
           patch[t] = true;
+          const doTipo = bancosDoTipo(t);
           patch.detalhes[t] = Object.assign({ origem: 'gmail', em: agora, mensagemId: id, arquivos: comBytes.map(a => a.filename) },
-            t === 'extrato' && bancos.length ? { bancos } : {});
+            doTipo.length ? { bancos: doTipo } : {});
+          if (doTipo.length) patch.bancosPorTipo[t] = FV.arrayUnion(...doTipo);
         });
-        if (bancos.length) {
-          patch.bancosRecebidos = FV.arrayUnion(...bancos);
-          await aprenderBancos(db, cliente, bancos);
+        if (achados.length && tipos.includes('extrato')) {
+          // bancosRecebidos era o campo antigo, só do extrato: continua em dia
+          // pra quem ainda lê ele (o e-mail de cobrança, o mês já gravado).
+          patch.bancosRecebidos = FV.arrayUnion(...achados);
+          await aprenderBancos(db, cliente, achados);
         }
         cont.marcados++;
         // o link que mostra este cliente: o dele ou o da empresa principal do grupo

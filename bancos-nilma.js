@@ -48,11 +48,15 @@
   }
 
   // "Sicoob, Itaú e Bradesco" — do jeito que se fala, pra entrar no meio de
-  // uma frase de cobrança sem parecer lista de sistema.
+  // uma frase de cobrança sem parecer lista de sistema. Serve pra qualquer
+  // lista: banco, documento, o que for.
+  function juntarNomes(nomes) {
+    var lista = (nomes || []).filter(Boolean);
+    if (lista.length <= 1) return lista[0] || '';
+    return lista.slice(0, -1).join(', ') + ' e ' + lista[lista.length - 1];
+  }
   function nomesDosBancos(ids) {
-    var nomes = (ids || []).map(nomeDoBanco);
-    if (nomes.length <= 1) return nomes[0] || '';
-    return nomes.slice(0, -1).join(', ') + ' e ' + nomes[nomes.length - 1];
+    return juntarNomes((ids || []).map(nomeDoBanco));
   }
 
   // Quais bancos ficam no cadastro depois de alguém marcar/desmarcar.
@@ -70,7 +74,7 @@
     return { bancos: marcados, bancosRecusados: recusados };
   }
 
-  var api = { BANCOS: BANCOS, porId: porId, nomeDoBanco: nomeDoBanco, nomesDosBancos: nomesDosBancos, bancosQueFicam: bancosQueFicam };
+  var api = { BANCOS: BANCOS, porId: porId, nomeDoBanco: nomeDoBanco, nomesDosBancos: nomesDosBancos, juntarNomes: juntarNomes, bancosQueFicam: bancosQueFicam };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else raiz.BancosNilma = api;
 })(typeof window !== 'undefined' ? window : this);

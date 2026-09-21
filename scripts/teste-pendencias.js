@@ -30,10 +30,10 @@ function montar(clientes, status) {
     { chave: 'aplicacao', label: 'Aplicação', curto: 'Aplicação', icone: 'ph-chart-line-up' }
   ];
   const corpo =
-    pega('bancosDoCliente') + pega('bancosRecebidos') + pega('bancosFaltando') +
-    pega('nomesDeBancos') + pega('nomeDeBanco') + pega('extratoComBancos') +
-    pega('tiposExigidos') + pega('faltandoDe') + pega('completoNoMes') +
-    '; return { bancosFaltando: bancosFaltando, faltandoDe: faltandoDe, completoNoMes: completoNoMes };';
+    pega('bancosDoCliente') + pega('bancosRecebidos') + pega('bancosFaltando') + pega('faltaPorBanco') +
+    pega('nomesDeBancos') + pega('nomeDeBanco') + pega('tipoComBancos') +
+    pega('tiposExigidos') + pega('naoSeAplica') + pega('faltandoDe') + pega('completoNoMes') +
+    '; return { bancosFaltando: bancosFaltando, faltaPorBanco: faltaPorBanco, faltandoDe: faltandoDe, completoNoMes: completoNoMes };';
   return new Function('clientesPorId', 'statusCache', 'TIPOS', 'window',
     'function statusDoCliente(id) { return statusCache.get(id) || {}; }\n' + corpo
   )(clientesPorId, statusPorId, TIPOS, { BancosNilma: BancosNilma });
@@ -46,41 +46,75 @@ const clientes = [
   { id: 'na', nome: 'OFICINA', bancos: ['bb'], documentosNaoAplicaveis: ['aplicacao'] }
 ];
 
-// ---------- quais bancos ainda faltam no mês ----------
+// ---------- quais bancos ainda faltam, POR TIPO de documento ----------
 let app = montar(clientes, {
-  tres: { extrato: true, bancosRecebidos: ['sicoob'] },
-  um: { extrato: true, bancosRecebidos: ['caixa'] },
+  tres: { extrato: true, comprovante: true, bancosPorTipo: { extrato: ['sicoob'], comprovante: ['sicoob', 'itau', 'bb'] } },
+  um: { extrato: true, bancosPorTipo: { extrato: ['caixa'] } },
   nenhum: { extrato: true },
-  na: { extrato: true, bancosRecebidos: [] }
+  na: { extrato: true, bancosPorTipo: { extrato: [] } }
 });
-igual('chegou de um banco, faltam os outros dois', app.bancosFaltando('tres'), ['itau', 'bb']);
-igual('único banco entregue: não falta nada', app.bancosFaltando('um'), []);
-igual('cliente sem banco no cadastro segue como antes', app.bancosFaltando('nenhum'), []);
-igual('extrato marcado sem banco identificado não inventa pendência', app.bancosFaltando('na'), []);
+igual('extrato: chegou de um banco, faltam os outros dois', app.bancosFaltando('tres', 'extrato'), ['itau', 'bb']);
+igual('comprovante do mesmo cliente está completo', app.bancosFaltando('tres', 'comprovante'), []);
+igual('aplicação não chegou de banco nenhum', app.bancosFaltando('tres', 'aplicacao'), ['sicoob', 'itau', 'bb']);
+igual('único banco entregue: não falta nada', app.bancosFaltando('um', 'extrato'), []);
+igual('cliente sem banco no cadastro segue como antes', app.bancosFaltando('nenhum', 'extrato'), []);
+igual('tipo marcado sem banco identificado não inventa pendência', app.bancosFaltando('na', 'extrato'), []);
+igual('o que não se aplica não falta de banco nenhum', app.bancosFaltando('na', 'aplicacao'), []);
+
+// ---------- mês antigo: bancosRecebidos era só do extrato ----------
+app = montar(clientes, { tres: { extrato: true, bancosRecebidos: ['sicoob'] } });
+igual('mês antigo ainda conta pro extrato', app.bancosFaltando('tres', 'extrato'), ['itau', 'bb']);
+igual('mês antigo não vira comprovante entregue', app.bancosFaltando('tres', 'comprovante'), ['sicoob', 'itau', 'bb']);
+
+// ---------- o mês separado por banco ----------
+app = montar(clientes, {
+  tres: { extrato: true, comprovante: true, bancosPorTipo: { extrato: ['sicoob', 'itau'], comprovante: ['sicoob'] } }
+});
+igual('cada banco com o que ele deve',
+  app.faltaPorBanco('tres').map(x => x.banco + ': ' + x.tipos.map(t => t.chave).join('+')),
+  ['sicoob: aplicacao', 'itau: comprovante+aplicacao', 'bb: extrato+comprovante+aplicacao']);
+// cliente de um banco só, sem nada entregue: aquele banco deve os três
+igual('banco único deve os três documentos',
+  app.faltaPorBanco('um').map(x => x.banco + ': ' + x.tipos.map(t => t.chave).join('+')),
+  ['caixa: extrato+comprovante+aplicacao']);
+app = montar(clientes, {
+  um: { extrato: true, comprovante: true, aplicacao: true, bancosPorTipo: { extrato: ['caixa'], comprovante: ['caixa'], aplicacao: ['caixa'] } }
+});
+igual('banco em dia não aparece na lista', app.faltaPorBanco('um').length, 0);
+app = montar(clientes, { tres: { semMovimento: true } });
+igual('mês sem movimento não deve nada a banco nenhum', app.faltaPorBanco('tres'), []);
 
 // ---------- o que a cobrança vai pedir ----------
 app = montar(clientes, {
-  tres: { extrato: true, bancosRecebidos: ['sicoob'], comprovante: true, aplicacao: true }
+  tres: { extrato: true, comprovante: true, aplicacao: true, bancosPorTipo: { extrato: ['sicoob'], comprovante: ['sicoob', 'itau', 'bb'], aplicacao: ['sicoob', 'itau', 'bb'] } }
 });
 const falta = app.faltandoDe('tres');
-igual('extrato parcial continua na lista do que falta', falta.map(t => t.chave), ['extrato']);
+igual('só o extrato continua faltando', falta.map(t => t.chave), ['extrato']);
 igual('a cobrança nomeia os bancos que faltam', falta[0].label, 'Extrato Bancário (Itaú e Banco do Brasil)');
 igual('o selo mostra quantos de quantos', falta[0].curto, 'Extrato 1/3');
-// no WhatsApp a frase é minúscula, mas nome de banco é nome próprio
 igual('no meio da frase o banco mantém a maiúscula',
   falta.map(t => t.frase || t.label.toLowerCase()).join(', '), 'extrato do Itaú e Banco do Brasil');
 
-// ---------- mês completo só quando todo banco chegou ----------
+// comprovante também nomeia banco, que é a mudança de agora
+app = montar(clientes, {
+  tres: { extrato: true, comprovante: true, aplicacao: true, bancosPorTipo: { extrato: ['sicoob', 'itau', 'bb'], comprovante: ['sicoob'], aplicacao: ['sicoob', 'itau', 'bb'] } }
+});
+igual('comprovante pede o banco igual ao extrato',
+  app.faltandoDe('tres').map(t => t.frase), ['comprovante do Itaú e Banco do Brasil']);
+
+// ---------- mês completo só quando todo banco entregou tudo ----------
 app = montar(clientes, {});
-igual('mês com um banco de três não está completo',
-  app.completoNoMes('tres', { extrato: true, comprovante: true, aplicacao: true, bancosRecebidos: ['sicoob'] }), false);
-igual('mês com os três bancos está completo',
-  app.completoNoMes('tres', { extrato: true, comprovante: true, aplicacao: true, bancosRecebidos: ['sicoob', 'itau', 'bb'] }), true);
-igual('mês antigo, sem banco registrado, continua completo',
-  app.completoNoMes('tres', { extrato: true, comprovante: true, aplicacao: true }), true);
+const mesCheio = { extrato: true, comprovante: true, aplicacao: true };
+igual('um banco de três não fecha o mês',
+  app.completoNoMes('tres', Object.assign({ bancosPorTipo: { extrato: ['sicoob'], comprovante: ['sicoob'], aplicacao: ['sicoob'] } }, mesCheio)), false);
+igual('três bancos em tudo fecham o mês',
+  app.completoNoMes('tres', Object.assign({ bancosPorTipo: { extrato: ['sicoob', 'itau', 'bb'], comprovante: ['sicoob', 'itau', 'bb'], aplicacao: ['sicoob', 'itau', 'bb'] } }, mesCheio)), true);
+igual('falta o comprovante de um banco e o mês não fecha',
+  app.completoNoMes('tres', Object.assign({ bancosPorTipo: { extrato: ['sicoob', 'itau', 'bb'], comprovante: ['sicoob', 'itau'], aplicacao: ['sicoob', 'itau', 'bb'] } }, mesCheio)), false);
+igual('mês antigo, sem banco registrado, continua completo', app.completoNoMes('tres', mesCheio), true);
 igual('sem movimento fecha o mês', app.completoNoMes('tres', { semMovimento: true }), true);
 igual('o que não se aplica sai da conta',
-  app.completoNoMes('na', { extrato: true, comprovante: true, bancosRecebidos: ['bb'] }), true);
+  app.completoNoMes('na', { extrato: true, comprovante: true, bancosPorTipo: { extrato: ['bb'], comprovante: ['bb'] } }), true);
 
 // ---------- os nomes, do jeito que se fala ----------
 igual('um banco só', BancosNilma.nomesDosBancos(['itau']), 'Itaú');

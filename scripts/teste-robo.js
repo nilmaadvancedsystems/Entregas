@@ -265,14 +265,29 @@ const visual = eh.htmlDaCobranca({
   cliente: { bancos: ['bb', 'sicoob', 'inexistente'], documentosNaoAplicaveis: ['aplicacao'] }, competencia: '2026-08', bancosRecebidos: ['bb'],
   diaLimite: 15, assinatura: 'Nilma <Contabilidade>', agora: new Date(2026, 8, 19),
 });
+// Dois bancos e dois documentos exigidos = quatro coisas; só o extrato do BB
+// chegou. O campo antigo (bancosRecebidos) continua valendo como extrato.
 igual('HTML: manchete, mês, bancos, botão, prazo vencido e texto escapado', [
-  /Faltam 2 documentos de agosto/.test(visual.html), />AGO 2026</.test(visual.html), /1 de 3 já chegaram/.test(visual.html),
+  /Faltam 3 documentos de agosto/.test(visual.html), />AGO 2026</.test(visual.html), /1 de 4 já chegaram/.test(visual.html),
   /Banco do Brasil[\s\S]*?Recebido/.test(visual.html), /Sicoob[\s\S]*?Falta/.test(visual.html), /inexistente/.test(visual.html),
   /href="https:\/\/x\.github\.io\/cliente\.html\?portal=t"/.test(visual.html), /Veja aqui:/.test(visual.html),
   /O prazo era 15\/09 \(há 4 dias\)/.test(visual.html), /Nilma &lt;Contabilidade&gt;/.test(visual.html),
 ], [true, true, true, true, true, false, true, false, true, true]);
 igual('HTML: logos e ícones anexados por cid, uma vez cada', [visual.imagens.some(i => i.cid === 'banco-bb'), visual.imagens.some(i => i.cid === 'icone-extrato'),
   new Set(visual.imagens.map(i => i.cid)).size === visual.imagens.length], [true, true, true]);
+// Agora cada documento é por banco: o comprovante também nomeia o banco.
+const visual2 = eh.htmlDaCobranca({
+  corpo: 'Olá,\n\nFaltam:\n\n- Extrato Bancário\n- Comprovante\n\nObrigado,\nNilma',
+  cliente: { bancos: ['bb', 'sicoob'], documentosNaoAplicaveis: ['aplicacao'] }, competencia: '2026-08',
+  bancosPorTipo: { extrato: ['bb', 'sicoob'], comprovante: ['bb'] },
+  diaLimite: 15, assinatura: 'Nilma', agora: new Date(2026, 8, 19),
+});
+igual('HTML: o comprovante também conta por banco', [
+  /3 de 4 já chegaram/.test(visual2.html),
+  (visual2.html.match(/Sicoob/g) || []).length === 2,
+  /Falta 1 banco/.test(visual2.html),
+], [true, true, true]);
+
 igual('prazo: no futuro', eh.textoDoPrazo('2026-08', 22, new Date(2026, 8, 19)).texto, 'Prazo: até 22/09 (faltam 3 dias)');
 igual('prazo: sem dia limite não aparece', eh.textoDoPrazo('2026-08', null), null);
 

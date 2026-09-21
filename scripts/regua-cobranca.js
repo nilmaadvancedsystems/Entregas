@@ -141,7 +141,7 @@ function iniciarReguaDeCobranca({ db, log, correio }) {
         if (enviados >= MAX_POR_DIA || !correio.podeEnviar(1)) { pulos['limite do dia'] = (pulos['limite do dia'] || 0) + 1; continue; }
         try {
           let visual = {};
-          try { visual = htmlDaCobranca({ corpo: m.corpo, cliente: c, competencia: comp, faltando: m.tipos, bancosRecebidos: (docs.get(c.id) || {}).bancosRecebidos,
+          try { visual = htmlDaCobranca({ corpo: m.corpo, cliente: c, competencia: comp, faltando: m.tipos, bancosPorTipo: (docs.get(c.id) || {}).bancosPorTipo, bancosRecebidos: (docs.get(c.id) || {}).bancosRecebidos,
             diaLimite: config.diaLimite, assinatura: config.assinatura || 'Nilma Contabilidade', caixa: CAIXA }); }
           catch (e) { /* sai só em texto */ }
           const gmailId = await correio.enviar({ para: m.para, assunto: m.assunto, corpo: m.corpo, html: visual.html, imagens: visual.imagens });

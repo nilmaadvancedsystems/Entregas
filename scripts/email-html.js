@@ -65,10 +65,12 @@ function celulaDoBanco(b, recebido, imagens) {
       '</td></tr></table></td>';
 }
 
-// Cartão de um documento que falta. Extrato com bancos conhecidos vira grade.
-function cartaoDoDocumento(tipo, cliente, recebidos, imagens) {
+// Cartão de um documento que falta. Com bancos conhecidos vira grade — e
+// vale pros três documentos, que saem todos do banco.
+function cartaoDoDocumento(tipo, cliente, recebidosPorTipo, imagens) {
   const t = TIPOS[tipo];
-  const bancos = tipo === 'extrato' ? (cliente.bancos || []).map(id => POR_ID.get(id)).filter(Boolean) : [];
+  const recebidos = (recebidosPorTipo && recebidosPorTipo[tipo]) || [];
+  const bancos = (cliente.bancos || []).map(id => POR_ID.get(id)).filter(Boolean);
   const faltam = bancos.filter(b => !recebidos.includes(b.id)).length;
   const icone = imagem(imagens, PASTA_ICONES, t.icone, 22) || '';
   const resumo = bancos.length
@@ -93,12 +95,14 @@ function cartaoDoDocumento(tipo, cliente, recebidos, imagens) {
       ';background:' + COR.faltaClaro + ';padding:4px 10px;border-radius:99px">' + resumo + '</span></td></tr>' + grade + '</table></td></tr>';
 }
 
-// Quanto já chegou: extrato conta um por banco conhecido.
-function progresso(cliente, faltando, recebidos) {
+// Quanto já chegou: cada documento conta um por banco conhecido. Cliente
+// com três bancos deve nove documentos, não três.
+function progresso(cliente, faltando, recebidosPorTipo) {
   const naoAplica = Array.isArray(cliente.documentosNaoAplicaveis) ? cliente.documentosNaoAplicaveis : [];
+  const bancos = (cliente.bancos || []).filter(id => POR_ID.has(id));
   let total = 0, feitos = 0;
   Object.keys(TIPOS).filter(k => !naoAplica.includes(k)).forEach(k => {
-    const bancos = k === 'extrato' ? (cliente.bancos || []).filter(id => POR_ID.has(id)) : [];
+    const recebidos = (recebidosPorTipo && recebidosPorTipo[k]) || [];
     if (bancos.length) {
       total += bancos.length;
       feitos += faltando.includes(k) ? bancos.filter(id => recebidos.includes(id)).length : bancos.length;
@@ -119,11 +123,15 @@ function textoDoPrazo(competencia, diaLimite, agora) {
   return { texto: 'Prazo: até ' + data + ' (' + (dias === 1 ? 'amanhã' : 'faltam ' + dias + ' dias') + ')', atrasado: false };
 }
 
-// { corpo, cliente, competencia, faltando?, bancosRecebidos, diaLimite, assinatura, caixa, agora } -> { html, imagens }
+// { corpo, cliente, competencia, faltando?, bancosPorTipo | bancosRecebidos, diaLimite, assinatura, caixa, agora } -> { html, imagens }
 function htmlDaCobranca(o) {
   const imagens = [];
   const cliente = o.cliente || {};
-  const recebidos = Array.isArray(o.bancosRecebidos) ? o.bancosRecebidos : [];
+  // bancosPorTipo é o formato de agora; bancosRecebidos era só do extrato e
+  // segue valendo pro mês gravado antes desta mudança.
+  const recebidos = (o.bancosPorTipo && typeof o.bancosPorTipo === 'object')
+    ? o.bancosPorTipo
+    : { extrato: Array.isArray(o.bancosRecebidos) ? o.bancosRecebidos : [] };
   const linhas = String(o.corpo || '').replace(/\r/g, '').split('\n');
   const faltando = Array.isArray(o.faltando) && o.faltando.length ? o.faltando
     : [...new Set(linhas.filter(l => /^\s*-\s+/.test(l)).map(tipoDaLinha).filter(Boolean))];
