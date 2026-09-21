@@ -65,6 +65,35 @@
   .bloco.aviso h2 { margin: 0 0 6px; color: inherit; }
   .bloco.aviso ul { margin: 6px 0 0; padding-left: 20px; }
   .bloco.aviso .mes { font-weight: 600; margin-top: 8px; }
+  /* O que falta: era uma parede amarela com dois meses de três itens iguais,
+     e dois botões lá embaixo servindo pros seis. Agora cada documento é uma
+     linha com o Enviar dele do lado, e o mês mais antigo vem primeiro. */
+  .bloco.pedido { border-color: var(--aviso); }
+  .pedido-topo { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+  .pedido-topo h2 { margin: 0; }
+  .pedido-conta { font-size: .875rem; color: var(--ink-faint); white-space: nowrap; }
+  .pedido-mes { margin-bottom: 14px; }
+  .pm-cab { display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px; }
+  .pm-nome { font-weight: 600; font-size: .9375rem; }
+  .pm-marca { font-size: .75rem; font-weight: 600; color: var(--aviso); }
+  .pedido-item {
+    display: flex; align-items: center; gap: 12px; min-height: 52px;
+    border-top: 1px solid var(--border);
+  }
+  .pedido-item:last-child { border-bottom: 1px solid var(--border); }
+  .pi-nome { flex: 1; min-width: 0; }
+  .pedido-item.ok .pi-nome { color: var(--ink-soft); }
+  .pi-estado { display: flex; align-items: center; gap: 6px; font-size: .8125rem; color: var(--ok); flex: none; }
+  .pi-estado svg { width: 16px; height: 16px; }
+  /* botão da linha: alvo de dedo, sem competir com o resto da página */
+  .pi-enviar {
+    flex: none; width: auto; min-height: 44px; padding: 0 16px;
+    background: var(--surface-2); border-color: var(--border);
+  }
+  .pi-enviar svg { width: 18px; height: 18px; }
+  .pedido-pe { font-size: .875rem; color: var(--ink-soft); margin-top: 14px; }
+  .envio .menor { width: auto; background: none; border-color: transparent; color: var(--ink-soft); }
+
   .tudo-certo { display: flex; gap: 8px; align-items: center; color: var(--ok); margin-top: 16px; font-size: .9375rem; }
 
   .guia { padding: 16px 0; border-top: 1px solid var(--border); }
@@ -398,7 +427,8 @@ function cartaoDaGuia(e, recebidos, comMes) {
   const selo = entregue ? ['ok', (e.peloLink || toque) ? 'Recebida' : 'Entregue'] : falha ? ['ruim', 'Não entregue'] : noLink ? ['', 'Nova'] : ['', 'Vamos levar até você'];
   let sub = '';
   if (toque) sub = 'Você confirmou em ' + dataHora(toque[0]) + (toque[1] ? ', ' + toque[1] : '') + '.';
-  else if (entregue) sub = (e.peloLink ? 'Confirmada por aqui em ' : 'Entregue em ') + dataHora(e.quando) + (e.recebedor ? ', recebida por ' + e.recebedor : '') + '.';
+  // Sem a data, a frase virava "Entregue em ." na cara do cliente.
+  else if (entregue) sub = (e.quando ? (e.peloLink ? 'Confirmada por aqui em ' : 'Entregue em ') + dataHora(e.quando) : (e.peloLink ? 'Confirmada por aqui' : 'Entregue')) + (e.recebedor ? ', recebida por ' + e.recebedor : '') + '.';
   else if (falha) sub = 'Tentamos entregar em ' + dataHora(e.quando) + (e.motivoFalha ? ': ' + e.motivoFalha : '') + '.';
   else if (noLink) sub = 'Confira a guia e confirme abaixo que recebeu.';
 
@@ -476,29 +506,45 @@ function desenharDocumentos(docs) {
     sec.innerHTML = '<p class="tudo-certo">' + ICO.certo + '<span>Recebemos todos os seus documentos de ' + esc(mesPorExtenso(meses[0].competencia).toLowerCase()) + '.</span></p>';
     return;
   }
-  let h = '<div class="bloco aviso"><h2>Documentos que ainda precisamos de você</h2>';
+  // Mês mais antigo primeiro: é o que segura o fechamento.
+  devendo.sort((a, b) => String(a.competencia).localeCompare(String(b.competencia)));
+  const quantos = devendo.reduce((soma, m) => soma + m.faltam.length, 0);
+  const pendentes = devendo.reduce((soma, m) => soma + m.faltam.filter(k => !jaEnviado(m.competencia, k, m.empresa)).length, 0);
   const opcoes = [];
-  devendo.forEach(m => {
-    h += '<p class="mes">' + esc((m.empresa ? m.empresa + ' · ' : '') + mesPorExtenso(m.competencia)) + '</p><ul>' +
-      m.faltam.map(k => {
-        opcoes.push({ competencia: m.competencia, tipo: k, empresa: m.empresa, rotulo: (NOMES_DOC[k] || k) + ' · ' + (m.empresa ? m.empresa + ' · ' : '') + mesPorExtenso(m.competencia).toLowerCase() });
-        return '<li>' + esc(NOMES_DOC[k] || k) + (jaEnviado(m.competencia, k, m.empresa) ? ' <span class="enviado">enviado, o escritório vai conferir</span>' : '') + '</li>';
-      }).join('') + '</ul>';
+  let h = '<div class="bloco pedido">' +
+    '<div class="pedido-topo"><h2>O que falta</h2>' +
+    '<span class="pedido-conta">' + (pendentes ? pendentes + ' de ' + quantos : 'tudo enviado') + '</span></div>';
+  devendo.forEach((m, iMes) => {
+    // O primeiro grupo é o mais antigo; só ele ganha o aviso de atraso.
+    h += '<div class="pedido-mes">' +
+      '<div class="pm-cab"><span class="pm-nome">' + esc((m.empresa ? m.empresa + ' · ' : '') + mesPorExtenso(m.competencia)) + '</span>' +
+      (iMes === 0 && devendo.length > 1 ? '<span class="pm-marca">o mais atrasado</span>' : '') + '</div>';
+    m.faltam.forEach(k => {
+      const i = opcoes.length;
+      opcoes.push({ competencia: m.competencia, tipo: k, empresa: m.empresa,
+        rotulo: (NOMES_DOC[k] || k) + ' · ' + (m.empresa ? m.empresa + ' · ' : '') + mesPorExtenso(m.competencia).toLowerCase() });
+      const enviado = jaEnviado(m.competencia, k, m.empresa);
+      h += '<div class="pedido-item' + (enviado ? ' ok' : '') + '">' +
+        '<span class="pi-nome">' + esc(NOMES_DOC[k] || k) + '</span>' +
+        (enviado
+          ? '<span class="pi-estado">' + ICO.certo + 'enviado, vamos conferir</span>'
+          : (ehEquipe ? '' : '<button type="button" class="pi-enviar" data-envio="' + i + '">' + ICO.enviar + '<span>Enviar</span></button>')) +
+        '</div>';
+    });
+    h += '</div>';
   });
-  h += '<div class="acoes">';
-  if (!ehEquipe) h += '<button type="button" class="principal" id="enviarAbrir">' + ICO.enviar + '<span>Enviar daqui do celular</span></button>';
   if (docs.email) {
-    h += '<a class="botao" href="mailto:' + esc(docs.email) + '?subject=' + encodeURIComponent('Documentos de ' + mesPorExtenso(devendo[0].competencia).toLowerCase()) + '">' +
-      '<span>Mandar por e-mail</span></a>';
+    h += '<p class="pedido-pe">Prefere o e-mail? Mande para ' +
+      '<a href="mailto:' + esc(docs.email) + '?subject=' + encodeURIComponent('Documentos de ' + mesPorExtenso(devendo[0].competencia).toLowerCase()) + '">' + esc(docs.email) + '</a>.</p>';
   }
-  h += '</div>';
   if (!ehEquipe) {
     h += '<form class="envio" id="envioForm" hidden>' +
-      '<label for="envioQual">Qual documento</label><select id="envioQual">' +
+      '<label for="envioQual">Documento</label><select id="envioQual">' +
         opcoes.map((o, i) => '<option value="' + i + '">' + esc(o.rotulo) + '</option>').join('') + '</select>' +
       '<label for="envioArquivo">Arquivo (PDF ou foto)</label><input type="file" id="envioArquivo" accept="application/pdf,image/jpeg,image/png">' +
       '<p class="erro" id="envioErro" hidden></p>' +
-      '<div class="acoes"><button type="submit" class="principal" id="envioBtn">Enviar</button></div>' +
+      '<div class="acoes"><button type="submit" class="principal" id="envioBtn">Enviar</button>' +
+      '<button type="button" class="menor" id="envioCancelar">Cancelar</button></div>' +
       '<p class="dica" style="color:inherit">Um arquivo por vez, até 700 KB. Foto é diminuída sozinha. Extrato grande em PDF vai melhor por e-mail.</p></form>';
   }
   sec.innerHTML = h + '</div>';
@@ -540,10 +586,18 @@ async function diminuirFoto(arquivo) {
 }
 function prepararEnvio(opcoes) {
   const form = $('envioForm');
-  $('enviarAbrir').addEventListener('click', () => {
-    form.hidden = !form.hidden;
-    if (!form.hidden) $('envioQual').focus();
+  // Cada linha tem o seu Enviar: abre o formulário já naquele documento e
+  // leva o foco pro arquivo, que é o que falta escolher.
+  document.querySelectorAll('[data-envio]').forEach(bt => {
+    bt.addEventListener('click', () => {
+      $('envioQual').value = bt.dataset.envio;
+      form.hidden = false;
+      form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      $('envioArquivo').focus();
+    });
   });
+  const cancelar = $('envioCancelar');
+  if (cancelar) cancelar.addEventListener('click', () => { form.reset(); form.hidden = true; });
   const erro = t => { $('envioErro').textContent = t; $('envioErro').hidden = !t; };
   form.addEventListener('submit', async ev => {
     ev.preventDefault();

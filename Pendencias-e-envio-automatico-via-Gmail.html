@@ -965,32 +965,45 @@
   .mais-rotulo { font-size: var(--t-xs); color: var(--ink-faint); padding: 4px 10px 2px; }
   .mais-lista .btn.na-ligado { color: var(--ink-faint); }
 
-  /* O mês separado por banco: um cartão por banco, os documentos dentro. */
+  /* O mês do cliente é uma matriz: banco na linha, documento na coluna. Três
+     bancos e três documentos numa grade se leem de relance; em três cartões
+     com os mesmos três botões, não. */
   .por-banco { margin-bottom: var(--esp-4); }
-  .banco-cartao-doc {
-    border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface);
-    padding: var(--esp-3); margin-bottom: var(--esp-2);
+  /* Grade curta de propósito: com a tabela na largura toda, os ✓ ficavam na
+     outra ponta da tela e o olho tinha que viajar do nome até a marca. */
+  .matriz-banco { width: 100%; max-width: 560px; border-collapse: collapse; }
+  .matriz-banco th {
+    font-size: var(--t-xs); font-weight: 600; color: var(--ink-faint);
+    padding: 0 0 var(--esp-2); text-align: center; white-space: nowrap;
   }
-  .bcd-cab { display: flex; align-items: center; gap: var(--esp-3); margin-bottom: var(--esp-2); }
-  .bcd-titulo { flex: 1; min-width: 0; }
-  .bcd-nome { font-weight: 600; }
-  .bcd-resumo { font-size: var(--t-sm); color: var(--ink-faint); }
-  .bcd-docs { display: flex; flex-wrap: wrap; gap: 6px; }
-  .banco-doc {
-    display: inline-flex; align-items: center; gap: 6px;
-    min-height: 38px; padding: 0 12px; border-radius: var(--r-sm);
-    border: 1px dashed var(--border-forte); background: var(--surface);
-    font: 500 var(--t-sm)/1 var(--font-body); color: var(--ink-soft); cursor: pointer;
+  .matriz-banco th i { display: block; font-size: 15px; margin-bottom: 2px; }
+  .matriz-banco th.mb-canto { text-align: left; }
+  .matriz-banco td { padding: 4px 0; border-top: 1px solid var(--border); }
+  .mb-banco { display: flex; align-items: center; gap: var(--esp-2); min-width: 0; padding-right: var(--esp-3) !important; }
+  .mb-banco .banco-selo { width: 30px; height: 30px; font-size: 8px; }
+  .mb-nome { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mb-cel { width: 68px; text-align: center; }
+  /* A célula é o alvo: marca ou desmarca aquele documento daquele banco. */
+  .mb-marca {
+    width: 40px; height: 40px; border-radius: var(--r-sm); cursor: pointer;
+    display: inline-grid; place-items: center;
+    border: 1px solid var(--border); background: var(--surface); color: var(--ink-faint);
   }
-  .banco-doc i { font-size: 15px; color: var(--ink-faint); }
-  .banco-doc:hover { border-color: var(--ink-faint); color: var(--ink); }
-  .banco-doc.veio {
-    border-style: solid; background: var(--success-soft);
+  .mb-marca i { font-size: 17px; }
+  .mb-marca:hover { border-color: var(--border-forte); color: var(--ink); }
+  .mb-marca.veio {
+    background: var(--success-soft); color: var(--success-forte);
     border-color: color-mix(in srgb, var(--success-forte) 35%, var(--border));
-    color: var(--success-forte); font-weight: 600;
   }
-  .banco-doc.veio i { color: var(--success-forte); }
-  @media (max-width: 700px) { .banco-doc { min-height: 44px; flex: 1 1 auto; justify-content: center; } }
+  @media (max-width: 700px) {
+    /* No celular a grade vira um bloco por banco, com o rótulo ao lado. */
+    .matriz-banco thead { display: none; }
+    .matriz-banco tr { display: block; padding: var(--esp-2) 0; border-top: 1px solid var(--border); }
+    .matriz-banco td { display: flex; align-items: center; gap: var(--esp-2); border: 0; padding: 2px 0; }
+    .mb-cel { width: auto; justify-content: flex-start; }
+    .mb-cel::before { content: attr(data-rot); flex: 1; font-size: var(--t-sm); color: var(--ink-soft); }
+    .mb-marca { width: 44px; height: 44px; }
+  }
 
   /* um banco por linha: o que chegou e o que falta, clicável */
   .bancos-doc { display: flex; flex-wrap: wrap; gap: 6px; margin: var(--esp-2) 0 0; }
@@ -4078,36 +4091,46 @@
     }
     var exigidos = tiposExigidos(cliente.id);
     if (bancoDaFicha) deles = deles.filter(function (b) { return b === bancoDaFicha; });
+
+    var tabela = el('table', 'matriz-banco');
+    var thead = el('thead');
+    var trCab = el('tr');
+    trCab.appendChild(el('th', 'mb-canto', 'Banco'));
+    exigidos.forEach(function (tipo) {
+      var th = el('th');
+      th.appendChild(iconeDoTipo(tipo));
+      th.appendChild(el('span', null, tipo.curto));
+      trCab.appendChild(th);
+    });
+    thead.appendChild(trCab);
+    tabela.appendChild(thead);
+
+    var tbody = el('tbody');
     deles.forEach(function (bid) {
-      var cartao = el('div', 'banco-cartao-doc');
-      var cab = el('div', 'bcd-cab');
-      cab.appendChild(seloDoBanco(bid));
-      var titulo = el('div', 'bcd-titulo');
-      titulo.appendChild(el('div', 'bcd-nome', nomeDeBanco(bid)));
-      var faltamAqui = exigidos.filter(function (t) { return bancosFaltando(cliente.id, t.chave).indexOf(bid) !== -1; });
-      titulo.appendChild(el('div', 'bcd-resumo', faltamAqui.length
-        ? 'falta ' + juntarNomes(faltamAqui.map(function (t) { return t.curto.toLowerCase(); }))
-        : 'tudo entregue'));
-      cab.appendChild(titulo);
-      if (!faltamAqui.length) cab.appendChild(badge('completo', 'ok', 'ph-check'));
-      cartao.appendChild(cab);
-      var linha = el('div', 'bcd-docs');
+      var tr = el('tr');
+      var tdNome = el('td', 'mb-banco');
+      tdNome.appendChild(seloDoBanco(bid));
+      tdNome.appendChild(el('span', 'mb-nome', nomeDeBanco(bid)));
+      tr.appendChild(tdNome);
       exigidos.forEach(function (tipo) {
         var veio = bancosRecebidos(cliente.id, tipo.chave).indexOf(bid) !== -1;
-        var bt = el('button', 'banco-doc' + (veio ? ' veio' : ''));
+        var td = el('td', 'mb-cel');
+        td.dataset.rot = tipo.curto;
+        var bt = el('button', 'mb-marca' + (veio ? ' veio' : ''));
         bt.type = 'button';
-        bt.appendChild(iconeDoTipo(tipo));
-        bt.appendChild(el('span', null, tipo.curto));
+        bt.appendChild(ico(veio ? 'ph-check' : 'ph-minus'));
         bt.title = veio
           ? tipo.curto + ' do ' + nomeDeBanco(bid) + ' recebido. Clique para desmarcar.'
           : 'Clique se o ' + tipo.curto.toLowerCase() + ' do ' + nomeDeBanco(bid) + ' chegou por fora do Gmail.';
         bt.setAttribute('aria-label', bt.title);
         bt.addEventListener('click', function () { alternarBanco(cliente, bid, tipo, !veio); });
-        linha.appendChild(bt);
+        td.appendChild(bt);
+        tr.appendChild(td);
       });
-      cartao.appendChild(linha);
-      caixa.appendChild(cartao);
+      tbody.appendChild(tr);
     });
+    tabela.appendChild(tbody);
+    caixa.appendChild(tabela);
     if (souAdmin) caixa.appendChild(escolherBancosDoCliente(cliente, deles));
     return caixa;
   }
