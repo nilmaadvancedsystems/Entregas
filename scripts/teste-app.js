@@ -42,7 +42,8 @@ igual('números do mês', [n.feitas, n.falhas, n.noLink, n.comAssinatura, n.soFo
   [3, 2, 1, 1, 1, 1, { nome: 'João', n: 2 }, { nome: 'Cliente ausente', n: 2 }, { nome: 'PADARIA', n: 2 }]);
 
 // ---------- bancos do cliente no cadastro ----------
-const ficam = new Function(pega('bancosQueFicam_') + '; return bancosQueFicam_;')();
+// a regra vive em bancos-nilma.js; o entregas.html só chama
+const ficam = require('../bancos-nilma').bancosQueFicam;
 igual('desmarcar banco que o robô aprendeu vira recusado', ficam({ bancos: ['bb', 'itau'], bancosPeloRobo: ['itau'] }, ['bb']), { bancos: ['bb'], bancosRecusados: ['itau'] });
 igual('desmarcar banco posto à mão não vira recusado', ficam({ bancos: ['bb', 'itau'], bancosPeloRobo: [] }, ['bb']), { bancos: ['bb'], bancosRecusados: [] });
 igual('marcar de novo tira da lista de recusados', ficam({ bancos: [], bancosRecusados: ['itau'] }, ['itau']), { bancos: ['itau'], bancosRecusados: [] });

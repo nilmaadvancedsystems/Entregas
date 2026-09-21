@@ -159,7 +159,11 @@ service cloud.firestore {
       allow update: if ehAdmin() ||
         // 'ocorrencias' é anotação de atendimento (reclamou, elogiou,
         // combinou): quem atende registra, não é mexer no cadastro.
-        (logado() && so(['geo', 'zona', 'grupoLocal', 'honorarioForma', 'honorarioDia', 'pontoReferencia', 'email', 'emails', 'entrega', 'ocorrencias']));
+        // 'bancos'/'bancosRecusados': em quais bancos o cliente tem conta. É
+        // conferência de quem cobra o extrato, e quem corrige está olhando o
+        // documento — o robô aprende sozinho e erra; alguém precisa poder
+        // arrumar sem ser admin.
+        (logado() && so(['geo', 'zona', 'grupoLocal', 'honorarioForma', 'honorarioDia', 'pontoReferencia', 'email', 'emails', 'entrega', 'ocorrencias', 'bancos', 'bancosRecusados']));
     }
 
     // ---------- entregas ----------

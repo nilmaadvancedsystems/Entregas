@@ -88,5 +88,15 @@ igual('dois bancos com e', BancosNilma.nomesDosBancos(['itau', 'bb']), 'Itaú e 
 igual('três bancos com vírgula e e', BancosNilma.nomesDosBancos(['sicoob', 'itau', 'bb']), 'Sicoob, Itaú e Banco do Brasil');
 igual('banco que saiu da lista devolve o próprio id', BancosNilma.nomeDoBanco('banco_que_nao_existe'), 'banco_que_nao_existe');
 
+// ---------- escolher o banco na mão, sem o robô repor o que foi tirado ----------
+const ficam = BancosNilma.bancosQueFicam;
+igual('pôr banco à mão em cliente sem nenhum', ficam({}, ['sicoob', 'itau']), { bancos: ['sicoob', 'itau'], bancosRecusados: [] });
+igual('tirar banco que o robô aprendeu manda pra recusados',
+  ficam({ bancos: ['bb', 'itau'], bancosPeloRobo: ['itau'] }, ['bb']), { bancos: ['bb'], bancosRecusados: ['itau'] });
+igual('tirar banco posto à mão só sai',
+  ficam({ bancos: ['bb', 'itau'], bancosPeloRobo: [] }, ['bb']), { bancos: ['bb'], bancosRecusados: [] });
+igual('pôr de volta tira da lista de recusados',
+  ficam({ bancos: [], bancosRecusados: ['itau'] }, ['itau']), { bancos: ['itau'], bancosRecusados: [] });
+
 console.log(falhas ? falhas + ' de ' + total + ' FALHARAM' : total + ' testes, todos passaram');
 process.exit(falhas ? 1 : 0);

@@ -879,6 +879,19 @@
   .situacao-linha .resultado { color: var(--ink-faint); }
   .situacao-linha .resultado:not(:empty)::before { content: " · "; }
 
+  /* escolher em quais bancos o cliente tem conta (cadastro, não é o mês) */
+  .bancos-escolher { margin-top: var(--esp-3); }
+  .bancos-grade-escolha { display: grid; grid-template-columns: repeat(auto-fill, minmax(172px, 1fr)); gap: 6px; }
+  .banco-escolha {
+    display: flex; align-items: center; gap: var(--esp-2); text-align: left;
+    min-height: 44px; padding: 0 10px 0 6px; border-radius: var(--r-sm);
+    border: 1px solid var(--border); background: var(--surface);
+    font: 500 var(--t-sm)/1.2 var(--font-body); color: var(--ink-soft); cursor: pointer;
+  }
+  .banco-escolha .banco-selo { width: 30px; height: 30px; font-size: 8px; }
+  .banco-escolha:hover { border-color: var(--border-forte); color: var(--ink); }
+  .banco-escolha.tem { border-color: var(--accent); color: var(--ink); background: var(--accent-soft); font-weight: 600; }
+
   /* ---------- página Bancos ---------- */
   /* A grade é a escolha: cada cartão é um banco, com quanto falta dele.
      Ordem por quem mais deve — é por onde se começa o dia. */
@@ -2807,6 +2820,30 @@
   }
   // Marcar/desmarcar UM banco do mês. Marcar o primeiro já liga o extrato;
   // desmarcar o último desliga, senão o mês ficava "com extrato" sem nenhum.
+  // Em quais bancos este cliente tem conta. O robô aprende sozinho ao ler o
+  // primeiro extrato de cada um; aqui se confere e corrige. Quem tira um que
+  // o robô aprendeu manda ele pra bancosRecusados, senão volta na próxima
+  // leitura (a regra é a mesma do cadastro no Entregas).
+  function salvarBancosDoCliente(cliente, marcados) {
+    var chave = cliente.id + '_bancos';
+    if (salvandoDoc.has(chave)) return;
+    salvandoDoc.add(chave);
+    var antes = { bancos: (cliente.bancos || []).slice(), bancosRecusados: (cliente.bancosRecusados || []).slice() };
+    var novo = window.BancosNilma.bancosQueFicam(cliente, marcados);
+    db.collection('clientes').doc(cliente.id).update(novo)
+      .then(function () {
+        salvandoDoc.delete(chave);
+        registrarAuditoria('bancos_do_cliente', clienteLabel(cliente) + ' · ' + (novo.bancos.length ? nomesDeBancos(novo.bancos) : 'nenhum'));
+        toast('Bancos do cliente salvos.', 'ok', { rotulo: 'Desfazer', acao: function () { salvarBancosDoCliente(cliente, antes.bancos); } });
+      })
+      .catch(function (err) {
+        salvandoDoc.delete(chave);
+        toast(err && err.code === 'permission-denied'
+          ? 'Só o admin pode mexer nos bancos do cliente.'
+          : 'Erro ao salvar: ' + err.message, 'erro');
+      });
+  }
+
   function alternarBanco(cliente, bancoId, marcar) {
     var comp = competenciaStr(competenciaAtual);
     var chave = cliente.id + '_banco_' + bancoId + '_' + comp;
@@ -3820,6 +3857,46 @@
     return selo;
   }
 
+  // Grade com todos os bancos da lista, marcando os deste cliente. Fica
+  // dobrada: é cadastro, não é o trabalho do dia.
+  function escolherBancosDoCliente(cliente, atuais) {
+    var dob = el('details', 'dobra leve bancos-escolher');
+    var sum = el('summary');
+    sum.textContent = atuais.length ? 'Mudar os bancos deste cliente' : 'Escolher os bancos deste cliente';
+    dob.appendChild(sum);
+    var corpoD = el('div', 'dobra-corpo');
+    var grade = el('div', 'bancos-grade-escolha');
+    var marcados = atuais.slice();
+    (window.BancosNilma ? window.BancosNilma.BANCOS : []).forEach(function (b) {
+      var tem = marcados.indexOf(b.id) !== -1;
+      var bt = el('button', 'banco-escolha' + (tem ? ' tem' : ''));
+      bt.type = 'button';
+      bt.setAttribute('aria-pressed', String(tem));
+      bt.appendChild(seloDoBanco(b.id));
+      bt.appendChild(el('span', null, b.nome));
+      bt.addEventListener('click', function () {
+        var i = marcados.indexOf(b.id);
+        if (i === -1) marcados.push(b.id); else marcados.splice(i, 1);
+        bt.classList.toggle('tem', i === -1);
+        bt.setAttribute('aria-pressed', String(i === -1));
+        salvarBt.disabled = false;
+      });
+      grade.appendChild(bt);
+    });
+    corpoD.appendChild(grade);
+    var salvarBt = el('button', 'btn btn-secondary btn-sm', 'Salvar os bancos');
+    salvarBt.type = 'button';
+    salvarBt.disabled = true;
+    salvarBt.style.marginTop = 'var(--esp-2)';
+    salvarBt.addEventListener('click', function () {
+      salvarBt.disabled = true;
+      salvarBancosDoCliente(cliente, marcados);
+    });
+    corpoD.appendChild(salvarBt);
+    dob.appendChild(corpoD);
+    return dob;
+  }
+
   function renderBancos() {
     if (paginaAtual !== 'bancos' || telaCliente) return;
     $('bancosMesLabel').textContent = competenciaLabel(competenciaAtual);
@@ -4518,12 +4595,13 @@
       }
       corpo.appendChild(linha1);
 
-      // Extrato: uma linha por banco do cliente. Sem banco no cadastro, a
-      // tela segue como era — é o caso de quem só manda um extrato mesmo.
+      // Extrato: uma linha por banco em que o cliente tem conta. A seção
+      // existe mesmo sem banco nenhum no cadastro — é justamente aí que ela
+      // precisa aparecer, pra alguém dizer quais são.
       if (tipo.chave === 'extrato' && !sm) {
         var doCliente = bancosDoCliente(cliente.id);
+        var chegaram = bancosRecebidos(cliente.id);
         if (doCliente.length) {
-          var chegaram = bancosRecebidos(cliente.id);
           var caixaB = el('div', 'bancos-doc');
           doCliente.forEach(function (bid) {
             var veio = chegaram.indexOf(bid) !== -1;
@@ -4541,11 +4619,16 @@
           corpo.appendChild(caixaB);
           var faltamB = bancosFaltando(cliente.id);
           if (marcado && !chegaram.length) {
-            corpo.appendChild(el('div', 'doc-origem', 'Chegou extrato, mas o banco não foi identificado — marque acima de qual banco é.'));
+            corpo.appendChild(el('div', 'doc-origem', 'Chegou extrato, mas o banco não foi identificado — marque abaixo de qual banco é.'));
           } else if (faltamB.length) {
             corpo.appendChild(el('div', 'doc-origem', 'Falta o extrato de ' + nomesDeBancos(faltamB) + '.'));
           }
+        } else {
+          corpo.appendChild(el('div', 'doc-origem', 'Nenhum banco no cadastro. O robô aprende ao ler o primeiro extrato de cada banco — ou escolha aqui embaixo.'));
         }
+        // Escolher em quais bancos o cliente tem conta. Só admin grava no
+        // cadastro (é a mesma regra do Entregas).
+        if (!na) corpo.appendChild(escolherBancosDoCliente(cliente, doCliente));
       }
 
       var origem = marcado ? descreverOrigem(detalhes[tipo.chave]) : null;

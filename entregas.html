@@ -14448,13 +14448,10 @@
     return '<span class="banco-marca" style="background:' + b[3] + ';color:' + b[4] + '">' + escapeHtml_(b[2]) +
       '<img src="scripts/logos-bancos/' + b[0] + '.png" alt="" loading="lazy" onerror="this.remove()"></span>';
   }
+  // A regra (inclusive o bancosRecusados, pro robô não repor o que alguém
+  // tirou) mora em bancos-nilma.js, que a tela de Pendências também usa.
   function bancosQueFicam_(cliente, marcados) {
-    var peloRobo = cliente.bancosPeloRobo || [];
-    var recusados = (cliente.bancosRecusados || []).filter(function (id) { return marcados.indexOf(id) === -1; });
-    (cliente.bancos || []).forEach(function (id) {
-      if (marcados.indexOf(id) === -1 && peloRobo.indexOf(id) !== -1 && recusados.indexOf(id) === -1) recusados.push(id);
-    });
-    return { bancos: marcados, bancosRecusados: recusados };
+    return window.BancosNilma.bancosQueFicam(cliente, marcados);
   }
 
   function abrirCadastroCliente_(cliente, aoFechar) {

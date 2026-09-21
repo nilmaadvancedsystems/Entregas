@@ -55,7 +55,22 @@
     return nomes.slice(0, -1).join(', ') + ' e ' + nomes[nomes.length - 1];
   }
 
-  var api = { BANCOS: BANCOS, porId: porId, nomeDoBanco: nomeDoBanco, nomesDosBancos: nomesDosBancos };
+  // Quais bancos ficam no cadastro depois de alguém marcar/desmarcar.
+  //
+  // A sutileza é o desmarcar: banco que o ROBÔ aprendeu sozinho (leu no
+  // cabeçalho de um extrato) e que a pessoa tirou vai pra bancosRecusados —
+  // senão o robô repõe na próxima leitura e a correção não dura. Banco posto
+  // à mão sai e pronto. Marcar de novo tira da lista de recusados.
+  function bancosQueFicam(cliente, marcados) {
+    var peloRobo = (cliente && cliente.bancosPeloRobo) || [];
+    var recusados = ((cliente && cliente.bancosRecusados) || []).filter(function (id) { return marcados.indexOf(id) === -1; });
+    ((cliente && cliente.bancos) || []).forEach(function (id) {
+      if (marcados.indexOf(id) === -1 && peloRobo.indexOf(id) !== -1 && recusados.indexOf(id) === -1) recusados.push(id);
+    });
+    return { bancos: marcados, bancosRecusados: recusados };
+  }
+
+  var api = { BANCOS: BANCOS, porId: porId, nomeDoBanco: nomeDoBanco, nomesDosBancos: nomesDosBancos, bancosQueFicam: bancosQueFicam };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else raiz.BancosNilma = api;
 })(typeof window !== 'undefined' ? window : this);
