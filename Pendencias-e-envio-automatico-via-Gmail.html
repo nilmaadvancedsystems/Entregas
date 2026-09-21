@@ -900,6 +900,65 @@
   }
   .banco-selo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; padding: 5px; background: inherit; }
 
+  /* Escolher o modelo pronto na hora de cobrar. */
+  .modelos-cobranca { display: flex; flex-wrap: wrap; gap: 6px; }
+  .modelos-cobranca .chip { display: inline-flex; align-items: center; gap: 6px; }
+  /* 'sugerido' é uma nota dentro do botão, não um segundo botão */
+  .chip-sugerido { font-size: var(--t-xs); font-weight: 400; color: var(--ink-faint); opacity: .9; }
+  .chip-sugerido::before { content: '· '; }
+  .chip[aria-pressed="true"] .chip-sugerido { color: inherit; opacity: .7; }
+  .campo-dica { font-size: var(--t-sm); color: var(--ink-faint); margin: 5px 0 0; }
+
+  /* Gráficos da ficha: barra por mês, sem biblioteca — é pouca coisa e o
+     app já desenha barra assim nos cartões da lista. */
+  .grafico-bloco { margin-top: var(--esp-5); }
+  .grafico-titulo { font-size: var(--t-md); font-weight: 600; margin-bottom: var(--esp-3); }
+  .grafico-pe { font-size: var(--t-sm); color: var(--ink-faint); margin-top: var(--esp-2); }
+  .gb-linha { display: flex; align-items: flex-end; gap: var(--esp-3); margin-bottom: var(--esp-3); }
+  .gb-nome { flex: 0 0 172px; display: flex; align-items: center; gap: var(--esp-2); font-size: var(--t-sm); font-weight: 500; min-width: 0; }
+  .gb-nome .banco-selo { width: 26px; height: 26px; font-size: 7px; }
+  .gb-nome span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .gb-meses, .gc-meses { flex: 1; display: flex; gap: 4px; align-items: flex-end; min-width: 0; }
+  .gb-mes, .gc-mes { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; }
+  .gb-trilho {
+    width: 100%; height: 40px; display: flex; align-items: flex-end;
+    background: var(--surface-2); border-radius: var(--r-xs); overflow: hidden;
+  }
+  .gb-trilho.sem-mov { background: repeating-linear-gradient(45deg, var(--surface-2), var(--surface-2) 3px, var(--surface-3) 3px, var(--surface-3) 6px); }
+  .gb-barra { width: 100%; border-radius: var(--r-xs); background: var(--success); }
+  .gb-barra.parcial { background: var(--warning); }
+  .gb-barra.vazio { background: var(--border-forte); }
+  .gb-rot { font-size: 9px; color: var(--ink-faint); }
+  .gc-pilha { display: flex; flex-direction: column-reverse; gap: 2px; justify-content: flex-start; height: 40px; width: 100%; }
+  .gc-tick { display: block; height: 5px; border-radius: 2px; background: var(--accent); }
+  .gc-resp { font-size: var(--t-xs); font-variant-numeric: tabular-nums; color: var(--ink-faint); }
+  .gc-resp.rapido { color: var(--success-forte); font-weight: 600; }
+  .gc-resp.medio { color: var(--warning-forte); }
+  .gc-resp.lento { color: var(--danger); font-weight: 600; }
+  @media (max-width: 700px) { .gb-nome { flex-basis: 108px; } }
+
+  /* Seletor de banco: escolhe de qual banco é a conversa da ficha inteira. */
+  .seletor-banco {
+    display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 var(--esp-3);
+    padding-bottom: var(--esp-2); border-bottom: 1px solid var(--border);
+  }
+  .sb-aba {
+    display: inline-flex; align-items: center; gap: var(--esp-2);
+    min-height: 44px; padding: 0 12px 0 8px; border-radius: var(--r-sm);
+    border: 1px solid transparent; background: none; cursor: pointer;
+    font: 500 var(--t-base)/1 var(--font-body); color: var(--ink-soft);
+  }
+  .sb-aba .banco-selo { width: 28px; height: 28px; font-size: 8px; }
+  .sb-aba:hover { background: var(--surface-2); color: var(--ink); }
+  .sb-aba.ativa { background: var(--surface-3); border-color: var(--border-forte); color: var(--ink); font-weight: 600; }
+  .sb-num {
+    min-width: 20px; padding: 0 5px; border-radius: var(--r-pill);
+    background: var(--warning-soft); color: var(--warning-forte);
+    font: 600 var(--t-xs)/18px var(--font-body); text-align: center;
+  }
+  .mais-rotulo { font-size: var(--t-xs); color: var(--ink-faint); padding: 4px 10px 2px; }
+  .mais-lista .btn.na-ligado { color: var(--ink-faint); }
+
   /* O mês separado por banco: um cartão por banco, os documentos dentro. */
   .por-banco { margin-bottom: var(--esp-4); }
   .banco-cartao-doc {
@@ -1627,12 +1686,17 @@
                     <button type="button" class="btn" id="btnPedirColeta"><i class="ph ph-motorcycle" aria-hidden="true"></i> Pedir coleta ao office boy</button>
                     <div class="mais-sep"></div>
                     <button type="button" class="btn" id="btnSemMovimento"><i class="ph ph-minus-circle" aria-hidden="true"></i> Mês sem movimento</button>
+                    <div class="mais-sep"></div>
+                    <div class="mais-rotulo">Não se aplica a este cliente</div>
+                    <div id="naoSeAplicaLista"></div>
                   </div>
                 </details>
               </div>
             </div>
             <div id="docsPrazo" class="alerta-pend" hidden></div>
+            <div class="seletor-banco" id="seletorBanco" role="tablist" aria-label="Banco"></div>
             <div class="doc-lista" id="detDocs"></div>
+            <div id="graficoBanco"></div>
             <div class="campo" style="margin-top:var(--esp-4);max-width:640px">
               <label for="detObs">Observação do mês</label>
               <div class="campo-inline">
@@ -1738,6 +1802,11 @@
       <div class="campo">
         <label>Documentos cobrados</label>
         <div class="lista-tipos" id="cobTipos"></div>
+      </div>
+      <div class="campo" id="cobModeloCampo">
+        <label>Modelo</label>
+        <div class="modelos-cobranca" id="cobModelos" role="group" aria-label="Modelo da mensagem"></div>
+        <p class="campo-dica" id="cobModeloDica"></p>
       </div>
       <div class="campo">
         <label for="cobAssunto">Assunto</label>
@@ -3813,6 +3882,159 @@
     return selo;
   }
 
+  // ---------- gráfico: quem entrega e quem atrasa ----------
+  // Uma linha por banco, uma coluna por mês, com o que aquele banco entregou
+  // naquele mês. Serve pra enxergar o que a tabela não diz: o Sicoob sempre
+  // atrasa, o Itaú nunca falha. Tudo sai do histórico que já está carregado.
+  function renderGraficoDoBanco(cliente) {
+    var caixa = $('graficoBanco');
+    if (!caixa) return;
+    caixa.innerHTML = '';
+    var deles = bancosDoCliente(cliente.id);
+    if (bancoDaFicha) deles = deles.filter(function (b) { return b === bancoDaFicha; });
+    var comps = competenciasDoGrafico();
+    var docs = docsDe(cliente.id);
+    var exigidos = tiposExigidos(cliente.id);
+    if (!deles.length || !exigidos.length) return;
+
+    var bloco = el('div', 'grafico-bloco');
+    bloco.appendChild(el('h3', 'grafico-titulo', 'Últimos ' + comps.length + ' meses, banco a banco'));
+    deles.forEach(function (bid) {
+      var linha = el('div', 'gb-linha');
+      var nome = el('div', 'gb-nome');
+      nome.appendChild(seloDoBanco(bid));
+      nome.appendChild(el('span', null, nomeDeBanco(bid)));
+      linha.appendChild(nome);
+      var grade = el('div', 'gb-meses');
+      comps.forEach(function (comp) {
+        var dado = docs[comp] || {};
+        var col = el('div', 'gb-mes');
+        var trilho = el('div', 'gb-trilho');
+        if (dado.semMovimento) {
+          trilho.classList.add('sem-mov');
+          col.title = rotuloCurtoDoMes(comp) + ': mês sem movimento';
+        } else {
+          // quantos dos documentos exigidos daquele banco chegaram no mês
+          var chegaram = exigidos.filter(function (t) {
+            return bancosRecebidos(cliente.id, t.chave, dado).indexOf(bid) !== -1;
+          }).length;
+          var pct = Math.round(chegaram / exigidos.length * 100);
+          var barra = el('span', 'gb-barra' + (pct === 100 ? ' cheio' : pct ? ' parcial' : ' vazio'));
+          barra.style.height = Math.max(pct, 4) + '%';
+          trilho.appendChild(barra);
+          col.title = rotuloCurtoDoMes(comp) + ': ' + chegaram + ' de ' + exigidos.length + ' documentos do ' + nomeDeBanco(bid);
+        }
+        col.appendChild(trilho);
+        col.appendChild(el('span', 'gb-rot', rotuloCurtoDoMes(comp).slice(0, 3)));
+        grade.appendChild(col);
+      });
+      linha.appendChild(grade);
+      bloco.appendChild(linha);
+    });
+    caixa.appendChild(bloco);
+    caixa.appendChild(graficoDeCobranca(cliente, comps, docs));
+  }
+
+  // Cobrar adianta? Por mês: quantas cobranças saíram e quantos dias o
+  // cliente levou da primeira cobrança até o primeiro documento chegar.
+  function graficoDeCobranca(cliente, comps, docs) {
+    var bloco = el('div', 'grafico-bloco');
+    bloco.appendChild(el('h3', 'grafico-titulo', 'Cobrança e resposta'));
+    var grade = el('div', 'gc-meses');
+    var houve = false;
+    comps.forEach(function (comp) {
+      var dado = docs[comp] || {};
+      var cobs = (dado.cobrancas || []).filter(function (c) { return c.canal !== 'coleta'; })
+        .sort(function (a, b) { return String(a.em).localeCompare(String(b.em)); });
+      var det = dado.detalhes || {};
+      var chegadas = TIPOS.map(function (t) { return det[t.chave] && det[t.chave].em; }).filter(Boolean).sort();
+      // Data torta (documento antigo, campo escrito à mão) não pode virar
+      // "NaNd" na tela: vira 'não dá pra dizer'.
+      var dias = null;
+      if (cobs.length && chegadas.length) {
+        var conta = Math.round((new Date(chegadas[0]) - new Date(cobs[0].em)) / 864e5);
+        if (isFinite(conta)) dias = conta;
+      }
+      if (cobs.length) houve = true;
+      var col = el('div', 'gc-mes');
+      var pilha = el('div', 'gc-pilha');
+      for (var i = 0; i < Math.min(cobs.length, 6); i++) pilha.appendChild(el('span', 'gc-tick'));
+      col.appendChild(pilha);
+      var resp = el('div', 'gc-resp' + (dias === null ? ' sem' : dias <= 0 ? ' antes' : dias <= 3 ? ' rapido' : dias <= 7 ? ' medio' : ' lento'));
+      resp.textContent = dias === null ? (cobs.length ? '—' : '·') : (dias <= 0 ? 'no dia' : dias + 'd');
+      col.appendChild(resp);
+      col.appendChild(el('span', 'gb-rot', rotuloCurtoDoMes(comp).slice(0, 3)));
+      col.title = rotuloCurtoDoMes(comp) + ': ' + (cobs.length ? plural(cobs.length, 'cobrança', 'cobranças') : 'nenhuma cobrança')
+        + (dias === null ? '' : dias <= 0 ? ', o documento chegou sem precisar' : ', primeiro documento ' + plural(dias, 'dia', 'dias') + ' depois');
+      grade.appendChild(col);
+    });
+    bloco.appendChild(grade);
+    bloco.appendChild(el('p', 'grafico-pe', houve
+      ? 'Cada traço é uma cobrança; embaixo, quantos dias até o primeiro documento chegar.'
+      : 'Este cliente não foi cobrado nestes meses.'));
+    return bloco;
+  }
+
+  // ---------- de qual banco estamos falando ----------
+  // Null = todos. Escolher um banco estreita a ficha inteira: os cartões, o
+  // gráfico e a cobrança passam a ser daquele banco.
+  var bancoDaFicha = null;
+
+  function renderSeletorDeBanco(cliente) {
+    var caixa = $('seletorBanco');
+    if (!caixa) return;
+    var deles = bancosDoCliente(cliente.id);
+    caixa.innerHTML = '';
+    caixa.hidden = deles.length < 2;   // um banco só não é escolha
+    if (caixa.hidden) { bancoDaFicha = null; return; }
+    if (bancoDaFicha && deles.indexOf(bancoDaFicha) === -1) bancoDaFicha = null;
+    var exigidos = tiposExigidos(cliente.id);
+    function aba(id, rotulo, quantos) {
+      var b = el('button', 'sb-aba' + (bancoDaFicha === id ? ' ativa' : ''));
+      b.type = 'button';
+      b.setAttribute('role', 'tab');
+      b.setAttribute('aria-selected', String(bancoDaFicha === id));
+      if (id) b.appendChild(seloDoBanco(id));
+      b.appendChild(el('span', 'sb-rot', rotulo));
+      if (quantos) b.appendChild(el('span', 'sb-num', String(quantos)));
+      b.addEventListener('click', function () {
+        bancoDaFicha = id;
+        renderDetalhe();
+      });
+      caixa.appendChild(b);
+    }
+    var faltaTudo = 0;
+    deles.forEach(function (bid) {
+      faltaTudo += exigidos.filter(function (t) { return bancosFaltando(cliente.id, t.chave).indexOf(bid) !== -1; }).length;
+    });
+    aba(null, 'Todos os bancos', faltaTudo);
+    deles.forEach(function (bid) {
+      var faltam = exigidos.filter(function (t) { return bancosFaltando(cliente.id, t.chave).indexOf(bid) !== -1; }).length;
+      aba(bid, nomeDeBanco(bid), faltam);
+    });
+  }
+
+  // O que era o rodapé da lista de documentos: só admin, e só faz sentido
+  // pro cliente que não tem aquele documento (aplicação, quase sempre).
+  function renderNaoSeAplica(cliente) {
+    var caixa = $('naoSeAplicaLista');
+    if (!caixa) return;
+    caixa.innerHTML = '';
+    caixa.hidden = !souAdmin;
+    if (!souAdmin) return;
+    TIPOS.forEach(function (tipo) {
+      var na = naoSeAplica(cliente.id, tipo.chave);
+      var b = el('button', 'btn' + (na ? ' na-ligado' : ''));
+      b.type = 'button';
+      b.appendChild(ico(na ? 'ph-prohibit' : 'ph-circle'));
+      b.appendChild(document.createTextNode(' ' + tipo.label));
+      b.title = na ? tipo.label + ' não é exigido deste cliente. Clique para voltar a exigir.'
+                   : 'Clique se este cliente não tem ' + tipo.label.toLowerCase() + '.';
+      b.addEventListener('click', function () { alternarNaoAplica(cliente, tipo, !na); });
+      caixa.appendChild(b);
+    });
+  }
+
   // O mês separado por banco: um cartão por banco, e dentro dele os três
   // documentos. Cliente com conta em três bancos deve nove documentos, e
   // é isso que a tela precisa dizer — não "faltam 2 de 3 tipos".
@@ -3826,6 +4048,7 @@
       return caixa;
     }
     var exigidos = tiposExigidos(cliente.id);
+    if (bancoDaFicha) deles = deles.filter(function (b) { return b === bancoDaFicha; });
     deles.forEach(function (bid) {
       var cartao = el('div', 'banco-cartao-doc');
       var cab = el('div', 'bcd-cab');
@@ -4434,113 +4657,10 @@
     }
     container.appendChild(painelPorBanco(cliente, status, sm));
 
-    TIPOS.forEach(function (tipo) {
-      var marcado = !!status[tipo.chave];
-      var na = naoSeAplica(cliente.id, tipo.chave);
-      var item = el('div', 'doc-item');
-      var botao = el('button', 'doc-ind' + (marcado ? ' recebido' : '') + (na ? ' na' : ''));
-      botao.type = 'button';
-      botao.dataset.tipo = tipo.chave;
-      botao.appendChild(iconeDoTipo(tipo));
-      botao.title = na ? 'Não se aplica a este cliente' : marcado ? 'Clique para desmarcar' : 'Clique para marcar como recebido';
-      botao.setAttribute('aria-label', tipo.label + ', ' + (na ? 'não se aplica' : marcado ? 'recebido' : 'em falta'));
-      botao.disabled = na || sm;
-      if (salvandoDoc.has(cliente.id + '_' + tipo.chave + '_' + competenciaStr(competenciaAtual))) botao.classList.add('salvando');
-      botao.addEventListener('click', function () { alternarDoc(cliente, tipo, !marcado); });
-      item.appendChild(botao);
-
-      var corpo = el('div', 'doc-corpo');
-      var linha1 = el('div', 'doc-linha1');
-      linha1.appendChild(el('span', 'doc-nome', tipo.label));
-      var faltamNoTipo = bancosFaltando(cliente.id, tipo.chave);
-      linha1.appendChild(na ? badge('não se aplica', 'quieto', 'ph-prohibit')
-        : sm ? badge('sem movimento', 'quieto', 'ph-minus-circle')
-        : faltamNoTipo.length ? badge(marcado ? 'falta ' + faltamNoTipo.length + ' de ' + bancosDoCliente(cliente.id).length : 'em falta', 'pend', 'ph-hourglass')
-        : marcado ? badge('recebido', 'ok', 'ph-check')
-        : badge('em falta', 'pend', 'ph-hourglass'));
-      // Admin decide o que é exigido de cada cliente.
-      if (souAdmin && !marcado) {
-        var bNa = el('button', 'btn btn-ghost btn-sm', na ? 'voltar a exigir' : 'não se aplica a este cliente');
-        bNa.type = 'button';
-        bNa.style.marginLeft = 'auto';
-        bNa.addEventListener('click', function () { alternarNaoAplica(cliente, tipo, !na); });
-        linha1.appendChild(bNa);
-      }
-      corpo.appendChild(linha1);
-
-      // Quem marca por banco é o painel lá em cima; aqui fica a procedência.
-      if (marcado && !bancosDoCliente(cliente.id).length) {
-        // nada: sem banco no cadastro o tipo é sim/não, como sempre foi
-      }
-
-      var origem = marcado ? descreverOrigem(detalhes[tipo.chave]) : null;
-      if (marcado) {
-        if (origem && origem.robo) botao.classList.add('gmail');
-        var linhaOrigem = el('div', 'doc-origem');
-        linhaOrigem.appendChild(ico(origem ? origem.icone : 'ph-question'));
-        var infoMov = detalhes[tipo.chave] && detalhes[tipo.chave].movidoDe;
-        linhaOrigem.appendChild(el('span', null, (origem ? origem.texto : 'Origem não registrada (marcado antes deste controle existir)') + (infoMov ? ', movido de ' + rotuloCurtoDoMes(infoMov) : '')));
-        corpo.appendChild(linhaOrigem);
-        if (origem && origem.arquivos.length) {
-          var ul = el('ul', 'doc-arquivos');
-          origem.arquivos.forEach(function (nomeArq) { ul.appendChild(el('li', null, nomeArq)); });
-          corpo.appendChild(ul);
-        }
-        // Ações sobre a marcação ficam dobradas: mover de mês e, se foi o
-        // robô, reportar erro. Aparecem só quando alguém abre "Opções".
-        var dobraDoc = el('details', 'dobra leve doc-opcoes');
-        var sumDoc = el('summary');
-        sumDoc.title = 'Opções desta marcação';
-        sumDoc.setAttribute('aria-label', 'Opções da marcação de ' + tipo.label);
-        sumDoc.appendChild(ico('ph-dots-three'));
-        dobraDoc.appendChild(sumDoc);
-        var acoesDoc = el('div', 'doc-acoes');
-        dobraDoc.appendChild(acoesDoc);
-        var selMes = el('select', 'select');
-        selMes.style.cssText = 'height:28px;width:auto;font-size:var(--t-sm)';
-        selMes.appendChild(new Option('Mover para outro mês...', ''));
-        var compAtual = competenciaStr(competenciaAtual);
-        competenciasDoGrafico().slice().reverse().forEach(function (comp) { if (comp !== compAtual) selMes.appendChild(new Option(competenciaPorExtenso(comp), comp)); });
-        var compProx = competenciaStr(new Date(competenciaAtual.getFullYear(), competenciaAtual.getMonth() + 1, 1));
-        selMes.appendChild(new Option(competenciaPorExtenso(compProx) + ' (próximo)', compProx));
-        selMes.addEventListener('change', function () { if (selMes.value) moverMarcacao(cliente, tipo, compAtual, selMes.value); });
-        acoesDoc.appendChild(selMes);
-        if (origem && origem.robo) {
-          var bErro = el('button', 'btn btn-ghost btn-sm', 'Marcação errada do robô');
-          bErro.type = 'button';
-          bErro.addEventListener('click', function () {
-            if (acoesDoc.querySelector('.motivo-erro')) return;
-            var caixa = el('div', 'motivo-erro');
-            var inp = el('input', 'input'); inp.placeholder = 'Motivo (opcional): ex. era boleto, não comprovante'; inp.style.height = '30px';
-            var ok = el('button', 'btn btn-secondary btn-sm', 'Desfazer e registrar'); ok.type = 'button';
-            ok.addEventListener('click', function () { reportarErroRobo(cliente, tipo, inp.value.trim()); });
-            var canc = el('button', 'btn btn-ghost btn-sm', 'Cancelar'); canc.type = 'button';
-            canc.addEventListener('click', function () { caixa.remove(); });
-            caixa.appendChild(inp); caixa.appendChild(ok); caixa.appendChild(canc);
-            acoesDoc.appendChild(caixa);
-            inp.focus();
-          });
-          acoesDoc.appendChild(bErro);
-        }
-        corpo.appendChild(dobraDoc);
-      } else if (na || sm) {
-        corpo.appendChild(el('div', 'doc-origem', na ? 'Este cliente não entrega ' + tipo.label.toLowerCase() + '. Não entra na cobrança.' : 'Mês sem movimento: nada a cobrar.'));
-      } else {
-        var cobs = cobrancasDe(cliente.id).filter(function (c) { return (c.tipos || []).indexOf(tipo.chave) !== -1; });
-        var dica = el('div', 'doc-origem');
-        if (cobs.length) {
-          cobs.sort(function (a, b) { return String(b.em).localeCompare(String(a.em)); });
-          dica.appendChild(ico('ph-paper-plane-tilt'));
-          dica.appendChild(el('span', null, 'Cobrado ' + plural(cobs.length, 'vez', 'vezes') + ', a última em ' + dataCurta(cobs[0].em) + (cobs[0].por ? ' por ' + cobs[0].por : '')));
-        } else {
-          dica.appendChild(ico('ph-envelope-simple'));
-          dica.appendChild(el('span', null, cliente.email ? 'Ainda não cobrado neste mês' : 'Sem e-mail cadastrado, não dá pra cobrar'));
-        }
-        corpo.appendChild(dica);
-      }
-      item.appendChild(corpo);
-      container.appendChild(item);
-    });
+    // A lista por tipo de documento saiu: aqui a conversa é banco a banco.
+    renderSeletorDeBanco(cliente);
+    renderNaoSeAplica(cliente);
+    renderGraficoDoBanco(cliente);
   }
 
   // ---------- resumo ----------
@@ -5153,6 +5273,60 @@
     else if (k === 'c') { ev.preventDefault(); abrirDetalhe(focoAtual.cliente.id, 'abaDocs'); }
   });
 
+  // Os modelos prontos, na ordem em que a régua sobe de tom. O que a régua
+  // escolheria fica marcado; trocar reescreve assunto e mensagem na hora.
+  var modeloEscolhido = null;
+  var MODELOS_COBRANCA = [
+    { chave: '1', rotulo: '1ª cobrança', dica: 'Primeiro pedido do mês. Tom cordial.' },
+    { chave: '2', rotulo: 'Lembrete', dica: 'Cita o prazo do mês.' },
+    { chave: '3', rotulo: 'Firme', dica: 'Para quem já ignorou as anteriores. Fala em multa e juros.' }
+  ];
+
+  function renderModelosDaCobranca(cliente, faltando, sugerido) {
+    var caixa = $('cobModelos');
+    if (!caixa) return;
+    caixa.innerHTML = '';
+    MODELOS_COBRANCA.forEach(function (m) {
+      var b = el('button', 'chip' + (modeloEscolhido === m.chave ? ' ativo' : ''));
+      b.type = 'button';
+      b.setAttribute('aria-pressed', String(modeloEscolhido === m.chave));
+      b.textContent = m.rotulo;
+      if (m.chave === sugerido) b.appendChild(el('span', 'chip-sugerido', 'sugerido'));
+      b.title = m.dica;
+      b.addEventListener('click', function () {
+        modeloEscolhido = m.chave;
+        aplicarModeloNaCobranca(cliente, faltando, sugerido);
+      });
+      caixa.appendChild(b);
+    });
+    var atual = MODELOS_COBRANCA.filter(function (m) { return m.chave === modeloEscolhido; })[0];
+    $('cobModeloDica').textContent = atual ? atual.dica : '';
+  }
+
+  // Reescreve assunto e mensagem com o modelo escolhido. Se a pessoa já tinha
+  // mexido no texto, pergunta antes — o trabalho dela vale mais que o modelo.
+  function aplicarModeloNaCobranca(cliente, faltando, sugerido) {
+    var vars = variaveisDe(cliente, faltando);
+    vars.link = linkDoPortal(cliente);
+    var modelo = configCobranca.modelos[modeloEscolhido] || configCobranca.modelos['1'];
+    var corpoAtual = $('cobCorpo').value;
+    if (corpoAtual && corpoAtual !== $('cobCorpo').dataset.gerado &&
+        !confirm('Você mexeu no texto. Trocar o modelo vai reescrever a mensagem. Continuar?')) {
+      modeloEscolhido = $('cobCorpo').dataset.modelo || sugerido;
+      renderModelosDaCobranca(cliente, faltando, sugerido);
+      return;
+    }
+    var corpo = comLinkDoPortal(modelo.corpo, preencherModelo(modelo.corpo, vars), vars.link,
+      '\n\nO que já recebemos e o que ainda falta fica sempre atualizado aqui:\n');
+    $('cobAssunto').value = preencherModelo(modelo.assunto, vars);
+    $('cobCorpo').value = corpo;
+    $('cobCorpo').dataset.gerado = corpo;
+    $('cobCorpo').dataset.modelo = modeloEscolhido;
+    $('modalRodape').textContent = textoRodapeEnvio(
+      modeloEscolhido === '3' ? 'Modelo firme. ' : modeloEscolhido === '2' ? 'Modelo de lembrete. ' : 'Modelo da 1ª cobrança. ');
+    renderModelosDaCobranca(cliente, faltando, sugerido);
+  }
+
   function abrirModalCobranca(clienteId) {
     var cliente = clientesPorId.get(clienteId);
     if (!cliente) return;
@@ -5186,10 +5360,11 @@
     tipos.innerHTML = '';
     if (faltando.length) faltando.forEach(function (t) { tipos.appendChild(badge(t.label, 'pend', t.icone)); });
     else tipos.appendChild(badge('nada em falta', 'ok', 'ph-check'));
-    var msg = montarMensagem(cliente, faltando);
-    $('cobAssunto').value = msg.assunto;
-    $('cobCorpo').value = msg.corpo;
-    $('modalRodape').textContent = textoRodapeEnvio(msg.n >= 3 ? 'Modelo de 3ª cobrança (tom firme). ' : msg.n === 2 ? 'Modelo de lembrete. ' : '');
+    // O que a régua escolheria sozinha; dá pra trocar nos botões acima.
+    var sugerido = String(Math.min(numeroDaCobranca(clienteId), 3));
+    modeloEscolhido = sugerido;
+    $('cobModeloCampo').hidden = false;
+    aplicarModeloNaCobranca(cliente, faltando, sugerido);
     var dlg = $('modalCobrar');
     if (typeof dlg.showModal === 'function') dlg.showModal(); else dlg.setAttribute('open', '');
     setTimeout(function () { (cliente.email ? $('cobCorpo') : $('cobPara')).focus(); $('cobCorpo').scrollTop = 0; }, 30);
@@ -5559,6 +5734,7 @@
     if (!modalLoteIds.length) { toast('Nenhum cliente visível com pendência e e-mail.'); return; }
     modalModo = 'lote';
     modalClienteId = null;
+    $('cobModeloCampo').hidden = true;
     $('modalTitulo').textContent = 'Cobrar ' + plural(modalLoteIds.length, 'cliente', 'clientes') + ' de uma vez';
     $('modalSub').textContent = competenciaLabel(competenciaAtual) + ' · todos em Cco, um e-mail só';
     $('modalAvisos').innerHTML = '';
