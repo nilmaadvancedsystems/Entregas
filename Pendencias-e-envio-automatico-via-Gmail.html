@@ -2814,18 +2814,55 @@
     return lista;
   }
 
+  // ---------- meses antigos: lidos uma vez, guardados no navegador ----------
+  // Ouvir os 6 meses ao vivo custava ~1.900 leituras por abertura da tela, e
+  // a cota gratuita é de 50 mil por dia. Mês fechado quase não muda: só o
+  // aberto e o anterior ficam ao vivo (o robô grava no mês do documento, que
+  // costuma ser o anterior). O resto vale por 12h.
+  var MESES_AO_VIVO = 2;
+  var VALIDADE_DO_HISTORICO_MS = 12 * 60 * 60 * 1000;
+  var CHAVE_HISTORICO = 'nilma.pendencias.historico';
+  var antigosDocs = [];
+  function lerHistoricoGuardado_(comps) {
+    try {
+      var g = JSON.parse(localStorage.getItem(CHAVE_HISTORICO) || 'null');
+      if (!g || g.comps !== comps.join(',') || Date.now() - g.em > VALIDADE_DO_HISTORICO_MS) return null;
+      return g.docs;
+    } catch (e) { return null; }
+  }
+  // Mês antigo não tem ouvinte: quem grava nele joga fora o guardado e relê.
+  function esquecerHistorico(comp) {
+    if (comp && competenciasDoGrafico().slice(-MESES_AO_VIVO).indexOf(comp) !== -1) return;
+    try { localStorage.removeItem(CHAVE_HISTORICO); } catch (e) {}
+    subscribeStatus();
+  }
+  function carregarAntigos_(comps, pronto) {
+    if (!comps.length) { antigosDocs = []; pronto(); return; }
+    var guardado = lerHistoricoGuardado_(comps);
+    if (guardado) { antigosDocs = guardado; pronto(); return; }
+    db.collection('documentosMensal').where('competencia', 'in', comps).get().then(function (snap) {
+      antigosDocs = snap.docs.map(function (d) {
+        var dado = d.data();
+        delete dado.errosRobo; // só pesa, e o histórico não usa
+        return dado;
+      });
+      // não coube no navegador? segue sem guardar — só perde a economia
+      try { localStorage.setItem(CHAVE_HISTORICO, JSON.stringify({ comps: comps.join(','), em: Date.now(), docs: antigosDocs })); } catch (e) {}
+      pronto();
+    }).catch(function () { pronto(); });
+  }
+
   function subscribeStatus() {
     if (unsubStatus) { unsubStatus(); unsubStatus = null; }
     var comps = competenciasDoGrafico();
     var mesAberto = comps[comps.length - 1];
-    // Uma consulta só pros 6 meses (`in` aceita até 10 valores).
-    unsubStatus = db.collection('documentosMensal').where('competencia', 'in', comps)
-      .onSnapshot(function (snap) {
+    var aoVivo = comps.slice(-MESES_AO_VIVO);
+    var ultimoAoVivo = [];
+    function montar() {
         statusCache = new Map();
         historicoCache = new Map();
         historicoDocs = new Map();
-        snap.docs.forEach(function (d) {
-          var dado = d.data();
+        antigosDocs.concat(ultimoAoVivo).forEach(function (dado) {
           if (dado.competencia === mesAberto) statusCache.set(dado.clienteId, dado);
           var porMes = historicoCache.get(dado.clienteId);
           if (!porMes) { porMes = {}; historicoCache.set(dado.clienteId, porMes); }
@@ -2834,13 +2871,24 @@
           if (!docs) { docs = {}; historicoDocs.set(dado.clienteId, docs); }
           docs[dado.competencia] = dado;
         });
-        statusCarregado = true;
         sincronizarPortais();
         salvandoDoc.clear();
         atualizarTodosStatus();
         renderPaginas();
         if (clienteSelecionadoId) renderDetalhe();
-      }, function (err) { toast('Erro ao carregar situação do mês: ' + err.message, 'erro'); });
+    }
+    unsubStatus = db.collection('documentosMensal').where('competencia', 'in', aoVivo)
+      .onSnapshot(function (snap) {
+        ultimoAoVivo = snap.docs.map(function (d) { return d.data(); });
+        statusCarregado = true;
+        montar();
+      }, function (err) { toast('Erro ao carregar situação do mês: ' + avisoDeCota_(err), 'erro'); });
+    carregarAntigos_(comps.slice(0, -MESES_AO_VIVO), function () { if (statusCarregado) montar(); });
+  }
+  // "Quota exceeded" em inglês não diz nada pra quem está no balcão
+  function avisoDeCota_(err) {
+    var cota = err && (err.code === 'resource-exhausted' || /quota/i.test(err.message || ''));
+    return cota ? 'o limite diário de leituras do plano gratuito acabou. Volta sozinho por volta das 4h da manhã.' : err.message;
   }
 
   // ---------- portal do cliente ----------
@@ -2925,6 +2973,7 @@
       : null;
     db.collection('documentosMensal').doc(cliente.id + '_' + comp).set(patch, { merge: true })
       .then(function () {
+        esquecerHistorico(comp);
         registrarAuditoria(marcarComo ? 'documento_marcado' : 'documento_desmarcado', clienteLabel(cliente) + ' · ' + tipo.label + ' · ' + comp);
         toast(tipo.curto + (marcarComo ? ' marcado como recebido' : ' desmarcado') + ' para ' + nomeExibicao(cliente), 'ok',
           { rotulo: 'Desfazer', acao: function () { alternarDoc(cliente, tipo, !marcarComo, marcarComo ? null : anterior, comp); } });
@@ -3053,6 +3102,7 @@
     lote.set(db.collection('documentosMensal').doc(cliente.id + '_' + compPara), para, { merge: true });
     lote.commit()
       .then(function () {
+        esquecerHistorico(compDe); esquecerHistorico(compPara);
         registrarAuditoria('documento_movido', clienteLabel(cliente) + ' · ' + tipo.label + ' · ' + compDe + ' para ' + compPara);
         toast(tipo.curto + ' movido para ' + competenciaPorExtenso(compPara) + '.', 'ok', { acao: function () { moverMarcacao(cliente, tipo, compPara, compDe); } });
       })

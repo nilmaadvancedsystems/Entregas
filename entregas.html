@@ -1018,6 +1018,17 @@
     background: none; color: var(--ink); font-size: var(--t-base); text-align: left; cursor: pointer;
   }
   .menu-acoes-item:hover { background: var(--surface-2); }
+  .menu-acoes-item.perigo { color: var(--danger-forte); }
+  .menu-acoes-item > .ph { color: var(--ink-faint); font-size: 1.05rem; }
+  .menu-acoes-item.perigo > .ph { color: inherit; }
+  /* "Mais ações" da ficha: abre no lugar, em grupos. Flutuante seria cortado
+     pela rolagem do próprio modal. */
+  .ficha-mais {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--esp-2) var(--esp-3);
+    margin: 0 0 var(--esp-4); padding: var(--esp-2); border: 1px solid var(--border); border-radius: var(--r-md);
+  }
+  .ficha-mais[hidden] { display: none; }
+  .ficha-mais-titulo { display: block; padding: var(--esp-1) var(--esp-3) 2px; font-size: var(--t-xs); color: var(--ink-faint); }
   .rota-item.arrastando { background: var(--surface-2); box-shadow: var(--shadow); position: relative; z-index: var(--z-conteudo); }
 
   /* Cabeçalho de grupo dentro de uma lista. */
@@ -4055,12 +4066,10 @@
   function ocorrenciasDe_(c) { return Array.isArray(c && c.ocorrencias) ? c.ocorrencias : []; }
   function htmlDasOcorrencias_(cliente) {
     var lista = ocorrenciasDe_(cliente).slice(0, 6);
+    // Sem nada registrado a seção nem aparece: título + quatro botões +
+    // "nada ainda" era meia tela pra dizer que não há o que dizer.
+    if (!lista.length) return '';
     return '<div class="field" style="margin-bottom:var(--esp-3)"><span>Ocorrências</span>' +
-      '<div class="modal-acoes" style="margin:6px 0">' +
-        TIPOS_DE_OCORRENCIA_.map(function (t) {
-          return '<button type="button" class="btn-chip" data-ocorrencia="' + t.id + '"><i class="ph ' + t.icone + '" aria-hidden="true"></i> ' + t.rotulo + '</button>';
-        }).join('') +
-      '</div>' +
       (lista.length
         ? lista.map(function (o) {
             var tipo = TIPOS_DE_OCORRENCIA_.filter(function (t) { return t.id === o.tipo; })[0] || TIPOS_DE_OCORRENCIA_[3];
@@ -10151,21 +10160,33 @@
       : '';
 
     var acoesHtml = '<div class="modal-acoes">' +
-        (historico.length ? '<button type="button" class="btn-chip" id="exportarHistoricoBtn"><i class="ph ph-download-simple" aria-hidden="true"></i> Exportar histórico</button>' : '') +
         (whatsAppNumero_(cliente.telefone)
-          ? '<button type="button" class="btn-chip" id="falarClienteBtn"><i class="ph ph-whatsapp-logo" aria-hidden="true"></i> Falar no WhatsApp</button>'
+          ? '<button type="button" class="btn-chip accent" id="falarClienteBtn"><i class="ph ph-whatsapp-logo" aria-hidden="true"></i> WhatsApp</button>'
           : '') +
-        '<button type="button" class="btn-chip" id="linhaDoTempoBtn"><i class="ph ph-clock-counter-clockwise" aria-hidden="true"></i> Linha do tempo</button>' +
-        (temPapel('admin') ? '<button type="button" class="btn-chip" id="editarCadastroBtn"><i class="ph ph-pencil-simple" aria-hidden="true"></i> Editar cadastro</button>' : '') +
         ((cliente.portalToken || temPapel('admin')) ? '<button type="button" class="btn-chip" id="linkClienteBtn"><i class="ph ph-link" aria-hidden="true"></i> Link do cliente</button>' : '') +
-        '<button type="button" class="btn-chip" id="corrigirLocalBtn"><i class="ph ph-map-pin-line" aria-hidden="true"></i> Corrigir localização</button>' +
-        '<button type="button" class="btn-chip" id="aglutinarBtn"><i class="ph ph-link-simple" aria-hidden="true"></i> Aglutinar com outra empresa</button>' +
-        '<button type="button" class="btn-chip" id="copiarDadosBtn"><i class="ph ph-copy" aria-hidden="true"></i> Copiar dados</button>' +
-        '<button type="button" class="btn-chip" id="emprestimoFichaBtn"><i class="ph ph-hand-arrow-down" aria-hidden="true"></i> Pegamos um documento</button>' +
-        (temPapel('admin')
-          ? '<button type="button" class="btn-chip" id="levarDadosBtn" title="Arquivo com tudo que o sistema tem deste cliente"><i class="ph ph-download-simple" aria-hidden="true"></i> Levar os dados (LGPD)</button>' +
-            '<button type="button" class="btn-chip danger" id="apagarDadosBtn" title="Tira telefone, e-mail, endereço, contatos e derruba a página do cliente"><i class="ph ph-eraser" aria-hidden="true"></i> Apagar dados pessoais</button>'
-          : '') +
+        (temPapel('admin') ? '<button type="button" class="btn-chip" id="editarCadastroBtn"><i class="ph ph-pencil-simple" aria-hidden="true"></i> Editar</button>' : '') +
+        '<button type="button" class="btn-chip" id="fichaMaisBtn" aria-expanded="false" aria-controls="fichaMaisPainel"><i class="ph ph-dots-three" aria-hidden="true"></i> Mais ações</button>' +
+      '</div>' +
+      '<div class="ficha-mais" id="fichaMaisPainel" hidden>' +
+        '<div class="ficha-mais-grupo"><span class="ficha-mais-titulo">Anotar</span>' +
+          TIPOS_DE_OCORRENCIA_.map(function (t) {
+            return '<button type="button" class="menu-acoes-item" data-ocorrencia="' + t.id + '"><i class="ph ' + t.icone + '" aria-hidden="true"></i> ' + t.rotulo + '</button>';
+          }).join('') +
+        '</div>' +
+        '<div class="ficha-mais-grupo"><span class="ficha-mais-titulo">Cliente</span>' +
+          '<button type="button" class="menu-acoes-item" id="linhaDoTempoBtn"><i class="ph ph-clock-counter-clockwise" aria-hidden="true"></i> Linha do tempo</button>' +
+          '<button type="button" class="menu-acoes-item" id="emprestimoFichaBtn"><i class="ph ph-hand-arrow-down" aria-hidden="true"></i> Pegamos um documento</button>' +
+          '<button type="button" class="menu-acoes-item" id="corrigirLocalBtn"><i class="ph ph-map-pin-line" aria-hidden="true"></i> Corrigir localização</button>' +
+          '<button type="button" class="menu-acoes-item" id="aglutinarBtn"><i class="ph ph-link-simple" aria-hidden="true"></i> Aglutinar com outra empresa</button>' +
+        '</div>' +
+        '<div class="ficha-mais-grupo"><span class="ficha-mais-titulo">Dados</span>' +
+          '<button type="button" class="menu-acoes-item" id="copiarDadosBtn"><i class="ph ph-copy" aria-hidden="true"></i> Copiar dados</button>' +
+          (historico.length ? '<button type="button" class="menu-acoes-item" id="exportarHistoricoBtn"><i class="ph ph-download-simple" aria-hidden="true"></i> Exportar histórico</button>' : '') +
+          (temPapel('admin')
+            ? '<button type="button" class="menu-acoes-item" id="levarDadosBtn" title="Arquivo com tudo que o sistema tem deste cliente"><i class="ph ph-download-simple" aria-hidden="true"></i> Levar os dados (LGPD)</button>' +
+              '<button type="button" class="menu-acoes-item perigo" id="apagarDadosBtn" title="Tira telefone, e-mail, endereço, contatos e derruba a página do cliente"><i class="ph ph-eraser" aria-hidden="true"></i> Apagar dados pessoais</button>'
+            : '') +
+        '</div>' +
       '</div>' + avisoLocal;
 
     var receitaHtml = htmlDaReceita_(cliente);
@@ -10232,9 +10253,15 @@
       htmlDasOcorrencias_(cliente) +
       infoHonorario +
       receitaHtml +
-      acoesHtml +
       rowsHtml;
+    // ações coladas no nome: é o que se vem fazer aqui
+    inner.querySelector('.modal-head').insertAdjacentHTML('afterend', acoesHtml);
     $('modalClose').addEventListener('click', closeModal);
+    $('fichaMaisBtn').addEventListener('click', function () {
+      var p = $('fichaMaisPainel');
+      p.hidden = !p.hidden;
+      this.setAttribute('aria-expanded', p.hidden ? 'false' : 'true');
+    });
 
     if ($('exportarHistoricoBtn')) {
       $('exportarHistoricoBtn').addEventListener('click', function () {

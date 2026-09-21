@@ -446,9 +446,14 @@ async function carregar() {
     // Sem internet ou servidor ocupado NÃO é "link morto": dizer isso faria o
     // cliente ligar pro escritório à toa. Tenta de novo sozinho.
     tentativa++;
-    if (!dados) $('quem').textContent = 'Sem internet agora';
-    dizer(dados ? '' : 'Não consegui buscar suas guias. Tentando de novo…');
-    setTimeout(carregar, Math.min(30000, 2000 * tentativa));
+    // Limite diário do servidor estourado não é culpa da internet do cliente,
+    // e insistir de 2 em 2 segundos não adianta: só volta de madrugada.
+    const cota = err && (err.code === 'resource-exhausted' || /quota/i.test(err.message || ''));
+    if (!dados) $('quem').textContent = cota ? 'Página fora do ar por hoje' : 'Sem internet agora';
+    dizer(dados ? '' : cota
+      ? 'O problema é do nosso lado, não do seu aparelho. Se precisar de uma guia hoje, peça ao escritório pelo WhatsApp.'
+      : 'Não consegui buscar suas guias. Tentando de novo…');
+    setTimeout(carregar, cota ? 10 * 60000 : Math.min(30000, 2000 * tentativa));
   }
 }
 // voltou pra página depois de um tempo (pagou a guia, voltou do WhatsApp): relê
