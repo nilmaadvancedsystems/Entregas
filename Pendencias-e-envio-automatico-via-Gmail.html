@@ -3954,7 +3954,7 @@
       sum.appendChild(el('span', 'cont', String(semBanco.length)));
       dob.appendChild(sum);
       var corpoSem = el('div', 'dobra-corpo');
-      corpoSem.appendChild(el('p', 'small', 'Destes o robô ainda não aprendeu o banco (ele aprende ao ler o primeiro extrato) e ninguém preencheu à mão. Eles não entram na conta por banco acima.'));
+      corpoSem.appendChild(el('p', 'small', 'Destes o robô ainda não aprendeu o banco (ele aprende ao ler o primeiro extrato) e ninguém preencheu à mão, então eles não entram na conta acima. Toque no nome para escolher os bancos dentro da ficha do cliente — é lá que esse cadastro vive.'));
       semBanco.slice(0, 40).forEach(function (c) {
         var linha = el('button', 'banco-linha-cliente');
         linha.type = 'button';
