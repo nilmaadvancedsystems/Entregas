@@ -920,6 +920,29 @@
   .grafico-bloco { margin-top: var(--esp-5); }
   .grafico-titulo { font-size: var(--t-md); font-weight: 600; margin-bottom: var(--esp-3); }
   .grafico-pe { font-size: var(--t-sm); color: var(--ink-faint); margin-top: var(--esp-2); }
+  /* O gráfico é SVG escalável: o traço não engorda junto com a tela porque
+     vector-effect trava a espessura. Cor sai dos tokens, então acompanha o
+     tema e a paleta escolhida. */
+  .gsvg { width: 100%; height: auto; display: block; overflow: visible; }
+  .g-grade { stroke: var(--border); stroke-width: 1; vector-effect: non-scaling-stroke; }
+  .g-escala, .g-rot { fill: var(--ink-faint); font-size: 10px; font-family: var(--font-body); }
+  .g-area { fill: var(--accent); opacity: .12; }
+  .g-linha { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+  .g-bola { fill: var(--surface); stroke: var(--accent); stroke-width: 2; vector-effect: non-scaling-stroke; }
+  .g-ponto.cheio .g-bola { fill: var(--success); stroke: var(--success); }
+  .g-ponto.parcial .g-bola { fill: var(--warning); stroke: var(--warning); }
+  .g-ponto.vazio .g-bola { fill: var(--surface); stroke: var(--border-forte); }
+  .g-ponto.sem-mov .g-bola { fill: var(--surface-2); stroke: var(--border-forte); }
+  .g-ponto:hover .g-bola { r: 6; }
+  .g-cobranca { stroke: var(--accent-forte); stroke-width: 2; vector-effect: non-scaling-stroke; opacity: .75; }
+  /* O SVG encolhe junto com a tela: no celular o viewBox de 600 vira ~358px,
+     e 10px de fonte viram 6px na cara da pessoa. O traço não sofre disso
+     (non-scaling-stroke), mas o texto sim — então ele cresce no viewBox. */
+  @media (max-width: 700px) {
+    .g-escala, .g-rot { font-size: 17px; }
+    .g-bola { r: 6; }
+  }
+
   /* Mapa de calor: banco na linha, mês na coluna, um quadradinho por
      cruzamento. Antes era uma barra por mês dentro de um trilho da largura
      toda — em cliente sem histórico, seis lajotas cinzas por banco. */
@@ -3928,6 +3951,63 @@
   // Uma linha por banco, uma coluna por mês, com o que aquele banco entregou
   // naquele mês. Serve pra enxergar o que a tabela não diz: o Sicoob sempre
   // atrasa, o Itaú nunca falha. Tudo sai do histórico que já está carregado.
+  // ---------- gráfico em SVG ----------
+  // Coordenadas num sistema fixo de 600x180; o SVG escala sozinho pra
+  // largura que tiver, então não precisa medir nada em pixel.
+  var G = { w: 600, h: 180, esq: 34, dir: 10, topo: 12, base: 30 };
+  function svgEl_(nome, attrs) {
+    var e = document.createElementNS('http://www.w3.org/2000/svg', nome);
+    Object.keys(attrs || {}).forEach(function (k) { e.setAttribute(k, attrs[k]); });
+    return e;
+  }
+
+  // pontos: [{ rotulo, pct, chegaram, total, cobrancas, semMovimento }]
+  function desenharLinhaDoMes_(pontos) {
+    var svg = svgEl_('svg', {
+      viewBox: '0 0 ' + G.w + ' ' + G.h, class: 'gsvg',
+      role: 'img', 'aria-label': 'Quanto dos documentos chegou em cada mês'
+    });
+    var larg = G.w - G.esq - G.dir, alt = G.h - G.topo - G.base;
+    var x = function (i) { return G.esq + (pontos.length < 2 ? larg / 2 : i * larg / (pontos.length - 1)); };
+    var y = function (pct) { return G.topo + alt - (pct / 100) * alt; };
+
+    // grade e escala: sem eixo, linha é desenho; com eixo, é medida
+    [0, 50, 100].forEach(function (v) {
+      svg.appendChild(svgEl_('line', { x1: G.esq, x2: G.w - G.dir, y1: y(v), y2: y(v), class: 'g-grade' }));
+      var r = svgEl_('text', { x: G.esq - 6, y: y(v) + 4, class: 'g-escala', 'text-anchor': 'end' });
+      r.textContent = v + '%';
+      svg.appendChild(r);
+    });
+
+    // área embaixo da linha, pra leitura de volume
+    var d = pontos.map(function (p, i) { return (i ? 'L' : 'M') + x(i) + ' ' + y(p.pct); }).join(' ');
+    svg.appendChild(svgEl_('path', {
+      d: d + ' L' + x(pontos.length - 1) + ' ' + y(0) + ' L' + x(0) + ' ' + y(0) + ' Z', class: 'g-area'
+    }));
+    svg.appendChild(svgEl_('path', { d: d, class: 'g-linha' }));
+
+    pontos.forEach(function (p, i) {
+      var g = svgEl_('g', { class: 'g-ponto' + (p.semMovimento ? ' sem-mov' : p.pct === 100 ? ' cheio' : p.pct ? ' parcial' : ' vazio') });
+      // cobranças daquele mês: um risco por cobrança, na base
+      for (var c = 0; c < Math.min(p.cobrancas, 5); c++) {
+        g.appendChild(svgEl_('line', {
+          x1: x(i) - 6 + c * 3, x2: x(i) - 6 + c * 3, y1: y(0) + 4, y2: y(0) + 11, class: 'g-cobranca'
+        }));
+      }
+      g.appendChild(svgEl_('circle', { cx: x(i), cy: y(p.pct), r: 4.5, class: 'g-bola' }));
+      var rot = svgEl_('text', { x: x(i), y: G.h - 6, class: 'g-rot', 'text-anchor': 'middle' });
+      rot.textContent = p.rotulo;
+      g.appendChild(rot);
+      var t = svgEl_('title');
+      t.textContent = p.rotulo + ': ' + (p.semMovimento ? 'mês sem movimento'
+        : p.chegaram + ' de ' + p.total + ' documentos') +
+        (p.cobrancas ? ' · ' + plural(p.cobrancas, 'cobrança', 'cobranças') : '');
+      g.appendChild(t);
+      svg.appendChild(g);
+    });
+    return svg;
+  }
+
   function renderGraficoDoBanco(cliente) {
     var caixa = $('graficoBanco');
     if (!caixa) return;
@@ -3953,6 +4033,29 @@
       caixa.appendChild(fraseDaCobranca(cliente, comps, docs));
       return;
     }
+    // A linha responde "o mês está andando?"; o mapa embaixo diz de quem é
+    // a falta. Um não substitui o outro.
+    var pontos = comps.map(function (comp) {
+      var dado = docs[comp] || {};
+      var total = deles.length * exigidos.length;
+      var chegaram = 0;
+      deles.forEach(function (bid) {
+        exigidos.forEach(function (t) {
+          if (bancosRecebidos(cliente.id, t.chave, dado).indexOf(bid) !== -1) chegaram++;
+        });
+      });
+      var cobs = (dado.cobrancas || []).filter(function (c) { return c.canal !== 'coleta'; }).length;
+      return {
+        rotulo: rotuloCurtoDoMes(comp).slice(0, 3),
+        pct: dado.semMovimento ? 100 : (total ? Math.round(chegaram / total * 100) : 0),
+        chegaram: chegaram, total: total, cobrancas: cobs, semMovimento: !!dado.semMovimento
+      };
+    });
+    bloco.appendChild(desenharLinhaDoMes_(pontos));
+    var legLinha = el('p', 'grafico-pe');
+    legLinha.textContent = 'Quanto dos documentos do mês já tinha chegado. Os riscos embaixo de cada mês são as cobranças enviadas.';
+    bloco.appendChild(legLinha);
+
     var mapa = el('div', 'mapa-meses');
     // rótulo do mês uma vez só, em cima — repetir embaixo de cada barra era
     // a mesma palavra dezoito vezes na tela
