@@ -900,6 +900,12 @@
   }
   .banco-selo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; padding: 5px; background: inherit; }
 
+  /* Modelos que o escritório escreve, em Configurações. */
+  .meu-modelo { border: 1px solid var(--border); border-radius: var(--r-md); padding: var(--esp-3); margin-bottom: var(--esp-3); }
+  .meu-modelo-topo { display: flex; gap: var(--esp-2); align-items: center; margin-bottom: var(--esp-3); }
+  .meu-modelo-topo .input { flex: 1; min-width: 0; font-weight: 600; }
+  .meu-modelo .textarea { min-height: 120px; }
+
   /* Escolher o modelo pronto na hora de cobrar. */
   .modelos-cobranca { display: flex; flex-wrap: wrap; gap: 6px; }
   .modelos-cobranca .chip { display: inline-flex; align-items: center; gap: 6px; }
@@ -1477,7 +1483,8 @@
         <button type="button" class="secao-btn" role="tab" data-cfg="geral" aria-selected="true"><i class="ph ph-calendar" aria-hidden="true"></i><span>Prazo e assinatura</span></button>
         <button type="button" class="secao-btn" role="tab" data-cfg="email" aria-selected="false"><i class="ph ph-envelope-simple" aria-hidden="true"></i><span>E-mail: régua de cobrança</span></button>
         <button type="button" class="secao-btn" role="tab" data-cfg="whats" aria-selected="false"><i class="ph ph-whatsapp-logo" aria-hidden="true"></i><span>WhatsApp</span></button>
-        <button type="button" class="secao-btn" role="tab" data-cfg="lote" aria-selected="false"><i class="ph ph-users-three" aria-hidden="true"></i><span>Cobrança em lote</span></button>
+        <button type="button" class="secao-btn" role="tab" data-cfg="meus" aria-selected="false"><i class="ph ph-bookmarks-simple" aria-hidden="true"></i> Modelos seus</button>
+              <button type="button" class="secao-btn" role="tab" data-cfg="lote" aria-selected="false"><i class="ph ph-users-three" aria-hidden="true"></i><span>Cobrança em lote</span></button>
         <button type="button" class="secao-btn" role="tab" data-cfg="auto" aria-selected="false"><i class="ph ph-robot" aria-hidden="true"></i><span>Automático</span></button>
       </nav>
 
@@ -1537,6 +1544,16 @@
                 <button type="button" class="btn btn-ghost btn-sm cfg-restaurar" data-restaurar="whats">Restaurar padrão</button>
               </div>
               <div class="campo" style="margin-bottom:0"><label for="cfgWhats">Texto</label><textarea class="textarea cfg-campo" id="cfgWhats" style="min-height:110px"></textarea><div class="cfg-contador" data-conta="cfgWhats"></div></div>
+            </div>
+          </div>
+
+          <div class="cfg-painel" data-cfg-painel="meus" hidden>
+            <div class="cfg-modelo">
+              <div class="cfg-modelo-topo">
+                <div><div class="cfg-modelo-titulo">Modelos seus</div><div class="cfg-modelo-dica">Aparecem na hora de cobrar, junto dos três de cima. Use as mesmas variáveis.</div></div>
+                <button type="button" class="btn btn-secondary btn-sm" id="btnNovoModelo"><i class="ph ph-plus" aria-hidden="true"></i> Novo modelo</button>
+              </div>
+              <div id="meusModelosLista"></div>
             </div>
           </div>
 
@@ -1924,6 +1941,9 @@
              corpo: 'Olá,\n\nEsta é a {n}ª vez que pedimos os documentos de {mes} de {cliente}:\n\n{lista}\n\nSem eles a apuração do mês fica parada e pode gerar multa e juros. Precisamos deles hoje. Se houver algum problema para enviar, nos avise por aqui.\n\n{assinatura}' }
     },
     whatsapp: 'Olá! Aqui é da {assinatura}. Para fechar {mes} ainda precisamos de {cliente}: {documentos}. Pode nos enviar por e-mail ({caixa})? Obrigado!',
+    // Modelos que o escritório escreve. Nascem vazios de propósito: os três
+    // de cima já cobrem o mês normal.
+    meusModelos: [],
     lote: { assunto: 'Documentos de {mes} pendentes',
             corpo: 'Olá,\n\nEstamos fechando a contabilidade de {mes} e ainda faltam documentos (extrato bancário, comprovantes de pagamento ou aplicação financeira) da sua empresa.\n\nPode responder este e-mail com os arquivos em anexo? O recebimento é registrado automaticamente.\n\nObrigado,\n{assinatura}' }
   };
@@ -2681,6 +2701,15 @@
       configCobranca.comprovanteEmail = d.comprovanteEmail === true;
       if (d.regua) configCobranca.regua = { ligada: d.regua.ligada === true, dias: diasDaRegua(d.regua.dias) };
       if (d.modelos) Object.keys(d.modelos).forEach(function (k) { configCobranca.modelos[k] = Object.assign({}, CONFIG_PADRAO.modelos[k] || {}, d.modelos[k]); });
+      // modelo escrito pelo escritório: só entra com nome e mensagem, e o que
+      // vem do banco é texto de gente, então tem tamanho máximo.
+      configCobranca.meusModelos = (Array.isArray(d.meusModelos) ? d.meusModelos : [])
+        .filter(function (m) { return m && m.nome && m.corpo; })
+        .slice(0, 20)
+        .map(function (m) {
+          return { id: String(m.id || ''), nome: String(m.nome).slice(0, 40),
+            assunto: String(m.assunto || '').slice(0, 200), corpo: String(m.corpo).slice(0, 4000) };
+        });
       configCobranca.atualizadoEm = d.atualizadoEm || null;
       configCobranca.atualizadoPor = d.atualizadoPor || '';
       atualizarPrazoNaTela();
@@ -5282,11 +5311,18 @@
     { chave: '3', rotulo: 'Firme', dica: 'Para quem já ignorou as anteriores. Fala em multa e juros.' }
   ];
 
+  // Os três prontos mais os que o escritório escreveu em Configurações.
+  function modelosDisponiveis() {
+    return MODELOS_COBRANCA.concat((configCobranca.meusModelos || [])
+      .filter(function (m) { return m.nome && m.corpo; })
+      .map(function (m) { return { chave: m.id, rotulo: m.nome, dica: 'Modelo seu.', meu: m }; }));
+  }
+
   function renderModelosDaCobranca(cliente, faltando, sugerido) {
     var caixa = $('cobModelos');
     if (!caixa) return;
     caixa.innerHTML = '';
-    MODELOS_COBRANCA.forEach(function (m) {
+    modelosDisponiveis().forEach(function (m) {
       var b = el('button', 'chip' + (modeloEscolhido === m.chave ? ' ativo' : ''));
       b.type = 'button';
       b.setAttribute('aria-pressed', String(modeloEscolhido === m.chave));
@@ -5299,7 +5335,7 @@
       });
       caixa.appendChild(b);
     });
-    var atual = MODELOS_COBRANCA.filter(function (m) { return m.chave === modeloEscolhido; })[0];
+    var atual = modelosDisponiveis().filter(function (m) { return m.chave === modeloEscolhido; })[0];
     $('cobModeloDica').textContent = atual ? atual.dica : '';
   }
 
@@ -5308,7 +5344,8 @@
   function aplicarModeloNaCobranca(cliente, faltando, sugerido) {
     var vars = variaveisDe(cliente, faltando);
     vars.link = linkDoPortal(cliente);
-    var modelo = configCobranca.modelos[modeloEscolhido] || configCobranca.modelos['1'];
+    var meu = modelosDisponiveis().filter(function (m) { return m.chave === modeloEscolhido; })[0];
+    var modelo = (meu && meu.meu) || configCobranca.modelos[modeloEscolhido] || configCobranca.modelos['1'];
     var corpoAtual = $('cobCorpo').value;
     if (corpoAtual && corpoAtual !== $('cobCorpo').dataset.gerado &&
         !confirm('Você mexeu no texto. Trocar o modelo vai reescrever a mensagem. Continuar?')) {
@@ -5323,7 +5360,9 @@
     $('cobCorpo').dataset.gerado = corpo;
     $('cobCorpo').dataset.modelo = modeloEscolhido;
     $('modalRodape').textContent = textoRodapeEnvio(
-      modeloEscolhido === '3' ? 'Modelo firme. ' : modeloEscolhido === '2' ? 'Modelo de lembrete. ' : 'Modelo da 1ª cobrança. ');
+      (meu && meu.meu) ? 'Modelo "' + meu.rotulo + '". '
+        : modeloEscolhido === '3' ? 'Modelo firme. '
+        : modeloEscolhido === '2' ? 'Modelo de lembrete. ' : 'Modelo da 1ª cobrança. ');
     renderModelosDaCobranca(cliente, faltando, sugerido);
   }
 
@@ -5826,6 +5865,7 @@
       assinatura: $('cfgAssinatura').value.trim() || CONFIG_PADRAO.assinatura,
       whatsapp: $('cfgWhats').value.trim() || CONFIG_PADRAO.whatsapp,
       modelos: { '1': {}, '2': {}, '3': {} }, lote: {},
+      meusModelos: lerMeusModelosDoForm(),
       comprovanteEmail: $('cfgComprovanteEmail').checked,
       regua: { ligada: $('cfgReguaLigada').checked, dias: diasDaRegua($('cfgReguaDias').value) }
     };
@@ -5836,9 +5876,77 @@
     });
     return dados;
   }
+  // Lê os modelos próprios do formulário. Modelo sem nome ou sem mensagem é
+  // descartado: metade de um modelo não serve pra ninguém.
+  function lerMeusModelosDoForm() {
+    var caixa = document.getElementById('meusModelosLista');
+    if (!caixa) return (configCobranca.meusModelos || []).slice();
+    return [].map.call(caixa.querySelectorAll('[data-meu]'), function (bloco) {
+      return {
+        id: bloco.dataset.meu,
+        nome: bloco.querySelector('[data-campo="nome"]').value.trim().slice(0, 40),
+        assunto: bloco.querySelector('[data-campo="assunto"]').value.trim().slice(0, 200),
+        corpo: bloco.querySelector('[data-campo="corpo"]').value.trim().slice(0, 4000)
+      };
+    }).filter(function (m) { return m.nome && m.corpo; });
+  }
+
+  function renderMeusModelos() {
+    var caixa = document.getElementById('meusModelosLista');
+    if (!caixa) return;
+    var lista = configCobranca.meusModelos || [];
+    caixa.innerHTML = '';
+    if (!lista.length) {
+      caixa.appendChild(el('p', 'cfg-modelo-dica', 'Nenhum ainda. Um modelo seu é útil quando o pedido foge do mês normal: só o extrato de um banco, cliente que acabou de entrar, aviso antes do fechamento.'));
+    }
+    lista.forEach(function (m) {
+      var bloco = el('div', 'meu-modelo');
+      bloco.dataset.meu = m.id;
+      var topo = el('div', 'meu-modelo-topo');
+      var nome = el('input', 'input cfg-campo');
+      nome.type = 'text'; nome.value = m.nome || ''; nome.maxLength = 40;
+      nome.placeholder = 'Nome do modelo (ex.: só o extrato)';
+      nome.dataset.campo = 'nome';
+      nome.setAttribute('aria-label', 'Nome do modelo');
+      topo.appendChild(nome);
+      var apagar = el('button', 'btn btn-ghost btn-sm');
+      apagar.type = 'button';
+      apagar.textContent = 'Apagar';
+      apagar.disabled = !souAdmin;
+      apagar.addEventListener('click', function () {
+        if (!confirm('Apagar o modelo "' + (nome.value || 'sem nome') + '"?')) return;
+        configCobranca.meusModelos = (configCobranca.meusModelos || []).filter(function (x) { return x.id !== m.id; });
+        atualizarEstadoConfig();
+        renderMeusModelos();
+      });
+      topo.appendChild(apagar);
+      bloco.appendChild(topo);
+      var cAss = el('div', 'campo');
+      cAss.appendChild(el('label', null, 'Assunto'));
+      var ass = el('input', 'input cfg-campo');
+      ass.type = 'text'; ass.value = m.assunto || ''; ass.dataset.campo = 'assunto';
+      ass.placeholder = 'Documentos de {mes} - {cliente}';
+      cAss.appendChild(ass);
+      bloco.appendChild(cAss);
+      var cCor = el('div', 'campo');
+      cCor.appendChild(el('label', null, 'Mensagem'));
+      var cor = el('textarea', 'textarea cfg-campo');
+      cor.value = m.corpo || ''; cor.dataset.campo = 'corpo';
+      cor.placeholder = 'Olá,\n\n...\n\n{assinatura}';
+      cCor.appendChild(cor);
+      bloco.appendChild(cCor);
+      [nome, ass, cor].forEach(function (campo) {
+        campo.disabled = !souAdmin;
+        campo.addEventListener('input', atualizarEstadoConfig);
+      });
+      caixa.appendChild(bloco);
+    });
+  }
+
   function configIgual(a, b) {
     return a.diaLimite === b.diaLimite && a.assinatura === b.assinatura && a.whatsapp === b.whatsapp &&
       JSON.stringify(a.modelos) === JSON.stringify(b.modelos) && JSON.stringify(a.lote) === JSON.stringify(b.lote) &&
+      JSON.stringify(a.meusModelos || []) === JSON.stringify(b.meusModelos || []) &&
       !!a.comprovanteEmail === !!b.comprovanteEmail && JSON.stringify(a.regua) === JSON.stringify(b.regua);
   }
   function renderConfig() {
@@ -5871,11 +5979,13 @@
     preencherClientesExemplo();
     atualizarEstadoConfig();
     atualizarContadores();
+    renderMeusModelos();
     renderPreviewConfig();
   }
   function atualizarEstadoConfig() {
     var atual = lerFormularioConfig();
     var base = { diaLimite: configCobranca.diaLimite || null, assinatura: configCobranca.assinatura, whatsapp: configCobranca.whatsapp, modelos: configCobranca.modelos, lote: configCobranca.lote,
+      meusModelos: (configCobranca.meusModelos || []).filter(function (m) { return m.nome && m.corpo; }),
       comprovanteEmail: configCobranca.comprovanteEmail, regua: { ligada: !!configCobranca.regua.ligada, dias: configCobranca.regua.dias } };
     cfgSujo = !configIgual(atual, base);
     $('cfgEstado').hidden = !cfgSujo;
@@ -6054,6 +6164,15 @@
       })
       .catch(function (err) { toast('Erro ao salvar: ' + err.message, 'erro'); b.disabled = false; });
   }
+  $('btnNovoModelo').addEventListener('click', function () {
+    if (!souAdmin) { toast('Só admin muda os modelos.', 'erro'); return; }
+    configCobranca.meusModelos = (configCobranca.meusModelos || []).concat([{
+      id: 'm' + Date.now().toString(36), nome: '', assunto: '', corpo: ''
+    }]);
+    renderMeusModelos();
+    var campos = document.querySelectorAll('#meusModelosLista [data-campo="nome"]');
+    if (campos.length) campos[campos.length - 1].focus();
+  });
   $('btnSalvarConfig').addEventListener('click', salvarConfig);
   document.addEventListener('keydown', function (ev) {
     if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 's' && paginaAtual === 'config' && !telaCliente) { ev.preventDefault(); salvarConfig(); }
