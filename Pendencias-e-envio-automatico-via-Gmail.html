@@ -526,8 +526,6 @@
 
   /* Sub-filtros por tipo de documento + resumo do resultado. */
   .filtros-doc { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 0 0 var(--esp-2); }
-  #filtrosDobra > summary .resultado { margin-left: auto; font-weight: 400; }
-  #filtrosDobra { padding-top: 4px; }
   .filtros-doc .rotulo { font-size: var(--t-sm); color: var(--ink-faint); margin-right: 2px; }
   .chip {
     display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 10px;
@@ -869,6 +867,67 @@
   details.doc-opcoes > summary:hover, details.doc-opcoes[open] > summary { background: var(--surface-2); color: var(--ink); }
   details.doc-opcoes > .doc-acoes { margin-top: var(--esp-2); }
   .doc-item .doc-ind { margin-top: 1px; }
+  /* Painel de filtros: cai embaixo da barra, sem empurrar a lista pra longe. */
+  .filtros-painel {
+    border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface-3);
+    padding: var(--esp-3); margin-bottom: var(--esp-3);
+  }
+  .filtros-painel .filtros-doc { margin-bottom: var(--esp-2); }
+  .filtros-painel .filtros-doc:last-child { margin-bottom: 0; }
+  #filtrosBtn .cont:empty { display: none; }
+  #filtrosBtn.aberto { border-color: var(--accent); color: var(--accent-forte); }
+  .situacao-linha .resultado { color: var(--ink-faint); }
+  .situacao-linha .resultado:not(:empty)::before { content: " · "; }
+
+  /* ---------- página Bancos ---------- */
+  /* A grade é a escolha: cada cartão é um banco, com quanto falta dele.
+     Ordem por quem mais deve — é por onde se começa o dia. */
+  .bancos-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(232px, 1fr)); gap: var(--esp-3); margin-bottom: var(--esp-4); }
+  .banco-cartao {
+    display: flex; align-items: center; gap: var(--esp-3); text-align: left;
+    padding: var(--esp-3); border: 1px solid var(--border); border-radius: var(--r-md);
+    background: var(--surface); cursor: pointer; min-height: 68px;
+    transition: border-color var(--dur-rapido) var(--ease-out), background-color var(--dur-rapido) var(--ease-out);
+  }
+  .banco-cartao:hover { border-color: var(--border-forte); }
+  .banco-cartao.escolhido { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .banco-cartao.quitado { opacity: .62; }
+  .banco-cartao-texto { flex: 1; min-width: 0; }
+  .banco-cartao-nome { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .banco-cartao-num { font-size: var(--t-sm); color: var(--ink-faint); margin: 1px 0 6px; }
+  /* selo do banco: a cor é a marca dele; o logo entra por cima quando existe */
+  .banco-selo {
+    position: relative; flex: none; display: grid; place-items: center;
+    width: 40px; height: 40px; border-radius: var(--r-sm); overflow: hidden;
+    background: var(--surface-2); color: var(--ink-soft);
+    font: 700 9px/1 var(--font-body); letter-spacing: .02em; text-transform: uppercase;
+  }
+  .banco-selo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; padding: 5px; background: inherit; }
+
+  .banco-detalhe { border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface); padding: var(--esp-4); }
+  .banco-cab { display: flex; align-items: center; gap: var(--esp-3); flex-wrap: wrap; margin-bottom: var(--esp-3); }
+  .banco-cab-texto { flex: 1; min-width: 180px; }
+  .banco-cab h2 { font-size: var(--t-lg); font-weight: 600; }
+  .banco-cab .btn { flex: none; }
+  .banco-linha-cliente {
+    display: flex; align-items: center; gap: var(--esp-3); width: 100%;
+    min-height: var(--linha); padding: var(--esp-2) 0; border-bottom: 1px solid var(--border);
+    background: none; border-left: 0; border-right: 0; border-top: 0; text-align: left;
+  }
+  .banco-linha-cliente:last-child { border-bottom: 0; }
+  .bl-nome { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+  button.bl-nome { border: 0; background: none; font: inherit; color: inherit; cursor: pointer; padding: 0; text-align: left; }
+  button.bl-nome:hover { color: var(--accent-forte); }
+  .bl-info { flex: none; font-size: var(--t-sm); color: var(--ink-faint); }
+  .bl-info.alerta { color: var(--warning-forte); font-weight: 500; }
+  .bl-acoes { flex: none; display: flex; gap: 6px; }
+  @media (max-width: 700px) {
+    .bancos-grade { grid-template-columns: 1fr 1fr; gap: var(--esp-2); }
+    .banco-cartao { min-height: 60px; padding: var(--esp-2); }
+    .banco-linha-cliente { flex-wrap: wrap; }
+    .bl-info { width: 100%; order: 3; }
+  }
+
   /* um banco por linha: o que chegou e o que falta, clicável */
   .bancos-doc { display: flex; flex-wrap: wrap; gap: 6px; margin: var(--esp-2) 0 0; }
   .banco-linha {
@@ -1081,6 +1140,7 @@
       <span class="menu-sep"></span>
       <span class="menu-rotulo">Clientes</span>
       <button type="button" class="menu-item" id="menuClientes" data-pagina="clientes" data-filtro="todos"><i class="ph ph-users" aria-hidden="true"></i><span class="rot">Clientes</span><span class="menu-cont" id="menuNumTodos" hidden></span></button>
+      <button type="button" class="menu-item" id="menuBancos" data-pagina="bancos"><i class="ph ph-bank" aria-hidden="true"></i><span class="rot">Bancos</span><span class="menu-cont" id="menuNumBancos" hidden></span></button>
       <span class="menu-sep"></span>
       <span class="menu-rotulo">Gmail</span>
       <button type="button" class="menu-item" id="menuCobrancas" data-pagina="cobrancas"><i class="ph ph-paper-plane-tilt" aria-hidden="true"></i><span class="rot">Cobranças</span><span class="menu-cont" id="menuNumCobrancas" hidden></span></button>
@@ -1131,6 +1191,13 @@
         <!-- A ação forte estava escondida atrás de um menu chamado "Ações".
              Agora ela é o botão da barra; o que é de papelada desce pro menu. -->
         <div class="toolbar-grupo direita">
+          <button type="button" class="btn btn-secondary" id="filtrosBtn" aria-expanded="false" aria-controls="filtrosPainel">
+            <i class="ph ph-funnel" aria-hidden="true"></i> Filtros <span class="cont" id="filtrosAtivos"></span>
+          </button>
+          <div class="visao" role="group" aria-label="Formato da lista">
+            <button type="button" class="visao-btn" id="visaoLista" aria-pressed="true" title="Ver em lista"><i class="ph ph-list" aria-hidden="true"></i></button>
+            <button type="button" class="visao-btn" id="visaoCartoes" aria-pressed="false" title="Ver em cartões"><i class="ph ph-squares-four" aria-hidden="true"></i></button>
+          </div>
           <button type="button" class="btn btn-primary" id="cobrarLote"><i class="ph ph-paper-plane-tilt" aria-hidden="true"></i> <span id="cobrarLoteRotulo">Cobrar os visíveis</span></button>
           <details class="mais" id="acoesLista">
             <summary class="btn btn-secondary" title="Exportar e imprimir" aria-label="Mais ações"><i class="ph ph-dots-three-outline" aria-hidden="true"></i></summary>
@@ -1146,7 +1213,7 @@
       <!-- Isto é filtro, não painel: os números grandes só repetiam o que
            o menu lateral já contava, e o formato de KPI convidava a ler em
            vez de clicar. -->
-      <p class="situacao-linha" id="situacaoLinha" aria-live="polite"></p>
+      <p class="situacao-linha" aria-live="polite"><span id="situacaoLinha"></span><span class="resultado" id="resultado"></span></p>
       <div class="filtros-doc filtros-situacao" role="group" aria-label="Filtrar por situação">
         <span class="rotulo">Mostrar:</span>
         <button type="button" class="chip" id="filtroTodos" data-filtro="todos" aria-pressed="true"><i class="ph ph-users" aria-hidden="true"></i>Todos <b id="numTodos"></b></button>
@@ -1156,24 +1223,20 @@
       </div>
 
       <div class="col-trabalho">
-          <details class="dobra leve" id="filtrosDobra">
-            <summary>Filtros e ordem <span class="cont" id="filtrosAtivos"></span><span class="resultado" id="resultado"></span></summary>
-            <div class="dobra-corpo">
-          <div class="filtros-doc" role="group" aria-label="Ordem e formato da lista">
-            <label class="rotulo" for="ordem">Ordem:</label>
-            <select class="select select-ordem" id="ordem" style="height:28px">
-              <option value="nome">Nome (A a Z)</option>
-              <option value="pendencias">Mais pendências primeiro</option>
-              <option value="atualizado">Atualizados por último</option>
-              <option value="cidade">Cidade</option>
-              <option value="atraso">Mais meses seguidos com pendência</option>
-              <option value="costume">Fora do costume primeiro</option>
-            </select>
-            <div class="visao" role="group" aria-label="Formato da lista">
-              <button type="button" class="visao-btn" id="visaoLista" aria-pressed="true" title="Ver em lista"><i class="ph ph-list" aria-hidden="true"></i></button>
-              <button type="button" class="visao-btn" id="visaoCartoes" aria-pressed="false" title="Ver em cartões"><i class="ph ph-squares-four" aria-hidden="true"></i></button>
+          <!-- Painel de filtros: o que não se toca todo dia. Abre pelo botão
+               da barra, que conta quantos estão ligados. -->
+          <div class="filtros-painel" id="filtrosPainel" hidden>
+            <div class="filtros-doc" role="group" aria-label="Ordem da lista">
+              <label class="rotulo" for="ordem">Ordem:</label>
+              <select class="select select-ordem" id="ordem" style="height:32px">
+                <option value="nome">Nome (A a Z)</option>
+                <option value="pendencias">Mais pendências primeiro</option>
+                <option value="atualizado">Atualizados por último</option>
+                <option value="cidade">Cidade</option>
+                <option value="atraso">Mais meses seguidos com pendência</option>
+                <option value="costume">Fora do costume primeiro</option>
+              </select>
             </div>
-          </div>
           <div class="filtros-doc" role="group" aria-label="Filtrar por documento em falta">
             <span class="rotulo">Falta:</span>
             <button type="button" class="chip" data-tipo="extrato" aria-pressed="false"><i class="ph ph-bank" aria-hidden="true"></i>Extrato</button>
@@ -1185,8 +1248,7 @@
             <select class="select select-ordem" id="filtroEnq" style="height:28px;min-width:0;font-size:var(--t-sm)"><option value="">Enquadramento: todos</option></select>
             <button type="button" class="chip" id="limparFiltros" hidden><i class="ph ph-x" aria-hidden="true"></i>Limpar filtros</button>
           </div>
-            </div>
-          </details>
+          </div>
 
           <div id="skeleton" aria-hidden="true">
             <div class="skel-linha"><span class="skel" style="width:34%"></span><span class="skel" style="width:16%;margin-left:auto"></span><span class="skel" style="width:100px"></span></div>
@@ -1213,6 +1275,34 @@
           </div>
           <div id="painelCartoes" class="cartoes" hidden></div>
           <div id="listaAviso" class="vazio" hidden></div>
+      </div>
+    </div>
+
+    <!-- ================= PÁGINA: BANCOS ================= -->
+    <div id="viewBancos" hidden>
+      <div class="pagina-topo">
+        <div>
+          <h1>Bancos</h1>
+          <div class="pagina-sub" id="bancosSub"></div>
+        </div>
+        <div class="mes-nav">
+          <button type="button" id="bancosMesAnterior" aria-label="Mês anterior"><i class="ph ph-caret-left" aria-hidden="true"></i></button>
+          <span class="mes-label" id="bancosMesLabel"></span>
+          <button type="button" id="bancosMesProximo" aria-label="Próximo mês"><i class="ph ph-caret-right" aria-hidden="true"></i></button>
+        </div>
+      </div>
+      <div class="bancos-grade" id="bancosGrade" role="group" aria-label="Escolha um banco"></div>
+      <div id="bancosSemCadastro"></div>
+      <div class="banco-detalhe" id="bancoDetalhe" hidden>
+        <div class="banco-cab">
+          <span class="banco-selo" id="bancoSelo" aria-hidden="true"></span>
+          <div class="banco-cab-texto">
+            <h2 id="bancoNome"></h2>
+            <div class="pagina-sub" id="bancoResumo"></div>
+          </div>
+          <button type="button" class="btn btn-primary" id="bancoCobrarTodos"></button>
+        </div>
+        <div id="bancoLista"></div>
       </div>
     </div>
 
@@ -1422,6 +1512,14 @@
           </div>
 
           <div class="cfg-painel" data-cfg-painel="lote" hidden>
+            <div class="cfg-modelo" data-modelo="loteBanco">
+              <div class="cfg-modelo-topo">
+                <div><div class="cfg-modelo-titulo">Cobrança de um banco</div><div class="cfg-modelo-dica">Sai da página Bancos, para quem deve o extrato daquele banco. Use <b>{banco}</b> no texto.</div></div>
+                <button type="button" class="btn btn-ghost btn-sm cfg-restaurar" data-restaurar="loteBanco">Restaurar padrão</button>
+              </div>
+              <div class="campo"><label for="cfgLoteBancoAssunto">Assunto</label><input class="input cfg-campo" id="cfgLoteBancoAssunto" type="text"></div>
+              <div class="campo"><label for="cfgLoteBancoCorpo">Mensagem</label><textarea class="textarea cfg-campo" id="cfgLoteBancoCorpo"></textarea><div class="cfg-contador" data-conta="cfgLoteBancoCorpo"></div></div>
+            </div>
             <div class="cfg-modelo" data-modelo="lote">
               <div class="cfg-modelo-topo">
                 <div><div class="cfg-modelo-titulo">Cobrança em lote</div><div class="cfg-modelo-dica">Um e-mail para vários clientes em Cco. Texto genérico.</div></div>
@@ -1795,6 +1893,10 @@
              corpo: 'Olá,\n\nEsta é a {n}ª vez que pedimos os documentos de {mes} de {cliente}:\n\n{lista}\n\nSem eles a apuração do mês fica parada e pode gerar multa e juros. Precisamos deles hoje. Se houver algum problema para enviar, nos avise por aqui.\n\n{assinatura}' }
     },
     whatsapp: 'Olá! Aqui é da {assinatura}. Para fechar {mes} ainda precisamos de {cliente}: {documentos}. Pode nos enviar por e-mail ({caixa})? Obrigado!',
+    // Cobrança de um banco só: o assunto já diz qual, senão o cliente com
+    // quatro contas abre o e-mail sem saber de qual falta.
+    loteBanco: { assunto: 'Extrato do {banco} — {mes}',
+            corpo: 'Olá,\n\nPara fechar a contabilidade de {mes} ainda não recebemos o extrato do {banco} da sua empresa.\n\nPode responder este e-mail com o arquivo em anexo? O recebimento é registrado automaticamente.\n\nObrigado,\n{assinatura}' },
     lote: { assunto: 'Documentos de {mes} pendentes',
             corpo: 'Olá,\n\nEstamos fechando a contabilidade de {mes} e ainda faltam documentos (extrato bancário, comprovantes de pagamento ou aplicação financeira) da sua empresa.\n\nPode responder este e-mail com os arquivos em anexo? O recebimento é registrado automaticamente.\n\nObrigado,\n{assinatura}' }
   };
@@ -2343,6 +2445,20 @@
       if (ativo) item.setAttribute('aria-current', 'page'); else item.removeAttribute('aria-current');
     });
   }
+  $('filtrosBtn').addEventListener('click', function () {
+    var painel = $('filtrosPainel');
+    var abrir = painel.hidden;
+    painel.hidden = !abrir;
+    this.setAttribute('aria-expanded', abrir ? 'true' : 'false');
+    this.classList.toggle('aberto', abrir);
+    if (abrir) { var p = painel.querySelector('select, button'); if (p) p.focus(); }
+  });
+  $('bancosMesAnterior').addEventListener('click', function () { irParaMes(-1); });
+  $('bancosMesProximo').addEventListener('click', function () { irParaMes(1); });
+  $('bancoCobrarTodos').addEventListener('click', function () {
+    if (!bancoEscolhido) return;
+    abrirModalLote(clientesDevendoBanco(bancoEscolhido).map(function (c) { return c.id; }), bancoEscolhido);
+  });
   $('btnHoje').addEventListener('click', function () {
     var hoje = new Date();
     competenciaAtual = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
@@ -3135,6 +3251,11 @@
           + (totalSemEmail ? ' · ' + totalSemEmail + ' sem e-mail cadastrado' : '') + '.';
     }
     $('menuNumTodos').textContent = clientesCarregados ? clientesCache.length : '';
+    // no menu, quantos clientes devem extrato de algum banco
+    var devendoExtrato = clientesCache.filter(function (c) { return bancosFaltando(c.id).length > 0; }).length;
+    var contBanco = $('menuNumBancos');
+    contBanco.textContent = devendoExtrato || '';
+    contBanco.hidden = !devendoExtrato;
     atualizarMenu();
     if (!pronto) {
       ['numPendentes', 'numCompletos'].forEach(function (id) { if (!$(id).textContent) $(id).textContent = ''; });
@@ -3153,8 +3274,13 @@
     $('chipCostume').setAttribute('aria-pressed', String(filtroCostume));
     var filtrando = filtroTipos.size > 0 || filtroStatus !== 'todos' || !!termoBusca || filtroPrazo || filtroCostume || !!filtroZona || !!filtroEnq;
     var nFiltros = filtroTipos.size + (filtroPrazo ? 1 : 0) + (filtroCostume ? 1 : 0) + (filtroZona ? 1 : 0) + (filtroEnq ? 1 : 0);
-    $('filtrosAtivos').textContent = nFiltros ? nFiltros + ' ativos' : '';
-    if (nFiltros) $('filtrosDobra').open = true;
+    $('filtrosAtivos').textContent = nFiltros || '';
+    // Filtro ligado sem o painel aberto some da vista: abre uma vez pra mostrar
+    // de onde vem o corte na lista.
+    if (nFiltros && $('filtrosPainel').hidden && !painelDeFiltroJaAbriu) {
+      painelDeFiltroJaAbriu = true;
+      $('filtrosBtn').click();
+    }
     $('limparFiltros').hidden = !filtrando;
     $('resultado').textContent = clientesCarregados
       ? (filtrando ? visiveis + ' de ' + clientesCache.length + ' clientes' : plural(clientesCache.length, 'cliente', 'clientes'))
@@ -3267,6 +3393,7 @@
     $('viewRobo').hidden = telaCliente || paginaAtual !== 'robo';
     $('viewConfig').hidden = telaCliente || paginaAtual !== 'config';
     if (paginaAtual === 'config' && !telaCliente && typeof renderConfig === 'function') renderConfig();
+    $('viewBancos').hidden = telaCliente || paginaAtual !== 'bancos';
     $('viewHoje').hidden = telaCliente || paginaAtual !== 'hoje';
     $('viewAnual').hidden = telaCliente || paginaAtual !== 'anual';
     if (paginaAtual === 'anual' && !telaCliente) carregarAnual();
@@ -3641,6 +3768,7 @@
       });
       tc.appendChild(tbody2);
     }
+    renderBancos();
     rotularColunas();
     renderReguaAZ();
     var rot = $('cobrarLoteRotulo');
@@ -3666,6 +3794,164 @@
     });
     return total ? Math.round(fechados / total * 100) : 0;
   }
+  // ---------- página Bancos ----------
+  var bancoEscolhido = null;
+  // Quem tem conta neste banco e ainda não mandou o extrato dele no mês.
+  function clientesDevendoBanco(bancoId) {
+    return clientesCache.filter(function (c) {
+      if (semMovimento(c.id) || naoSeAplica(c.id, 'extrato')) return false;
+      return bancosDoCliente(c.id).indexOf(bancoId) !== -1 && bancosFaltando(c.id).indexOf(bancoId) !== -1;
+    });
+  }
+  function clientesComBanco(bancoId) {
+    return clientesCache.filter(function (c) { return bancosDoCliente(c.id).indexOf(bancoId) !== -1; });
+  }
+  function seloDoBanco(bancoId) {
+    var b = window.BancosNilma && window.BancosNilma.porId[bancoId];
+    var selo = el('span', 'banco-selo');
+    if (b) { selo.style.background = b.cor; selo.style.color = b.tinta; selo.textContent = b.sigla; }
+    else selo.textContent = String(bancoId || '?').slice(0, 5);
+    var img = document.createElement('img');
+    img.src = 'scripts/logos-bancos/' + bancoId + '.png';
+    img.alt = '';
+    img.loading = 'lazy';
+    img.addEventListener('error', function () { img.remove(); });
+    selo.appendChild(img);
+    return selo;
+  }
+
+  function renderBancos() {
+    if (paginaAtual !== 'bancos' || telaCliente) return;
+    $('bancosMesLabel').textContent = competenciaLabel(competenciaAtual);
+    var grade = $('bancosGrade');
+    grade.innerHTML = '';
+
+    // Só banco que alguém usa: a lista tem 19, o escritório vê meia dúzia.
+    var usados = {};
+    clientesCache.forEach(function (c) {
+      bancosDoCliente(c.id).forEach(function (b) { usados[b] = true; });
+    });
+    var ids = Object.keys(usados).sort(function (a, b) {
+      return clientesDevendoBanco(b).length - clientesDevendoBanco(a).length || nomeDeBanco(a).localeCompare(nomeDeBanco(b), 'pt-BR');
+    });
+    var totalFaltando = 0;
+    ids.forEach(function (id) { totalFaltando += clientesDevendoBanco(id).length; });
+    $('bancosSub').textContent = !clientesCarregados ? 'Carregando…'
+      : !ids.length ? 'Nenhum cliente tem banco no cadastro ainda.'
+      : totalFaltando ? totalFaltando + ' extrato(s) em falta, em ' + ids.length + ' banco(s).'
+      : 'Todo extrato do mês já chegou.';
+
+    ids.forEach(function (id) {
+      var devem = clientesDevendoBanco(id).length;
+      var total = clientesComBanco(id).length;
+      var cartao = el('button', 'banco-cartao' + (bancoEscolhido === id ? ' escolhido' : '') + (devem ? '' : ' quitado'));
+      cartao.type = 'button';
+      cartao.setAttribute('aria-pressed', String(bancoEscolhido === id));
+      cartao.appendChild(seloDoBanco(id));
+      var txt = el('div', 'banco-cartao-texto');
+      txt.appendChild(el('div', 'banco-cartao-nome', nomeDeBanco(id)));
+      txt.appendChild(el('div', 'banco-cartao-num', devem ? devem + ' de ' + total + ' faltando' : 'todos entregues'));
+      var trilho = el('div', 'barra');
+      var cheio = el('span');
+      cheio.style.width = total ? Math.round((total - devem) / total * 100) + '%' : '0%';
+      trilho.appendChild(cheio);
+      txt.appendChild(trilho);
+      cartao.appendChild(txt);
+      cartao.addEventListener('click', function () {
+        bancoEscolhido = bancoEscolhido === id ? null : id;
+        renderBancos();
+        if (bancoEscolhido) $('bancoDetalhe').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      });
+      grade.appendChild(cartao);
+    });
+
+    // Cliente sem banco nenhum no cadastro não aparece em banco algum: fica
+    // fora da conta e ninguém percebe. Aqui ele aparece.
+    var semBanco = clientesCache.filter(function (c) { return !bancosDoCliente(c.id).length && !naoSeAplica(c.id, 'extrato'); });
+    var cxSem = $('bancosSemCadastro');
+    cxSem.innerHTML = '';
+    if (semBanco.length) {
+      var dob = el('details', 'dobra');
+      var sum = el('summary');
+      sum.appendChild(document.createTextNode('Sem banco no cadastro '));
+      sum.appendChild(el('span', 'cont', String(semBanco.length)));
+      dob.appendChild(sum);
+      var corpoSem = el('div', 'dobra-corpo');
+      corpoSem.appendChild(el('p', 'small', 'Destes o robô ainda não aprendeu o banco (ele aprende ao ler o primeiro extrato) e ninguém preencheu à mão. Eles não entram na conta por banco acima.'));
+      semBanco.slice(0, 40).forEach(function (c) {
+        var linha = el('button', 'banco-linha-cliente');
+        linha.type = 'button';
+        linha.appendChild(el('span', 'bl-nome', clienteLabel(c)));
+        linha.addEventListener('click', function () { abrirDetalhe(c.id, 'abaDocs'); });
+        corpoSem.appendChild(linha);
+      });
+      if (semBanco.length > 40) corpoSem.appendChild(el('p', 'small', 'e mais ' + (semBanco.length - 40) + '.'));
+      dob.appendChild(corpoSem);
+      cxSem.appendChild(dob);
+    }
+
+    renderBancoEscolhido();
+  }
+
+  function renderBancoEscolhido() {
+    var caixa = $('bancoDetalhe');
+    if (!bancoEscolhido) { caixa.hidden = true; return; }
+    caixa.hidden = false;
+    var selo = seloDoBanco(bancoEscolhido);
+    $('bancoSelo').replaceWith(selo);
+    selo.id = 'bancoSelo';
+    $('bancoNome').textContent = 'Extrato do ' + nomeDeBanco(bancoEscolhido);
+    var devem = clientesDevendoBanco(bancoEscolhido);
+    var total = clientesComBanco(bancoEscolhido).length;
+    $('bancoResumo').textContent = devem.length
+      ? devem.length + ' de ' + total + ' ainda não mandaram, em ' + competenciaLabel(competenciaAtual) + '.'
+      : 'Todos os ' + total + ' já mandaram em ' + competenciaLabel(competenciaAtual) + '.';
+    var comEmail = devem.filter(function (c) { return !!c.email; });
+    var btn = $('bancoCobrarTodos');
+    btn.textContent = comEmail.length ? 'Cobrar ' + comEmail.length + ' por e-mail' : 'Ninguém para cobrar';
+    btn.disabled = !comEmail.length;
+    var lista = $('bancoLista');
+    lista.innerHTML = '';
+    if (!devem.length) {
+      var ok = el('div', 'lado-vazio');
+      ok.appendChild(ico('ph-check-circle'));
+      ok.appendChild(el('span', null, 'Nada a cobrar deste banco no mês.'));
+      lista.appendChild(ok);
+      return;
+    }
+    devem.sort(function (a, b) { return chaveDeOrdem(a).localeCompare(chaveDeOrdem(b), 'pt-BR'); });
+    devem.forEach(function (c) {
+      var linha = el('div', 'banco-linha-cliente');
+      var nomeBt = el('button', 'bl-nome link');
+      nomeBt.type = 'button';
+      nomeBt.textContent = clienteLabel(c);
+      nomeBt.addEventListener('click', function () { abrirDetalhe(c.id, 'abaDocs'); });
+      linha.appendChild(nomeBt);
+      var cobs = cobrancasDe(c.id).filter(function (x) { return x.canal !== 'coleta'; }).sort(function (a, b) { return String(b.em).localeCompare(String(a.em)); });
+      var info = el('span', 'bl-info');
+      info.textContent = !c.email ? 'sem e-mail' : cobs.length ? 'cobrado ' + relativo(cobs[0].em) : 'ainda não cobrado';
+      if (!c.email) info.classList.add('alerta');
+      linha.appendChild(info);
+      var acoes = el('div', 'bl-acoes');
+      if (c.email) {
+        var bCob = el('button', 'btn btn-secondary btn-sm');
+        bCob.type = 'button';
+        bCob.textContent = 'Cobrar';
+        bCob.title = 'Manda a cobrança padrão deste cliente, com 6 segundos para desfazer';
+        bCob.addEventListener('click', function () { cobrarDeUmToque(c); });
+        acoes.appendChild(bCob);
+      }
+      var bRec = el('button', 'btn btn-ghost btn-sm');
+      bRec.type = 'button';
+      bRec.textContent = 'Chegou';
+      bRec.title = 'Marca o extrato do ' + nomeDeBanco(bancoEscolhido) + ' como recebido (chegou fora do Gmail)';
+      bRec.addEventListener('click', function () { alternarBanco(c, bancoEscolhido, true); });
+      acoes.appendChild(bRec);
+      linha.appendChild(acoes);
+      lista.appendChild(linha);
+    });
+  }
+
   function renderHoje(marcados, roboParado, uteis, ultimaExec) {
     var compAberta = competenciaStr(competenciaAtual);
     var hoje = new Date();
@@ -4830,6 +5116,8 @@
   var modalClienteId = null;
   var modalModo = 'um';           // 'um' | 'lote'
   var modalLoteIds = [];
+  var painelDeFiltroJaAbriu = false;
+  var modalLoteBanco = null;   // cobrança de um banco só: qual
   // Variáveis dos modelos: {cliente} {mes} {lista} {documentos} {prazo} {n}
   // {assinatura} {caixa}. O número da cobrança escolhe o modelo (1ª, 2ª, 3ª
   // ou mais): a régua sobe de tom conforme o cliente ignora.
@@ -5342,18 +5630,27 @@
   });
 
   // ---------- cobrança em lote ----------
-  function abrirModalLote() {
-    modalLoteIds = idsVisiveis.filter(function (id) { var c = clientesPorId.get(id); return c && c.email && faltandoDe(id).length > 0; });
-    if (!modalLoteIds.length) { toast('Nenhum cliente visível com pendência e e-mail.'); return; }
+  // Sem argumento, cobra os clientes visíveis na lista (como sempre foi).
+  // Com "banco", cobra quem deve o extrato daquele banco, com o modelo que
+  // nomeia o banco.
+  function abrirModalLote(ids, banco) {
+    modalLoteIds = (ids || idsVisiveis).filter(function (id) { var c = clientesPorId.get(id); return c && c.email && faltandoDe(id).length > 0; });
+    if (!modalLoteIds.length) { toast(banco ? 'Ninguém com e-mail devendo o extrato do ' + nomeDeBanco(banco) + '.' : 'Nenhum cliente visível com pendência e e-mail.'); return; }
     modalModo = 'lote';
     modalClienteId = null;
-    $('modalTitulo').textContent = 'Cobrar ' + plural(modalLoteIds.length, 'cliente', 'clientes') + ' de uma vez';
+    modalLoteBanco = banco || null;
+    $('modalTitulo').textContent = banco
+      ? 'Cobrar o extrato do ' + nomeDeBanco(banco) + ' de ' + plural(modalLoteIds.length, 'cliente', 'clientes')
+      : 'Cobrar ' + plural(modalLoteIds.length, 'cliente', 'clientes') + ' de uma vez';
     $('modalSub').textContent = competenciaLabel(competenciaAtual) + ' · todos em Cco, um e-mail só';
     $('modalAvisos').innerHTML = '';
     var a = el('div', 'modal-aviso info');
     a.appendChild(ico('ph-info'));
     var jaCobrados = modalLoteIds.filter(function (id) { return numeroDaCobranca(id) > 1; }).length;
-    a.appendChild(el('span', null, 'Vai para os clientes visíveis na lista com pendência e e-mail. Mensagem genérica, sem citar documentos de cada um.' + (jaCobrados ? ' ' + plural(jaCobrados, 'já foi cobrado', 'já foram cobrados') + ' neste mês.' : '')));
+    a.appendChild(el('span', null, (banco
+      ? 'Vai para quem tem conta no ' + nomeDeBanco(banco) + ', ainda não mandou o extrato dele e tem e-mail cadastrado.'
+      : 'Vai para os clientes visíveis na lista com pendência e e-mail. Mensagem genérica, sem citar documentos de cada um.')
+      + (jaCobrados ? ' ' + plural(jaCobrados, 'já foi cobrado', 'já foram cobrados') + ' neste mês.' : '')));
     $('modalAvisos').appendChild(a);
     $('cobPara').type = 'text';
     $('cobPara').readOnly = true;
@@ -5363,9 +5660,10 @@
     tipos.innerHTML = '';
     modalLoteIds.slice(0, 12).forEach(function (id) { tipos.appendChild(badge(nomeExibicao(clientesPorId.get(id)), 'quieto')); });
     if (modalLoteIds.length > 12) tipos.appendChild(badge('+ ' + (modalLoteIds.length - 12), 'quieto'));
-    var vars = { mes: competenciaPorExtenso(competenciaStr(competenciaAtual)), assinatura: configCobranca.assinatura, prazo: (prazoDoMes() || {}).texto || 'combinado', n: modalLoteIds.length, caixa: CAIXA_GMAIL };
-    $('cobAssunto').value = preencherModelo(configCobranca.lote.assunto, vars);
-    $('cobCorpo').value = preencherModelo(configCobranca.lote.corpo, vars);
+    var vars = { mes: competenciaPorExtenso(competenciaStr(competenciaAtual)), assinatura: configCobranca.assinatura, prazo: (prazoDoMes() || {}).texto || 'combinado', n: modalLoteIds.length, caixa: CAIXA_GMAIL, banco: banco ? nomeDeBanco(banco) : '' };
+    var modeloLote = banco ? (configCobranca.loteBanco || CONFIG_PADRAO.loteBanco) : configCobranca.lote;
+    $('cobAssunto').value = preencherModelo(modeloLote.assunto, vars);
+    $('cobCorpo').value = preencherModelo(modeloLote.corpo, vars);
     $('modalWhats').hidden = true;
     $('modalRodape').textContent = textoRodapeEnvio('Todos em Cco, um e-mail só. ');
     var dlg = $('modalCobrar');
@@ -5418,7 +5716,8 @@
     ['cfgAssunto1', 'modelos', '1', 'assunto'], ['cfgCorpo1', 'modelos', '1', 'corpo'],
     ['cfgAssunto2', 'modelos', '2', 'assunto'], ['cfgCorpo2', 'modelos', '2', 'corpo'],
     ['cfgAssunto3', 'modelos', '3', 'assunto'], ['cfgCorpo3', 'modelos', '3', 'corpo'],
-    ['cfgLoteAssunto', 'lote', null, 'assunto'], ['cfgLoteCorpo', 'lote', null, 'corpo']
+    ['cfgLoteAssunto', 'lote', null, 'assunto'], ['cfgLoteCorpo', 'lote', null, 'corpo'],
+    ['cfgLoteBancoAssunto', 'loteBanco', null, 'assunto'], ['cfgLoteBancoCorpo', 'loteBanco', null, 'corpo']
   ];
   var VARIAVEIS = [
     ['{cliente}', 'nome do cliente'], ['{mes}', 'competência por extenso'], ['{lista}', 'documentos em falta, um por linha'],
@@ -5642,6 +5941,7 @@
       var qual = b.dataset.restaurar;
       if (qual === 'whats') $('cfgWhats').value = CONFIG_PADRAO.whatsapp;
       else if (qual === 'lote') { $('cfgLoteAssunto').value = CONFIG_PADRAO.lote.assunto; $('cfgLoteCorpo').value = CONFIG_PADRAO.lote.corpo; }
+      else if (qual === 'loteBanco') { $('cfgLoteBancoAssunto').value = CONFIG_PADRAO.loteBanco.assunto; $('cfgLoteBancoCorpo').value = CONFIG_PADRAO.loteBanco.corpo; }
       else { $('cfgAssunto' + qual).value = CONFIG_PADRAO.modelos[qual].assunto; $('cfgCorpo' + qual).value = CONFIG_PADRAO.modelos[qual].corpo; }
       aoEditarConfig();
       toast('Texto padrão carregado. Salve para aplicar.');
