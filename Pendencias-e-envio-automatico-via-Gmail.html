@@ -920,28 +920,28 @@
   .grafico-bloco { margin-top: var(--esp-5); }
   .grafico-titulo { font-size: var(--t-md); font-weight: 600; margin-bottom: var(--esp-3); }
   .grafico-pe { font-size: var(--t-sm); color: var(--ink-faint); margin-top: var(--esp-2); }
-  .gb-linha { display: flex; align-items: flex-end; gap: var(--esp-3); margin-bottom: var(--esp-3); }
-  .gb-nome { flex: 0 0 172px; display: flex; align-items: center; gap: var(--esp-2); font-size: var(--t-sm); font-weight: 500; min-width: 0; }
-  .gb-nome .banco-selo { width: 26px; height: 26px; font-size: 7px; }
-  .gb-nome span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .gb-meses, .gc-meses { flex: 1; display: flex; gap: 4px; align-items: flex-end; min-width: 0; }
-  .gb-mes, .gc-mes { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; }
-  .gb-trilho {
-    width: 100%; height: 40px; display: flex; align-items: flex-end;
-    background: var(--surface-2); border-radius: var(--r-xs); overflow: hidden;
+  /* Mapa de calor: banco na linha, mês na coluna, um quadradinho por
+     cruzamento. Antes era uma barra por mês dentro de um trilho da largura
+     toda — em cliente sem histórico, seis lajotas cinzas por banco. */
+  .mapa-meses { display: flex; flex-direction: column; gap: 4px; }
+  .mm-linha { display: flex; align-items: center; gap: 4px; }
+  .mm-nome { flex: 0 0 168px; display: flex; align-items: center; gap: var(--esp-2); min-width: 0; font-size: var(--t-sm); }
+  .mm-nome .banco-selo { width: 24px; height: 24px; font-size: 7px; }
+  .mm-texto { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mm-rot { flex: 1; text-align: center; font-size: 9px; color: var(--ink-faint); }
+  .mm-cab { margin-bottom: 2px; }
+  .mm-cel {
+    flex: 1; height: 26px; border-radius: var(--r-xs); background: var(--surface-2);
+    box-shadow: inset 0 0 0 1px var(--border);
   }
-  .gb-trilho.sem-mov { background: repeating-linear-gradient(45deg, var(--surface-2), var(--surface-2) 3px, var(--surface-3) 3px, var(--surface-3) 6px); }
-  .gb-barra { width: 100%; border-radius: var(--r-xs); background: var(--success); }
-  .gb-barra.parcial { background: var(--warning); }
-  .gb-barra.vazio { background: var(--border-forte); }
-  .gb-rot { font-size: 9px; color: var(--ink-faint); }
-  .gc-pilha { display: flex; flex-direction: column-reverse; gap: 2px; justify-content: flex-start; height: 40px; width: 100%; }
-  .gc-tick { display: block; height: 5px; border-radius: 2px; background: var(--accent); }
-  .gc-resp { font-size: var(--t-xs); font-variant-numeric: tabular-nums; color: var(--ink-faint); }
-  .gc-resp.rapido { color: var(--success-forte); font-weight: 600; }
-  .gc-resp.medio { color: var(--warning-forte); }
-  .gc-resp.lento { color: var(--danger); font-weight: 600; }
-  @media (max-width: 700px) { .gb-nome { flex-basis: 108px; } }
+  .mm-cel.mm-cheio { background: var(--success); box-shadow: none; }
+  .mm-cel.mm-parcial { background: var(--warning); box-shadow: none; }
+  .mm-cel.mm-vazio { background: transparent; }
+  .mm-cel.mm-sem-mov { background: repeating-linear-gradient(45deg, var(--surface-2), var(--surface-2) 3px, var(--surface-3) 3px, var(--surface-3) 6px); box-shadow: none; }
+  /* na legenda o quadradinho vira um selo pequeno, não uma coluna */
+  .grafico-pe .mm-cel { display: inline-block; flex: none; width: 14px; height: 14px; vertical-align: -2px; }
+  .resposta { max-width: 74ch; }
+  @media (max-width: 700px) { .mm-nome { flex-basis: 104px; } .mm-cel { height: 30px; } }
 
   /* Seletor de banco: escolhe de qual banco é a conversa da ficha inteira. */
   .seletor-banco {
@@ -3939,83 +3939,97 @@
     var exigidos = tiposExigidos(cliente.id);
     if (!deles.length || !exigidos.length) return;
 
+    // Mês algum com documento? Então não há história pra contar: uma linha
+    // resolve, e seis fileiras de quadradinhos vazios só enchem a tela.
+    var houveAlgo = comps.some(function (comp) {
+      var d = docs[comp] || {};
+      return d.semMovimento || exigidos.some(function (t) { return bancosRecebidos(cliente.id, t.chave, d).length; });
+    });
     var bloco = el('div', 'grafico-bloco');
-    bloco.appendChild(el('h3', 'grafico-titulo', 'Últimos ' + comps.length + ' meses, banco a banco'));
+    bloco.appendChild(el('h3', 'grafico-titulo', 'Últimos ' + comps.length + ' meses'));
+    if (!houveAlgo) {
+      bloco.appendChild(el('p', 'grafico-pe', 'Nada recebido deste cliente nos últimos ' + comps.length + ' meses.'));
+      caixa.appendChild(bloco);
+      caixa.appendChild(fraseDaCobranca(cliente, comps, docs));
+      return;
+    }
+    var mapa = el('div', 'mapa-meses');
+    // rótulo do mês uma vez só, em cima — repetir embaixo de cada barra era
+    // a mesma palavra dezoito vezes na tela
+    var cab = el('div', 'mm-linha mm-cab');
+    cab.appendChild(el('span', 'mm-nome'));
+    comps.forEach(function (comp) { cab.appendChild(el('span', 'mm-rot', rotuloCurtoDoMes(comp).slice(0, 3))); });
+    mapa.appendChild(cab);
     deles.forEach(function (bid) {
-      var linha = el('div', 'gb-linha');
-      var nome = el('div', 'gb-nome');
+      var linha = el('div', 'mm-linha');
+      var nome = el('span', 'mm-nome');
       nome.appendChild(seloDoBanco(bid));
-      nome.appendChild(el('span', null, nomeDeBanco(bid)));
+      nome.appendChild(el('span', 'mm-texto', nomeDeBanco(bid)));
       linha.appendChild(nome);
-      var grade = el('div', 'gb-meses');
       comps.forEach(function (comp) {
         var dado = docs[comp] || {};
-        var col = el('div', 'gb-mes');
-        var trilho = el('div', 'gb-trilho');
-        if (dado.semMovimento) {
-          trilho.classList.add('sem-mov');
-          col.title = rotuloCurtoDoMes(comp) + ': mês sem movimento';
-        } else {
-          // quantos dos documentos exigidos daquele banco chegaram no mês
-          var chegaram = exigidos.filter(function (t) {
-            return bancosRecebidos(cliente.id, t.chave, dado).indexOf(bid) !== -1;
-          }).length;
-          var pct = Math.round(chegaram / exigidos.length * 100);
-          var barra = el('span', 'gb-barra' + (pct === 100 ? ' cheio' : pct ? ' parcial' : ' vazio'));
-          barra.style.height = Math.max(pct, 4) + '%';
-          trilho.appendChild(barra);
-          col.title = rotuloCurtoDoMes(comp) + ': ' + chegaram + ' de ' + exigidos.length + ' documentos do ' + nomeDeBanco(bid);
-        }
-        col.appendChild(trilho);
-        col.appendChild(el('span', 'gb-rot', rotuloCurtoDoMes(comp).slice(0, 3)));
-        grade.appendChild(col);
+        var chegaram = exigidos.filter(function (t) {
+          return bancosRecebidos(cliente.id, t.chave, dado).indexOf(bid) !== -1;
+        }).length;
+        // prefixo mm- de propósito: 'vazio' sozinho é a classe do estado
+        // vazio do app (um bloco flex com padding), e a célula virava caixa
+        var estado = dado.semMovimento ? 'mm-sem-mov'
+          : chegaram === exigidos.length ? 'mm-cheio'
+          : chegaram ? 'mm-parcial' : 'mm-vazio';
+        var cel = el('span', 'mm-cel ' + estado);
+        cel.title = rotuloCurtoDoMes(comp) + ': ' + (dado.semMovimento ? 'mês sem movimento'
+          : chegaram + ' de ' + exigidos.length + ' documentos do ' + nomeDeBanco(bid));
+        linha.appendChild(cel);
       });
-      linha.appendChild(grade);
-      bloco.appendChild(linha);
+      mapa.appendChild(linha);
     });
+    bloco.appendChild(mapa);
+    var legenda = el('p', 'grafico-pe');
+    legenda.appendChild(el('span', 'mm-cel mm-cheio'));
+    legenda.appendChild(document.createTextNode(' tudo  '));
+    legenda.appendChild(el('span', 'mm-cel mm-parcial'));
+    legenda.appendChild(document.createTextNode(' parte  '));
+    legenda.appendChild(el('span', 'mm-cel mm-vazio'));
+    legenda.appendChild(document.createTextNode(' nada'));
+    bloco.appendChild(legenda);
     caixa.appendChild(bloco);
-    caixa.appendChild(graficoDeCobranca(cliente, comps, docs));
+    caixa.appendChild(fraseDaCobranca(cliente, comps, docs));
   }
 
-  // Cobrar adianta? Por mês: quantas cobranças saíram e quantos dias o
-  // cliente levou da primeira cobrança até o primeiro documento chegar.
-  function graficoDeCobranca(cliente, comps, docs) {
-    var bloco = el('div', 'grafico-bloco');
-    bloco.appendChild(el('h3', 'grafico-titulo', 'Cobrança e resposta'));
-    var grade = el('div', 'gc-meses');
-    var houve = false;
+  // Isto era um gráfico de barras que, com uma ou duas cobranças em seis
+  // meses, virava um traço solto no meio do branco. A informação cabe numa
+  // frase — e frase não mente sobre o tamanho da amostra.
+  function fraseDaCobranca(cliente, comps, docs) {
+    var cobrancas = 0, esperas = [];
     comps.forEach(function (comp) {
       var dado = docs[comp] || {};
       var cobs = (dado.cobrancas || []).filter(function (c) { return c.canal !== 'coleta'; })
         .sort(function (a, b) { return String(a.em).localeCompare(String(b.em)); });
+      cobrancas += cobs.length;
       var det = dado.detalhes || {};
       var chegadas = TIPOS.map(function (t) { return det[t.chave] && det[t.chave].em; }).filter(Boolean).sort();
-      // Data torta (documento antigo, campo escrito à mão) não pode virar
-      // "NaNd" na tela: vira 'não dá pra dizer'.
-      var dias = null;
-      if (cobs.length && chegadas.length) {
-        var conta = Math.round((new Date(chegadas[0]) - new Date(cobs[0].em)) / 864e5);
-        if (isFinite(conta)) dias = conta;
-      }
-      if (cobs.length) houve = true;
-      var col = el('div', 'gc-mes');
-      var pilha = el('div', 'gc-pilha');
-      for (var i = 0; i < Math.min(cobs.length, 6); i++) pilha.appendChild(el('span', 'gc-tick'));
-      col.appendChild(pilha);
-      var resp = el('div', 'gc-resp' + (dias === null ? ' sem' : dias <= 0 ? ' antes' : dias <= 3 ? ' rapido' : dias <= 7 ? ' medio' : ' lento'));
-      resp.textContent = dias === null ? (cobs.length ? '—' : '·') : (dias <= 0 ? 'no dia' : dias + 'd');
-      col.appendChild(resp);
-      col.appendChild(el('span', 'gb-rot', rotuloCurtoDoMes(comp).slice(0, 3)));
-      col.title = rotuloCurtoDoMes(comp) + ': ' + (cobs.length ? plural(cobs.length, 'cobrança', 'cobranças') : 'nenhuma cobrança')
-        + (dias === null ? '' : dias <= 0 ? ', o documento chegou sem precisar' : ', primeiro documento ' + plural(dias, 'dia', 'dias') + ' depois');
-      grade.appendChild(col);
+      if (!cobs.length || !chegadas.length) return;
+      var dias = Math.round((new Date(chegadas[0]) - new Date(cobs[0].em)) / 864e5);
+      if (isFinite(dias) && dias >= 0) esperas.push(dias);
     });
-    bloco.appendChild(grade);
-    bloco.appendChild(el('p', 'grafico-pe', houve
-      ? 'Cada traço é uma cobrança; embaixo, quantos dias até o primeiro documento chegar.'
-      : 'Este cliente não foi cobrado nestes meses.'));
-    return bloco;
+    var p = el('p', 'grafico-pe resposta');
+    if (!cobrancas) {
+      p.textContent = 'Nunca foi cobrado nestes ' + comps.length + ' meses.';
+      return p;
+    }
+    var texto = 'Cobrado ' + plural(cobrancas, 'vez', 'vezes') + ' em ' + comps.length + ' meses';
+    if (esperas.length) {
+      var media = Math.round(esperas.reduce(function (a, b) { return a + b; }, 0) / esperas.length);
+      texto += '; depois da cobrança, o primeiro documento chega em ' +
+        (media <= 0 ? 'menos de um dia' : plural(media, 'dia', 'dias')) +
+        (esperas.length < 3 ? ' (poucos casos)' : '');
+    } else {
+      texto += ', e nenhum documento chegou depois disso';
+    }
+    p.textContent = texto + '.';
+    return p;
   }
+
 
   // ---------- de qual banco estamos falando ----------
   // Null = todos. Escolher um banco estreita a ficha inteira: os cartões, o

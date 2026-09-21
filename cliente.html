@@ -180,6 +180,33 @@
   footer { margin-top: 32px; color: var(--ink-faint); font-size: .875rem; }
   footer p + p { margin-top: 8px; }
   footer a { color: inherit; }
+
+
+  /* ---------- no computador ----------
+     A página nasceu pro celular: coluna de 560px e tudo com largura total.
+     Num monitor isso vira uma tira no meio de 900px de vazio, com botões de
+     meio metro. Aqui a coluna respira, o alvo encolhe (é mouse, não dedo) e
+     os botões passam a ter o tamanho do que escrevem. */
+  @media (min-width: 760px) {
+    main { max-width: 720px; }
+    h1 { font-size: 1.625rem; }
+    /* auto não basta: .botao é display:flex, e flex em bloco ocupa a linha */
+    button, .botao { width: fit-content; min-height: 40px; }
+    /* as ações de uma guia viram uma fileira, não uma pilha */
+    .acoes { display: flex; flex-wrap: wrap; align-items: center; }
+    .acoes-menores button { min-width: 0; flex: 0 0 auto; }
+    .pi-enviar { min-height: 40px; }
+    .pedido-item { min-height: 48px; }
+    input[type=text] { min-height: 42px; max-width: 460px; }
+    /* o campo do código de barras é pra copiar, não pra ler: cabe em uma linha */
+    input[readonly] { font-size: .875rem; max-width: none; }
+    .envio select, .envio input[type=file] { max-width: 460px; }
+    /* guardar na tela inicial é assunto de celular */
+    .instalar { display: none; }
+  }
+  @media (min-width: 1100px) {
+    main { max-width: 860px; }
+  }
 </style>
 </head>
 <body>
