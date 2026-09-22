@@ -2017,8 +2017,7 @@
        a cada nível, pra ficar claro que é filho de "Clientes e ajustes" —
        em vez de virar uma barra horizontal separada em cima do conteúdo. */
     .tab-nivel1 { padding-left: 24px; }
-    .tab-nivel2 { padding-left: 38px; font-size: var(--t-sm); }
-    .tab-nivel1 .tab-ico, .tab-nivel2 .tab-ico { font-size: .9rem; width: 16px; }
+    .tab-nivel1 .tab-ico { font-size: .9rem; width: 16px; }
 
     /* Barra de cima e conteúdo compartilham a mesma coluna centralizada no
        espaço à direita da lateral. */
@@ -5145,14 +5144,12 @@
         ] }
     ];
 
-    // O menu em si mora na barra lateral (o mesmo <nav class="tabs"> que já
-    // vira coluna fixa em tela de PC), logo depois do botão "Clientes e
-    // ajustes" — nível 1 com um recuo, nível 2 com dois. Só os botões do
-    // destino ativo (nível 1) e, dentro dele, da categoria ativa (nível 2)
-    // ficam com a marca "active"; os botões dos OUTROS destinos ficam
-    // escondidos até "Clientes e ajustes" ser aberto, e os de nível 2 só
-    // aparecem enquanto o destino pai deles está selecionado — senão seria
-    // 18 botões espalhados na barra de uma vez só, o problema de origem.
+    // Nível 1 (Carteira/Painéis/Cadastro/Ajustes) mora na barra lateral (o
+    // mesmo <nav class="tabs"> que já vira coluna fixa em tela de PC), logo
+    // depois do botão "Clientes e ajustes". Nível 2 (as categorias de
+    // dentro de cada um) fica NA TELA PRINCIPAL, como uma barrinha de
+    // categorias no topo do conteúdo — não na lateral, a pedido da Nilma
+    // (recuo duplo na barra ficava apertado/escondido demais).
     var frag = document.createDocumentFragment();
     DESTINOS_CLIENTES_.forEach(function (d, i) {
       var btn1 = document.createElement('button');
@@ -5163,20 +5160,6 @@
       btn1.innerHTML = '<span class="tab-ico"><i class="ph ' + d.icone + '" aria-hidden="true"></i></span><span class="tab-label">' + escapeHtml_(d.rotulo) + '</span>';
       btn1.addEventListener('click', function () { mostrarParteDeClientes_(d.id); });
       frag.appendChild(btn1);
-
-      if (d.grupos.length > 1) {
-        d.grupos.forEach(function (g, gi) {
-          var btn2 = document.createElement('button');
-          btn2.type = 'button';
-          btn2.className = 'tab tab-nivel2 clientes-subtab' + (i === 0 && gi === 0 ? ' active' : '');
-          btn2.dataset.destino = d.id;
-          btn2.dataset.grupo = g.id;
-          btn2.hidden = true; // idem, mais o filtro por destino pai em mostrarParteDeClientes_
-          btn2.innerHTML = '<span class="tab-ico"><i class="ph ' + g.icone + '" aria-hidden="true"></i></span><span class="tab-label">' + escapeHtml_(g.rotulo) + '</span>';
-          btn2.addEventListener('click', function () { mostrarGrupo_(d.id, g.id); });
-          frag.appendChild(btn2);
-        });
-      }
     });
     $('tabbtn-clientes').after(frag);
 
@@ -5184,6 +5167,22 @@
       var destinoEl = document.createElement('div');
       destinoEl.id = 'clientesDestino-' + d.id;
       destinoEl.hidden = i !== 0;
+
+      if (d.grupos.length > 1) {
+        var subnav = document.createElement('div');
+        subnav.className = 'mode-toggle clientes-subnav';
+        subnav.dataset.subnavDe = d.id;
+        subnav.setAttribute('role', 'group');
+        subnav.setAttribute('aria-label', 'Categoria de ' + d.rotulo);
+        subnav.innerHTML = d.grupos.map(function (g, gi) {
+          return '<button type="button" class="mode-btn' + (gi === 0 ? ' active' : '') + '" data-grupo="' + g.id + '">' +
+            '<i class="ph ' + g.icone + '" aria-hidden="true"></i> ' + escapeHtml_(g.rotulo) + '</button>';
+        }).join('');
+        destinoEl.appendChild(subnav);
+        subnav.querySelectorAll('.mode-btn').forEach(function (b) {
+          b.addEventListener('click', function () { mostrarGrupo_(d.id, b.dataset.grupo); });
+        });
+      }
 
       d.grupos.forEach(function (g, gi) {
         var grupoEl = document.createElement('div');
@@ -5219,12 +5218,10 @@
   function mostrarGrupo_(destino, grupo) {
     var container = $('clientesDestino-' + destino);
     if (!container) return;
-    // botões de nível 2 (barra lateral): marca o ativo, e só ficam à vista
-    // os do MESMO destino pai — os de Painéis não aparecem enquanto Ajustes
-    // está aberto, por exemplo.
-    document.querySelectorAll('#tabsNav .tab-nivel2[data-destino="' + destino + '"]').forEach(function (b) {
-      b.classList.toggle('active', b.dataset.grupo === grupo);
-    });
+    // categoria de nível 2 fica na TELA PRINCIPAL, como uma barrinha de
+    // categorias no alto do conteúdo (não na barra lateral).
+    var subnav = container.querySelector('[data-subnav-de]');
+    if (subnav) subnav.querySelectorAll('.mode-btn').forEach(function (b) { b.classList.toggle('active', b.dataset.grupo === grupo); });
     container.querySelectorAll(':scope > .card-grupo').forEach(function (g) { g.hidden = g.dataset.grupo !== grupo; });
     if (destino === 'ajustes' && grupo === 'sistema') renderSaudeDoSistema_();
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -5248,13 +5245,12 @@
     document.querySelectorAll('#tabsNav .tab-nivel1').forEach(function (b) {
       b.classList.toggle('active', b.dataset.parte === parteReal);
     });
-    // nível 2: só os filhos do destino ativo ficam visíveis na barra
-    document.querySelectorAll('#tabsNav .tab-nivel2').forEach(function (b) {
-      b.hidden = b.dataset.destino !== parteReal;
-    });
-    var primeiroNivel2 = document.querySelector('#tabsNav .tab-nivel2[data-destino="' + parteReal + '"]');
-    if (primeiroNivel2) {
-      var ativo = document.querySelector('#tabsNav .tab-nivel2[data-destino="' + parteReal + '"].active') || primeiroNivel2;
+    // nível 2 (na tela principal, dentro do destino que acabou de aparecer):
+    // volta pra categoria que já estava marcada, ou pra primeira, na entrada
+    var container = $('clientesDestino-' + parteReal);
+    var subnav = container && container.querySelector('[data-subnav-de]');
+    if (subnav) {
+      var ativo = subnav.querySelector('.mode-btn.active') || subnav.querySelector('.mode-btn');
       mostrarGrupo_(parteReal, ativo.dataset.grupo);
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -5273,10 +5269,6 @@
     var emClientes = document.body.classList.contains('modo-clientes');
     if (btn1Cadastro) btn1Cadastro.hidden = !emClientes || !admin;
     if (btn1Ajustes) btn1Ajustes.hidden = !emClientes || !admin;
-    if (!emClientes || !admin) {
-      document.querySelectorAll('#tabsNav .tab-nivel2[data-destino="cadastro"], #tabsNav .tab-nivel2[data-destino="ajustes"]')
-        .forEach(function (b) { b.hidden = true; });
-    }
     var ativo = document.querySelector('#tabsNav .tab-nivel1.active');
     if (!admin && ativo && (ativo.dataset.parte === 'cadastro' || ativo.dataset.parte === 'ajustes')) {
       mostrarParteDeClientes_('carteira');
@@ -14555,9 +14547,10 @@
     // queremos mais.
     if (document.body.classList.contains('modo-clientes') && $('tab-clientes')) $('tab-clientes').hidden = true;
     if ($('tabbtn-clientes')) $('tabbtn-clientes').hidden = true;
-    // o submenu de Clientes (Carteira/Painéis/Cadastro/Ajustes e as
-    // categorias de nível 2) mora na mesma barra lateral, logo depois do
-    // botão de Clientes — esconde tudo junto, do mesmo jeito.
+    // o menu de Clientes (Carteira/Painéis/Cadastro/Ajustes) mora na mesma
+    // barra lateral, logo depois do botão de Clientes — esconde tudo
+    // junto, do mesmo jeito. As categorias de nível 2 ficam na tela
+    // principal, dentro de cada destino, e já somem com ele.
     document.querySelectorAll('#tabsNav .clientes-subtab').forEach(function (b) { b.hidden = true; });
     document.body.classList.remove('modo-clientes');
     // restaura as abas de Entregas — as com papel (Honorários/Perfil)
