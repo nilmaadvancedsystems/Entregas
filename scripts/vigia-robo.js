@@ -588,7 +588,7 @@ process.on('SIGINT', desligar);
 process.on('SIGTERM', desligar);
 
 // ---------- freio de reinício ----------
-// O vigia-laco.cmd religa o vigia 30s depois de qualquer queda. Cada partida lê
+// O vigia-tray.js religa o vigia 30s depois de qualquer queda. Cada partida lê
 // os clientes, os links e a rota (umas 450 leituras). Num dia de banco fora do
 // ar — cota do plano gratuito estourada, por exemplo — o vigia cai, religa, lê
 // tudo, cai de novo: 120 vezes por hora, o que sozinho acaba com a cota do dia
