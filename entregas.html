@@ -742,14 +742,35 @@
 
   /* ordem fixa da rota */
   .rotafixa-zona-secao { margin-bottom: var(--esp-5); }
-  .rotafixa-zona-titulo { display: flex; align-items: baseline; gap: 6px; font-size: var(--t-sm); font-weight: 600; color: var(--ink-faint); margin: 0 0 var(--esp-2); }
-  .rotafixa-zona-titulo .contagem { font-weight: 400; }
-  .rotafixa-lista { border: 1px solid var(--border); border-radius: var(--r-md); overflow: hidden; background: var(--surface); }
-  .rotafixa-item { display: flex; align-items: center; gap: 4px; border-bottom: 1px solid var(--border); position: relative; }
+  /* Cabeçalho de seção estilo "barra de tabela" (GitHub): fundo levemente
+     destacado, ocupando a largura da lista, em vez de um rótulo solto. */
+  .rotafixa-zona-titulo {
+    display: flex; align-items: baseline; gap: 6px; font-size: var(--t-sm); font-weight: 600;
+    color: var(--ink-soft); margin: 0; padding: var(--esp-2) var(--esp-3);
+    background: var(--surface-2); border: 1px solid var(--border); border-bottom: none;
+    border-radius: var(--r-md) var(--r-md) 0 0;
+  }
+  .rotafixa-zona-titulo .contagem { font-weight: 400; color: var(--ink-faint); }
+  .rotafixa-lista { border: 1px solid var(--border); border-radius: 0 0 var(--r-md) var(--r-md); overflow: hidden; background: var(--surface); }
+  .rotafixa-item { display: flex; align-items: center; gap: 2px; border-bottom: 1px solid var(--border); position: relative; }
   .rotafixa-item:last-child { border-bottom: 0; }
+  .rotafixa-item:hover { background: var(--surface-2); }
+  /* Numeração da parada, estilo "#1" de lista do GitHub: âncora visual fixa
+     antes do nome, pra não depender só da posição pra saber a ordem. O "#"
+     evita confundir a posição com o código do cliente logo depois (achava
+     "1536" em vez de "1" + "536 -" sem ele). */
+  .rotafixa-pos { flex: none; min-width: 30px; text-align: right; margin-right: 4px; font-variant-numeric: tabular-nums; font-size: var(--t-sm); color: var(--ink-faint); }
+  .rotafixa-pos::before { content: '#'; }
   .rotafixa-item-nome { flex: 1; min-width: 0; padding: 9px 4px; font-size: var(--t-base); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .rotafixa-remover { min-width: var(--alvo); min-height: var(--alvo); border: none; background: none; color: var(--ink-faint); cursor: pointer; display: flex; align-items: center; justify-content: center; flex: none; }
-  .rotafixa-remover:hover { color: var(--danger-forte); }
+  /* Ação da linha: botão de verdade (borda + fundo), não mais um ícone fantasma
+     — precisa ficar visível de cara, sem depender de hover pra ser notado. */
+  .rotafixa-remover {
+    min-width: var(--alvo); min-height: var(--alvo); flex: none; margin: 3px 6px 3px 0;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border); background: var(--surface); border-radius: var(--r-sm);
+    color: var(--ink-soft); cursor: pointer;
+  }
+  .rotafixa-remover:hover { color: var(--danger-forte); border-color: var(--danger); background: var(--danger-soft); }
   .rotafixa-vazia { padding: var(--esp-3); color: var(--ink-faint); font-size: var(--t-sm); text-align: center; }
   .rotafixa-adicionar { position: relative; margin-top: var(--esp-2); }
   .rotafixa-sugestoes { position: absolute; top: calc(100% + 2px); left: 0; right: 0; z-index: var(--z-suspenso); background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); box-shadow: var(--shadow); max-height: 220px; overflow: auto; }
@@ -4262,13 +4283,14 @@
     listEl.innerHTML = '';
     var ids = rotaFixaEstado_[zona];
     if (!ids.length) { listEl.innerHTML = '<div class="rotafixa-vazia">Nenhum cliente nesta região ainda.</div>'; return; }
-    ids.forEach(function (id) {
+    ids.forEach(function (id, i) {
       var c = clientesCache.get(id);
       var row = document.createElement('div');
       row.className = 'rotafixa-item';
       row.dataset.id = id;
       row.innerHTML =
         '<button type="button" class="rota-drag-handle" aria-label="Mover ' + escapeHtml_(c ? clienteLabel(c) : id) + ' na ordem. Alt com seta para cima ou para baixo."><i class="ph ph-dots-six-vertical" aria-hidden="true"></i></button>' +
+        '<span class="rotafixa-pos" aria-hidden="true">' + (i + 1) + '</span>' +
         '<span class="rotafixa-item-nome">' + escapeHtml_(c ? clienteLabel(c) : id) + '</span>' +
         '<button type="button" class="rotafixa-remover" aria-label="Tirar ' + escapeHtml_(c ? clienteLabel(c) : id) + ' da rota fixa"><i class="ph ph-x" aria-hidden="true"></i></button>';
       row.querySelector('.rotafixa-remover').addEventListener('click', function () {
