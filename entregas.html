@@ -2712,13 +2712,11 @@
         <h2><i class="ph ph-users-three" aria-hidden="true"></i> Quem tem acesso</h2>
         <span class="btn-chip" id="equipeContador">–</span>
       </div>
-      <p class="card-hint">Toque em uma pessoa para abrir a ficha dela.</p>
       <div id="equipeList"><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
     </div>
     <div class="card" id="perfilPessoa" hidden></div>
     <form id="form-equipe" class="card" hidden novalidate>
       <h2><i class="ph ph-user-plus" aria-hidden="true"></i> Novo acesso</h2>
-      <p class="card-hint">Cria um acesso novo com só nome e senha (sem precisar de e-mail).</p>
       <label class="field">
         <span>Nome</span>
         <input class="input" id="novoUsuarioNome" type="text" placeholder="Nome de quem vai usar o app" required>
@@ -2741,7 +2739,6 @@
       <button type="submit" class="btn btn-primary">Criar acesso</button>
       <div class="field" style="margin:16px 0 0;border-top:1px solid var(--border);padding-top:14px;">
         <span>Ou mande um convite</span>
-        <p class="card-hint">Gera um link válido por 24 horas onde a própria pessoa escolhe o nome e a senha dela — só os cargos marcados acima já vêm aplicados. Não precisa preencher o nome aqui em cima pra isso.</p>
         <button type="button" class="btn btn-secondary" id="gerarConviteBtn"><i class="ph ph-link" aria-hidden="true"></i> Gerar link de convite</button>
         <div id="conviteResultado" hidden style="margin-top:10px;">
           <input class="input" id="conviteLink" type="text" readonly>
@@ -2760,7 +2757,6 @@
       <div class="card-head-row">
         <h2><i class="ph ph-path" aria-hidden="true"></i> Ordem fixa da rota</h2>
       </div>
-      <p class="card-hint">A sequência em que o office boy entrega, por região. Arraste <i class="ph ph-dots-six-vertical" aria-hidden="true"></i> pra reordenar dentro da região; use a busca pra adicionar ou o <i class="ph ph-x" aria-hidden="true"></i> pra tirar um cliente.</p>
       <div id="rotaFixaZonas"></div>
       <button type="button" class="btn btn-primary" id="rotaFixaSalvarBtn" style="margin-top:var(--esp-4)">Salvar ordem da rota</button>
     </div>
@@ -2768,7 +2764,6 @@
       <div class="card-head-row">
         <h2><i class="ph ph-buildings" aria-hidden="true"></i> Dados do escritório</h2>
       </div>
-      <p class="card-hint">Aparecem na página do cliente. O PIX é o do escritório, pra quem quiser pagar o honorário na hora.</p>
       <div class="cadastro-grade">
         <label class="inteira"><span class="sub-rotulo">Chave PIX</span>
           <input class="input" id="escPixChave" type="text" maxlength="77" placeholder="CNPJ, telefone, e-mail ou chave aleatória"></label>
@@ -2789,7 +2784,6 @@
         <h2><i class="ph ph-bell-simple-ringing" aria-hidden="true"></i> Lembretes do escritório</h2>
         <button type="button" class="btn-chip accent" id="lembreteAddBtn"><i class="ph ph-plus" aria-hidden="true"></i> Incluir</button>
       </div>
-      <p class="card-hint">O que se repete todo mês ("dia 5, mandar a GFIP"). O PC do robô avisa no celular de quem tem o cargo escolhido, no dia, de manhã.</p>
       <div id="lembretesEdit"></div>
       <button type="button" class="btn btn-primary" id="lembretesSalvarBtn">Salvar lembretes</button>
     </div>
@@ -2798,7 +2792,6 @@
         <h2><i class="ph ph-calendar-dots" aria-hidden="true"></i> Obrigações do mês</h2>
         <button type="button" class="btn-chip accent" id="obrigacoesAddBtn"><i class="ph ph-plus" aria-hidden="true"></i> Incluir</button>
       </div>
-      <p class="card-hint">As datas que aparecem na Rota. O dia cai pra trás quando bate em fim de semana ou feriado. "Casa com" liga a data ao tipo de guia — é o que conta quantas ainda estão na rota.</p>
       <div id="obrigacoesEdit"></div>
       <button type="button" class="btn btn-primary" id="obrigacoesSalvarBtn">Salvar obrigações</button>
     </div>
@@ -2806,7 +2799,6 @@
       <div class="card-head-row">
         <h2><i class="ph ph-buildings" aria-hidden="true"></i> Endereço do serviço de contas</h2>
       </div>
-      <p class="card-hint">Cole aqui o endereço do Apps Script publicado como aplicativo web. É ele que consegue redefinir senha e excluir acessos — coisas que o app sozinho, no navegador, não tem permissão de fazer.</p>
       <label class="field">
         <span>URL do aplicativo web</span>
         <input class="input" id="contasUrlInput" type="url" placeholder="https://script.google.com/macros/s/.../exec">
@@ -2817,12 +2809,10 @@
       <div class="card-head-row">
         <h2><i class="ph ph-sparkle" aria-hidden="true"></i> Reforço de IA da Consulta</h2>
       </div>
-      <p class="card-hint">A Consulta rápida responde sozinha, de graça, o que ela conhece: pendências, entregas de um cliente, rota e resumo do mês. Quando ela não entende a pergunta, dá pra oferecer um "Tentar com a IA" — que roda no PC do escritório, com a chave do Gemini guardada lá. Trocar o modelo aqui vale na hora, sem reiniciar nada.</p>
       <label class="field">
         <span>Modelo do Gemini</span>
         <input class="input" id="iaModeloInput" type="text" placeholder="gemini-flash-latest" autocomplete="off">
       </label>
-      <p class="card-hint"><code>gemini-flash-latest</code> acompanha a versão atual do Flash sozinho. Dá pra cravar uma versão (<code>gemini-3.8-flash</code>) ou subir pro Pro (<code>gemini-pro-latest</code>) — o Pro responde melhor e gasta mais cota.</p>
       <div id="iaEstado"></div>
       <button type="button" class="btn-chip accent" id="salvarIaModeloBtn">Salvar modelo</button>
     </div>
@@ -2830,7 +2820,6 @@
       <div class="card-head-row">
         <h2><i class="ph ph-lock-simple" aria-hidden="true"></i> Competências fechadas</h2>
       </div>
-      <p class="card-hint">Marque uma competência como fechada quando ela já foi conferida. Lançar entrega numa competência fechada passa a pedir confirmação extra, pra ninguém mexer no mês errado sem querer.</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
         <label class="field" style="flex:1;min-width:160px;margin-bottom:0;">
           <span>Competência</span>
@@ -2845,7 +2834,6 @@
         <h2><i class="ph ph-list-magnifying-glass" aria-hidden="true"></i> Auditoria</h2>
         <button type="button" class="btn-chip" id="auditoriaAbrirBtn">Ver histórico</button>
       </div>
-      <p class="card-hint">Últimas ações sensíveis: mudança de cargo, exclusão de entrega, acesso criado, cliente ativado/desativado.</p>
       <div id="auditoriaList" hidden></div>
     </div>
   </section>
@@ -2909,21 +2897,18 @@
         <h2><i class="ph ph-database" aria-hidden="true"></i> Base inicial</h2>
         <button type="button" class="btn-chip accent" id="importClientesBtn"><i class="ph ph-upload-simple" aria-hidden="true"></i> Importar de arquivo</button>
       </div>
-      <p class="card-hint">Importa de uma vez a base de clientes, a partir do arquivo <code>clientes.json</code> que veio junto com o sistema. Pode clicar de novo sem medo — não duplica.</p>
     </div>
     <div class="card" id="enderecosCard" hidden>
       <div class="card-head-row">
         <h2><i class="ph ph-map-pin" aria-hidden="true"></i> Endereços e localização</h2>
         <button type="button" class="btn-chip accent" id="importEnderecosBtn"><i class="ph ph-upload-simple" aria-hidden="true"></i> Preencher de arquivo</button>
       </div>
-      <p class="card-hint">Preenche endereço, bairro, CEP e o ponto no mapa de cada cliente, a partir do relatório de empresas do escritório. Use o arquivo <code>enderecos.json</code> que veio junto com o sistema. É o que faz a rota por proximidade e o "Abrir no Maps" funcionarem. Pode clicar de novo sem medo — só grava o que mudou.</p>
       <div id="enderecosResumo" hidden></div>
     </div>
     <div class="card" id="qualidadeRotaCard" hidden>
       <div class="card-head-row">
         <h2><i class="ph ph-map-trifold" aria-hidden="true"></i> Qualidade da rota</h2>
       </div>
-      <p class="card-hint">Cliente sem região definida entra no grupo errado quando a rota é ordenada; endereço impreciso manda pro Maps o centro da cidade em vez do lugar certo. Os que estão na rota agora vêm primeiro — são os que valem a pena corrigir hoje.</p>
       <div class="field" style="margin-bottom:var(--esp-5);">
         <span>Sem região <span id="qualidadeSemZonaContador" class="card-hint"></span></span>
         <div id="qualidadeSemZonaList"></div>
@@ -2938,7 +2923,6 @@
         <h2><i class="ph ph-clipboard-text" aria-hidden="true"></i> Como está a base</h2>
         <span class="card-hint" id="saudeResumo"></span>
       </div>
-      <p class="card-hint">O que falta preencher. Clique num número pra ver quem é.</p>
       <div class="saude-grid" id="saudeGrid"></div>
     </div>
     <div class="card" id="carteiraMapaCard" hidden>
@@ -2946,7 +2930,6 @@
         <h2><i class="ph ph-map-trifold" aria-hidden="true"></i> Mapa da carteira</h2>
         <button type="button" class="btn-chip" id="carteiraMapaBtn">Mostrar</button>
       </div>
-      <p class="card-hint">Onde estão os clientes ativos com ponto no mapa. Toque num ponto pra abrir a ficha.</p>
       <div id="carteiraMapaCaixa" hidden>
         <div id="carteiraMapa"></div>
         <div class="carteira-legenda" id="carteiraLegenda"></div>
@@ -2957,7 +2940,6 @@
         <h2><i class="ph ph-certificate" aria-hidden="true"></i> Vencendo nos clientes</h2>
         <span class="card-hint" id="papeisVencendoContador"></span>
       </div>
-      <p class="card-hint">Certidão, procuração e certificado digital com data chegando ou já passada. A data é guardada no cadastro de cada cliente.</p>
       <div id="papeisVencendoList"></div>
     </div>
     <div class="card" id="emprestimosCard">
@@ -2965,7 +2947,6 @@
         <h2><i class="ph ph-hand-arrow-down" aria-hidden="true"></i> Documentos com o escritório</h2>
         <button type="button" class="btn-chip accent" id="emprestimoNovoBtn"><i class="ph ph-plus" aria-hidden="true"></i> Pegamos um documento</button>
       </div>
-      <p class="card-hint">Livro, contrato, CNH — o que veio pro escritório e tem que voltar pro cliente.</p>
       <div id="emprestimosList"><div class="empty-state">Nada emprestado no momento.</div></div>
     </div>
     <div class="card" id="recadosClienteCard" hidden>
@@ -2973,7 +2954,6 @@
         <h2><i class="ph ph-chat-teardrop-text" aria-hidden="true"></i> Recados dos clientes</h2>
         <span class="card-hint" id="recadosClienteContador"></span>
       </div>
-      <p class="card-hint">Pedidos feitos na página do cliente que ainda não viraram solicitação — o PC do robô converte sozinho; aqui dá pra ver antes.</p>
       <div id="recadosClienteList"></div>
     </div>
     <div class="card" id="linkParadoCard" hidden>
@@ -2981,7 +2961,6 @@
         <h2><i class="ph ph-link-break" aria-hidden="true"></i> Link que ninguém abriu</h2>
         <span class="card-hint" id="linkParadoContador"></span>
       </div>
-      <p class="card-hint">Clientes que têm página própria e nunca entraram nela — são os que continuam ligando pra perguntar o que está lá.</p>
       <div id="linkParadoList"></div>
     </div>
     <div class="card" id="receitaAvisosCard" hidden>
@@ -5106,130 +5085,144 @@
   function montarAjustesNaAbaClientes_() {
     var abaClientes = $('tab-clientes');
     var abaPerfil = $('tab-perfil');
-    if (!abaClientes || !abaPerfil || $('clientesListaGrupo')) return;
+    if (!abaClientes || !abaPerfil || $('clientesDestino-carteira')) return;
 
     // As duas faixas de tela larga (contextoPorAba_, mais acima no arquivo)
     // já isolaram esses cartões numa div.col-lado, uma dentro de tab-clientes
     // e outra dentro de tab-perfil. Elas ficam de fora dos grupos do menu —
     // continuam sempre visíveis, do jeito de sempre — e precisam ser filhas
     // diretas de #tab-clientes (a seção com classe .view) pra regra de CSS
-    // ".view > .col-lado" valer; o hidden delas acompanha a metade ativa
-    // (Carteira x Ajustes), não a categoria dentro dela.
+    // ".view > .col-lado" valer; o hidden delas acompanha o destino ativo
+    // (Carteira x Ajustes), não a categoria dentro dele.
     var faixaCarteira = abaClientes.querySelector(':scope > .col-lado');
     var faixaAjustes = abaPerfil.querySelector(':scope > .col-lado');
     if (faixaCarteira) faixaCarteira.dataset.faixa = 'carteira';
     if (faixaAjustes) faixaAjustes.dataset.faixa = 'ajustes';
 
-    var listaGrupo = document.createElement('div');
-    listaGrupo.id = 'clientesListaGrupo';
-    var paineisGrupo = document.createElement('div');
-    paineisGrupo.id = 'clientesPaineisGrupo';
-    paineisGrupo.hidden = true;
-    var cadastroGrupo = document.createElement('div');
-    cadastroGrupo.id = 'clientesCadastroGrupo';
-    cadastroGrupo.hidden = true;
-
-    var listaCard = $('clientesListaCard');
-    if (listaCard) listaGrupo.appendChild(listaCard);
-    ['saudeBaseCard', 'carteiraMapaCard', 'papeisVencendoCard', 'emprestimosCard', 'recadosClienteCard', 'linkParadoCard', 'receitaAvisosCard']
-      .forEach(function (id) { var el = $(id); if (el) paineisGrupo.appendChild(el); });
-    var formCliente = $('form-cliente');
-    if (formCliente) cadastroGrupo.appendChild(formCliente);
-
-    var ajustes = document.createElement('div');
-    ajustes.id = 'clientesAjustes';
-    ajustes.hidden = true;
     // cartão de atalho pro que é de cada pessoa (tema, cor, senha, foto)
     var pessoal = document.createElement('div');
     pessoal.className = 'card';
     pessoal.innerHTML =
       '<div class="card-head-row"><h2><i class="ph ph-paint-brush" aria-hidden="true"></i> Aparência e conta</h2>' +
-        '<button type="button" class="btn-chip accent" id="ajustesPessoaisBtn"><i class="ph ph-gear" aria-hidden="true"></i> Abrir</button></div>' +
-      '<p class="card-hint">Tema, cor, tamanho do texto, espaçamento, aba em que o app abre, foto e senha. Vale só pra você — os cartões abaixo valem pro escritório inteiro.</p>';
+        '<button type="button" class="btn-chip accent" id="ajustesPessoaisBtn"><i class="ph ph-gear" aria-hidden="true"></i> Abrir</button></div>';
 
-    // "sistema" e "integracoes" ficam com um cartão só cada: os outros dois
+    // Cada destino de nível 1 tem seu próprio submenu de nível 2. Categoria
+    // com um cartão só (Rota, Lista, Novo cliente) não ganha barra de
+    // categoria — não tem escolha nenhuma pra fazer ali. "sistema" e
+    // "integracoes" ficam com um cartão só cada: os outros dois
     // (Competências/Auditoria e Endereço do serviço de contas) moram na
     // faixa lateral de Ajustes, não em grupo — ver faixaAjustes acima.
-    var GRUPOS_AJUSTES_ = [
-      { id: 'conta', rotulo: 'Minha conta', icone: 'ph-paint-brush', els: [pessoal] },
-      { id: 'equipe', rotulo: 'Equipe', icone: 'ph-users-three', els: ['perfilLista', 'perfilPessoa', 'form-equipe'] },
-      { id: 'escritorio', rotulo: 'Escritório', icone: 'ph-buildings', els: ['escritorioCard', 'lembretesCard', 'obrigacoesConfigCard'] },
-      { id: 'rota', rotulo: 'Rota', icone: 'ph-path', els: ['rotaFixaCard'] },
-      { id: 'sistema', rotulo: 'Sistema', icone: 'ph-heartbeat', els: ['saudeSistemaCard'] },
-      { id: 'integracoes', rotulo: 'Integrações', icone: 'ph-plugs-connected', els: ['iaCard'] }
+    var DESTINOS_CLIENTES_ = [
+      { id: 'carteira', rotulo: 'Carteira', icone: 'ph-users', grupos: [
+          { id: 'lista', rotulo: 'Lista de clientes', icone: 'ph-list-bullets', els: ['clientesListaCard'] }
+        ] },
+      { id: 'paineis', rotulo: 'Painéis', icone: 'ph-gauge', grupos: [
+          { id: 'saude', rotulo: 'Saúde da base', icone: 'ph-heartbeat', els: ['saudeBaseCard'] },
+          { id: 'mapa', rotulo: 'Mapa da carteira', icone: 'ph-map-trifold', els: ['carteiraMapaCard'] },
+          { id: 'vencendo', rotulo: 'Vencendo nos clientes', icone: 'ph-calendar-x', els: ['papeisVencendoCard'] },
+          { id: 'emprestimos', rotulo: 'Documentos com o escritório', icone: 'ph-handshake', els: ['emprestimosCard'] },
+          { id: 'recados', rotulo: 'Recados dos clientes', icone: 'ph-chat-teardrop-text', els: ['recadosClienteCard'] },
+          { id: 'linkparado', rotulo: 'Link que ninguém abriu', icone: 'ph-link-break', els: ['linkParadoCard'] },
+          { id: 'receita', rotulo: 'Mudou na Receita', icone: 'ph-bank', els: ['receitaAvisosCard'] }
+        ] },
+      { id: 'cadastro', rotulo: 'Cadastro', icone: 'ph-user-plus', grupos: [
+          { id: 'novo', rotulo: 'Novo cliente', icone: 'ph-user-plus', els: ['form-cliente'] }
+        ] },
+      { id: 'ajustes', rotulo: 'Ajustes do app', icone: 'ph-sliders-horizontal', grupos: [
+          { id: 'conta', rotulo: 'Minha conta', icone: 'ph-paint-brush', els: [pessoal] },
+          { id: 'equipe', rotulo: 'Equipe', icone: 'ph-users-three', els: ['perfilLista', 'perfilPessoa', 'form-equipe'] },
+          { id: 'escritorio', rotulo: 'Escritório', icone: 'ph-buildings', els: ['escritorioCard', 'lembretesCard', 'obrigacoesConfigCard'] },
+          { id: 'rota', rotulo: 'Rota', icone: 'ph-path', els: ['rotaFixaCard'] },
+          { id: 'sistema', rotulo: 'Sistema', icone: 'ph-heartbeat', els: ['saudeSistemaCard'] },
+          { id: 'integracoes', rotulo: 'Integrações', icone: 'ph-plugs-connected', els: ['iaCard'] }
+        ] }
     ];
-    var ajustesSubnav = document.createElement('div');
-    ajustesSubnav.className = 'mode-toggle clientes-subnav';
-    ajustesSubnav.id = 'ajustesSubnav';
-    ajustesSubnav.setAttribute('role', 'group');
-    ajustesSubnav.setAttribute('aria-label', 'Categoria de ajustes');
-    ajustesSubnav.innerHTML = GRUPOS_AJUSTES_.map(function (g, i) {
-      return '<button type="button" class="mode-btn' + (i === 0 ? ' active' : '') + '" data-grupo="' + g.id + '">' +
-        '<i class="ph ' + g.icone + '" aria-hidden="true"></i> ' + escapeHtml_(g.rotulo) + '</button>';
-    }).join('');
-    ajustes.appendChild(ajustesSubnav);
-    GRUPOS_AJUSTES_.forEach(function (g, i) {
-      var grupoEl = document.createElement('div');
-      grupoEl.className = 'card-grupo';
-      grupoEl.dataset.grupo = g.id;
-      grupoEl.hidden = i !== 0;
-      g.els.forEach(function (item) {
-        var el = typeof item === 'string' ? $(item) : item;
-        if (el) grupoEl.appendChild(el);
-      });
-      ajustes.appendChild(grupoEl);
-    });
 
     var nav = document.createElement('div');
     nav.className = 'mode-toggle clientes-subnav';
     nav.id = 'clientesSubnav';
     nav.setAttribute('role', 'group');
     nav.setAttribute('aria-label', 'O que mostrar na aba Clientes');
-    nav.innerHTML =
-      '<button type="button" class="mode-btn active" data-parte="carteira"><i class="ph ph-users" aria-hidden="true"></i> Carteira</button>' +
-      '<button type="button" class="mode-btn" data-parte="paineis"><i class="ph ph-gauge" aria-hidden="true"></i> Painéis</button>' +
-      '<button type="button" class="mode-btn" data-parte="cadastro"><i class="ph ph-user-plus" aria-hidden="true"></i> Cadastro</button>' +
-      '<button type="button" class="mode-btn" data-parte="ajustes"><i class="ph ph-sliders-horizontal" aria-hidden="true"></i> Ajustes do app</button>';
-
+    nav.innerHTML = DESTINOS_CLIENTES_.map(function (d, i) {
+      return '<button type="button" class="mode-btn' + (i === 0 ? ' active' : '') + '" data-parte="' + d.id + '">' +
+        '<i class="ph ' + d.icone + '" aria-hidden="true"></i> ' + escapeHtml_(d.rotulo) + '</button>';
+    }).join('');
     abaClientes.appendChild(nav);
-    abaClientes.appendChild(listaGrupo);
-    abaClientes.appendChild(paineisGrupo);
-    abaClientes.appendChild(cadastroGrupo);
-    abaClientes.appendChild(ajustes);
-    if (faixaCarteira) abaClientes.appendChild(faixaCarteira);
-    if (faixaAjustes) abaClientes.appendChild(faixaAjustes);
-
     nav.querySelectorAll('.mode-btn').forEach(function (b) {
       b.addEventListener('click', function () { mostrarParteDeClientes_(b.dataset.parte); });
     });
-    ajustesSubnav.querySelectorAll('.mode-btn').forEach(function (b) {
-      b.addEventListener('click', function () { mostrarGrupoDeAjustes_(b.dataset.grupo); });
+
+    DESTINOS_CLIENTES_.forEach(function (d, i) {
+      var destinoEl = document.createElement('div');
+      destinoEl.id = 'clientesDestino-' + d.id;
+      destinoEl.hidden = i !== 0;
+
+      if (d.grupos.length > 1) {
+        var subnav = document.createElement('div');
+        subnav.className = 'mode-toggle clientes-subnav';
+        subnav.dataset.subnavDe = d.id;
+        subnav.setAttribute('role', 'group');
+        subnav.setAttribute('aria-label', 'Categoria de ' + d.rotulo);
+        subnav.innerHTML = d.grupos.map(function (g, gi) {
+          return '<button type="button" class="mode-btn' + (gi === 0 ? ' active' : '') + '" data-grupo="' + g.id + '">' +
+            '<i class="ph ' + g.icone + '" aria-hidden="true"></i> ' + escapeHtml_(g.rotulo) + '</button>';
+        }).join('');
+        destinoEl.appendChild(subnav);
+        subnav.querySelectorAll('.mode-btn').forEach(function (b) {
+          b.addEventListener('click', function () { mostrarGrupo_(d.id, b.dataset.grupo); });
+        });
+      }
+
+      d.grupos.forEach(function (g, gi) {
+        var grupoEl = document.createElement('div');
+        grupoEl.className = 'card-grupo';
+        grupoEl.dataset.grupo = g.id;
+        grupoEl.hidden = d.grupos.length > 1 && gi !== 0;
+        g.els.forEach(function (item) {
+          var el = typeof item === 'string' ? $(item) : item;
+          if (el) grupoEl.appendChild(el);
+        });
+        destinoEl.appendChild(grupoEl);
+      });
+
+      abaClientes.appendChild(destinoEl);
     });
+
+    // Bug do primeiro rascunho: as duas faixas nasciam sem "hidden" próprio
+    // (herdavam a visibilidade de onde estavam antes, dentro de uma seção
+    // que já começava escondida) — ao virarem filhas diretas de
+    // #tab-clientes, as duas apareciam juntas, sobrepostas, porque o CSS
+    // de grid bota qualquer ".col-lado" filho direto na mesma coluna/linha.
+    // "Carteira" é o destino padrão, então a faixa de Ajustes começa escondida.
+    if (faixaCarteira) abaClientes.appendChild(faixaCarteira);
+    if (faixaAjustes) { faixaAjustes.hidden = true; abaClientes.appendChild(faixaAjustes); }
+
     $('ajustesPessoaisBtn').addEventListener('click', abrirConfiguracoes);
   }
 
-  // Categoria de nível 2, dentro de Ajustes. Só recarrega Saúde do sistema
-  // quando a pessoa entra ali — antes recarregava toda vez que Ajustes
-  // abria, mesmo indo direto pra outra categoria.
-  function mostrarGrupoDeAjustes_(grupo) {
-    var nav = $('ajustesSubnav');
-    if (!nav) return;
-    nav.querySelectorAll('.mode-btn').forEach(function (b) { b.classList.toggle('active', b.dataset.grupo === grupo); });
-    $('clientesAjustes').querySelectorAll(':scope > .card-grupo').forEach(function (g) { g.hidden = g.dataset.grupo !== grupo; });
-    if (grupo === 'sistema') renderSaudeDoSistema_();
+  // Categoria de nível 2, dentro de um destino de nível 1. Só recarrega
+  // Saúde do sistema quando a pessoa entra na categoria "Sistema" de
+  // Ajustes — antes recarregava toda vez que Ajustes abria, mesmo indo
+  // direto pra outra categoria.
+  function mostrarGrupo_(destino, grupo) {
+    var container = $('clientesDestino-' + destino);
+    if (!container) return;
+    var subnav = container.querySelector('[data-subnav-de]');
+    if (subnav) subnav.querySelectorAll('.mode-btn').forEach(function (b) { b.classList.toggle('active', b.dataset.grupo === grupo); });
+    container.querySelectorAll(':scope > .card-grupo').forEach(function (g) { g.hidden = g.dataset.grupo !== grupo; });
+    if (destino === 'ajustes' && grupo === 'sistema') renderSaudeDoSistema_();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   function mostrarParteDeClientes_(parte) {
-    var mapa = { carteira: 'clientesListaGrupo', paineis: 'clientesPaineisGrupo', cadastro: 'clientesCadastroGrupo', ajustes: 'clientesAjustes' };
-    var parteReal = mapa[parte] ? parte : 'carteira';
-    var idAlvo = mapa[parteReal];
-    Object.keys(mapa).forEach(function (p) {
-      var el = $(mapa[p]);
-      if (el) el.hidden = mapa[p] !== idAlvo;
+    var DESTINOS_IDS_ = ['carteira', 'paineis', 'cadastro', 'ajustes'];
+    var parteReal = DESTINOS_IDS_.indexOf(parte) !== -1 ? parte : 'carteira';
+    DESTINOS_IDS_.forEach(function (id) {
+      var el = $('clientesDestino-' + id);
+      if (el) el.hidden = id !== parteReal;
     });
-    // as faixas laterais acompanham a metade ativa (Carteira x Ajustes),
-    // igual sempre foi — só a categoria dentro de cada metade é nova
+    // as faixas laterais acompanham o destino ativo (Carteira x Ajustes),
+    // igual sempre foi — só a categoria dentro de cada um é nova
     var abaClientes = $('tab-clientes');
     var faixaCarteira = abaClientes && abaClientes.querySelector(':scope > .col-lado[data-faixa="carteira"]');
     var faixaAjustes = abaClientes && abaClientes.querySelector(':scope > .col-lado[data-faixa="ajustes"]');
@@ -5237,9 +5230,11 @@
     if (faixaAjustes) faixaAjustes.hidden = parteReal !== 'ajustes';
     var nav = $('clientesSubnav');
     if (nav) nav.querySelectorAll('.mode-btn').forEach(function (b) { b.classList.toggle('active', b.dataset.parte === parteReal); });
-    if (parteReal === 'ajustes') {
-      var ativo = $('ajustesSubnav') && $('ajustesSubnav').querySelector('.mode-btn.active');
-      mostrarGrupoDeAjustes_(ativo ? ativo.dataset.grupo : 'conta');
+    var container = $('clientesDestino-' + parteReal);
+    var subnav = container && container.querySelector('[data-subnav-de]');
+    if (subnav) {
+      var ativo = subnav.querySelector('.mode-btn.active') || subnav.querySelector('.mode-btn');
+      mostrarGrupo_(parteReal, ativo.dataset.grupo);
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
