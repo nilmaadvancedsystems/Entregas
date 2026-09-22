@@ -741,12 +741,21 @@
   .ajuda-vazio { color: var(--ink-faint); font-size: var(--t-base); padding: var(--esp-4) 0; }
 
   /* ordem fixa da rota */
-  .rotafixa-linha { display: grid; grid-template-columns: 26px 1fr 1fr; gap: 8px; align-items: center; padding: 4px 0; border-bottom: 1px solid var(--border); }
-  .rotafixa-linha:last-child { border-bottom: 0; }
-  .rotafixa-n { font-size: var(--t-sm); color: var(--ink-faint); font-variant-numeric: tabular-nums; }
-  .rotafixa-texto { font-size: var(--t-base); }
-  .rotafixa-linha.sobrou .rotafixa-texto { color: var(--danger-forte); }
-  .rotafixa-zona { font-size: var(--t-sm); color: var(--ink-faint); margin: var(--esp-3) 0 2px; }
+  .rotafixa-zona-secao { margin-bottom: var(--esp-5); }
+  .rotafixa-zona-titulo { display: flex; align-items: baseline; gap: 6px; font-size: var(--t-sm); font-weight: 600; color: var(--ink-faint); margin: 0 0 var(--esp-2); }
+  .rotafixa-zona-titulo .contagem { font-weight: 400; }
+  .rotafixa-lista { border: 1px solid var(--border); border-radius: var(--r-md); overflow: hidden; background: var(--surface); }
+  .rotafixa-item { display: flex; align-items: center; gap: 4px; border-bottom: 1px solid var(--border); position: relative; }
+  .rotafixa-item:last-child { border-bottom: 0; }
+  .rotafixa-item-nome { flex: 1; min-width: 0; padding: 9px 4px; font-size: var(--t-base); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rotafixa-remover { min-width: var(--alvo); min-height: var(--alvo); border: none; background: none; color: var(--ink-faint); cursor: pointer; display: flex; align-items: center; justify-content: center; flex: none; }
+  .rotafixa-remover:hover { color: var(--danger-forte); }
+  .rotafixa-vazia { padding: var(--esp-3); color: var(--ink-faint); font-size: var(--t-sm); text-align: center; }
+  .rotafixa-adicionar { position: relative; margin-top: var(--esp-2); }
+  .rotafixa-sugestoes { position: absolute; top: calc(100% + 2px); left: 0; right: 0; z-index: var(--z-suspenso); background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); box-shadow: var(--shadow); max-height: 220px; overflow: auto; }
+  .rotafixa-sugestoes[hidden] { display: none; }
+  .rotafixa-sugestao { display: block; width: 100%; text-align: left; padding: var(--esp-2) var(--esp-3); border: none; background: none; cursor: pointer; font-size: var(--t-base); color: var(--ink); }
+  .rotafixa-sugestao:hover, .rotafixa-sugestao.ativa { background: var(--surface-2); }
 
   /* mapa da carteira */
   #carteiraMapa { height: 420px; border-radius: var(--r-md); border: 1px solid var(--border); }
@@ -2756,13 +2765,10 @@
     <div class="card" id="rotaFixaCard" hidden>
       <div class="card-head-row">
         <h2><i class="ph ph-path" aria-hidden="true"></i> Ordem fixa da rota</h2>
-        <button type="button" class="btn-chip" id="rotaFixaConferirBtn"><i class="ph ph-magnifying-glass" aria-hidden="true"></i> Conferir nomes</button>
       </div>
-      <p class="card-hint">A sequência em que o office boy entrega, por região. Escreva um nome por linha, na ordem do caminho, e use as palavras <b>encima</b>, <b>centro</b> e <b>parte inferior</b> pra separar os trechos. A rota passa a sair nessa ordem.</p>
-      <label class="field"><span class="sr-only">Lista da rota</span>
-        <textarea class="input" id="rotaFixaTexto" rows="12" spellcheck="false"></textarea></label>
-      <div id="rotaFixaResultado"></div>
-      <button type="button" class="btn btn-primary" id="rotaFixaSalvarBtn">Salvar ordem da rota</button>
+      <p class="card-hint">A sequência em que o office boy entrega, por região. Arraste <i class="ph ph-dots-six-vertical" aria-hidden="true"></i> pra reordenar dentro da região; use a busca pra adicionar ou o <i class="ph ph-x" aria-hidden="true"></i> pra tirar um cliente.</p>
+      <div id="rotaFixaZonas"></div>
+      <button type="button" class="btn btn-primary" id="rotaFixaSalvarBtn" style="margin-top:var(--esp-4)">Salvar ordem da rota</button>
     </div>
     <div class="card" id="escritorioCard" hidden>
       <div class="card-head-row">
@@ -4215,122 +4221,187 @@
   }
 
   // ---------- ordem fixa da rota ----------
-  // A lista vem escrita como o escritório fala: apelido, sem acento certo,
-  // às vezes sem o tipo da empresa ("madeireira Miranda", "acssp"). Casar
-  // isso com a razão social exige comparar sem acento, sem pontuação e sem
-  // as palavras que não distinguem ninguém (ltda, me, comercio, empresa).
+  // Era uma caixa de texto onde o escritório digitava apelido de cliente,
+  // um por linha, e o app tentava adivinhar qual cadastro batia com cada
+  // linha. Virou uma lista de verdade: arrastar pra reordenar, buscar pra
+  // adicionar, X pra tirar — sem adivinhação, porque agora é o cadastro
+  // que se escolhe, não um texto solto que precisa ser interpretado.
   var ZONAS_DA_ROTA_ = [
-    { id: 'superior', rotulo: 'Parte superior', marcas: ['encima', 'em cima', 'parte superior', 'superior', 'alto'] },
-    { id: 'central', rotulo: 'Centro', marcas: ['centro', 'central'] },
-    { id: 'inferior', rotulo: 'Parte inferior', marcas: ['parte inferior', 'inferior', 'embaixo', 'baixo'] }
+    { id: 'superior', rotulo: 'Parte superior' },
+    { id: 'central', rotulo: 'Centro' },
+    { id: 'inferior', rotulo: 'Parte inferior' }
   ];
-  var VAZIAS_NO_NOME_ = ['ltda', 'me', 'epp', 'eireli', 'sa', 'mei', 'comercio', 'comércio', 'e', 'de', 'da', 'do', 'dos', 'das', 'em', 'geral'];
-  function palavrasDoNome_(texto) {
-    return String(texto || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9 ]/g, ' ').split(/\s+/)
-      .filter(function (p) { return p && p.length > 1 && VAZIAS_NO_NOME_.indexOf(p) === -1; });
-  }
-  // Quanto uma linha da lista combina com um cliente: 1 quando todas as
-  // palavras da linha aparecem no nome dele; menos, proporcional.
-  function quantoCombina_(linha, cliente) {
-    var alvo = palavrasDoNome_(linha);
-    if (!alvo.length) return 0;
-    var nome = palavrasDoNome_([cliente.nome, cliente.nomeFantasia].filter(Boolean).join(' '));
-    if (!nome.length) return 0;
-    var achadas = alvo.filter(function (p) {
-      return nome.some(function (n) { return n === p || (p.length >= 4 && n.indexOf(p) === 0) || (n.length >= 4 && p.indexOf(n) === 0); });
-    }).length;
-    return achadas / alvo.length;
-  }
-  function acharClienteDaLinha_(linha, clientes) {
-    var melhor = null, melhorNota = 0;
-    clientes.forEach(function (c) {
-      var nota = quantoCombina_(linha, c);
-      if (nota > melhorNota) { melhorNota = nota; melhor = c; }
-    });
-    // abaixo de 60% das palavras é chute: melhor deixar a linha em aberto
-    return melhorNota >= 0.6 ? { cliente: melhor, nota: melhorNota } : null;
-  }
-  function zonaDaMarca_(linha) {
-    var limpa = String(linha || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z ]/g, ' ').trim();
-    var achada = null;
-    ZONAS_DA_ROTA_.forEach(function (z) {
-      z.marcas.forEach(function (m) {
-        if (limpa === m || limpa.indexOf(m) === 0) achada = achada || z.id;
-      });
-    });
-    return achada;
-  }
-  // Texto colado -> [{zona, linha, cliente}] na ordem em que foi escrito.
-  function lerListaDaRota_(texto, clientes) {
-    var zonaAtual = 'central';
-    var fora = [];
-    String(texto || '').split(/\r?\n/).forEach(function (bruta) {
-      var linha = bruta.trim();
-      if (!linha) return;
-      var zona = zonaDaMarca_(linha);
-      if (zona) { zonaAtual = zona; return; }
-      var achado = acharClienteDaLinha_(linha, clientes);
-      fora.push({ zona: zonaAtual, linha: linha, cliente: achado ? achado.cliente : null });
-    });
-    return fora;
-  }
 
   var rotaFixa_ = { zonas: {}, ordem: {} };
+  // Estado de trabalho da tela: um array de clienteId por zona, na ordem
+  // visual atual. Só vira Firestore quando "Salvar ordem da rota" é clicado.
+  var rotaFixaEstado_ = { superior: [], central: [], inferior: [] };
+
   function carregarRotaFixa_() {
     if (!db) return;
     db.collection('config').doc('rotaPadrao').get().then(function (snap) {
       var d = snap.exists ? snap.data() : null;
-      rotaFixa_ = { zonas: (d && d.zonas) || {}, ordem: (d && d.ordem) || {}, texto: (d && d.texto) || '' };
-      if ($('rotaFixaTexto') && !$('rotaFixaTexto').value) $('rotaFixaTexto').value = rotaFixa_.texto || ROTA_FIXA_EXEMPLO_;
+      rotaFixa_ = { zonas: (d && d.zonas) || {}, ordem: (d && d.ordem) || {} };
+      montarEstadoRotaFixa_();
       renderRotaFixa_();
       renderRota();
     }).catch(function () {});
+  }
+  // zonas/ordem (mapas por clienteId) -> um array por zona, ordenado.
+  function montarEstadoRotaFixa_() {
+    var porZona = { superior: [], central: [], inferior: [] };
+    Object.keys(rotaFixa_.zonas).forEach(function (id) {
+      var zona = rotaFixa_.zonas[id];
+      if (porZona[zona] && clientesCache.get(id)) porZona[zona].push(id);
+    });
+    Object.keys(porZona).forEach(function (zona) {
+      porZona[zona].sort(function (a, b) { return (rotaFixa_.ordem[a] || 0) - (rotaFixa_.ordem[b] || 0); });
+    });
+    rotaFixaEstado_ = porZona;
   }
   function renderRotaFixa_() {
     var card = $('rotaFixaCard');
     if (!card) return;
     card.hidden = !temPapel('admin');
+    if (card.hidden) return;
+    var caixa = $('rotaFixaZonas');
+    caixa.innerHTML = ZONAS_DA_ROTA_.map(function (z) {
+      return '<div class="rotafixa-zona-secao" data-zona="' + z.id + '">' +
+        '<div class="rotafixa-zona-titulo">' + escapeHtml_(z.rotulo) + ' <span class="contagem">· ' + rotaFixaEstado_[z.id].length + '</span></div>' +
+        '<div class="rotafixa-lista" id="rotafixaLista-' + z.id + '"></div>' +
+        '<div class="rotafixa-adicionar">' +
+          '<input type="text" class="input" placeholder="Adicionar cliente nesta região..." aria-label="Adicionar cliente em ' + escapeHtml_(z.rotulo) + '" data-zona-busca="' + z.id + '">' +
+          '<div class="rotafixa-sugestoes" hidden></div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+    ZONAS_DA_ROTA_.forEach(function (z) { renderListaRotaFixa_(z.id); });
+    caixa.querySelectorAll('[data-zona-busca]').forEach(function (input) { habilitarBuscaRotaFixa_(input); });
   }
-  function conferirRotaFixa_() {
-    var clientes = Array.from(clientesCache.values()).filter(function (c) { return c.ativo !== false; });
-    var lidas = lerListaDaRota_($('rotaFixaTexto').value, clientes);
-    var achou = lidas.filter(function (x) { return x.cliente; }).length;
-    var el = $('rotaFixaResultado');
-    var porZona = {};
-    lidas.forEach(function (x) { (porZona[x.zona] = porZona[x.zona] || []).push(x); });
-    el.innerHTML = '<p class="card-hint">' + achou + ' de ' + lidas.length + ' linhas casaram com um cliente. ' +
-      'As que sobraram ficam de fora da ordem (e continuam aparecendo na rota, no fim da região).</p>' +
-      ZONAS_DA_ROTA_.map(function (z) {
-        var linhas = porZona[z.id] || [];
-        if (!linhas.length) return '';
-        return '<div class="rotafixa-zona">' + escapeHtml_(z.rotulo) + ' · ' + linhas.length + '</div>' +
-          linhas.map(function (x, i) {
-            return '<div class="rotafixa-linha' + (x.cliente ? '' : ' sobrou') + '">' +
-              '<span class="rotafixa-n">' + (i + 1) + '</span>' +
-              '<span class="rotafixa-texto">' + escapeHtml_(x.linha) + '</span>' +
-              '<span class="rotafixa-texto">' + escapeHtml_(x.cliente ? clienteLabel(x.cliente) : 'não achei no cadastro') + '</span>' +
-            '</div>';
-          }).join('');
+  function renderListaRotaFixa_(zona) {
+    var listEl = $('rotafixaLista-' + zona);
+    if (!listEl) return;
+    listEl.innerHTML = '';
+    var ids = rotaFixaEstado_[zona];
+    if (!ids.length) { listEl.innerHTML = '<div class="rotafixa-vazia">Nenhum cliente nesta região ainda.</div>'; return; }
+    ids.forEach(function (id) {
+      var c = clientesCache.get(id);
+      var row = document.createElement('div');
+      row.className = 'rotafixa-item';
+      row.dataset.id = id;
+      row.innerHTML =
+        '<button type="button" class="rota-drag-handle" aria-label="Mover ' + escapeHtml_(c ? clienteLabel(c) : id) + ' na ordem. Alt com seta para cima ou para baixo."><i class="ph ph-dots-six-vertical" aria-hidden="true"></i></button>' +
+        '<span class="rotafixa-item-nome">' + escapeHtml_(c ? clienteLabel(c) : id) + '</span>' +
+        '<button type="button" class="rotafixa-remover" aria-label="Tirar ' + escapeHtml_(c ? clienteLabel(c) : id) + ' da rota fixa"><i class="ph ph-x" aria-hidden="true"></i></button>';
+      row.querySelector('.rotafixa-remover').addEventListener('click', function () {
+        rotaFixaEstado_[zona] = rotaFixaEstado_[zona].filter(function (x) { return x !== id; });
+        renderRotaFixa_();
+      });
+      habilitarDragRotaFixa_(row, zona);
+      listEl.appendChild(row);
+    });
+  }
+  // Arrastar pra reordenar dentro da MESMA região (Pointer Events, igual à
+  // rota do dia). Trocar de região é remover e adicionar de novo pela busca.
+  function habilitarDragRotaFixa_(row, zona) {
+    var handle = row.querySelector('.rota-drag-handle');
+    handle.addEventListener('keydown', function (ev) {
+      var passo = { ArrowUp: -1, ArrowDown: 1 }[ev.key];
+      if (!passo || !ev.altKey) return;
+      ev.preventDefault();
+      var ids = rotaFixaEstado_[zona];
+      var i = ids.indexOf(row.dataset.id);
+      var destino = i + passo;
+      if (destino < 0 || destino >= ids.length) return;
+      ids.splice(i, 1); ids.splice(destino, 0, row.dataset.id);
+      renderListaRotaFixa_(zona);
+      var novaLinha = $('rotafixaLista-' + zona).querySelector('[data-id="' + row.dataset.id + '"] .rota-drag-handle');
+      if (novaLinha) novaLinha.focus();
+      anunciar_((row.querySelector('.rotafixa-item-nome') || {}).textContent + ': posição ' + (destino + 1) + ' de ' + ids.length);
+    });
+    handle.addEventListener('pointerdown', function (ev) {
+      ev.preventDefault();
+      var listEl = $('rotafixaLista-' + zona);
+      var startY = ev.clientY;
+      row.style.transition = 'none';
+      row.classList.add('arrastando');
+      function onMove(ev2) {
+        row.style.transform = 'translateY(' + (ev2.clientY - startY) + 'px)';
+        var irmaos = Array.from(listEl.querySelectorAll('.rotafixa-item')).filter(function (r) { return r !== row; });
+        for (var i = 0; i < irmaos.length; i++) {
+          var caixa = irmaos[i].getBoundingClientRect();
+          if (ev2.clientY < caixa.top + caixa.height / 2) {
+            if (row.nextElementSibling !== irmaos[i]) {
+              var alvo = irmaos[i];
+              deslizarIrmaos_(listEl, row, function () { listEl.insertBefore(row, alvo); });
+              startY = ev2.clientY;
+              row.style.transform = 'translateY(0)';
+            }
+            return;
+          }
+        }
+        if (irmaos.length && row !== irmaos[irmaos.length - 1].nextElementSibling) {
+          deslizarIrmaos_(listEl, row, function () { listEl.appendChild(row); });
+          startY = ev2.clientY;
+          row.style.transform = 'translateY(0)';
+        }
+      }
+      function onUp() {
+        document.removeEventListener('pointermove', onMove);
+        document.removeEventListener('pointerup', onUp);
+        row.style.transition = ''; row.style.transform = ''; row.classList.remove('arrastando');
+        rotaFixaEstado_[zona] = Array.from(listEl.querySelectorAll('.rotafixa-item')).map(function (r) { return r.dataset.id; });
+      }
+      document.addEventListener('pointermove', onMove);
+      document.addEventListener('pointerup', onUp);
+    });
+  }
+  // Busca pra adicionar cliente numa região — mesmo cliente não pode estar
+  // em duas regiões ao mesmo tempo, então já sai da lista de sugestões.
+  function habilitarBuscaRotaFixa_(input) {
+    var zona = input.dataset.zonaBusca;
+    var painel = input.nextElementSibling;
+    function jaColocado(id) {
+      return rotaFixaEstado_.superior.indexOf(id) !== -1 || rotaFixaEstado_.central.indexOf(id) !== -1 || rotaFixaEstado_.inferior.indexOf(id) !== -1;
+    }
+    function buscar() {
+      var termo = input.value.trim().toLowerCase();
+      if (!termo) { painel.hidden = true; return; }
+      var achados = Array.from(clientesCache.values())
+        .filter(function (c) { return c.ativo !== false && !jaColocado(c.id) && clienteCombina_(c, termo); })
+        .slice(0, 8);
+      if (!achados.length) { painel.innerHTML = '<div class="rotafixa-vazia">Nenhum cliente livre com esse nome.</div>'; painel.hidden = false; return; }
+      painel.innerHTML = achados.map(function (c) {
+        return '<button type="button" class="rotafixa-sugestao" data-id="' + c.id + '">' + escapeHtml_(clienteLabel(c)) + '</button>';
       }).join('');
-    return lidas;
+      painel.hidden = false;
+    }
+    input.addEventListener('input', buscar);
+    input.addEventListener('focus', buscar);
+    painel.addEventListener('mousedown', function (ev) {
+      var btn = ev.target.closest('.rotafixa-sugestao');
+      if (!btn) return;
+      ev.preventDefault();
+      rotaFixaEstado_[zona].push(btn.dataset.id);
+      input.value = '';
+      painel.hidden = true;
+      renderRotaFixa_();
+      var novoInput = document.querySelector('[data-zona-busca="' + zona + '"]');
+      if (novoInput) novoInput.focus();
+    });
+    input.addEventListener('blur', function () { setTimeout(function () { painel.hidden = true; }, 150); });
   }
   function salvarRotaFixa_(btn) {
-    var lidas = conferirRotaFixa_();
     var zonas = {}, ordem = {};
-    var contador = {};
-    lidas.forEach(function (x) {
-      if (!x.cliente) return;
-      contador[x.zona] = (contador[x.zona] || 0) + 1;
-      zonas[x.cliente.id] = x.zona;
-      ordem[x.cliente.id] = contador[x.zona];
+    ZONAS_DA_ROTA_.forEach(function (z) {
+      rotaFixaEstado_[z.id].forEach(function (id, i) { zonas[id] = z.id; ordem[id] = i + 1; });
     });
     botaoOcupado_(btn);
     db.collection('config').doc('rotaPadrao').set({
-      texto: $('rotaFixaTexto').value.slice(0, 8000), zonas: zonas, ordem: ordem,
+      zonas: zonas, ordem: ordem,
       atualizadoEm: new Date().toISOString(), atualizadoPor: currentUserNome || ''
     }).then(function () {
-      rotaFixa_ = { zonas: zonas, ordem: ordem, texto: $('rotaFixaTexto').value };
+      rotaFixa_ = { zonas: zonas, ordem: ordem };
       registrarAuditoria_('rota_padrao', Object.keys(ordem).length + ' paradas na ordem');
       // a região de cada cliente vem junto: é o que o filtro da rota usa
       var lote = db.batch();
@@ -4348,22 +4419,6 @@
     }).catch(function (err) { showToast(errMsg(err, 'Não foi possível salvar a ordem.'), 'error'); })
       .then(function () { botaoLivre_(btn, 'Salvar ordem da rota'); });
   }
-
-  // A lista que o escritório já usa, pra não ter que digitar de novo na
-  // primeira vez. Quem quiser muda o texto e salva de novo.
-  var ROTA_FIXA_EXEMPLO_ = [
-    'encima', 'associacao dos dirigentes', 'locadora danubio', 'douglas auto center', 'ademilson', 'antonias',
-    'centro de odontologia', 'galpao', 'universo', 'carlos lucas', 'xtreme', 'me', 'fito', 'prime',
-    'empreendimento oliveira e costa', 'big lanches', 'infancy', 'tecnoagro', 'gs empreendimentos',
-    'imperio das pizzas', 'loterias taiobeiras', 'silvande', 'madeireira miranda', 'constru-g',
-    '', 'parte inferior', 'selma', 'lisa costa', 'minimercado', 'autogiro', 'dornas', 'leonardo', 'aco forte',
-    'serralheria', 'reginalda', 'construtop', 'almeida', 'soma', 'mikael', 'artefato', 'teobaldo', 'acssp',
-    'bmj som automotivo', 'caulim', 'constru uniao', 'latorres',
-    '', 'centro', 'raizz', 'versatil', 'griffin', 'gerlane', 'organizacao alves e araujo', 'booze pub',
-    'visual kids', 'emporio das carnes', 'vera lucia', 'su seducao', 'joelflor', 'cleia', 'jose mendes freitas',
-    'loterias freitas e mendes', 'florencio', 'rosa', 'bn', 'balao magico', 'djalma', 'controlar', 'duda home',
-    'torra torra', 'armarinho', 'dfarma', 'organizacoes furtado', 'organizacoes pink bijoux', 'janio jose de almeida'
-  ].join('\n');
 
   // ---------- mapa da carteira ----------
   // O mapa do Painel mostra ENTREGAS; este mostra CLIENTES. Serve pra planejar
@@ -11956,7 +12011,6 @@
   $('emprestimoNovoBtn').addEventListener('click', function () { abrirNovoEmprestimo_(null); });
   $('saudeSistemaAtualizarBtn').addEventListener('click', renderSaudeDoSistema_);
   $('fechamentoMesSelect').addEventListener('change', function () { carregarFechamentoDoMes_(competenciaDoFechamento_()); });
-  $('rotaFixaConferirBtn').addEventListener('click', conferirRotaFixa_);
   $('rotaFixaSalvarBtn').addEventListener('click', function () { salvarRotaFixa_(this); });
   $('painelMapaBtn').addEventListener('click', function () {
     var caixa = $('painelMapaCaixa');
