@@ -53,6 +53,12 @@ const pedacos = [
   ['tela vazia e janela',
    '  .empty-state { color: var(--ink-faint); font-size: var(--t-base); text-align: center; padding: var(--esp-5) var(--esp-3); line-height: 1.5; }',
    '  /* ---------- esqueleto de carregamento ---------- */'],
+  // A casca GitHub (barra de cima, abas do módulo, gavetas) é montada por
+  // nilma-shell.js em TODAS as páginas; o visual dela mora no entregas.html
+  // entre estas duas âncoras e sai daqui pras outras telas.
+  ['casca GitHub: barra de cima, abas do módulo e gavetas (nilma-shell.js)',
+   '  /* ---------- casca GitHub: barra, abas e gavetas ---------- */',
+   '  /* ---------- fim da casca GitHub ---------- */'],
 ];
 
 const cabeca = `/* ==========================================================================
