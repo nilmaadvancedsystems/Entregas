@@ -1007,13 +1007,7 @@
   .rota-item.movida-pelo-teclado { background: var(--accent-soft); }
   .empty-state .vazio-acao { display: inline-flex; margin: var(--esp-3) auto 0; }
 
-  .ajustes-busca { position: relative; margin-bottom: var(--esp-4); }
-  .ajustes-busca .ph {
-    position: absolute; left: var(--esp-3); top: 50%; transform: translateY(-50%);
-    color: var(--ink-faint); pointer-events: none;
-  }
-  .ajustes-busca .input { padding-left: 38px; }
-  .ajustes-busca .card-hint { margin: var(--esp-2) 0 0; }
+  .card-grupo[hidden] { display: none; }
 
   .menu-acoes { position: relative; display: inline-flex; }
   .menu-acoes-painel {
@@ -3037,7 +3031,7 @@
       </label>
       <button type="submit" class="btn btn-primary">Adicionar cliente</button>
     </form>
-    <div class="card">
+    <div class="card" id="clientesListaCard">
       <div class="card-head-row">
         <h2><i class="ph ph-users" aria-hidden="true"></i> Clientes</h2>
         <button type="button" class="btn-chip accent" id="exportClientesBtn"><i class="ph ph-download-simple" aria-hidden="true"></i> Exportar planilha</button>
@@ -5101,17 +5095,46 @@
   }
 
   // ---------- Clientes: carteira e ajustes do app ----------
-  // Os ajustes do app moravam numa aba "Perfil" que quase ninguém achava
-  // (nome não dizia o que era, e só admin via). Agora são a segunda parte da
-  // aba Clientes, que já é o lugar de cuidar da base.
+  // Era Carteira/Ajustes, dois blocos só — e Ajustes tinha virado uma pilha
+  // de 10 cartões com uma busca de texto por cima, tudo muito junto. Agora
+  // são 4 destinos (Carteira, Painéis, Cadastro, Ajustes) e, dentro de
+  // Ajustes, um segundo nível de 6 categorias — "Ordem fixa da rota" ganha
+  // a categoria "Rota" só pra ela, em vez de ser mais um cartão na fila.
+  //
+  // A lista de clientes (o que se usa todo dia) vira o destino padrão de
+  // Carteira, na frente — antes ficava por último, atrás de 8 cartões.
   function montarAjustesNaAbaClientes_() {
     var abaClientes = $('tab-clientes');
     var abaPerfil = $('tab-perfil');
-    if (!abaClientes || !abaPerfil || $('clientesCarteira')) return;
+    if (!abaClientes || !abaPerfil || $('clientesListaGrupo')) return;
 
-    var carteira = document.createElement('div');
-    carteira.id = 'clientesCarteira';
-    while (abaClientes.firstChild) carteira.appendChild(abaClientes.firstChild);
+    // As duas faixas de tela larga (contextoPorAba_, mais acima no arquivo)
+    // já isolaram esses cartões numa div.col-lado, uma dentro de tab-clientes
+    // e outra dentro de tab-perfil. Elas ficam de fora dos grupos do menu —
+    // continuam sempre visíveis, do jeito de sempre — e precisam ser filhas
+    // diretas de #tab-clientes (a seção com classe .view) pra regra de CSS
+    // ".view > .col-lado" valer; o hidden delas acompanha a metade ativa
+    // (Carteira x Ajustes), não a categoria dentro dela.
+    var faixaCarteira = abaClientes.querySelector(':scope > .col-lado');
+    var faixaAjustes = abaPerfil.querySelector(':scope > .col-lado');
+    if (faixaCarteira) faixaCarteira.dataset.faixa = 'carteira';
+    if (faixaAjustes) faixaAjustes.dataset.faixa = 'ajustes';
+
+    var listaGrupo = document.createElement('div');
+    listaGrupo.id = 'clientesListaGrupo';
+    var paineisGrupo = document.createElement('div');
+    paineisGrupo.id = 'clientesPaineisGrupo';
+    paineisGrupo.hidden = true;
+    var cadastroGrupo = document.createElement('div');
+    cadastroGrupo.id = 'clientesCadastroGrupo';
+    cadastroGrupo.hidden = true;
+
+    var listaCard = $('clientesListaCard');
+    if (listaCard) listaGrupo.appendChild(listaCard);
+    ['saudeBaseCard', 'carteiraMapaCard', 'papeisVencendoCard', 'emprestimosCard', 'recadosClienteCard', 'linkParadoCard', 'receitaAvisosCard']
+      .forEach(function (id) { var el = $(id); if (el) paineisGrupo.appendChild(el); });
+    var formCliente = $('form-cliente');
+    if (formCliente) cadastroGrupo.appendChild(formCliente);
 
     var ajustes = document.createElement('div');
     ajustes.id = 'clientesAjustes';
@@ -5123,20 +5146,39 @@
       '<div class="card-head-row"><h2><i class="ph ph-paint-brush" aria-hidden="true"></i> Aparência e conta</h2>' +
         '<button type="button" class="btn-chip accent" id="ajustesPessoaisBtn"><i class="ph ph-gear" aria-hidden="true"></i> Abrir</button></div>' +
       '<p class="card-hint">Tema, cor, tamanho do texto, espaçamento, aba em que o app abre, foto e senha. Vale só pra você — os cartões abaixo valem pro escritório inteiro.</p>';
-    ajustes.appendChild(pessoal);
-    while (abaPerfil.firstChild) ajustes.appendChild(abaPerfil.firstChild);
 
-    // Treze cartões de configuração empilhados: achar "Dados do escritório"
-    // era rolagem cega. O texto já está todo na tela, então filtrar aqui não
-    // custa uma leitura sequer.
-    var busca = document.createElement('div');
-    busca.className = 'ajustes-busca';
-    busca.innerHTML =
-      '<label class="sr-only" for="ajustesBusca">Buscar ajuste</label>' +
-      '<i class="ph ph-magnifying-glass" aria-hidden="true"></i>' +
-      '<input class="input" id="ajustesBusca" type="search" autocomplete="off" placeholder="Buscar ajuste: escritório, acesso, rota, lembrete...">' +
-      '<p class="card-hint" id="ajustesBuscaVazio" hidden>Nenhum ajuste com esse nome.</p>';
-    ajustes.insertBefore(busca, ajustes.firstChild);
+    // "sistema" e "integracoes" ficam com um cartão só cada: os outros dois
+    // (Competências/Auditoria e Endereço do serviço de contas) moram na
+    // faixa lateral de Ajustes, não em grupo — ver faixaAjustes acima.
+    var GRUPOS_AJUSTES_ = [
+      { id: 'conta', rotulo: 'Minha conta', icone: 'ph-paint-brush', els: [pessoal] },
+      { id: 'equipe', rotulo: 'Equipe', icone: 'ph-users-three', els: ['perfilLista', 'perfilPessoa', 'form-equipe'] },
+      { id: 'escritorio', rotulo: 'Escritório', icone: 'ph-buildings', els: ['escritorioCard', 'lembretesCard', 'obrigacoesConfigCard'] },
+      { id: 'rota', rotulo: 'Rota', icone: 'ph-path', els: ['rotaFixaCard'] },
+      { id: 'sistema', rotulo: 'Sistema', icone: 'ph-heartbeat', els: ['saudeSistemaCard'] },
+      { id: 'integracoes', rotulo: 'Integrações', icone: 'ph-plugs-connected', els: ['iaCard'] }
+    ];
+    var ajustesSubnav = document.createElement('div');
+    ajustesSubnav.className = 'mode-toggle clientes-subnav';
+    ajustesSubnav.id = 'ajustesSubnav';
+    ajustesSubnav.setAttribute('role', 'group');
+    ajustesSubnav.setAttribute('aria-label', 'Categoria de ajustes');
+    ajustesSubnav.innerHTML = GRUPOS_AJUSTES_.map(function (g, i) {
+      return '<button type="button" class="mode-btn' + (i === 0 ? ' active' : '') + '" data-grupo="' + g.id + '">' +
+        '<i class="ph ' + g.icone + '" aria-hidden="true"></i> ' + escapeHtml_(g.rotulo) + '</button>';
+    }).join('');
+    ajustes.appendChild(ajustesSubnav);
+    GRUPOS_AJUSTES_.forEach(function (g, i) {
+      var grupoEl = document.createElement('div');
+      grupoEl.className = 'card-grupo';
+      grupoEl.dataset.grupo = g.id;
+      grupoEl.hidden = i !== 0;
+      g.els.forEach(function (item) {
+        var el = typeof item === 'string' ? $(item) : item;
+        if (el) grupoEl.appendChild(el);
+      });
+      ajustes.appendChild(grupoEl);
+    });
 
     var nav = document.createElement('div');
     nav.className = 'mode-toggle clientes-subnav';
@@ -5145,63 +5187,76 @@
     nav.setAttribute('aria-label', 'O que mostrar na aba Clientes');
     nav.innerHTML =
       '<button type="button" class="mode-btn active" data-parte="carteira"><i class="ph ph-users" aria-hidden="true"></i> Carteira</button>' +
+      '<button type="button" class="mode-btn" data-parte="paineis"><i class="ph ph-gauge" aria-hidden="true"></i> Painéis</button>' +
+      '<button type="button" class="mode-btn" data-parte="cadastro"><i class="ph ph-user-plus" aria-hidden="true"></i> Cadastro</button>' +
       '<button type="button" class="mode-btn" data-parte="ajustes"><i class="ph ph-sliders-horizontal" aria-hidden="true"></i> Ajustes do app</button>';
 
     abaClientes.appendChild(nav);
-    abaClientes.appendChild(carteira);
+    abaClientes.appendChild(listaGrupo);
+    abaClientes.appendChild(paineisGrupo);
+    abaClientes.appendChild(cadastroGrupo);
     abaClientes.appendChild(ajustes);
+    if (faixaCarteira) abaClientes.appendChild(faixaCarteira);
+    if (faixaAjustes) abaClientes.appendChild(faixaAjustes);
 
     nav.querySelectorAll('.mode-btn').forEach(function (b) {
-      b.addEventListener('click', function () {
-        nav.querySelectorAll('.mode-btn').forEach(function (x) { x.classList.remove('active'); });
-        b.classList.add('active');
-        mostrarParteDeClientes_(b.dataset.parte);
-      });
+      b.addEventListener('click', function () { mostrarParteDeClientes_(b.dataset.parte); });
+    });
+    ajustesSubnav.querySelectorAll('.mode-btn').forEach(function (b) {
+      b.addEventListener('click', function () { mostrarGrupoDeAjustes_(b.dataset.grupo); });
     });
     $('ajustesPessoaisBtn').addEventListener('click', abrirConfiguracoes);
-    $('ajustesBusca').addEventListener('input', function () { filtrarAjustes_(this.value); });
   }
 
-  // Filtra pelos títulos e pelas explicações dos cartões — as mesmas
-  // palavras que a pessoa leu da última vez que passou por aqui.
-  function filtrarAjustes_(termo) {
-    var ajustes = $('clientesAjustes');
-    if (!ajustes) return;
-    var alvo = semAcento_(String(termo || '').trim().toLowerCase());
-    var achou = 0, cartoes = 0;
-    ajustes.querySelectorAll(':scope > .card').forEach(function (card) {
-      cartoes++;
-      if (!alvo) { card.hidden = false; achou++; return; }
-      var titulo = (card.querySelector('h2') || {}).textContent || '';
-      var dica = Array.from(card.querySelectorAll('.card-hint')).map(function (p) { return p.textContent; }).join(' ');
-      var bate = semAcento_((titulo + ' ' + dica).toLowerCase()).indexOf(alvo) !== -1;
-      card.hidden = !bate;
-      if (bate) achou++;
-    });
-    $('ajustesBuscaVazio').hidden = !(cartoes && !achou);
-  }
-
-  function mostrarParteDeClientes_(parte) {
-    var carteira = $('clientesCarteira');
-    var ajustes = $('clientesAjustes');
-    if (!carteira || !ajustes) return;
-    var querAjustes = parte === 'ajustes' && temPapel('admin');
-    if (querAjustes) renderSaudeDoSistema_();
-    carteira.hidden = querAjustes;
-    ajustes.hidden = !querAjustes;
-    var nav = $('clientesSubnav');
-    if (nav) nav.querySelectorAll('.mode-btn').forEach(function (b) {
-      b.classList.toggle('active', b.dataset.parte === (querAjustes ? 'ajustes' : 'carteira'));
-    });
+  // Categoria de nível 2, dentro de Ajustes. Só recarrega Saúde do sistema
+  // quando a pessoa entra ali — antes recarregava toda vez que Ajustes
+  // abria, mesmo indo direto pra outra categoria.
+  function mostrarGrupoDeAjustes_(grupo) {
+    var nav = $('ajustesSubnav');
+    if (!nav) return;
+    nav.querySelectorAll('.mode-btn').forEach(function (b) { b.classList.toggle('active', b.dataset.grupo === grupo); });
+    $('clientesAjustes').querySelectorAll(':scope > .card-grupo').forEach(function (g) { g.hidden = g.dataset.grupo !== grupo; });
+    if (grupo === 'sistema') renderSaudeDoSistema_();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  // quem não é admin não tem ajustes de escritório: fica só a carteira
+  function mostrarParteDeClientes_(parte) {
+    var mapa = { carteira: 'clientesListaGrupo', paineis: 'clientesPaineisGrupo', cadastro: 'clientesCadastroGrupo', ajustes: 'clientesAjustes' };
+    var parteReal = mapa[parte] ? parte : 'carteira';
+    var idAlvo = mapa[parteReal];
+    Object.keys(mapa).forEach(function (p) {
+      var el = $(mapa[p]);
+      if (el) el.hidden = mapa[p] !== idAlvo;
+    });
+    // as faixas laterais acompanham a metade ativa (Carteira x Ajustes),
+    // igual sempre foi — só a categoria dentro de cada metade é nova
+    var abaClientes = $('tab-clientes');
+    var faixaCarteira = abaClientes && abaClientes.querySelector(':scope > .col-lado[data-faixa="carteira"]');
+    var faixaAjustes = abaClientes && abaClientes.querySelector(':scope > .col-lado[data-faixa="ajustes"]');
+    if (faixaCarteira) faixaCarteira.hidden = parteReal === 'ajustes';
+    if (faixaAjustes) faixaAjustes.hidden = parteReal !== 'ajustes';
+    var nav = $('clientesSubnav');
+    if (nav) nav.querySelectorAll('.mode-btn').forEach(function (b) { b.classList.toggle('active', b.dataset.parte === parteReal); });
+    if (parteReal === 'ajustes') {
+      var ativo = $('ajustesSubnav') && $('ajustesSubnav').querySelector('.mode-btn.active');
+      mostrarGrupoDeAjustes_(ativo ? ativo.dataset.grupo : 'conta');
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // Cadastro e Ajustes são coisa de admin; Carteira e Painéis, de todo mundo.
   function ajustarSubnavDeClientes_() {
     var nav = $('clientesSubnav');
     if (!nav) return;
-    nav.hidden = !temPapel('admin');
-    if (!temPapel('admin')) mostrarParteDeClientes_('carteira');
+    var admin = temPapel('admin');
+    var btnCadastro = nav.querySelector('[data-parte="cadastro"]');
+    var btnAjustes = nav.querySelector('[data-parte="ajustes"]');
+    if (btnCadastro) btnCadastro.hidden = !admin;
+    if (btnAjustes) btnAjustes.hidden = !admin;
+    var ativo = nav.querySelector('.mode-btn.active');
+    if (!admin && ativo && (ativo.dataset.parte === 'cadastro' || ativo.dataset.parte === 'ajustes')) {
+      mostrarParteDeClientes_('carteira');
+    }
   }
 
   montarAjustesNaAbaClientes_();
@@ -13762,6 +13817,7 @@
     $('importHonorariosBtn').hidden = !temPapel('admin');
     // Perfil é a página de administração de acessos: só admin enxerga.
     $('tabPerfil').hidden = true;          // virou "Ajustes do app", dentro de Clientes
+    $('tabbtn-clientes').hidden = true;    // só se chega lá pelo card do hub agora, não por aqui
     ajustarSubnavDeClientes_();
     if (temPapel('admin')) subscribeUsuarios();
 
@@ -14418,11 +14474,18 @@
   // A Pendências NÃO entra aqui, por decisão do dono: ela abre como página
   // própria (card do hub -> Pendencias-e-envio-automatico-via-Gmail.html),
   // exatamente como é sozinha — sem moldura do Entregas em volta.
-  var TABS_ENTREGAS_ = ['tabbtn-nova', 'tabbtn-rota', 'tabbtn-painel', 'tabbtn-solicitacoes', 'tabHonorarios', 'tabbtn-clientes', 'tabPerfil'];
+  // "Clientes e ajustes" saiu daqui: agora só se chega lá pelo card próprio
+  // do hub (hubClientes -> entrarModoClientes_), sem essa aba duplicada
+  // dentro de Entregas.
+  var TABS_ENTREGAS_ = ['tabbtn-nova', 'tabbtn-rota', 'tabbtn-painel', 'tabbtn-solicitacoes', 'tabHonorarios', 'tabPerfil'];
   // atalho: quem chamava a aba Perfil agora cai em Clientes › Ajustes do app
   function irParaAjustesDoApp_() {
     if (!temPapel('admin')) return;
-    $('tabbtn-clientes').click();
+    // A aba Clientes não fica mais visível dentro de Entregas (só pelo card
+    // do hub) — entrarModoClientes_ faz a transição completa (revela o
+    // botão da aba, esconde as outras, liga o modo-clientes) antes de abrir
+    // direto em "Ajustes do app".
+    entrarModoClientes_();
     mostrarParteDeClientes_('ajustes');
   }
   // cada "aba secundária" registrada aqui: botões de aba, seções de
@@ -14462,8 +14525,12 @@
     if ($('contabilVoltarBtn')) $('contabilVoltarBtn').hidden = true;
     document.body.classList.remove('modo-secundario');
     // saindo do módulo Clientes, a seção dele não pode ficar aberta por
-    // cima de 'Nova entrega', que volta a ser a aba ativa logo abaixo
+    // cima de 'Nova entrega', que volta a ser a aba ativa logo abaixo — e o
+    // botão da aba (que entrarModoClientes_ revelou) esconde de novo, senão
+    // ele fica à vista dentro de Entregas, que é exatamente o que não
+    // queremos mais.
     if (document.body.classList.contains('modo-clientes') && $('tab-clientes')) $('tab-clientes').hidden = true;
+    if ($('tabbtn-clientes')) $('tabbtn-clientes').hidden = true;
     document.body.classList.remove('modo-clientes');
     // restaura as abas de Entregas — as com papel (Honorários/Perfil)
     // seguem a MESMA checagem que startApp() usa, nunca "mostrar todas".
@@ -14471,7 +14538,6 @@
     $('tabbtn-rota').hidden = false;
     $('tabbtn-painel').hidden = false;
     $('tabbtn-solicitacoes').hidden = false;
-    $('tabbtn-clientes').hidden = false;
     $('tabHonorarios').hidden = !(temPapel('admin') || temPapel('office_boy'));
     $('tabPerfil').hidden = true;          // virou "Ajustes do app", dentro de Clientes
     ajustarSubnavDeClientes_();
@@ -14500,7 +14566,8 @@
   // a mesma lista e o mesmo cadastro — só sem as abas de entrega em volta.
   function entrarModoClientes_() {
     entrarNaFuncao('entregas');   // liga os ouvintes que a lista usa (clientes, rota)
-    TABS_ENTREGAS_.forEach(function (id) { $(id).hidden = id !== 'tabbtn-clientes'; });
+    $('tabbtn-clientes').hidden = false;   // não está mais em TABS_ENTREGAS_, então precisa de linha própria
+    TABS_ENTREGAS_.forEach(function (id) { $(id).hidden = true; });
     $('contabilVoltarBtn').hidden = false;
     document.body.classList.add('modo-clientes');
     $('tabbtn-clientes').click();
