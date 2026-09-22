@@ -338,5 +338,31 @@ igual('texto de um documento só', pv.textoDoAviso([{ nome: 'CND Federal', clien
   { titulo: 'Documento vencendo', corpo: 'CND Federal de PADARIA vence em 15 dias' });
 igual('texto de vários', pv.textoDoAviso(avisar).titulo, '3 documentos vencendo');
 
+// ---------- planilha do backup: separar código do nome ----------
+const bp = require('./backup-planilha');
+igual('código colado no nome', bp.separarCodigo('207 - BMJ SOM AUTOMOTIVO LTDA'), { codigo: '207', nome: 'BMJ SOM AUTOMOTIVO LTDA' });
+igual('sem código no nome, usa o solto', bp.separarCodigo('GAS TAIOBEIRAS LTDA', '600'), { codigo: '600', nome: 'GAS TAIOBEIRAS LTDA' });
+igual('sem código nenhum', bp.separarCodigo('ALVES CRUZ ACADEMIA'), { codigo: '', nome: 'ALVES CRUZ ACADEMIA' });
+igual('nome que começa com número mas não é código (sem traço)', bp.separarCodigo('2894'), { codigo: '', nome: '2894' });
+
+const clientesJson = {
+  a: { dados: { nome: '207 - BMJ SOM AUTOMOTIVO LTDA', ativo: true, entrega: true, documento: '12.673.416/0001-50', receita: { situacao: 'ATIVA', simples: true } } },
+  b: { dados: { nome: 'ALVES CRUZ ACADEMIA', codigoOrigem: '600', ativo: false } },
+};
+const abaClientes = bp.montarAba_Clientes(clientesJson);
+igual('aba de clientes vem ordenada por nome', abaClientes.map(l => l['Cliente']), ['ALVES CRUZ ACADEMIA', 'BMJ SOM AUTOMOTIVO LTDA']);
+igual('código separado do nome na planilha', abaClientes[1]['Código'], '207');
+igual('inativo aparece como Não', abaClientes[0]['Ativo'], 'Não');
+
+const entregasJson = {
+  x: { dados: { clienteNome: '10 - PADARIA', criadoEm: '2026-09-10T10:00:00Z', itens: [{ tipo: 'DAS', valor: 100.5 }, { tipo: 'FGTS', valor: 20 }], status: 'confirmada' } },
+  y: { dados: { clienteNome: '5 - ACADEMIA', criadoEm: '2026-09-09T10:00:00Z', itens: [{ tipo: 'Honorário', valor: null }], status: 'pendente' } },
+};
+const abaEntregas = bp.montarAba_Entregas(entregasJson);
+igual('entregas ordenadas por cliente', abaEntregas.map(l => l['Cliente']), ['ACADEMIA', 'PADARIA']);
+igual('soma o valor dos itens', abaEntregas[1]['Valor total'], 120.5);
+igual('item sem valor não quebra a soma', abaEntregas[0]['Valor total'], '');
+igual('itens viram texto legível', abaEntregas[1]['Itens'], 'DAS (R$ 100,50), FGTS (R$ 20,00)');
+
 console.log(falhas ? '\n' + falhas + ' de ' + total + ' testes FALHARAM' : total + ' testes, todos passaram');
 process.exit(falhas ? 1 : 0);

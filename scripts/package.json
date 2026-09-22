@@ -16,6 +16,7 @@
     "google-auth-library": "^11.1.0",
     "googleapis": "^181.0.0",
     "pdf-parse": "^1.1.1",
-    "systray2": "^2.1.4"
+    "systray2": "^2.1.4",
+    "xlsx": "^0.18.5"
   }
 }

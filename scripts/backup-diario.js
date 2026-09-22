@@ -5,6 +5,11 @@
 // de rodar. Aqui o PC do robô roda sozinho, uma vez por dia a partir do
 // meio-dia, e deixa em robo/estado.backup quando foi e se deu certo — é o
 // que a tela de funções usa pra avisar quando o backup está atrasado.
+//
+// Depois de um backup-firestore.js bom, roda o backup-planilha.js em cima do
+// MESMO arquivo que acabou de ser escrito — sem ler o Firestore de novo, sem
+// gastar cota — e deixa uma planilha .xlsx (Clientes, Documentos Mensais,
+// Entregas) na mesma pasta, ordenada por empresa.
 const path = require('path');
 const { spawn } = require('child_process');
 
@@ -33,6 +38,18 @@ function rodarBackup() {
   });
 }
 
+function rodarPlanilha() {
+  return new Promise(resolve => {
+    const linhas = [];
+    const filho = spawn(process.execPath, [path.join(__dirname, 'backup-planilha.js')], { cwd: __dirname });
+    const guardar = b => String(b).split(/\r?\n/).filter(Boolean).forEach(l => linhas.push(l));
+    filho.stdout.on('data', guardar);
+    filho.stderr.on('data', guardar);
+    filho.on('error', err => resolve({ ok: false, resumo: err.message }));
+    filho.on('close', code => resolve({ ok: code === 0, resumo: linhas.slice(-2).join(' | ') }));
+  });
+}
+
 function iniciarBackupDiario(db, log) {
   const estadoRef = db.collection('robo').doc('estado');
   let rodando = false;
@@ -55,6 +72,13 @@ function iniciarBackupDiario(db, log) {
       await estadoRef.set({ backup: patch }, { merge: true });
       if (r.ok) feitoNoDia = hojeIso();
       log('backup do dia:', r.ok ? 'ok' : 'FALHOU', '-', r.resumo);
+      if (r.ok) {
+        // Não lê o banco de novo: monta a planilha em cima do arquivo que
+        // acabou de sair do forno. Se falhar, o backup em si já está salvo
+        // e seguro — só a planilha (um extra) que fica pra próxima.
+        const p = await rodarPlanilha();
+        log('planilha do backup:', p.ok ? 'ok' : 'falhou', '-', p.resumo);
+      }
     } catch (err) {
       log('backup do dia falhou:', err.message);
     } finally { rodando = false; }
