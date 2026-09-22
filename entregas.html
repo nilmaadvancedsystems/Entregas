@@ -5105,12 +5105,11 @@
     if (faixaCarteira) faixaCarteira.dataset.faixa = 'carteira';
     if (faixaAjustes) faixaAjustes.dataset.faixa = 'ajustes';
 
-    // cartão de atalho pro que é de cada pessoa (tema, cor, senha, foto)
-    var pessoal = document.createElement('div');
-    pessoal.className = 'card';
-    pessoal.innerHTML =
-      '<div class="card-head-row"><h2><i class="ph ph-paint-brush" aria-hidden="true"></i> Aparência e conta</h2>' +
-        '<button type="button" class="btn-chip accent" id="ajustesPessoaisBtn"><i class="ph ph-gear" aria-hidden="true"></i> Abrir</button></div>';
+    // "Aparência e conta" (tema, cor, senha, foto) NÃO entra como categoria
+    // aqui — já tem a engrenagem fixa no topo (settingsBtn), sempre à vista
+    // em qualquer aba de Entregas, abrindo a mesma tela. Uma categoria
+    // inteira só pra um botão "Abrir" que duplicava a engrenagem era
+    // exatamente o tipo de opção jogada que a Nilma reclamou.
 
     // Cada destino de nível 1 tem seu próprio submenu de nível 2. Categoria
     // com um cartão só (Rota, Lista, Novo cliente) não ganha barra de
@@ -5139,7 +5138,6 @@
           { id: 'novo', rotulo: 'Novo cliente', icone: 'ph-user-plus', els: ['form-cliente'] }
         ] },
       { id: 'ajustes', rotulo: 'Ajustes do app', icone: 'ph-sliders-horizontal', grupos: [
-          { id: 'conta', rotulo: 'Minha conta', icone: 'ph-paint-brush', els: [pessoal] },
           { id: 'equipe', rotulo: 'Equipe', icone: 'ph-users-three', els: ['perfilLista', 'perfilPessoa', 'form-equipe'] },
           { id: 'escritorio', rotulo: 'Escritório', icone: 'ph-buildings', els: ['escritorioCard', 'lembretesCard', 'obrigacoesConfigCard'] },
           { id: 'rota', rotulo: 'Rota', icone: 'ph-path', els: ['rotaFixaCard'] },
@@ -5211,8 +5209,6 @@
     // "Carteira" é o destino padrão, então a faixa de Ajustes começa escondida.
     if (faixaCarteira) abaClientes.appendChild(faixaCarteira);
     if (faixaAjustes) { faixaAjustes.hidden = true; abaClientes.appendChild(faixaAjustes); }
-
-    $('ajustesPessoaisBtn').addEventListener('click', abrirConfiguracoes);
   }
 
   // Categoria de nível 2, dentro de um destino de nível 1. Só recarrega
