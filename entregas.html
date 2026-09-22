@@ -5118,7 +5118,8 @@
     // Ajustes, não em grupo — ver faixaAjustes acima.
     var DESTINOS_CLIENTES_ = [
       { id: 'carteira', rotulo: 'Carteira', icone: 'ph-users', grupos: [
-          { id: 'lista', rotulo: 'Lista de clientes', icone: 'ph-list-bullets', els: ['clientesListaCard'] }
+          { id: 'lista', rotulo: 'Lista de clientes', icone: 'ph-list-bullets', els: ['clientesListaCard'] },
+          { id: 'novo', rotulo: 'Novo cliente', icone: 'ph-user-plus', els: ['form-cliente'] }
         ] },
       // Painéis não vira submenu: cada cartão daqui só aparece por conta
       // própria quando TEM alguma coisa pra mostrar (vencendo, recado, link
@@ -5133,9 +5134,6 @@
               'saudeBaseCard', 'papeisVencendoCard', 'receitaAvisosCard', 'recadosClienteCard',
               'linkParadoCard', 'emprestimosCard', 'carteiraMapaCard'
             ] }
-        ] },
-      { id: 'cadastro', rotulo: 'Cadastro', icone: 'ph-user-plus', grupos: [
-          { id: 'novo', rotulo: 'Novo cliente', icone: 'ph-user-plus', els: ['form-cliente'] }
         ] },
       { id: 'ajustes', rotulo: 'Ajustes do app', icone: 'ph-sliders-horizontal', grupos: [
           { id: 'equipe', rotulo: 'Equipe', icone: 'ph-users-three', els: ['perfilLista', 'perfilPessoa', 'form-equipe'] },
@@ -5228,7 +5226,7 @@
   }
 
   function mostrarParteDeClientes_(parte) {
-    var DESTINOS_IDS_ = ['carteira', 'paineis', 'cadastro', 'ajustes'];
+    var DESTINOS_IDS_ = ['carteira', 'paineis', 'ajustes'];
     var parteReal = DESTINOS_IDS_.indexOf(parte) !== -1 ? parte : 'carteira';
     DESTINOS_IDS_.forEach(function (id) {
       var el = $('clientesDestino-' + id);
@@ -5261,21 +5259,25 @@
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  // Cadastro e Ajustes são coisa de admin; Carteira e Painéis, de todo mundo.
-  // Só mexe em mostrar (nunca esconde por causa disto quem já estava fora
-  // do modo Clientes) — a visibilidade "estou dentro de Clientes ou não" é
-  // toda de entrarModoClientes_/sairDeAbaSecundaria_; aqui só decide, DENTRO
-  // do que já está à vista, o que é ou não coisa de admin.
+  // "Novo cliente" (dentro de Carteira) e "Ajustes do app" são coisa de
+  // admin; o resto de Carteira e Painéis, de todo mundo. Só mexe em mostrar
+  // (nunca esconde por causa disto quem já estava fora do modo Clientes) —
+  // a visibilidade "estou dentro de Clientes ou não" é toda de
+  // entrarModoClientes_/sairDeAbaSecundaria_; aqui só decide, DENTRO do que
+  // já está à vista, o que é ou não coisa de admin.
   function ajustarSubnavDeClientes_() {
-    var btn1Cadastro = document.querySelector('#tabsNav .tab-nivel1[data-parte="cadastro"]');
+    var btnNovoCliente = document.querySelector('#clientesDestino-carteira [data-subnav-de] [data-grupo="novo"]');
     var btn1Ajustes = document.querySelector('#tabsNav .tab-nivel1[data-parte="ajustes"]');
-    if (!btn1Cadastro && !btn1Ajustes) return;
+    if (!btnNovoCliente && !btn1Ajustes) return;
     var admin = temPapel('admin');
     var emClientes = document.body.classList.contains('modo-clientes');
-    if (btn1Cadastro) btn1Cadastro.hidden = !emClientes || !admin;
+    if (btnNovoCliente) btnNovoCliente.hidden = !emClientes || !admin;
     if (btn1Ajustes) btn1Ajustes.hidden = !emClientes || !admin;
+    if (!admin && btnNovoCliente && btnNovoCliente.classList.contains('active')) {
+      mostrarGrupo_('carteira', 'lista');
+    }
     var ativo = document.querySelector('#tabsNav .tab-nivel1.active');
-    if (!admin && ativo && (ativo.dataset.parte === 'cadastro' || ativo.dataset.parte === 'ajustes')) {
+    if (!admin && ativo && ativo.dataset.parte === 'ajustes') {
       mostrarParteDeClientes_('carteira');
     }
   }
