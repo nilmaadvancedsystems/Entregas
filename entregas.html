@@ -13936,7 +13936,7 @@
     $('hubGridPrincipal').hidden = false;
     $('hubContabil').hidden = !(temPapel('admin') || temPapel('contabil'));
     $('hubFiscal').hidden = !(temPapel('admin') || temPapel('fiscal'));
-    $('hubPendencias').hidden = !(temPapel('admin') || temPapel('contabil'));
+    $('hubPendencias').hidden = false;
     prepararHub_();
     $('hubScreen').hidden = false;
     // foco na última função usada: Enter entra direto (no celular não, pra

@@ -535,10 +535,11 @@ service cloud.firestore {
     // ---------- solicitações de e-mail (cobrança de documentos) ----------
     // Painel separado de `solicitacoes` (que é fila interna office_boy):
     // aqui cada documento é um pedido de cobrança por e-mail a um cliente
-    // (extrato/comprovante/aplicação em falta). Quem monta e processa a
-    // fila é admin/contábil — não é tarefa de office_boy nem staff comum.
+    // (extrato/comprovante/aplicação em falta). Antes só admin/contábil; a
+    // Nilma pediu em 2026-09-22 que a aba Pendências ficasse aberta pra
+    // equipe inteira. Exclusão continua só com admin.
     match /solicitacoesEmail/{id} {
-      allow read, create, update: if ehAdmin() || temPapel('contabil');
+      allow read, create, update: if logado();
       allow delete: if ehAdmin();
     }
 
@@ -547,8 +548,9 @@ service cloud.firestore {
     // com um booleano por tipo de documento (extrato/comprovante/aplicacao).
     // É a grade que a tela Pendencias-e-envio-automatico-via-Gmail.html
     // mostra — o que ficar desmarcado é o que entra na cobrança por e-mail.
+    // Aberto pra equipe inteira desde 2026-09-22 (era só admin/contábil).
     match /documentosMensal/{id} {
-      allow read, create, update: if ehAdmin() || temPapel('contabil');
+      allow read, create, update: if logado();
       allow delete: if ehAdmin();
     }
 

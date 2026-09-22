@@ -6453,7 +6453,8 @@
       } catch (e) {}
       $('usuarioAtual').textContent = usuarioNome;
       aplicarFoto(dados.fotoPerfil, usuarioNome);
-      var podeUsar = roles.indexOf('admin') !== -1 || roles.indexOf('contabil') !== -1;
+      // Antes só admin/contábil; a Nilma pediu acesso pra equipe inteira.
+      var podeUsar = roles.length > 0;
       souAdmin = roles.indexOf('admin') !== -1;
       document.body.classList.toggle('admin', souAdmin);
       $('authGate').hidden = true;
