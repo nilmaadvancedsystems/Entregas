@@ -5121,14 +5121,19 @@
       { id: 'carteira', rotulo: 'Carteira', icone: 'ph-users', grupos: [
           { id: 'lista', rotulo: 'Lista de clientes', icone: 'ph-list-bullets', els: ['clientesListaCard'] }
         ] },
+      // Painéis não vira submenu: cada cartão daqui só aparece por conta
+      // própria quando TEM alguma coisa pra mostrar (vencendo, recado, link
+      // parado etc. ficam "hidden" sozinhos quando a lista vem vazia — ver
+      // renderPapeisVencendo_/renderLinkParado_/etc.). Com submenu, abrir
+      // uma categoria seguidamente caía numa tela em branco, sem aviso —
+      // era justamente essa a reclamação ("as funções não têm nada"). Numa
+      // pilha só, o que não tem alerta simplesmente não ocupa espaço, e o
+      // que tem aparece junto, sem precisar adivinhar em qual aba clicar.
       { id: 'paineis', rotulo: 'Painéis', icone: 'ph-gauge', grupos: [
-          { id: 'saude', rotulo: 'Saúde da base', icone: 'ph-heartbeat', els: ['saudeBaseCard'] },
-          { id: 'mapa', rotulo: 'Mapa da carteira', icone: 'ph-map-trifold', els: ['carteiraMapaCard'] },
-          { id: 'vencendo', rotulo: 'Vencendo nos clientes', icone: 'ph-calendar-x', els: ['papeisVencendoCard'] },
-          { id: 'emprestimos', rotulo: 'Documentos com o escritório', icone: 'ph-handshake', els: ['emprestimosCard'] },
-          { id: 'recados', rotulo: 'Recados dos clientes', icone: 'ph-chat-teardrop-text', els: ['recadosClienteCard'] },
-          { id: 'linkparado', rotulo: 'Link que ninguém abriu', icone: 'ph-link-break', els: ['linkParadoCard'] },
-          { id: 'receita', rotulo: 'Mudou na Receita', icone: 'ph-bank', els: ['receitaAvisosCard'] }
+          { id: 'tudo', rotulo: 'Painéis', icone: 'ph-gauge', els: [
+              'saudeBaseCard', 'papeisVencendoCard', 'receitaAvisosCard', 'recadosClienteCard',
+              'linkParadoCard', 'emprestimosCard', 'carteiraMapaCard'
+            ] }
         ] },
       { id: 'cadastro', rotulo: 'Cadastro', icone: 'ph-user-plus', grupos: [
           { id: 'novo', rotulo: 'Novo cliente', icone: 'ph-user-plus', els: ['form-cliente'] }
