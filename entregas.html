@@ -4023,7 +4023,7 @@
     'tab-rota': ['recadosCard', 'atestadosCard', 'fechamentoCard', 'vencimentosCard'],
     'tab-painel': ['alertaSemEntregaCard', 'graficoCard', 'rankingCard'],
     'tab-solicitacoes': ['pendentesCard'],
-    'tab-perfil': ['integracaoCard', 'competenciasCard', 'auditoriaCard'],
+    'tab-perfil': ['competenciasCard', 'auditoriaCard'],
     'tab-clientes': ['importCard', 'enderecosCard', 'qualidadeRotaCard']
   };
   Object.keys(contextoPorAba_).forEach(function (idAba) {
@@ -5114,10 +5114,9 @@
 
     // Cada destino de nível 1 tem seu próprio submenu de nível 2. Categoria
     // com um cartão só (Rota, Lista, Novo cliente) não ganha barra de
-    // categoria — não tem escolha nenhuma pra fazer ali. "sistema" e
-    // "integracoes" ficam com um cartão só cada: os outros dois
-    // (Competências/Auditoria e Endereço do serviço de contas) moram na
-    // faixa lateral de Ajustes, não em grupo — ver faixaAjustes acima.
+    // categoria — não tem escolha nenhuma pra fazer ali. "sistema" fica com
+    // um cartão só: Competências/Auditoria moram na faixa lateral de
+    // Ajustes, não em grupo — ver faixaAjustes acima.
     var DESTINOS_CLIENTES_ = [
       { id: 'carteira', rotulo: 'Carteira', icone: 'ph-users', grupos: [
           { id: 'lista', rotulo: 'Lista de clientes', icone: 'ph-list-bullets', els: ['clientesListaCard'] }
@@ -5140,7 +5139,7 @@
           { id: 'escritorio', rotulo: 'Escritório', icone: 'ph-buildings', els: ['escritorioCard', 'lembretesCard', 'obrigacoesConfigCard'] },
           { id: 'rota', rotulo: 'Rota', icone: 'ph-path', els: ['rotaFixaCard'] },
           { id: 'sistema', rotulo: 'Sistema', icone: 'ph-heartbeat', els: ['saudeSistemaCard'] },
-          { id: 'integracoes', rotulo: 'Integrações', icone: 'ph-plugs-connected', els: ['iaCard'] }
+          { id: 'integracoes', rotulo: 'Integrações', icone: 'ph-plugs-connected', els: ['integracaoCard', 'iaCard'] }
         ] }
     ];
 
@@ -5241,7 +5240,12 @@
     var faixaAjustes = abaClientes && abaClientes.querySelector(':scope > .col-lado[data-faixa="ajustes"]');
     if (faixaCarteira) faixaCarteira.hidden = parteReal === 'ajustes';
     if (faixaAjustes) faixaAjustes.hidden = parteReal !== 'ajustes';
-    // nível 1, na barra lateral: marca o destino ativo
+    // nível 1, na barra lateral: marca o destino ativo. "Clientes e ajustes"
+    // (tabbtn-clientes) é só a porta de entrada da seção inteira — o clique
+    // nele já o deixa "active" (handler genérico de .tab), mas quem mostra
+    // o destino de verdade é o botão de nível 1, então só um dos dois pode
+    // ficar destacado por vez (bug: os dois ficavam azuis ao mesmo tempo).
+    $('tabbtn-clientes').classList.remove('active');
     document.querySelectorAll('#tabsNav .tab-nivel1').forEach(function (b) {
       b.classList.toggle('active', b.dataset.parte === parteReal);
     });
