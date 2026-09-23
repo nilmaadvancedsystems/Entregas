@@ -7370,104 +7370,168 @@
     var root = $('modalRoot');
     root.innerHTML =
       '<div class="modal-overlay" id="overlay"><div class="modal" id="modalInner">' +
-        '<div class="modal-head"><div><h2>Ler guia</h2><div class="card-hint modal-head-sub">Aponte pro código de barras ou pro QR do PIX da guia.</div></div>' +
+        '<div class="modal-head"><div><h2>Ler guia</h2><div class="card-hint modal-head-sub">Aponte pro c\u00f3digo de barras ou pro QR do PIX da guia.</div></div>' +
         '<button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button></div>' +
         '<video id="leitorVideo" class="leitor-video" playsinline muted></video>' +
         '<div class="leitor-acoes">' +
+          '<button type="button" class="btn-chip accent" id="leitorFotoBtn"><i class="ph ph-camera" aria-hidden="true"></i> Focar e ler</button>' +
           '<button type="button" class="btn-chip" id="leitorLanternaBtn" hidden><i class="ph ph-flashlight" aria-hidden="true"></i> Lanterna</button>' +
+          '<button type="button" class="btn-chip" id="leitorTrocarBtn" hidden><i class="ph ph-arrows-clockwise" aria-hidden="true"></i> Trocar c\u00e2mera</button>' +
         '</div>' +
-        '<p class="card-hint" id="leitorStatus">Abrindo a câmera…</p>' +
+        '<p class="card-hint" id="leitorStatus">Abrindo a c\u00e2mera\u2026</p>' +
+        '<p class="card-hint" id="leitorDiag" style="font-variant-numeric:tabular-nums"></p>' +
       '</div></div>';
-    var fluxo = null, relogio = null, fechado = false;
+
+    var fluxo = null, relogio = null, fechado = false, trilha = null, pode = {};
+    var leitor = new BarcodeDetector({ formats: ['itf', 'qr_code'] });
+    var cameras = [], iCamera = 0;
+
     function parar() {
       fechado = true;
       clearInterval(relogio);
       if (fluxo) fluxo.getTracks().forEach(function (t) { t.stop(); });
+      fluxo = null;
     }
     function fechar() { parar(); closeModal(); }
     $('overlay').addEventListener('click', function (e) { if (e.target.id === 'overlay') fechar(); });
     $('modalClose').addEventListener('click', fechar);
-    // Código de barras de boleto é linha fina: numa resolução baixa as
-    // barras viram borrão e o leitor nunca acha. Pede o máximo que o
-    // aparelho der e liga o autofoco contínuo — sem isso, muito celular
-    // abre a câmera com foco fixo no infinito e nada perto entra em foco.
-    navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode: { ideal: 'environment' },
-        width: { ideal: 1920 },
-        height: { ideal: 1080 },
-        advanced: [{ focusMode: 'continuous' }]
-      }
-    }).then(function (f) {
-      if (fechado) { f.getTracks().forEach(function (t) { t.stop(); }); return; }
-      fluxo = f;
-      var video = $('leitorVideo');
-      video.srcObject = f;
-      video.play();
-      $('leitorStatus').textContent = 'Procurando o código…';
 
-      // O 'advanced' do getUserMedia é um pedido, não uma ordem: em boa
-      // parte dos aparelhos ele é ignorado calado. Aqui o foco é aplicado
-      // de novo, agora na trilha já aberta, que é onde costuma pegar.
-      var trilha = f.getVideoTracks()[0];
-      var pode = {};
-      try { pode = (trilha && trilha.getCapabilities) ? (trilha.getCapabilities() || {}) : {}; } catch (e) {}
+    function dizer(txt) { if (!fechado && $('leitorStatus')) $('leitorStatus').textContent = txt; }
 
-      function focar(modo) {
-        if (!trilha || !trilha.applyConstraints || !pode.focusMode) return;
-        if (pode.focusMode.indexOf(modo) === -1) return;
-        trilha.applyConstraints({ advanced: [{ focusMode: modo }] }).catch(function () {});
-      }
-      focar('continuous');
+    function achou(bruto) {
+      var entrega = paradaDoCodigo_(bruto);
+      if (!entrega) { dizer('Li o c\u00f3digo, mas essa guia n\u00e3o est\u00e1 na rota (ou foi montada sem o PDF).'); return false; }
+      parar();
+      if (navigator.vibrate) { try { navigator.vibrate(80); } catch (e) {} }
+      openConfirmPendingModal(entrega);
+      return true;
+    }
 
-      // Tocar na imagem manda focar de novo: quando o código está muito
-      // perto, é o jeito de tirar o aparelho do foco anterior.
-      video.addEventListener('click', function () {
-        if (!pode.focusMode) return;
-        focar('single-shot');
-        setTimeout(function () { focar('continuous'); }, 1200);
-        $('leitorStatus').textContent = 'Focando…';
-        setTimeout(function () {
-          if (!fechado) $('leitorStatus').textContent = 'Procurando o código…';
-        }, 1200);
+    function focar(modo) {
+      if (!trilha || !trilha.applyConstraints || !pode.focusMode) return;
+      if (pode.focusMode.indexOf(modo) === -1) return;
+      trilha.applyConstraints({ advanced: [{ focusMode: modo }] }).catch(function () {});
+    }
+
+    // A foto \u00e9 o caminho que funciona quando o v\u00eddeo ao vivo n\u00e3o foca: tirar
+    // um retrato passa pelo mesmo pipeline da c\u00e2mera do celular, que faz o
+    // ciclo de foco inteiro e devolve a imagem em resolu\u00e7\u00e3o cheia \u2014 muito
+    // maior que o quadro do preview, onde a barra fina do boleto se perde.
+    function lerDaFoto() {
+      if (!trilha || fechado) return;
+      dizer('Focando e tirando a foto\u2026');
+      focar('single-shot');
+      setTimeout(function () {
+        if (fechado) return;
+        var video = $('leitorVideo');
+        var comImagem = function (img) {
+          leitor.detect(img).then(function (achados) {
+            if (fechado) return;
+            if (!achados.length) { dizer('N\u00e3o consegui ler nessa foto. Encoste mais na guia e toque de novo.'); focar('continuous'); return; }
+            achou(achados[0].rawValue);
+          }).catch(function () { dizer('N\u00e3o consegui ler nessa foto. Tente de novo.'); });
+        };
+        var porCanvas = function () {
+          var c = document.createElement('canvas');
+          c.width = video.videoWidth || 1280;
+          c.height = video.videoHeight || 720;
+          c.getContext('2d').drawImage(video, 0, 0, c.width, c.height);
+          comImagem(c);
+        };
+        if (window.ImageCapture) {
+          try {
+            new ImageCapture(trilha).takePhoto()
+              .then(function (blob) { return createImageBitmap(blob); })
+              .then(comImagem)
+              .catch(porCanvas);
+            return;
+          } catch (e) { /* cai no canvas */ }
+        }
+        porCanvas();
+      }, 900);
+    }
+
+    function abrirCamera(deviceId) {
+      if (fluxo) { fluxo.getTracks().forEach(function (t) { t.stop(); }); fluxo = null; }
+      clearInterval(relogio);
+      var video = { width: { ideal: 1920 }, height: { ideal: 1080 }, advanced: [{ focusMode: 'continuous' }] };
+      if (deviceId) video.deviceId = { exact: deviceId };
+      else video.facingMode = { ideal: 'environment' };
+      return navigator.mediaDevices.getUserMedia({ video: video }).then(function (f) {
+        if (fechado) { f.getTracks().forEach(function (t) { t.stop(); }); return; }
+        fluxo = f;
+        var el = $('leitorVideo');
+        el.srcObject = f;
+        el.play();
+        trilha = f.getVideoTracks()[0];
+        pode = {};
+        try { pode = (trilha && trilha.getCapabilities) ? (trilha.getCapabilities() || {}) : {}; } catch (e) {}
+        focar('continuous');
+
+        // Di\u00e1gnostico curto e vis\u00edvel: quando a leitura n\u00e3o vai, \u00e9 esta linha
+        // que diz se o problema \u00e9 resolu\u00e7\u00e3o, foco ou c\u00e2mera errada.
+        var cfg = {};
+        try { cfg = (trilha && trilha.getSettings) ? (trilha.getSettings() || {}) : {}; } catch (e) {}
+        var diag = [
+          (cfg.width || '?') + '\u00d7' + (cfg.height || '?'),
+          'foco: ' + (pode.focusMode ? pode.focusMode.join('/') : 'n\u00e3o informado'),
+          pode.zoom ? 'zoom até ' + pode.zoom.max + '\u00d7' : 'sem zoom',
+          pode.torch ? 'lanterna' : 'sem lanterna'
+        ].join(' \u00b7 ');
+        if ($('leitorDiag')) $('leitorDiag').textContent = diag;
+
+        if (pode.torch && trilha.applyConstraints) {
+          var acesa = false;
+          var botaoLuz = $('leitorLanternaBtn');
+          botaoLuz.hidden = false;
+          botaoLuz.onclick = function () {
+            acesa = !acesa;
+            trilha.applyConstraints({ advanced: [{ torch: acesa }] })
+              .then(function () { botaoLuz.classList.toggle('accent', acesa); })
+              .catch(function () { acesa = false; });
+          };
+        }
+
+        dizer('Procurando o c\u00f3digo\u2026 se n\u00e3o pegar, toque em "Focar e ler".');
+
+        relogio = setInterval(function () {
+          var v = $('leitorVideo');
+          if (!v || !document.body.contains(v)) { parar(); return; }
+          if (v.readyState < 2 || abrirCamera.ocupado) return;
+          abrirCamera.ocupado = true;
+          leitor.detect(v).then(function (achados) {
+            abrirCamera.ocupado = false;
+            if (!achados.length || fechado) return;
+            achou(achados[0].rawValue);
+          }).catch(function () { abrirCamera.ocupado = false; });
+        }, 350);
       });
+    }
 
-      // Guia impressa em papel fosco, dentro de pasta, na sombra do balcão:
-      // a lanterna resolve mais que qualquer ajuste de foco.
-      if (pode.torch && trilha.applyConstraints) {
-        var acesa = false;
-        var botaoLuz = $('leitorLanternaBtn');
-        botaoLuz.hidden = false;
-        botaoLuz.addEventListener('click', function () {
-          acesa = !acesa;
-          trilha.applyConstraints({ advanced: [{ torch: acesa }] })
-            .then(function () { botaoLuz.classList.toggle('accent', acesa); })
-            .catch(function () { acesa = false; });
-        });
-      }
+    $('leitorFotoBtn').addEventListener('click', lerDaFoto);
+    $('leitorVideo').addEventListener('click', function () {
+      focar('single-shot');
+      setTimeout(function () { focar('continuous'); }, 1200);
+    });
 
-      if (!pode.focusMode) {
-        $('leitorStatus').textContent = 'Procurando o código… (se não achar, afaste uns 20 cm)';
-      }
-      var leitor = new BarcodeDetector({ formats: ['itf', 'qr_code'] });
-      var ocupado = false;
-      relogio = setInterval(function () {
-        // a tela pode ter sido trocada por outro modal: a câmera não pode ficar ligada por trás
-        if (!document.body.contains(video)) { parar(); return; }
-        if (ocupado || video.readyState < 2) return;
-        ocupado = true;
-        leitor.detect(video).then(function (achados) {
-          ocupado = false;
-          if (!achados.length || fechado) return;
-          var entrega = paradaDoCodigo_(achados[0].rawValue);
-          if (!entrega) { $('leitorStatus').textContent = 'Li o código, mas essa guia não está na rota (ou foi montada sem o PDF).'; return; }
-          parar();
-          if (navigator.vibrate) { try { navigator.vibrate(80); } catch (e) {} }
-          openConfirmPendingModal(entrega);
-        }).catch(function () { ocupado = false; });
-      }, 350);
+    abrirCamera(null).then(function () {
+      if (fechado || !navigator.mediaDevices.enumerateDevices) return;
+      // S\u00f3 depois da permiss\u00e3o os aparelhos aparecem com nome. Celular com
+      // v\u00e1rias c\u00e2meras traseiras costuma abrir na grande-angular, que n\u00e3o
+      // foca de perto \u2014 por isso d\u00e1 pra trocar.
+      return navigator.mediaDevices.enumerateDevices().then(function (lista) {
+        cameras = lista.filter(function (d) { return d.kind === 'videoinput'; });
+        if (cameras.length < 2 || fechado) return;
+        var btn = $('leitorTrocarBtn');
+        btn.hidden = false;
+        btn.onclick = function () {
+          iCamera = (iCamera + 1) % cameras.length;
+          dizer('Trocando de c\u00e2mera\u2026');
+          abrirCamera(cameras[iCamera].deviceId).catch(function () { dizer('Essa c\u00e2mera n\u00e3o abriu. Toque de novo pra tentar a pr\u00f3xima.'); });
+        };
+      });
     }).catch(function () {
-      $('leitorStatus').textContent = 'Não consegui abrir a câmera. Confira a permissão do navegador.';
+      dizer('N\u00e3o consegui abrir a c\u00e2mera. Confira a permiss\u00e3o do navegador.');
     });
   });
 
