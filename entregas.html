@@ -4608,7 +4608,33 @@
   // código de guia). Sem valor, o cliente digita quanto vai pagar; com
   // valor (campo 54), o app do banco já abre com o total do honorário
   // preenchido — ninguém digita, ninguém erra o centavo.
+  // A chave vai no código do jeito que o Banco Central pede, não do jeito
+  // que foi digitada: CPF e CNPJ só com dígito (o banco recusa o código
+  // colado quando a chave vem com ponto, barra ou traço — era exatamente
+  // isso que dava erro), telefone com +55 na frente, e-mail em minúscula, e
+  // chave aleatória como veio. Quem cadastra continua podendo digitar com
+  // máscara; a conversão acontece aqui.
+  function normalizarChavePix_(chave) {
+    var t = String(chave || '').trim();
+    if (!t) return '';
+    if (t.indexOf('@') !== -1) return t.toLowerCase();
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(t)) return t.toLowerCase();
+    var digitos = t.replace(/\D/g, '');
+    if (!digitos) return t;
+    // Telefone: quem digita com + ou com parênteses de DDD está dizendo que
+    // é telefone. 11 dígitos também é o tamanho de um CPF, então só esses
+    // sinais desempatam — CPF nu (11 dígitos, sem sinal nenhum) continua CPF.
+    var pareceTelefone = t.charAt(0) === '+' || /\(\s*\d{2}\s*\)/.test(t);
+    if (pareceTelefone) {
+      var semPais = digitos.replace(/^55/, '');
+      return '+55' + semPais;
+    }
+    if (digitos.length === 11 || digitos.length === 14) return digitos;  // CPF ou CNPJ
+    return t;
+  }
+
   function pixCopiaECola_(chave, nome, cidade, valor) {
+    chave = normalizarChavePix_(chave);
     if (!chave) return '';
     var limpa = function (t, n) {
       return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -4631,8 +4657,11 @@
   function atualizarPreviaDoPix_() {
     if (!$('escPixPreview')) return;
     var codigo = pixCopiaECola_($('escPixChave').value.trim(), $('escPixNome').value.trim(), $('escPixCidade').value.trim());
+    var chaveNoCodigo = normalizarChavePix_($('escPixChave').value.trim());
+    var digitada = $('escPixChave').value.trim();
     $('escPixPreview').textContent = codigo
-      ? 'O cliente vai ver um botão "Copiar PIX do escritório" com este código (' + codigo.length + ' caracteres).'
+      ? 'No código Pix a chave vai como ' + chaveNoCodigo +
+        (chaveNoCodigo !== digitada ? ' (sem a pontuação — é assim que o banco reconhece).' : '.')
       : 'Sem chave, a página do cliente não mostra o bloco do honorário.';
   }
   function renderEscritorio_(preencher) {
