@@ -1975,8 +1975,8 @@
     body.modo-secundario #frameConciliador,
     body.modo-secundario #frameCheque {
       /* altura explícita: iframe não estica com top+bottom como uma div */
-      position: fixed; top: var(--topo-total); left: var(--lateral); right: 0;
-      width: calc(100% - var(--lateral)) !important; height: calc(100vh - var(--topo-total)) !important; border-radius: 0 !important;
+      position: fixed; top: var(--topo-total); left: 0; right: 0;
+      width: 100% !important; height: calc(100vh - var(--topo-total)) !important; border-radius: 0 !important;
     }
 
     main { max-width: none; margin: 0; padding: var(--esp-5) var(--esp-5) var(--esp-6); }
@@ -14141,6 +14141,10 @@
     if ($('tab-clientes')) $('tab-clientes').hidden = true;
     document.body.classList.remove('modo-clientes');
     cfg.botoes.forEach(function (id) { $(id).hidden = false; });
+    // Sem barra de abas no Contábil: os submódulos se trocam pelo "Contábil ⌄"
+    // da barra de cima e pelo ☰ (a Nilma não quis a coluna só com os dois).
+    // Os botões continuam no DOM: é clicando neles que a ferramenta troca.
+    $('tabsNav').hidden = true;
     // A ferramenta embutida ocupa a tela abaixo da barra e das abas. Ver a
     // regra "body.modo-secundario" na folha de estilo.
     document.body.classList.add('modo-secundario');
@@ -14163,6 +14167,7 @@
       cfg.secoes.forEach(function (id) { if ($(id)) $(id).hidden = true; });
     });
     document.body.classList.remove('modo-secundario');
+    if ($('tabsNav')) $('tabsNav').hidden = false;
     // saindo do módulo Clientes, a seção dele não pode ficar aberta por
     // cima de 'Nova entrega', que volta a ser a aba ativa logo abaixo — e o
     // botão da aba (que entrarModoClientes_ revelou) esconde de novo, senão
