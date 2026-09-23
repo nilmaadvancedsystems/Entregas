@@ -7370,21 +7370,32 @@
     var root = $('modalRoot');
     root.innerHTML =
       '<div class="modal-overlay" id="overlay"><div class="modal" id="modalInner">' +
-        '<div class="modal-head"><div><h2>Ler guia</h2><div class="card-hint modal-head-sub">Aponte pro c\u00f3digo de barras ou pro QR do PIX da guia.</div></div>' +
+        '<div class="modal-head"><div><h2>Ler guia</h2><div class="card-hint modal-head-sub">Aponte pro código de barras ou pro QR do PIX da guia.</div></div>' +
         '<button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button></div>' +
         '<video id="leitorVideo" class="leitor-video" playsinline muted></video>' +
         '<div class="leitor-acoes">' +
           '<button type="button" class="btn-chip accent" id="leitorFotoBtn"><i class="ph ph-camera" aria-hidden="true"></i> Focar e ler</button>' +
           '<button type="button" class="btn-chip" id="leitorLanternaBtn" hidden><i class="ph ph-flashlight" aria-hidden="true"></i> Lanterna</button>' +
-          '<button type="button" class="btn-chip" id="leitorTrocarBtn" hidden><i class="ph ph-arrows-clockwise" aria-hidden="true"></i> Trocar c\u00e2mera</button>' +
+          '<button type="button" class="btn-chip" id="leitorTrocarBtn" hidden><i class="ph ph-arrows-clockwise" aria-hidden="true"></i> Trocar câmera</button>' +
         '</div>' +
-        '<p class="card-hint" id="leitorStatus">Abrindo a c\u00e2mera\u2026</p>' +
+        '<p class="card-hint" id="leitorStatus">Abrindo a câmera…</p>' +
         '<p class="card-hint" id="leitorDiag" style="font-variant-numeric:tabular-nums"></p>' +
       '</div></div>';
 
     var fluxo = null, relogio = null, fechado = false, trilha = null, pode = {};
     var leitor = new BarcodeDetector({ formats: ['itf', 'qr_code'] });
     var cameras = [], iCamera = 0;
+    // Celular com várias câmeras traseiras abre na que o navegador escolher,
+    // e nesse aparelho é uma de foco manual — que nunca pega a barra fina do
+    // boleto. Achada a que funciona, o app lembra: trocar de câmera é coisa
+    // pra fazer uma vez, não a cada guia.
+    var CHAVE_CAMERA_ = 'nilma_camera_guia';
+    function cameraGuardada_() {
+      try { return localStorage.getItem(CHAVE_CAMERA_) || ''; } catch (e) { return ''; }
+    }
+    function guardarCamera_(id) {
+      try { if (id) localStorage.setItem(CHAVE_CAMERA_, id); } catch (e) {}
+    }
 
     function parar() {
       fechado = true;
@@ -7400,7 +7411,7 @@
 
     function achou(bruto) {
       var entrega = paradaDoCodigo_(bruto);
-      if (!entrega) { dizer('Li o c\u00f3digo, mas essa guia n\u00e3o est\u00e1 na rota (ou foi montada sem o PDF).'); return false; }
+      if (!entrega) { dizer('Li o código, mas essa guia não está na rota (ou foi montada sem o PDF).'); return false; }
       parar();
       if (navigator.vibrate) { try { navigator.vibrate(80); } catch (e) {} }
       openConfirmPendingModal(entrega);
@@ -7413,13 +7424,13 @@
       trilha.applyConstraints({ advanced: [{ focusMode: modo }] }).catch(function () {});
     }
 
-    // A foto \u00e9 o caminho que funciona quando o v\u00eddeo ao vivo n\u00e3o foca: tirar
-    // um retrato passa pelo mesmo pipeline da c\u00e2mera do celular, que faz o
-    // ciclo de foco inteiro e devolve a imagem em resolu\u00e7\u00e3o cheia \u2014 muito
+    // A foto é o caminho que funciona quando o vídeo ao vivo não foca: tirar
+    // um retrato passa pelo mesmo pipeline da câmera do celular, que faz o
+    // ciclo de foco inteiro e devolve a imagem em resolução cheia — muito
     // maior que o quadro do preview, onde a barra fina do boleto se perde.
     function lerDaFoto() {
       if (!trilha || fechado) return;
-      dizer('Focando e tirando a foto\u2026');
+      dizer('Focando e tirando a foto…');
       focar('single-shot');
       setTimeout(function () {
         if (fechado) return;
@@ -7427,9 +7438,9 @@
         var comImagem = function (img) {
           leitor.detect(img).then(function (achados) {
             if (fechado) return;
-            if (!achados.length) { dizer('N\u00e3o consegui ler nessa foto. Encoste mais na guia e toque de novo.'); focar('continuous'); return; }
+            if (!achados.length) { dizer('Não consegui ler nessa foto. Encoste mais na guia e toque de novo.'); focar('continuous'); return; }
             achou(achados[0].rawValue);
-          }).catch(function () { dizer('N\u00e3o consegui ler nessa foto. Tente de novo.'); });
+          }).catch(function () { dizer('Não consegui ler nessa foto. Tente de novo.'); });
         };
         var porCanvas = function () {
           var c = document.createElement('canvas');
@@ -7468,16 +7479,16 @@
         try { pode = (trilha && trilha.getCapabilities) ? (trilha.getCapabilities() || {}) : {}; } catch (e) {}
         focar('continuous');
 
-        // Di\u00e1gnostico curto e vis\u00edvel: quando a leitura n\u00e3o vai, \u00e9 esta linha
-        // que diz se o problema \u00e9 resolu\u00e7\u00e3o, foco ou c\u00e2mera errada.
+        // Diágnostico curto e visível: quando a leitura não vai, é esta linha
+        // que diz se o problema é resolução, foco ou câmera errada.
         var cfg = {};
         try { cfg = (trilha && trilha.getSettings) ? (trilha.getSettings() || {}) : {}; } catch (e) {}
         var diag = [
-          (cfg.width || '?') + '\u00d7' + (cfg.height || '?'),
-          'foco: ' + (pode.focusMode ? pode.focusMode.join('/') : 'n\u00e3o informado'),
-          pode.zoom ? 'zoom até ' + pode.zoom.max + '\u00d7' : 'sem zoom',
+          (cfg.width || '?') + '×' + (cfg.height || '?'),
+          'foco: ' + (pode.focusMode ? pode.focusMode.join('/') : 'não informado'),
+          pode.zoom ? 'zoom até ' + pode.zoom.max + '×' : 'sem zoom',
           pode.torch ? 'lanterna' : 'sem lanterna'
-        ].join(' \u00b7 ');
+        ].join(' · ');
         if ($('leitorDiag')) $('leitorDiag').textContent = diag;
 
         if (pode.torch && trilha.applyConstraints) {
@@ -7492,7 +7503,7 @@
           };
         }
 
-        dizer('Procurando o c\u00f3digo\u2026 se n\u00e3o pegar, toque em "Focar e ler".');
+        dizer('Procurando o código… se não pegar, toque em "Focar e ler".');
 
         relogio = setInterval(function () {
           var v = $('leitorVideo');
@@ -7514,24 +7525,35 @@
       setTimeout(function () { focar('continuous'); }, 1200);
     });
 
-    abrirCamera(null).then(function () {
+    // Se a câmera lembrada não existir mais (trocou de aparelho, limpou a
+    // permissão), cai na escolha do navegador em vez de não abrir nada.
+    var lembrada = cameraGuardada_();
+    (lembrada ? abrirCamera(lembrada).catch(function () { return abrirCamera(null); }) : abrirCamera(null)).then(function () {
       if (fechado || !navigator.mediaDevices.enumerateDevices) return;
-      // S\u00f3 depois da permiss\u00e3o os aparelhos aparecem com nome. Celular com
-      // v\u00e1rias c\u00e2meras traseiras costuma abrir na grande-angular, que n\u00e3o
-      // foca de perto \u2014 por isso d\u00e1 pra trocar.
+      // Só depois da permissão os aparelhos aparecem com nome. Celular com
+      // várias câmeras traseiras costuma abrir na grande-angular, que não
+      // foca de perto — por isso dá pra trocar.
       return navigator.mediaDevices.enumerateDevices().then(function (lista) {
         cameras = lista.filter(function (d) { return d.kind === 'videoinput'; });
+        var emUso = '';
+        try { emUso = (trilha && trilha.getSettings) ? (trilha.getSettings().deviceId || '') : ''; } catch (e) {}
+        cameras.forEach(function (d, i) { if (d.deviceId === emUso) iCamera = i; });
+        if (cameras.length > 1 && $('leitorDiag')) {
+          $('leitorDiag').textContent += ' · câmera ' + (iCamera + 1) + ' de ' + cameras.length;
+        }
         if (cameras.length < 2 || fechado) return;
         var btn = $('leitorTrocarBtn');
         btn.hidden = false;
         btn.onclick = function () {
           iCamera = (iCamera + 1) % cameras.length;
-          dizer('Trocando de c\u00e2mera\u2026');
-          abrirCamera(cameras[iCamera].deviceId).catch(function () { dizer('Essa c\u00e2mera n\u00e3o abriu. Toque de novo pra tentar a pr\u00f3xima.'); });
+          dizer('Trocando de câmera…');
+          var id = cameras[iCamera].deviceId;
+          abrirCamera(id).then(function () { guardarCamera_(id); })
+            .catch(function () { dizer('Essa câmera não abriu. Toque de novo pra tentar a próxima.'); });
         };
       });
     }).catch(function () {
-      dizer('N\u00e3o consegui abrir a c\u00e2mera. Confira a permiss\u00e3o do navegador.');
+      dizer('Não consegui abrir a câmera. Confira a permissão do navegador.');
     });
   });
 
