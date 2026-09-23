@@ -9,10 +9,11 @@
   @media (prefers-color-scheme: dark) {
     :root { --fundo: #16181c; --texto: #e6e8eb; --suave: #9aa4af; --linha: #30363d; --acento: #6ea8fe; }
   }
-  body { margin: 0; background: var(--fundo); color: var(--texto); font: 1rem/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  body { margin: 0; background: var(--fundo); color: var(--texto); font: 1rem/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", system-ui, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji"; }
   main { max-width: 44rem; margin: 0 auto; padding: 2.5rem 1rem 4rem; }
   h1 { font-size: 1.75rem; line-height: 1.25; margin: 0 0 .25rem; }
   h2 { font-size: 1.125rem; margin: 2rem 0 .5rem; }
+  h1, h2, strong { font-weight: 600; }
   p, li { color: var(--texto); }
   .data { color: var(--suave); margin: 0 0 2rem; }
   a { color: var(--acento); }
@@ -22,7 +23,7 @@
 <body>
 <main>
   <h1>Política de Privacidade</h1>
-  <p class="data">Nilma Contabilidade. Atualizada em 18 de setembro de 2026.</p>
+  <p class="data">Nilma Contabilidade. Atualizada em 23 de setembro de 2026.</p>
 
   <p>Esta política vale para o sistema interno de controle de documentos da Nilma Contabilidade
   (Nilma Protocolos e Cobrança de Documentos) e para a integração dele com a conta de e-mail
@@ -75,8 +76,9 @@
   alguém da equipe ler e responder.</p>
   <p>A página guarda no próprio aparelho (no navegador) o que você já abriu e o aviso de instalação que já foi fechado,
   para não repetir. Isso não sai do seu celular e some se você limpar os dados do navegador.</p>
-  <p>A página carrega fontes e ícones dos servidores do Google (fonts.googleapis.com, fonts.gstatic.com) e o banco de
-  dados do Firebase. Esses serviços enxergam o endereço de IP do aparelho, como em qualquer site.</p>
+  <p>A página usa a fonte do próprio aparelho e não baixa fontes nem ícones de outros sites; de fora, ela carrega só o
+  Firebase do Google (banco de dados e, se o cliente ligar o lembrete, as notificações). O Firebase enxerga o endereço
+  de IP do aparelho, como em qualquer site.</p>
   <p>O cliente também pode enviar um documento (PDF ou foto) por essa página. O arquivo passa pelo Firebase só até o
   computador do escritório guardá-lo no Google Drive do escritório; depois é apagado do Firebase.</p>
   <p>O protocolo de entrega impresso traz um código. Quem tem o código vê, na mesma página, o que foi registrado naquele

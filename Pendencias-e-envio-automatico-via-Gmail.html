@@ -276,7 +276,8 @@
   .cfg-preview-corpo .var-morta { background: var(--danger-soft); color: var(--danger-forte); border-radius: 2px; padding: 0 2px; }
   .cfg-vars-titulo { font-size: var(--t-sm); font-weight: 600; color: var(--ink-soft); margin-bottom: 6px; }
   .cfg-vars-titulo span { font-weight: 400; color: var(--ink-faint); }
-  .cfg-vars .badge { cursor: pointer; }
+  /* a descrição da variável quebra linha: na coluna de 400px "{link}" passava da borda */
+  .cfg-vars .badge { cursor: pointer; white-space: normal; height: auto; text-align: left; }
   .cfg-vars .badge:hover { color: var(--ink); box-shadow: inset 0 0 0 1px var(--border-forte); }
   .cfg-vars .badge .desc { font-weight: 400; color: var(--ink-faint); margin-left: 4px; }
   @media (min-width: 1100px) { .config-grid { grid-template-columns: 300px minmax(0, 1fr) minmax(0, 1fr); } }
@@ -718,13 +719,16 @@
   .painel-titulo .dica { font-size: var(--t-sm); color: var(--ink-faint); margin-top: 2px; max-width: 68ch; }
 
   /* Alerta de pendência: fundo tingido, borda completa de 1px. */
+  /* O texto pede uns 14rem antes de dividir a linha com o botão: no
+     celular (e com texto maior) o botão desce em vez de espremer a frase
+     numa coluna de uma palavra por linha. */
   .alerta-pend {
-    display: flex; gap: var(--esp-3); align-items: flex-start;
+    display: flex; flex-wrap: wrap; gap: var(--esp-3); align-items: flex-start;
     padding: var(--esp-3) var(--esp-4); border: 1px solid var(--border);
     background: var(--surface-3); border-radius: var(--r-md); margin-bottom: var(--esp-4);
   }
   .alerta-pend > i { font-size: 20px; color: var(--warning-forte); flex: none; margin-top: 1px; }
-  .alerta-pend .corpo { flex: 1; min-width: 0; }
+  .alerta-pend .corpo { flex: 1 1 14rem; min-width: 0; }
   .alerta-pend .titulo { font-weight: 600; font-size: var(--t-base); color: var(--warning-forte); }
   .alerta-pend .texto { font-size: var(--t-base); color: var(--ink-soft); margin-top: 2px; }
   .alerta-pend .acoes { display: flex; gap: var(--esp-2); flex: none; align-items: center; }
@@ -849,7 +853,8 @@
   .modelos-cobranca { display: flex; flex-wrap: wrap; gap: 6px; }
   .modelos-cobranca .chip { display: inline-flex; align-items: center; gap: 6px; }
   /* 'sugerido' é uma nota dentro do botão, não um segundo botão */
-  .chip-sugerido { font-size: var(--t-xs); font-weight: 400; color: var(--ink-faint); opacity: .9; }
+  /* ".chip span" do nilma-ui.css (o chip de marcar do Entregas) pesa mais: desfaz a caixinha dele aqui */
+  .chip .chip-sugerido { display: inline; min-height: 0; padding: 0; border: 0; background: none; font-size: var(--t-xs); font-weight: 400; color: var(--ink-faint); opacity: .9; }
   .chip-sugerido::before { content: '· '; }
   .chip[aria-pressed="true"] .chip-sugerido { color: inherit; opacity: .7; }
   .campo-dica { font-size: var(--t-sm); color: var(--ink-faint); margin: 5px 0 0; }

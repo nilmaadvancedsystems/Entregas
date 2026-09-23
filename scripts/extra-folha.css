@@ -106,7 +106,7 @@ input, select, textarea { min-height: 38px; }
 .dobra { border: 0; margin: var(--esp-3) 0 0; }
 .dobra > summary {
   list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
-  font-size: var(--t-base); font-weight: 500; color: var(--ink-soft); min-height: 38px;
+  font-size: var(--t-base); font-weight: 600; color: var(--ink-soft); min-height: 38px;
 }
 .dobra > summary::-webkit-details-marker { display: none; }
 .dobra > summary::before {
@@ -168,7 +168,7 @@ input, select, textarea { min-height: 38px; }
   display: flex; align-items: center; gap: var(--esp-3);
   padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--surface);
 }
-.cartao-arquivo .nome { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cartao-arquivo .nome { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cartao-arquivo .peso { font-size: var(--t-sm); color: var(--ink-faint); white-space: nowrap; }
 
 /* barra de progresso de trabalho em andamento */

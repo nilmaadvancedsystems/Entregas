@@ -25,6 +25,9 @@ a { color: var(--accent-forte); }
 
 .registro-import { margin-bottom: var(--esp-4); }
 .registro-tab td { padding: 6px 8px; }
+/* Nome de arquivo vem sem espaço (Relatorio_Detalhamento_..._fazenda.xlsx):
+   sem quebrar em qualquer ponto ele empurra a página pro lado no celular. */
+.registro-tab td:first-child { overflow-wrap: anywhere; }
 .badge-erro { color: var(--danger); font-weight: 600; }
 .dropzone.lendo { opacity: .7; pointer-events: none; }
 
@@ -32,14 +35,21 @@ a { color: var(--accent-forte); }
    vem junto do dado. Os alvos sobem pra 44px — é dedo, não mouse. */
 @media (max-width: 800px) {
   .tablewrap { overflow-x: visible; }
+  /* Tabela e tbody viram bloco: senão a tabela mede a largura mínima pela
+     opção mais comprida do select e o cartão passa da borda (sem rolagem,
+     porque o body corta o que sobra) — some a seta do select e a borda. */
+  table.t, table.t tbody { display: block; }
   table.t thead { display: none; }
   table.t tr { display: block; padding: var(--esp-3) 0; border-bottom: 1px solid var(--border); }
   table.t td { display: flex; gap: var(--esp-2); align-items: center; padding: 3px 0; border: none; text-align: left !important; }
   table.t td[data-rot]::before { content: attr(data-rot); flex: none; min-width: 96px; font-size: var(--t-xs); color: var(--ink-faint); }
-  table.t td select, table.t td .tbl-input { width: 100%; min-height: 44px; }
+  table.t td select, table.t td .tbl-input { width: 100%; min-width: 0; min-height: 44px; }
+  table.t td > .truncate { flex: 1; min-width: 0; max-width: none; }
   .icon-btn, .chev { min-width: 44px; min-height: 44px; }
   .bulkbar select { min-width: 0; width: 100%; min-height: 44px; }
-  .row-detail td { display: block; }
+  /* "table.t td" acima pesa mais que ".row-detail td": sem o table.t aqui o
+     detalhe aberto virava flex e espremia Histórico/Produto ao lado da grade. */
+  table.t .row-detail td { display: block; }
 }
 
 /* pendências agrupadas: uma decisão para as notas que são a mesma coisa */
@@ -101,7 +111,10 @@ table.t tbody tr.revisar { background: var(--warning-soft); }
 textarea.tbl-input { resize: vertical; min-height: 38px; font-family: inherit; }
 tr.row-detail td { background: var(--surface-2); padding: var(--esp-4); }
 tr.row-detail-hidden { display: none; }
-.detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--esp-3); margin-bottom: var(--esp-3); }
+/* Coluna mínima em rem (cresce com "Texto maior") e larga o bastante pro
+   CPF/CNPJ de 18 caracteres em mono: com 150px ele saía "12.345.678/000".
+   O min(100%…) deixa uma coluna só no celular estreito. */
+.detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); gap: var(--esp-3); margin-bottom: var(--esp-3); }
 .detail-field label { display: block; font-size: var(--t-sm); font-weight: 600; color: var(--ink-soft); margin-bottom: 4px; }
 .detail-field input, .detail-field textarea { width: 100%; }
 .status-cell { display: flex; flex-direction: column; gap: 3px; align-items: flex-start; }
@@ -993,6 +1006,16 @@ function render(){
       grupo.sub.map(s=>`<button type="button" class="mode-btn${s.id===state.currentScreen?' active':''}" data-sub="${s.id}"><i class="ph ${s.icone}" aria-hidden="true"></i> ${esc(s.label)}</button>`).join('') +
       `</div>`);
     el.classList.add('com-submenu');
+    // No celular a faixa não cabe e rola de lado (sem barra visível): sem
+    // isto, "Tabelas de apoio" ativa ficava meio cortada na borda direita.
+    // Centraliza a categoria ativa só dentro da faixa (mexer em scrollLeft
+    // não rola a página, ao contrário de scrollIntoView); o vizinho cortado
+    // que sobra de cada lado mostra que dá para arrastar.
+    const faixa = el.querySelector('.aba-subnav'), ativa = faixa && faixa.querySelector('.mode-btn.active');
+    if(ativa && faixa.scrollWidth > faixa.clientWidth){
+      const f = faixa.getBoundingClientRect(), a = ativa.getBoundingClientRect();
+      faixa.scrollLeft += (a.left + a.width/2) - (f.left + f.width/2);
+    }
     el.querySelectorAll('[data-sub]').forEach(b=>b.addEventListener('click', ()=>{
       state.currentScreen = b.dataset.sub; save(); render();
     }));
@@ -1113,7 +1136,7 @@ function screenImportar(){
       <table class="t">
         <thead><tr>
           <th></th><th style="width:110px">Status</th><th style="min-width:200px">Categoria rápida</th><th>Data</th>
-          <th style="min-width:170px">Fornecedor</th><th>Documento</th><th>Valor</th><th style="width:34px"></th>
+          <th style="min-width:170px">Fornecedor</th><th>Documento</th><th style="text-align:right">Valor</th><th style="width:34px"></th>
         </tr></thead>
         <tbody>
         ${list.length? list.map(r=>rowHtml(r)).join('') : `<tr><td colspan="8" style="text-align:center;color:var(--ink-faint);padding:24px">Nenhum lançamento ainda. Importe um relatório acima.</td></tr>`}
@@ -1140,7 +1163,7 @@ function rowHtml(r){
     <td style="text-align:center"><input type="checkbox" data-sel="${r.id}" ${r.selected?'checked':''}></td>
     <td><div class="status-cell"><span class="tag ${r.origem==='NF'?'tag-nf':'tag-cte'}">${r.origem}</span>${r.revisar?'<span class="tag tag-warn">REVISAR</span>':origemTagHtml}</div></td>
     <td data-rot="Categoria"><select data-catsel="${r.id}">${catOptions}</select></td>
-    <td class="num small" data-rot="Data" style="white-space:nowrap">${fmtDateBR(r.data)}</td>
+    <td class="num" data-rot="Data" style="white-space:nowrap">${fmtDateBR(r.data)}</td>
     <td data-rot="Fornecedor"><span class="truncate" title="${esc(r.fornecedor)}">${esc(r.fornecedor)}</span></td>
     <td data-rot="Documento" style="white-space:nowrap">${esc(r.documento)}</td>
     <td data-rot="Valor" style="text-align:right;white-space:nowrap" class="num">${fmtMoney(r.valor)}</td>
@@ -1333,7 +1356,7 @@ function screenConfig(){
     </div>
     <div class="card">
       <div class="grid2">
-        <div class="field"><label>CPF/CNPJ do produtor (só números)</label><input id="cfgCpf" value="${esc(c.cpfProdutor)}"></div>
+        <div class="field"><label>CPF/CNPJ do produtor (só números)</label><input id="cfgCpf" class="mono" inputmode="numeric" value="${esc(c.cpfProdutor)}"></div>
         <div class="field"><label>Conta credora padrão</label><input id="cfgContaCred" value="${esc(c.contaCredoraPadrao)}"></div>
       </div>
       <div class="grid2" style="margin-top:18px">
@@ -1347,7 +1370,7 @@ function screenConfig(){
     </div>
 
     <h2>Backup</h2>
-    <div style="display:flex;gap:10px">
+    <div style="display:flex;flex-wrap:wrap;gap:10px">
       <button class="btn btn-secondary" id="btnBackupExport">Exportar backup (.json)</button>
       <button class="btn btn-secondary" id="btnBackupImport">Importar backup (.json)</button>
       <input type="file" id="backupFile" accept=".json" style="display:none">
