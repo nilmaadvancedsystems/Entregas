@@ -8,9 +8,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
 <!-- Aparência (tema, cor, texto, espaçamento, animação) igual à do Entregas:
      o script vem ANTES da folha e sem defer, senão a tela pisca no tema errado. -->
@@ -19,9 +16,10 @@
 <style>
 /* Tokens, base e componentes (botão, cartão, campo, chip, selo, aviso) vêm de
    nilma-ui.css, gerado do entregas.html. Aqui fica só o que é do LCDPR:
-   a tabela de lançamentos, a área de arrastar arquivo e as etiquetas. */
-h1, h2, h3 { letter-spacing: -.01em; }
-h2 { font-size: var(--t-lg); margin: 0 0 var(--esp-2); }
+   a tabela de lançamentos, a área de arrastar arquivo e as etiquetas.
+   Fonte é a do sistema (vem da folha): nada de letter-spacing nem peso 500
+   — Segoe UI não tem 500, a hierarquia é só 400 e 600. */
+h2 { font-size: var(--t-lg); line-height: var(--lh); margin: 0 0 var(--esp-2); }
 h3 { font-size: var(--t-md); margin: 0 0 var(--esp-2); }
 a { color: var(--accent-forte); }
 
@@ -57,8 +55,8 @@ a { color: var(--accent-forte); }
 
 /* progresso da revisão: a pergunta é "dá pra exportar?", não "quantos são?" */
 .progresso-lcdpr { margin: var(--esp-4) 0; }
-.progresso-topo { display: flex; justify-content: space-between; gap: var(--esp-3); font-size: var(--t-md); font-weight: 600; margin-bottom: 6px; }
-.progresso-valor { color: var(--ink-soft); font-weight: 500; font-variant-numeric: tabular-nums; }
+.progresso-topo { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 var(--esp-3); font-size: var(--t-md); font-weight: 600; margin-bottom: 6px; }
+.progresso-valor { color: var(--ink-soft); font-weight: 400; font-variant-numeric: tabular-nums; white-space: nowrap; } /* "R$" não se separa do valor no celular */
 .progresso-lcdpr .barra { height: 8px; border-radius: var(--r-pill); background: var(--surface-2); overflow: hidden; }
 .progresso-lcdpr .barra span { display: block; height: 100%; background: var(--accent); border-radius: inherit; transition: width var(--dur) var(--ease); }
 .progresso-pe { margin: 6px 0 0; color: var(--ink-soft); }
@@ -74,7 +72,8 @@ a { color: var(--accent-forte); }
 
 /* números do topo: sem caixa dentro de caixa, só uma régua de 1px entre eles */
 .stats { display: flex; flex-wrap: wrap; gap: var(--esp-5); padding: 0 0 var(--esp-4); margin-bottom: var(--esp-4); border-bottom: 1px solid var(--border); }
-.stat b { display: block; font-size: 1.5rem; font-weight: 600; font-family: var(--font-mono); font-variant-numeric: tabular-nums; line-height: 1.1; }
+/* número de contagem é sans com dígitos de mesma largura; mono fica pra CNPJ */
+.stat b { display: block; font-size: var(--t-2xl); font-weight: 600; font-variant-numeric: tabular-nums; line-height: var(--lh-tight); }
 .stat span { font-size: var(--t-sm); color: var(--ink-faint); }
 
 .toolbar { display: flex; gap: var(--esp-2); flex-wrap: wrap; align-items: center; margin-bottom: var(--esp-3); }
@@ -89,7 +88,7 @@ a { color: var(--accent-forte); }
 .tablewrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--r-md); }
 table.t { width: 100%; border-collapse: collapse; font-size: var(--t-base); }
 table.t th {
-  text-align: left; font-size: var(--t-xs); font-weight: 600; color: var(--ink-faint); padding: 9px 10px;
+  text-align: left; font-size: var(--t-sm); font-weight: 600; line-height: var(--lh-pill); color: var(--ink-soft); padding: 9px 10px;
   border-bottom: 1px solid var(--border); white-space: nowrap; position: sticky; top: 0; background: var(--surface); z-index: 1;
 }
 table.t td { padding: 7px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
@@ -103,12 +102,12 @@ textarea.tbl-input { resize: vertical; min-height: 38px; font-family: inherit; }
 tr.row-detail td { background: var(--surface-2); padding: var(--esp-4); }
 tr.row-detail-hidden { display: none; }
 .detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--esp-3); margin-bottom: var(--esp-3); }
-.detail-field label { display: block; font-size: var(--t-xs); color: var(--ink-faint); margin-bottom: 4px; }
+.detail-field label { display: block; font-size: var(--t-sm); font-weight: 600; color: var(--ink-soft); margin-bottom: 4px; }
 .detail-field input, .detail-field textarea { width: 100%; }
 .status-cell { display: flex; flex-direction: column; gap: 3px; align-items: flex-start; }
 
 /* etiquetas: o mesmo formato do selo de situação do Entregas */
-.tag { display: inline-flex; align-items: center; font-size: var(--t-xs); padding: 2px 8px; border-radius: var(--r-pill); font-weight: 600; }
+.tag { display: inline-flex; align-items: center; font-size: var(--t-xs); line-height: var(--lh-pill); padding: 1px 8px; border-radius: var(--r-pill); font-weight: 600; }
 .tag-nf { background: var(--accent-soft); color: var(--accent-forte); }
 .tag-cte { background: var(--accent-2-soft); color: var(--accent-2-forte, var(--accent-2)); }
 .tag-warn { background: var(--warning-soft); color: var(--warning-forte); }
@@ -118,6 +117,7 @@ tr.row-detail-hidden { display: none; }
 .tag-neutro { background: var(--surface-2); color: var(--ink-faint); }
 
 .small { font-size: var(--t-sm); color: var(--ink-faint); }
+/* mono só pro que se lê dígito a dígito: CPF/CNPJ e códigos. Data e valor usam .num */
 .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 .hint { color: var(--ink-soft); font-size: var(--t-base); max-width: 74ch; margin: 0 0 var(--esp-3); }
 .desc { color: var(--ink-soft); max-width: 76ch; margin: 0; }
@@ -125,7 +125,8 @@ tr.row-detail-hidden { display: none; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--esp-4); }
 .twocol { display: grid; grid-template-columns: 1fr 1fr; gap: var(--esp-5); }
 @media (max-width: 900px) { .twocol, .grid2 { grid-template-columns: 1fr; } }
-.field label { display: block; font-size: var(--t-sm); color: var(--ink-soft); margin-bottom: 5px; }
+/* rótulo de campo: 14/600 na cor do texto, igual ao do Entregas */
+.field label { display: block; font-size: var(--t-base); font-weight: 600; color: var(--ink); margin-bottom: 5px; }
 .field input, .field select { width: 100%; }
 .section-sep { height: 1px; background: var(--border); margin: var(--esp-5) 0; }
 .icon-btn, .chev {
@@ -135,7 +136,7 @@ tr.row-detail-hidden { display: none; }
 .icon-btn:hover { background: var(--accent-soft); color: var(--accent-forte); }
 .chev:hover { background: var(--surface-2); color: var(--ink); }
 .chev.open { transform: rotate(90deg); }
-.badge-count { background: var(--accent); color: var(--accent-ink); font-size: var(--t-xs); border-radius: var(--r-pill); padding: 1px 6px; margin-left: 6px; }
+.badge-count { background: var(--accent); color: var(--accent-ink); font-size: var(--t-xs); font-weight: 600; line-height: var(--lh-pill); font-variant-numeric: tabular-nums; border-radius: var(--r-pill); padding: 0 6px; margin-left: 6px; }
 .truncate { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
 .toast { right: 20px; left: auto; bottom: 20px; transform: none; max-width: 360px; }
 .toast.show { transform: none; }
@@ -144,11 +145,11 @@ tr.row-detail-hidden { display: none; }
 .gate { position: fixed; inset: 0; z-index: 200; display: flex; align-items: center; justify-content: center; background: var(--bg); padding: 20px; }
 .gate[hidden], #app[hidden] { display: none; }
 .gate-box { max-width: 380px; text-align: center; }
-.gate-box h1 { font-size: var(--t-lg); margin-bottom: 6px; }
+.gate-box h1 { font-size: var(--t-xl); margin-bottom: 6px; }
 .gate-box p { color: var(--ink-soft); font-size: var(--t-base); margin: 0 0 var(--esp-2); }
 /* Moldura comum (nilma-shell.js): barra de cima + abas. As abas do LCDPR têm
    rótulos de grupo e, no pé, o estado da nuvem (só no PC). */
-.tabs-grupo { font-size: var(--t-xs); color: var(--ink-faint); padding: var(--esp-4) 12px 4px; }
+.tabs-grupo { font-size: var(--t-sm); font-weight: 600; line-height: var(--lh-pill); color: var(--ink-soft); padding: var(--esp-4) 12px 4px; }
 .tabs-grupo:first-child { padding-top: var(--esp-2); }
 .tabs-pe { margin-top: auto; padding: var(--esp-3) 12px; font-size: var(--t-xs); color: var(--ink-faint); border-top: 1px solid var(--border); }
 @media (max-width: 899px) { .tabs-grupo, .tabs-pe { display: none; } }
@@ -1139,10 +1140,10 @@ function rowHtml(r){
     <td style="text-align:center"><input type="checkbox" data-sel="${r.id}" ${r.selected?'checked':''}></td>
     <td><div class="status-cell"><span class="tag ${r.origem==='NF'?'tag-nf':'tag-cte'}">${r.origem}</span>${r.revisar?'<span class="tag tag-warn">REVISAR</span>':origemTagHtml}</div></td>
     <td data-rot="Categoria"><select data-catsel="${r.id}">${catOptions}</select></td>
-    <td class="mono small" data-rot="Data" style="white-space:nowrap">${fmtDateBR(r.data)}</td>
+    <td class="num small" data-rot="Data" style="white-space:nowrap">${fmtDateBR(r.data)}</td>
     <td data-rot="Fornecedor"><span class="truncate" title="${esc(r.fornecedor)}">${esc(r.fornecedor)}</span></td>
     <td data-rot="Documento" style="white-space:nowrap">${esc(r.documento)}</td>
-    <td data-rot="Valor" style="text-align:right;white-space:nowrap" class="mono">${fmtMoney(r.valor)}</td>
+    <td data-rot="Valor" style="text-align:right;white-space:nowrap" class="num">${fmtMoney(r.valor)}</td>
     <td style="text-align:center"><button class="chev${open?' open':''}" data-expand="${r.id}" title="Ver/editar detalhes">▸</button></td>
   </tr>`;
   if(!open) return compact;
