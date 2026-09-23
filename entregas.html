@@ -913,6 +913,13 @@
   .rotafixa-pos { flex: none; min-width: 30px; text-align: right; margin-right: 4px; font-variant-numeric: tabular-nums; font-size: var(--t-sm); color: var(--ink-faint); }
   .rotafixa-pos::before { content: '#'; }
   .rotafixa-item-nome { flex: 1; min-width: 0; padding: 9px 4px; font-size: var(--t-base); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* Celular: alça + "#1" + botão de tirar deixavam ~200px pro nome e todo
+     cliente comum virava "PADARIA PÃO DOURA…". Lá o nome quebra em até duas
+     linhas (a linha cresce) e o "#" encolhe pro tamanho do número. */
+  @media (max-width: 480px) {
+    .rotafixa-pos { min-width: 20px; margin-right: 2px; }
+    .rotafixa-item-nome { white-space: normal; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
+  }
   /* Ação da linha: botão de verdade (borda + fundo), não mais um ícone fantasma
      — precisa ficar visível de cara, sem depender de hover pra ser notado. */
   .rotafixa-remover {
@@ -1927,6 +1934,17 @@
   /* Sem a faixa lateral (Competências e Auditoria foram pra "Sistema"),
      o Ajustes ganharia a largura toda; formulário de 1.100px não se lê. */
   #clientesDestino-ajustes { max-width: 880px; }
+  /* Celular: as 5 categorias do Ajustes não cabem numa fileira; a barra
+     rola de lado. Sem os ícones cabe quase tudo em 375px, e a borda que
+     esmaece (data-mais, posto por marcarRolagemSubnav_) mostra que tem
+     mais categoria pra lá — antes "Integrações" virava "Inte" sem pista. */
+  @media (max-width: 480px) {
+    #clientesDestino-ajustes > .clientes-subnav .ph { display: none; }
+    #clientesDestino-ajustes > .clientes-subnav .mode-btn { padding: 8px; }
+  }
+  .clientes-subnav[data-mais="dir"] { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent); }
+  .clientes-subnav[data-mais="esq"] { -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 36px), transparent); mask-image: linear-gradient(to left, #000 calc(100% - 36px), transparent); }
+  .clientes-subnav[data-mais="esq dir"] { -webkit-mask-image: linear-gradient(to right, transparent, #000 36px, #000 calc(100% - 36px), transparent); mask-image: linear-gradient(to right, transparent, #000 36px, #000 calc(100% - 36px), transparent); }
 
   .card.form-ajuste { border-top: none; padding: 0 0 var(--esp-5); }
   .card.form-ajuste > .card-head-row {
@@ -1949,6 +1967,9 @@
      "Criar acesso" empurravam as ações pra segunda linha em 375px (o
      título "Novo acesso" já diz o resto). */
   @media (max-width: 480px) { .rotulo-extra { display: none; } }
+  /* .btn-chip é inline-flex: o <span> vira item flex próprio e o espaço do
+     começo dele some ("Convitepor link"). A margem faz o papel do espaço. */
+  .btn-chip .rotulo-extra { margin-left: .3em; }
 
   /* Corpo de formulário dentro de caixa (Novo acesso) */
   .card.caixa > .caixa-corpo { padding: var(--esp-3) var(--esp-3) 0; }
@@ -2086,6 +2107,17 @@
   @media (max-width: 420px) {
     #temaToggle .ph { display: none; }
   }
+  /* Terços iguais não bastavam em 320px com texto maior: "Automático"
+     passava da borda do botão. Cada botão parte da largura da própria
+     palavra e divide o que sobra — "Claro" cede espaço pro "Automático". */
+  @media (max-width: 480px) {
+    .cfg-linha .mode-btn { flex: 1 1 auto; white-space: nowrap; }
+    .cfg-linha .mode-toggle { gap: 2px; }
+  }
+  /* Abas Personalização/Conta e o X: 44px de toque no celular (no PC
+     --alvo volta a 34px, o tamanho de sempre). */
+  .config-abas .mode-btn { min-height: var(--alvo); }
+  .modal-config .modal-close { width: var(--alvo); height: var(--alvo); }
   .senha-grade { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--esp-3) var(--esp-4); margin-top: var(--esp-3); }
   @media (min-width: 600px) { .senha-grade { grid-template-columns: 1fr 1fr; } }
   .senha-grade label { display: block; min-width: 0; }
@@ -5208,6 +5240,7 @@
         subnav.querySelectorAll('.mode-btn').forEach(function (b) {
           b.addEventListener('click', function () { mostrarGrupo_(d.id, b.dataset.grupo); });
         });
+        subnav.addEventListener('scroll', function () { marcarRolagemSubnav_(subnav); }, { passive: true });
       }
 
       d.grupos.forEach(function (g, gi) {
@@ -5233,6 +5266,22 @@
     // "Carteira" é o destino padrão, então a faixa de Ajustes começa escondida.
     if (faixaCarteira) abaClientes.appendChild(faixaCarteira);
     if (faixaAjustes) { faixaAjustes.hidden = true; abaClientes.appendChild(faixaAjustes); }
+    window.addEventListener('resize', function () {
+      document.querySelectorAll('[data-subnav-de]').forEach(marcarRolagemSubnav_);
+    });
+  }
+
+  // Diz ao CSS de que lado a barra de categorias ainda tem conteúdo
+  // escondido ("esq", "dir" ou os dois), pra esmaecer só aquela borda.
+  // Escondida (largura 0) ou cabendo inteira, fica sem marca nenhuma.
+  function marcarRolagemSubnav_(subnav) {
+    if (!subnav) return;
+    var sobra = subnav.scrollWidth - subnav.clientWidth;
+    var lados = [];
+    if (sobra > 2 && subnav.scrollLeft > 2) lados.push('esq');
+    if (sobra > 2 && subnav.scrollLeft < sobra - 2) lados.push('dir');
+    if (lados.length) subnav.dataset.mais = lados.join(' ');
+    else delete subnav.dataset.mais;
   }
 
   // Categoria de nível 2, dentro de um destino de nível 1. Só recarrega
@@ -5246,6 +5295,17 @@
     // categorias no alto do conteúdo (não na barra lateral).
     var subnav = container.querySelector('[data-subnav-de]');
     if (subnav) subnav.querySelectorAll('.mode-btn').forEach(function (b) { b.classList.toggle('active', b.dataset.grupo === grupo); });
+    // Categoria escolhida sempre inteira à vista na barra que rola (no
+    // celular, tocar a última cortada deixava ela ainda cortada). Conta à
+    // mão em vez de scrollIntoView pra não mexer na rolagem da página.
+    var ativo = subnav && subnav.querySelector('.mode-btn.active');
+    if (ativo && subnav.scrollWidth > subnav.clientWidth) {
+      var ini = ativo.getBoundingClientRect().left - subnav.getBoundingClientRect().left + subnav.scrollLeft;
+      var fim = ini + ativo.offsetWidth;
+      if (ini < subnav.scrollLeft + 24) subnav.scrollLeft = Math.max(0, ini - 24);
+      else if (fim > subnav.scrollLeft + subnav.clientWidth - 24) subnav.scrollLeft = fim - subnav.clientWidth + 24;
+    }
+    marcarRolagemSubnav_(subnav);
     container.querySelectorAll(':scope > .card-grupo').forEach(function (g) { g.hidden = g.dataset.grupo !== grupo; });
     if (destino === 'ajustes' && grupo === 'sistema') renderSaudeDoSistema_();
     // O selo da IA (No ar / Sem chave / PC desligado) vem do mesmo
@@ -13700,6 +13760,7 @@
         // Reabrir libera a edição do mês pra todo mundo na hora: pede o
         // segundo toque, como as outras ações de risco da tela Sistema.
         row.querySelector('.btn-chip').addEventListener('click', function () {
+          // "Confirmar?" curto: a linha é estreita e no PC não se "toca"
           confirmarDuplo(this, function () {
             db.doc('config/competencias').set({
               fechadas: competenciasFechadas.filter(function (c) { return c !== comp; })
@@ -13707,7 +13768,7 @@
               registrarAuditoria_('competencia_reaberta', fmtCompetencia(comp));
               showToast('Competência reaberta.');
             }).catch(function (err) { showToast(errMsg(err, 'Não foi possível reabrir.'), 'error'); });
-          });
+          }, 'Confirmar?');
         });
       }
       el.appendChild(row);
@@ -13773,7 +13834,9 @@
   // Confirmação dupla direto no botão (em vez do confirm() do navegador):
   // primeiro toque avisa e arma um temporizador; só apaga de verdade se
   // tocar de novo dentro de alguns segundos.
-  function confirmarDuplo(btn, acao) {
+  // rotulo (opcional) troca o aviso longo por um curto onde a linha é
+  // estreita — ex.: "Confirmar?" no Reabrir de Competências fechadas.
+  function confirmarDuplo(btn, acao, rotulo) {
     if (btn.dataset.confirmando === '1') {
       clearTimeout(btn._confirmTimer);
       delete btn.dataset.confirmando;
@@ -13785,7 +13848,7 @@
     btn.dataset.textoOriginal = btn.textContent;
     btn.dataset.confirmando = '1';
     btn.classList.add('confirmando');
-    btn.innerHTML = '<i class="ph ph-warning" aria-hidden="true"></i> Toque de novo pra confirmar';
+    btn.innerHTML = '<i class="ph ph-warning" aria-hidden="true"></i> ' + (rotulo || 'Toque de novo pra confirmar');
     btn._confirmTimer = setTimeout(function () {
       delete btn.dataset.confirmando;
       btn.classList.remove('confirmando');
