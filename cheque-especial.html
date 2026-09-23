@@ -387,11 +387,34 @@
   .passo .step-title { margin-bottom: 2px; }
   .passo .step-desc { margin-bottom: 0; }
   .passo[hidden] { display: none; }
-  /* Dentro do Entregas (iframe com ?embutido=1): a barra de cima é a do
-     app, então some a marca, o "Trocar de função" e a aparência daqui. */
-  html.embutido .topbar .brand, html.embutido .topbar a[href="entregas.html"], html.embutido #configBtn { display: none !important; }
-  html.embutido .topbar { justify-content: flex-end; border-bottom: 0; padding-bottom: 0; margin-bottom: 12px; }
-  html.embutido .app { padding-top: 12px; }
+  /* Dentro do Entregas (iframe com ?embutido=1) a ferramenta vira uma aba
+     do app: a barra própria vira o cabeçalho de tela (só o título, sem
+     marca, "Trocar de função" e aparência — esses são da barra do app),
+     o fundo e as margens são os mesmos das outras abas, cada bloco é uma
+     caixa com cabeçalho e as explicações saem. Fora do Entregas, nada muda. */
+  html.embutido .topbar .brand-logo, html.embutido .topbar .brand-sep, html.embutido .topbar .brand-mark,
+  html.embutido .topbar .brand-tag, html.embutido .topbar a[href="entregas.html"], html.embutido #configBtn { display: none !important; }
+  /* fundo transparente: aparece o do app, que pode ter outra paleta */
+  html.embutido, html.embutido body { background: transparent; }
+  html.embutido .app { max-width: 1160px; margin: 0 auto; padding: var(--esp-5) var(--esp-5) var(--esp-6); }
+  html.embutido .topbar {
+    align-items: center; justify-content: space-between; gap: var(--esp-3);
+    padding: 0 0 var(--esp-3); margin: 0 0 var(--esp-4); border-bottom: 1px solid var(--border);
+  }
+  html.embutido .topbar .brand-name { font-size: var(--t-xl); font-weight: 600; letter-spacing: -.01em; }
+  @media (max-width: 640px) {
+    html.embutido .app { padding: var(--esp-3) 0 var(--esp-6); }
+  }
+  /* cada passo é uma caixa: número + título no cabeçalho cinza */
+  html.embutido .passo { padding: 0 var(--esp-4) var(--esp-4); overflow: hidden; }
+  html.embutido .passo-cab {
+    align-items: center; margin: 0 calc(var(--esp-4) * -1) var(--esp-4); padding: 10px var(--esp-4);
+    background: var(--surface-2); border-bottom: 1px solid var(--border);
+  }
+  html.embutido .passo-n { width: 22px; height: 22px; margin: 0; font-size: var(--t-xs); }
+  html.embutido .passo .step-title { font-size: var(--t-md); font-weight: 600; margin: 0; }
+  html.embutido .passo .step-desc, html.embutido #passoArquivo > details.dobra,
+  html.embutido .field-hint, html.embutido #generateHint { display: none; }
 </style>
 </head>
 <body>

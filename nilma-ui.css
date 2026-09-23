@@ -996,7 +996,7 @@ body:has(.gaveta:not([hidden])) { overflow: hidden; }
 
 /* ---------------------------------------------------------------
  painel "Perguntar à IA" (nilma-extras.js)
- (entregas.html, linhas 2106-2202)
+ (entregas.html, linhas 2111-2207)
  --------------------------------------------------------------- */
 /* A consulta abre como uma barra de pesquisa aberta (o "Ask" do GitHub):
    no PC, uma caixa ancorada na barra de cima, cobrindo a caixa "Perguntar

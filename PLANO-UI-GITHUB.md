@@ -347,3 +347,13 @@ node scripts/teste-pendencias.js && node scripts/teste-robo.js   # (teste-robo p
 - **Barra de cima:** mostra "Nilma / Módulo ⌄ / Submódulo". O nome do módulo reabre a lista dos submódulos (`NilmaShell.definirSubmodulo`, `abrirSubmodulos`). No celular o título alterna: com submódulo aberto, só ele aparece, e tocar nele abre a lista.
 - **Links diretos:** `entregas.html#contabil/conciliador` e `#contabil/cheque`, com `entrarModoSecundario_(nome, aba)`.
 - **Correção:** "Clientes e ajustes" aparecia na barra do Contábil quando o app abria direto nele. O `startApp()` não roda nesse caminho, e era só ele que escondia a aba. Agora a aba nasce `hidden` e `entrarModoSecundario_` esconde o menu de Clientes.
+
+### Contábil como aba do app
+- Com `?embutido=1`, o Conciliadorzinho e o Cheque especial passam a ter:
+  - cabeçalho de tela igual ao das outras abas (título e ações, com um fio embaixo);
+  - fundo transparente, que deixa aparecer o do app, e as margens das outras abas.
+- **Conciliadorzinho:** as etapas são o submenu padrão, que some enquanto só existe "Bandeiras", e cada etapa é uma caixa com cabeçalho cinza.
+- **Cheque especial:** cada passo é uma caixa com número e título no cabeçalho.
+- **Textos que saíram:** "Etapa N de M", as descrições das etapas, as dicas dos campos e a dobra "O que a ferramenta faz". A dobra "Convenção de sinais" ficou, porque guarda uma configuração.
+- **Entregas:** no Contábil, o cabeçalho de tela do app some também no celular (o título saía repetido) e o iframe fica sem borda arredondada.
+- Abertas sozinhas, as ferramentas continuam como antes.

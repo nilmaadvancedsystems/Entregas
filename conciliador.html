@@ -635,11 +635,56 @@
     border-color: var(--accent); background: var(--accent-soft); box-shadow: none;
   }
   .brand-check-logo { width: 84px; height: 30px; border-radius: var(--r-sm); }
-  /* Dentro do Entregas (iframe com ?embutido=1): a barra de cima é a do
-     app, então some a marca, o "Trocar de função" e a aparência daqui. */
-  html.embutido .topbar .brand, html.embutido .topbar a[href="entregas.html"], html.embutido #configBtn { display: none !important; }
-  html.embutido .topbar { justify-content: flex-end; border-bottom: 0; padding-bottom: 0; margin-bottom: 12px; }
-  html.embutido .app { padding-top: 12px; }
+  /* Dentro do Entregas (iframe com ?embutido=1) a ferramenta vira uma aba
+     do app: a barra própria vira o cabeçalho de tela (só o título, sem
+     marca, "Trocar de função" e aparência — esses são da barra do app),
+     o fundo e as margens são os mesmos das outras abas, cada bloco é uma
+     caixa com cabeçalho e as explicações saem. Fora do Entregas, nada muda. */
+  html.embutido .topbar .brand-logo, html.embutido .topbar .brand-sep, html.embutido .topbar .brand-mark,
+  html.embutido .topbar .brand-tag, html.embutido .topbar a[href="entregas.html"], html.embutido #configBtn { display: none !important; }
+  /* fundo transparente: aparece o do app, que pode ter outra paleta */
+  html.embutido, html.embutido body { background: transparent; }
+  html.embutido .app { max-width: 1160px; margin: 0 auto; padding: var(--esp-5) var(--esp-5) var(--esp-6); }
+  html.embutido .topbar {
+    align-items: center; justify-content: space-between; gap: var(--esp-3);
+    padding: 0 0 var(--esp-3); margin: 0 0 var(--esp-4); border-bottom: 1px solid var(--border);
+  }
+  html.embutido .topbar .brand-name { font-size: var(--t-xl); font-weight: 600; letter-spacing: -.01em; }
+  @media (max-width: 640px) {
+    html.embutido .app { padding: var(--esp-3) 0 var(--esp-6); }
+  }
+  /* as etapas viram o submenu padrão (a barrinha de categorias do app) */
+  html.embutido .stepper { margin: 0 0 var(--esp-4); }
+  /* submenu de uma escolha só não é escolha (antes de marcar as bandeiras) */
+  html.embutido .stepper:has(ol > li:only-child) { display: none; }
+  html.embutido .stepper ol {
+    gap: 3px; padding: 3px; background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: var(--r-sm); overflow-x: auto; scrollbar-width: none;
+  }
+  html.embutido .stepper ol::-webkit-scrollbar { display: none; }
+  html.embutido .step-item {
+    flex: 1 0 auto; flex-direction: row; align-items: center; justify-content: center; gap: 8px;
+    min-height: 34px; padding: 6px 12px; border-radius: var(--r-xs);
+  }
+  html.embutido .step-item .rail { width: auto; }
+  html.embutido .step-item .line { display: none; }
+  html.embutido .step-dot { width: 20px; height: 20px; font-size: var(--t-xs); }
+  html.embutido .step-item:hover .step-dot { transform: none; }
+  html.embutido .step-body { display: block; padding: 0; }
+  html.embutido .step-label { font-size: var(--t-base); font-weight: 500; color: var(--ink-soft); }
+  html.embutido .step-item.current { background: var(--surface); box-shadow: inset 0 0 0 1px var(--border-forte); }
+  html.embutido .step-item.current .step-label { color: var(--accent-forte); font-weight: 600; }
+  html.embutido .step-item.done .step-label { color: var(--ink); }
+  /* cada etapa é uma caixa: o título vira o cabeçalho cinza */
+  html.embutido .panel { min-height: 0; overflow: hidden; }
+  html.embutido .step-section { padding: 0 var(--esp-4) var(--esp-4); }
+  html.embutido .step-section > .step-eyebrow, html.embutido .step-section > .step-desc { display: none; }
+  html.embutido .step-section > .step-title {
+    margin: 0 calc(var(--esp-4) * -1) var(--esp-4); padding: 10px var(--esp-4);
+    background: var(--surface-2); border-bottom: 1px solid var(--border);
+    font-size: var(--t-md); font-weight: 600;
+  }
+  html.embutido #step-brands .rotulo-secao + .card-hint { display: none; }
 </style>
 </head>
 <body>
