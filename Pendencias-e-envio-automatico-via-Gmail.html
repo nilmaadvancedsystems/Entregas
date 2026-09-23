@@ -1280,6 +1280,22 @@
   .cliente-menu .secao-btn i { font-size: 1.05em; }
   .cfg-layout > .cliente-menu { margin-bottom: 0; }
   #viewRobo .card-grupo[hidden] { display: none; }
+  #roboAbas .cont:empty { display: none; }
+  /* linha curta de "nada aqui": só aparece quando nenhuma caixa da categoria está à vista */
+  #viewRobo .card-grupo:has(> section:not(.robo-vazio-cat):not([hidden])) > .robo-vazio-cat { display: none; }
+  .robo-ignorados > summary { list-style: none; cursor: pointer; border-bottom: 0; }
+  .robo-ignorados > summary::-webkit-details-marker { display: none; }
+  .robo-ignorados[open] > summary { border-bottom: 1px solid var(--border); }
+  .robo-ignorados-lista { list-style: none; margin: 0; padding: 0; }
+  .robo-ignorados-lista li { display: flex; align-items: center; gap: var(--esp-3); padding: var(--esp-2) var(--esp-3); border-bottom: 1px solid var(--border); }
+  .robo-ignorados-lista li:last-child { border-bottom: 0; }
+  .robo-ignorados-lista li > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .spam-acoes { display: flex; flex-direction: column; align-items: stretch; gap: 6px; }
+  .spam-acoes .btn, .spam-acoes .anexo-acao .btn { width: 100%; justify-content: center; white-space: nowrap; }
+  #tabSpam td:last-child { width: 1%; }
+  .spam-acoes .anexo-acao .btn-icone { display: none; }
+  #tabNaoRec select { max-width: 180px !important; }
+  .tab-simples tr.spam-cliente td:first-child { box-shadow: inset 3px 0 0 var(--warning); }
   #viewConfig .pagina-sub:empty { display: none; }
 
   /* Clientes no formato das Issues do GitHub: filtros colados na busca e a
@@ -1592,22 +1608,39 @@
       <!-- Submenu padrão: o que pede ação, o que o robô marcou e o histórico.
            Categoria sem nada dentro some (atualizarSubmenuRobo). -->
       <nav class="cliente-menu" role="tablist" aria-label="Seções do robô" id="roboAbas">
-        <button type="button" class="secao-btn" role="tab" data-grupo="entrada" aria-selected="true"><i class="ph ph-tray" aria-hidden="true"></i><span>Caixa de entrada</span></button>
+        <button type="button" class="secao-btn" role="tab" data-grupo="entrada" aria-selected="true"><i class="ph ph-tray" aria-hidden="true"></i><span>E-mails de clientes</span><span class="cont" id="roboAbaClientesN"></span></button>
+        <button type="button" class="secao-btn" role="tab" data-grupo="spam" aria-selected="false"><i class="ph ph-warning-octagon" aria-hidden="true"></i><span>Spam</span><span class="cont" id="roboAbaSpamN"></span></button>
         <button type="button" class="secao-btn" role="tab" data-grupo="marcados" aria-selected="false"><i class="ph ph-check-square" aria-hidden="true"></i><span>Marcados</span></button>
         <button type="button" class="secao-btn" role="tab" data-grupo="historico" aria-selected="false"><i class="ph ph-clock-counter-clockwise" aria-hidden="true"></i><span>Histórico</span></button>
       </nav>
       <!-- Mesmo desenho do Hoje: à esquerda a categoria aberta, à direita o resumo. -->
       <div class="hoje-grade">
         <div class="hoje-principal">
-          <div class="card-grupo" data-grupo="entrada">
+          <!-- E-mails de clientes e Spam ficam sempre no submenu (data-sempre):
+               vazios, mostram uma linha curta em vez de sumir. -->
+          <div class="card-grupo" data-grupo="entrada" data-sempre>
+          <section class="caixa-p" id="roboCaixaSecao" hidden>
+            <div class="caixa-cab"><h2><i class="ph ph-paperclip" aria-hidden="true"></i> E-mails de clientes com anexo</h2><span class="cont" id="roboCaixaN"></span></div>
+            <div class="tab-rolagem"><table class="tab-simples" id="tabCaixa"></table></div>
+          </section>
+          <section class="caixa-p robo-vazio-cat"><div class="lado-vazio">Nenhum e-mail de cliente com anexo.</div></section>
+          </div>
+          <div class="card-grupo" data-grupo="spam" data-sempre hidden>
+          <section class="caixa-p" id="roboSpamSecao" hidden>
+            <div class="caixa-cab"><h2><i class="ph ph-warning-octagon" aria-hidden="true"></i> No spam do Gmail</h2><span class="cont" id="roboSpamN"></span></div>
+            <div class="tab-rolagem"><table class="tab-simples" id="tabSpam"></table></div>
+          </section>
           <section class="caixa-p" id="roboNaoRecSecao" hidden>
             <div class="caixa-cab"><h2><i class="ph ph-user-circle-plus" aria-hidden="true"></i> Remetentes sem cliente</h2><span class="cont" id="roboNaoRecN"></span></div>
             <div class="tab-rolagem"><table class="tab-simples" id="tabNaoRec"></table></div>
           </section>
-          <section class="caixa-p" id="roboCaixaSecao" hidden>
-            <div class="caixa-cab"><h2><i class="ph ph-paperclip" aria-hidden="true"></i> E-mails com anexo</h2><span class="cont" id="roboCaixaN"></span></div>
-            <div class="tab-rolagem"><table class="tab-simples" id="tabCaixa"></table></div>
+          <section class="caixa-p" id="roboIgnoradosSecao" hidden>
+            <details class="robo-ignorados">
+              <summary class="caixa-cab"><h2><i class="ph ph-prohibit" aria-hidden="true"></i> Ignorados</h2><span class="cont" id="roboIgnoradosN"></span></summary>
+              <ul class="robo-ignorados-lista" id="listaIgnorados"></ul>
+            </details>
           </section>
+          <section class="caixa-p robo-vazio-cat"><div class="lado-vazio">Nada no spam.</div></section>
           </div>
           <div class="card-grupo" data-grupo="marcados" hidden>
           <section class="caixa-p" id="roboMarcadosDobra">
@@ -2673,7 +2706,7 @@
   function atualizarSubmenuRobo() {
     var visiveis = [];
     document.querySelectorAll('#viewRobo .card-grupo').forEach(function (g) {
-      var tem = [].some.call(g.querySelectorAll(':scope > section'), function (sec) { return !sec.hidden; });
+      var tem = g.hasAttribute('data-sempre') || [].some.call(g.querySelectorAll(':scope > section'), function (sec) { return !sec.hidden; });
       var b = document.querySelector('#roboAbas .secao-btn[data-grupo="' + g.dataset.grupo + '"]');
       if (b) b.hidden = !tem;
       if (tem) visiveis.push(g.dataset.grupo);
@@ -2946,7 +2979,7 @@
       // remonta quando muda algo que aparece nelas.
       var marca = [configRobo.ultimaExecucao, configRobo.status, configRobo.statusEm,
         (configRobo.caixa || []).length, (configRobo.naoReconhecidos || []).length,
-        (configRobo.execucoes || []).length, Object.keys(configRobo.salvos || {}).length].join('|');
+        (configRobo.execucoes || []).length, Object.keys(configRobo.salvos || {}).length, (configRobo.spam || []).length].join('|');
       if (clientesCarregados && marca !== subscribeRobo.marca) { subscribeRobo.marca = marca; renderPaginas(); }
       renderVigia();
     }, function () {});
@@ -2959,8 +2992,38 @@
     while (d < hoje) { d.setDate(d.getDate() + 1); var ds = d.getDay(); if (ds !== 0 && ds !== 6) n++; }
     return n;
   }
+  // Remetentes que a Nilma marcou como spam (config/roboIgnorados). O robô
+  // não lista mais esses (nem em "sem cliente" nem no spam); a tela esconde
+  // na hora, sem esperar a próxima leitura.
+  var roboIgnorados = [];
+  var unsubIgnorados = null;
+  function ignorado(email) { return roboIgnorados.indexOf(String(email || '').toLowerCase()) !== -1; }
+  function subscribeIgnorados() {
+    if (unsubIgnorados) { unsubIgnorados(); unsubIgnorados = null; }
+    unsubIgnorados = db.collection('config').doc('roboIgnorados').onSnapshot(function (doc) {
+      var d = doc.exists ? doc.data() : {};
+      roboIgnorados = (Array.isArray(d.remetentes) ? d.remetentes : []).map(function (e) { return String(e).toLowerCase(); });
+      if (clientesCarregados) renderPaginas();
+    }, function () {});
+  }
+  function marcarIgnorado(email, sim) {
+    var fv = firebase.firestore.FieldValue;
+    var e = String(email || '').toLowerCase();
+    if (!e) return;
+    if (sim && roboIgnorados.indexOf(e) === -1) roboIgnorados.push(e);
+    if (!sim) roboIgnorados = roboIgnorados.filter(function (x) { return x !== e; });
+    renderPaginas();
+    db.collection('config').doc('roboIgnorados').set({
+      remetentes: sim ? fv.arrayUnion(e) : fv.arrayRemove(e),
+      atualizadoEm: new Date().toISOString(),
+      por: (auth.currentUser && auth.currentUser.email) || ''
+    }, { merge: true }).then(function () {
+      toast(sim ? e + ' não aparece mais.' : e + ' volta a aparecer.', 'ok');
+    }).catch(function (err) { toast('Não foi possível salvar: ' + err.message, 'erro'); });
+  }
   function subscribeConfig() {
     if (unsubConfig) { unsubConfig(); unsubConfig = null; }
+    subscribeIgnorados();
     unsubConfig = db.collection('config').doc('cobranca').onSnapshot(function (doc) {
       var d = doc.exists ? doc.data() : {};
       configCobranca = JSON.parse(JSON.stringify(CONFIG_PADRAO));
@@ -4002,7 +4065,7 @@
     var naoRec = Array.isArray(configRobo.naoReconhecidos) ? configRobo.naoReconhecidos.slice() : [];
     var emailsCadastrados = {};
     clientesCache.forEach(function (c) { if (c.email) emailsCadastrados[String(c.email).toLowerCase()] = true; (c.emails || []).forEach(function (e) { emailsCadastrados[String(e).toLowerCase()] = true; }); });
-    naoRec = naoRec.filter(function (r) { return r.remetente && !emailsCadastrados[String(r.remetente).toLowerCase()]; });
+    naoRec = naoRec.filter(function (r) { return r.remetente && !emailsCadastrados[String(r.remetente).toLowerCase()] && !ignorado(r.remetente); });
     naoRec.sort(function (a, b) { return String(b.data || '').localeCompare(String(a.data || '')); });
     $('roboNaoRecSecao').hidden = naoRec.length === 0;
     $('roboNaoRecN').textContent = naoRec.length;
@@ -4051,6 +4114,15 @@
         });
         tdV.appendChild(sel);
         linha.appendChild(tdV);
+        // "É spam" fica embaixo do remetente: a tabela já tem seis colunas
+        if (souAdmin) {
+          var bS = el('button', 'btn btn-secondary btn-sm'); bS.type = 'button';
+          bS.style.marginTop = '6px';
+          bS.appendChild(ico('ph-prohibit')); bS.appendChild(document.createTextNode(' É spam'));
+          bS.title = 'Não mostrar mais ' + r.remetente;
+          bS.addEventListener('click', function () { marcarIgnorado(r.remetente, true); });
+          td1.appendChild(bS);
+        }
         tbN.appendChild(linha);
       });
       tn.appendChild(tbN);
@@ -6125,7 +6197,86 @@
     return linha;
   }
 
+  function linkGmailSpam(mensagemId) {
+    return 'https://mail.google.com/mail/?authuser=' + encodeURIComponent(CAIXA_GMAIL) + '#spam/' + encodeURIComponent(mensagemId);
+  }
+  // O que o Gmail jogou no spam (robo/estado.spam, lido pelo robô). E-mail de
+  // cliente no spam é documento que ninguém veria: vem primeiro, marcado, e
+  // dá pra salvar no Drive daqui mesmo.
+  function renderSpamRobo() {
+    var tab = $('tabSpam');
+    if (!tab) return;
+    var itens = (Array.isArray(configRobo.spam) ? configRobo.spam : [])
+      .filter(function (c) { return !ignorado(c.remetente); })
+      .map(function (c) { return Object.assign({}, c, { cli: c.clienteId ? clientesPorId.get(c.clienteId) : null }); })
+      .sort(function (a, b) { return (b.cli ? 1 : 0) - (a.cli ? 1 : 0) || String(b.em).localeCompare(String(a.em)); });
+    var deClientes = itens.filter(function (c) { return c.cli; }).length;
+    $('roboSpamSecao').hidden = itens.length === 0;
+    $('roboSpamN').textContent = itens.length ? (deClientes ? deClientes + ' de clientes · ' : '') + itens.length : '';
+    tab.innerHTML = '';
+    if (itens.length) {
+      var th = el('thead'); var tr = el('tr');
+      ['Quando', 'De', 'Assunto', 'Anexos', ''].forEach(function (c) { tr.appendChild(el('th', null, c)); });
+      th.appendChild(tr); tab.appendChild(th);
+      var tb = el('tbody');
+      itens.forEach(function (c) {
+        var linha = el('tr', c.cli ? 'spam-cliente' : null);
+        linha.appendChild(el('td', 'num', dataSo(c.em)));
+        var tdD = el('td');
+        if (c.cli) {
+          var bC = el('button', 'link'); bC.type = 'button'; bC.textContent = nomeExibicao(c.cli);
+          bC.addEventListener('click', function () { abrirDetalhe(c.cli.id, 'abaComunicacao'); });
+          tdD.appendChild(bC); tdD.appendChild(document.createTextNode(' '));
+          tdD.appendChild(el('span', 'badge pend', 'cliente'));
+        } else {
+          tdD.appendChild(el('div', null, c.nome || c.remetente || ''));
+        }
+        tdD.appendChild(el('div', 'sub', c.remetente || ''));
+        linha.appendChild(tdD);
+        linha.appendChild(el('td', null, c.assunto || '(sem assunto)'));
+        var tdA = el('td'); tdA.appendChild(el('span', null, (c.arquivos || []).join(', '))); tdA.style.fontSize = 'var(--t-sm)';
+        linha.appendChild(tdA);
+        var tdB = el('td'); var acoes = el('div', 'spam-acoes');
+        var g = el('a', 'btn btn-secondary btn-sm'); g.href = linkGmailSpam(c.mensagemId); g.target = '_blank'; g.rel = 'noopener';
+        g.appendChild(ico('ph-arrow-square-out')); g.appendChild(document.createTextNode(' Abrir no Gmail'));
+        acoes.appendChild(g);
+        if (c.cli) acoes.appendChild(acaoSalvar(c.mensagemId, c.cli.id));
+        else if (souAdmin) {
+          var bS = el('button', 'btn btn-secondary btn-sm'); bS.type = 'button';
+          bS.appendChild(ico('ph-prohibit')); bS.appendChild(document.createTextNode(' É spam'));
+          bS.addEventListener('click', function () { marcarIgnorado(c.remetente, true); });
+          acoes.appendChild(bS);
+        }
+        tdB.appendChild(acoes); linha.appendChild(tdB);
+        tb.appendChild(linha);
+      });
+      tab.appendChild(tb);
+    }
+    // ignorados
+    var lista = $('listaIgnorados');
+    $('roboIgnoradosSecao').hidden = roboIgnorados.length === 0;
+    $('roboIgnoradosN').textContent = roboIgnorados.length || '';
+    lista.innerHTML = '';
+    roboIgnorados.forEach(function (e) {
+      var li = el('li'); li.appendChild(el('span', null, e));
+      if (souAdmin) {
+        var b = el('button', 'btn btn-secondary btn-sm'); b.type = 'button'; b.textContent = 'Voltar a mostrar';
+        b.addEventListener('click', function () { marcarIgnorado(e, false); });
+        li.appendChild(b);
+      }
+      lista.appendChild(li);
+    });
+    // contadores do submenu
+    var nNaoRec = Number($('roboNaoRecN').textContent) || 0;
+    $('roboAbaSpamN').textContent = (itens.length + nNaoRec) || '';
+    $('roboAbaClientesN').textContent = $('roboCaixaN').textContent;
+  }
+
   function renderCaixaRobo() {
+    renderCaixaRoboBase();
+    renderSpamRobo();
+  }
+  function renderCaixaRoboBase() {
     var tab = $('tabCaixa');
     if (!tab) return;
     var itens = (Array.isArray(configRobo.caixa) ? configRobo.caixa : [])
@@ -6637,6 +6788,7 @@
     if (unsubClientes) { unsubClientes(); unsubClientes = null; }
     if (unsubStatus) { unsubStatus(); unsubStatus = null; }
     if (unsubConfig) { unsubConfig(); unsubConfig = null; }
+    if (unsubIgnorados) { unsubIgnorados(); unsubIgnorados = null; }
     if (unsubRobo) { unsubRobo(); unsubRobo = null; }
     if (!user) {
       $('authGate').hidden = false;

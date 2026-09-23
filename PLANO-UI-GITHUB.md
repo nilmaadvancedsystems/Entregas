@@ -365,3 +365,14 @@ node scripts/teste-pendencias.js && node scripts/teste-robo.js   # (teste-robo p
 - A fonte mono ficou só para os identificadores (CNPJ, PIX, códigos). Contadores e valores usam a sans com `tabular-nums`.
 - A especificação veio de um painel de 3 propostas e 2 juízes. Nas impressões, só o nome da fonte mudou.
 - O cache do service worker subiu para `nilma-app-v8`.
+
+### Robô: seleção "E-mails de clientes · Spam"
+- **Tela (Pendências):** submenu E-mails de clientes · Spam · Marcados · Histórico, com contadores. As duas primeiras categorias estão sempre no submenu.
+- **Spam:**
+  - "No spam do Gmail" traz os e-mails de clientes primeiro, com um fio amarelo e o selo "cliente". Cada linha tem "Abrir no Gmail"; as de cliente têm "Salvar no Drive" e as de fora, "É spam".
+  - "Remetentes sem cliente" ganhou o botão "É spam".
+  - "Ignorados" é uma lista recolhível, com "Voltar a mostrar".
+- **Dados:**
+  - `robo/estado.spam` é gravado pelo robô: ele lê `in:spam` na janela de dias, só cabeçalhos e nomes de anexo.
+  - `config/roboIgnorados.remetentes` é gravado pela tela (só admin). O robô deixa de listar esses remetentes e o resumo diário conta os e-mails de clientes no spam.
+- **Atenção:** a parte do robô só vale depois que o PC do escritório atualizar o código.

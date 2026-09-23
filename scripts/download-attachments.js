@@ -327,9 +327,11 @@ function montarSpam(mensagens, porEmail, porDominio, ignorados) {
 
 // Uma página só (até 100): spam de mais de 100 na janela é propaganda, e o de
 // cliente vai pro topo de qualquer jeito dentro do que foi lido.
-async function lerSpam(gmail, porEmail, porDominio, ignorados) {
+// O que já está em "processados" a Nilma salvou pela tela (--mensagem ID): o
+// e-mail continua no spam do Gmail, mas não volta pra lista nem pro resumo.
+async function lerSpam(gmail, porEmail, porDominio, ignorados, processados) {
   const r = await comRetentativa(() => gmail.users.messages.list({ userId: 'me', q: `in:spam newer_than:${DIAS}d`, includeSpamTrash: true, maxResults: MAX_SPAM }));
-  const ids = (r.data.messages || []).map(m => m.id);
+  const ids = (r.data.messages || []).map(m => m.id).filter(id => !(processados && processados.has(id)));
   const mensagens = [];
   let falhas = 0;
   for (const id of ids) {
@@ -717,7 +719,7 @@ async function main() {
   // com a lista da leitura anterior.
   let spam = null;
   try {
-    spam = await lerSpam(gmail, porEmail, porDominio, ignorados);
+    spam = await lerSpam(gmail, porEmail, porDominio, ignorados, processados);
     console.log(`No spam: ${spam.length} (${spam.filter(s => s.clienteId).length} de clientes)`);
   } catch (err) {
     console.error('Spam não foi lido -', err.message, '(fica a lista anterior)');
