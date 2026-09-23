@@ -2433,6 +2433,7 @@
         <button type="button" class="btn-chip" id="rotaLerGuiaBtn" hidden><i class="ph ph-barcode" aria-hidden="true"></i> Ler guia</button>
         <button type="button" class="btn-chip" id="rotaMapsBtn"><i class="ph ph-map-trifold" aria-hidden="true"></i> Abrir no Maps</button>
         <button type="button" class="btn-chip" id="rotaEnviarLinkBtn"><i class="ph ph-share-network" aria-hidden="true"></i> Enviar rota pro cliente</button>
+        <button type="button" class="btn-chip" id="rotaProtocoloBtn"><i class="ph ph-printer" aria-hidden="true"></i> Protocolo</button>
       </div>
       <div class="filters">
         <div class="filtro">
@@ -6876,6 +6877,14 @@
     $('rotaFiltroZonaBtn').focus();
   });
 
+  // O papel do dia: o que ainda falta entregar e o que já foi entregue hoje,
+  // na mesma folha — serve tanto pra levar na mão quanto pra arquivar
+  // depois, já com as assinaturas colhidas na tela.
+  $('rotaProtocoloBtn').addEventListener('click', function () {
+    var doDia = pendentesCache.concat(confirmadasHoje_().filter(function (e) { return e.status === 'confirmada'; }));
+    abrirProtocoloDeEntregas_('Rota de ' + new Date().toLocaleDateString('pt-BR'), doDia);
+  });
+
   $('rotaAddBtn').addEventListener('click', function () {
     document.querySelector('.tab[data-tab="nova"]').click();
     document.querySelector('#modeToggle .mode-btn[data-mode="rota"]').click();
@@ -10452,8 +10461,13 @@
         '<dt>Localização</dt><dd>' + geoLink + '</dd>' +
       '</dl>' +
       '<button type="button" class="btn-chip accent" id="compartilharComprovanteBtn"><i class="ph ph-whatsapp-logo" aria-hidden="true"></i> Enviar comprovante</button> ' +
+      '<button type="button" class="btn-chip" id="imprimirComprovanteBtn"><i class="ph ph-printer" aria-hidden="true"></i> Imprimir</button> ' +
       (podeExcluir(entrega) ? '<button type="button" class="btn-chip danger" id="excluirEntregaBtn"><i class="ph ph-trash" aria-hidden="true"></i> Excluir entrega</button>' : '');
     $('modalClose').addEventListener('click', function () { renderHistoricoList(cliente, historico); });
+
+    $('imprimirComprovanteBtn').addEventListener('click', function () {
+      abrirProtocoloDeEntregas_(clienteLabel(cliente), [entrega]);
+    });
 
     $('compartilharComprovanteBtn').addEventListener('click', function () {
       var itensTxt = entrega.itens.map(function (i) {
@@ -14699,6 +14713,100 @@
         '</body></html>';
       aba.document.open(); aba.document.write(html); aba.document.close();
       registrarAuditoria_('protocolo_emitido', clienteLabel(cliente) + ' · ' + fmtCompetencia(comp));
+    }).catch(function (err) {
+      aba.close();
+      showToast(errMsg(err, 'Não foi possível montar o protocolo.'), 'error');
+    });
+  }
+
+  // ---------- protocolo de um punhado de entregas (pra imprimir) ----------
+  // O protocolo do mês é de um cliente só, e só se chega nele pela ficha.
+  // Este aqui é o papel de QUALQUER conjunto: uma entrega, uma parada com
+  // várias empresas assinadas juntas, ou o dia inteiro. Sai sem QR e sem
+  // código de conferência de propósito: é o papel que vai pro arquivo
+  // físico do escritório, e tem que imprimir sem depender de internet.
+  function abrirProtocoloDeEntregas_(titulo, entregas) {
+    var lista = (entregas || []).filter(Boolean);
+    if (!lista.length) { showToast('Não há entregas para imprimir.', 'error'); return; }
+    var aba = window.open('', '_blank');
+    if (!aba) { showToast('O navegador bloqueou a nova aba. Permita pop-ups para este site.', 'error'); return; }
+    aba.document.write('<!doctype html><meta charset="utf-8"><title>Protocolo</title><body style="font:14px system-ui;padding:24px">Preparando o protocolo...</body>');
+    var ordenadas = lista.slice().sort(function (a, b) {
+      return String(a.confirmadoEm || a.criadoEm).localeCompare(String(b.confirmadoEm || b.criadoEm));
+    });
+    Promise.all(ordenadas.map(function (e) {
+      if (!e.temAssinatura) return Promise.resolve(null);
+      return getAnexos(e.id).then(function (a) { return (a && a.assinatura) || null; }).catch(function () { return null; });
+    })).then(function (assinaturas) {
+      var h = function (t) { return escapeHtml_(t == null ? '' : String(t)); };
+      // Parada assinada de uma vez: a MESMA assinatura vale por várias linhas.
+      // Repetir a imagem em cada linha daria a entender que foram várias
+      // assinaturas diferentes, então ela sai uma vez só, no pé, dizendo
+      // por quantas empresas responde.
+      var colhidas = assinaturas.filter(Boolean);
+      var assinaturaUnica = (colhidas.length > 1 && colhidas.every(function (a) { return a === colhidas[0]; })) ? colhidas[0] : null;
+      var total = 0;
+      var linhas = ordenadas.map(function (e, i) {
+        var itens = (e.itens || []).map(function (it) {
+          var tipo = typeof it === 'string' ? it : it.tipo;
+          var valor = (it && it.valor != null) ? it.valor : null;
+          if (valor) total += valor;
+          return h(tipo) + (valor != null ? ' <span class="v">' + h(fmtMoney(valor)) + '</span>' : '');
+        }).join('<br>') || 'documentos';
+        var entregue = e.status === 'confirmada';
+        var situacao = entregue ? (e.recebidoPeloLink ? 'Recebido pelo link' : 'Entregue')
+          : (e.status === 'falha' ? 'Não entregue' : (e.status === 'link' ? 'No link, aguardando' : 'Na rota'));
+        var assinaturaDaLinha = assinaturaUnica ? '' :
+          (assinaturas[i] ? '<img src="' + h(assinaturas[i]) + '" alt="assinatura">'
+            : (e.recebidoPeloLink ? '<span class="m">confirmado pelo link</span>'
+              : (e.temFoto ? '<span class="m">comprovado por foto</span>'
+                : (entregue ? '' : '<span class="linha"></span>'))));
+        return '<tr><td class="n">' + (i + 1) + '</td>' +
+          '<td><b>' + h(e.clienteNome || 'sem nome') + '</b>' +
+            (e.competencia ? '<div class="m">competência ' + h(fmtCompetencia(e.competencia)) + '</div>' : '') + '</td>' +
+          '<td>' + itens + (e.vencimento ? '<div class="m">vence ' + h(e.vencimento.split('-').reverse().join('/')) + '</div>' : '') + '</td>' +
+          '<td><b>' + situacao + '</b><div class="m">' + h(fmtDateTime(e.confirmadoEm || e.criadoEm)) + '</div>' +
+            (entregue && e.recebedor ? '<div class="m">recebido por ' + h(e.recebedor) + '</div>' : '') + '</td>' +
+          '<td class="a">' + assinaturaDaLinha + '</td></tr>';
+      }).join('');
+      var entregues = ordenadas.filter(function (e) { return e.status === 'confirmada'; }).length;
+      var quemRecebeu = ordenadas.map(function (e) { return e.recebedor; }).filter(Boolean)[0] || '';
+      var quemEntregou = ordenadas.map(function (e) { return e.entregadoPorNome; }).filter(Boolean)[0] || currentUserNome || '';
+      var quando = ordenadas.map(function (e) { return e.confirmadoEm; }).filter(Boolean)[0] || '';
+      var html = '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Protocolo - ' + h(titulo) + '</title><style>' +
+        '@page{size:A4;margin:16mm}*{box-sizing:border-box}body{font:12px/1.45 -apple-system,"Segoe UI",Inter,Arial,sans-serif;color:#111;margin:0 auto;padding:24px;max-width:900px}' +
+        'h1{font-size:18px;margin:0 0 2px}header{display:flex;justify-content:space-between;gap:24px;border-bottom:2px solid #111;padding-bottom:10px;margin-bottom:14px}' +
+        '.m{color:#555;font-size:11px}.v{color:#555}table{width:100%;border-collapse:collapse}' +
+        'th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#555;border-bottom:1px solid #999;padding:6px 8px}' +
+        'td{vertical-align:top;padding:8px;border-bottom:1px solid #ddd}tr{break-inside:avoid}' +
+        'td.n{color:#777;width:24px}td.a{width:160px}td.a img{width:150px;border:1px solid #ccc;display:block}' +
+        '.linha{display:block;border-bottom:1px solid #111;height:24px}' +
+        '.assina{margin-top:20px;border:1px solid #bbb;padding:14px;display:flex;gap:20px;align-items:flex-start;break-inside:avoid}' +
+        '.assina img{width:260px;border:1px solid #ccc;display:block}.assina .quem{flex:1}' +
+        'footer{margin-top:16px;display:flex;justify-content:space-between;gap:24px;font-size:11px;color:#555;border-top:1px solid #ddd;padding-top:10px}' +
+        '.barra{margin:0 0 14px}.barra button{font:inherit;padding:8px 14px;cursor:pointer}' +
+        '@media print{.barra{display:none}body{padding:0}}</style></head><body>' +
+        '<div class="barra"><button onclick="window.print()">Imprimir ou salvar em PDF</button></div>' +
+        '<header><div><h1>Protocolo de entrega de documentos</h1><div class="m">Nilma Contabilidade</div></div>' +
+        '<div style="text-align:right"><b>' + h(titulo) + '</b>' +
+          (quemEntregou ? '<div class="m">Entregue por: ' + h(quemEntregou) + '</div>' : '') +
+          '<div class="m">' + h(fmtDateTime(quando || new Date().toISOString())) + '</div></div></header>' +
+        '<table><thead><tr><th></th><th>Empresa</th><th>Documentos</th><th>Situação</th><th>' +
+          (assinaturaUnica ? '' : 'Assinatura') + '</th></tr></thead><tbody>' + linhas + '</tbody></table>' +
+        (assinaturaUnica
+          ? '<div class="assina"><img src="' + h(assinaturaUnica) + '" alt="Assinatura de recebimento">' +
+            '<div class="quem"><b>Recebimento</b><div class="m">As ' + ordenadas.length +
+            ' entregas acima foram entregues juntas e assinadas de uma vez' + (quando ? ', em ' + h(fmtDateTime(quando)) : '') + '.</div>' +
+            (quemRecebeu ? '<div style="margin-top:12px">Recebido por: <b>' + h(quemRecebeu) + '</b></div>'
+              : '<div class="m" style="margin-top:10px">Nome de quem recebeu</div><span class="linha"></span>') +
+            '</div></div>'
+          : '') +
+        '<footer><div>' + ordenadas.length + ' registro(s), ' + entregues + ' entregue(s)' +
+          (total ? ' · total das guias ' + h(fmtMoney(total)) : '') + '</div>' +
+        '<div>Emitido em ' + h(fmtDateTime(new Date().toISOString())) + ' por ' + h(currentUserNome || '') + '</div></footer>' +
+        '</body></html>';
+      aba.document.open(); aba.document.write(html); aba.document.close();
+      registrarAuditoria_('protocolo_emitido', titulo + ' · ' + ordenadas.length + ' entrega(s)');
     }).catch(function (err) {
       aba.close();
       showToast(errMsg(err, 'Não foi possível montar o protocolo.'), 'error');
