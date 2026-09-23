@@ -416,8 +416,6 @@
   }
   .situacao-linha:has(#situacaoLinha:empty):has(#resultado:empty) { display: none; }
   .situacao-linha #situacaoLinha:empty + .resultado::before { content: none; }
-  .filtros-situacao { margin-top: var(--esp-3); }
-  .filtros-situacao { margin-bottom: var(--esp-3); }
   .filtros-situacao .chip b { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink-faint); }
   .filtros-situacao .chip[aria-pressed="true"] b { color: inherit; }
 
@@ -1196,6 +1194,46 @@
   .hoje-grade { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 var(--esp-5); align-items: start; }
   @media (min-width: 1100px) { .hoje-grade { grid-template-columns: minmax(0, 1fr) 340px; } }
   @media (max-width: 560px) { .caixa-p .tab-simples tr { padding-left: var(--esp-3); padding-right: var(--esp-3); } }
+
+  /* Clientes no formato das Issues do GitHub: filtros colados na busca e a
+     lista numa caixa com as situações no cabeçalho. */
+  #viewLista .pagina-topo { margin-bottom: 0; border-bottom: 0; }
+  .lista-barra { border-bottom: 0; padding: var(--esp-2) 0 var(--esp-3); }
+  .busca-junta { display: flex; flex: 1 1 320px; min-width: 220px; }
+  .busca-junta #filtrosBtn { border-top-right-radius: 0; border-bottom-right-radius: 0; flex: none; height: auto; }
+  .busca-junta #filtrosBtn .seta { font-size: 12px; color: var(--ink-faint); }
+  .busca-junta .busca-wrap .input { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: -1px; }
+  .lista-barra .toolbar-grupo.direita { flex-wrap: wrap; }
+  #viewLista .filtros-painel { margin-bottom: var(--esp-3); }
+  #viewLista .filtros-painel .filtros-doc { padding: 0; margin: 0; }
+  #viewLista .situacao-linha { margin: 0 0 var(--esp-2); }
+  .lista-caixa { margin-bottom: var(--esp-5); }
+  .lista-cab { justify-content: space-between; }
+  .estados { display: flex; align-items: center; gap: var(--esp-1); flex-wrap: wrap; margin: 0; padding: 0; }
+  .estados .chip {
+    height: 32px; border: 0; background: none; border-radius: var(--r-sm);
+    padding: 0 var(--esp-2); color: var(--ink-soft); font-weight: 500;
+  }
+  .estados .chip:hover { background: var(--surface); color: var(--ink); }
+  .estados .chip[aria-pressed="true"] { background: none; color: var(--ink); font-weight: 600; }
+  .estados .chip b {
+    min-width: 20px; padding: 0 6px; margin-left: 2px; border-radius: 2em; line-height: 18px; text-align: center;
+    background: color-mix(in srgb, var(--ink) 8%, transparent); color: var(--ink-soft); font-size: var(--t-xs);
+  }
+  .estados .chip b:empty { display: none; }
+  .ordem-cab { display: flex; align-items: center; gap: 6px; font-size: var(--t-sm); color: var(--ink-soft); }
+  .ordem-cab .select-ordem { height: 32px; min-width: 0; width: auto; max-width: 220px; }
+  .lista-caixa .tabela { border-top: 0; }
+  .lista-caixa .tabela-cab { display: none !important; }
+  .lista-caixa #lista > .linha-cliente:last-child, .lista-caixa .skel-linha:last-child { border-bottom: 0; }
+  .lista-caixa .linha-cliente:hover { background: var(--surface-3); }
+  .lista-caixa .cartoes { padding: var(--esp-3); }
+  .lista-caixa .vazio { padding: 40px 16px; }
+  @media (max-width: 700px) {
+    .lista-barra .toolbar-grupo.direita { margin-left: 0; width: 100%; }
+    .lista-barra #cobrarLote { margin-left: auto; }
+    .ordem-cab > span { display: none; }
+  }
 </style>
 </head>
 <body>
@@ -1243,7 +1281,11 @@
 
     <!-- ================= TELA 1: CLIENTES ================= -->
     <div id="viewLista">
-      <div class="toolbar">
+      <!-- Lista no formato das Issues do GitHub: título e mês em cima; busca
+           com o botão de filtros colado; a lista numa caixa cujo cabeçalho
+           traz as situações (com contagem) e a ordem. -->
+      <div class="pagina-topo">
+        <div><h1>Clientes</h1></div>
         <div class="toolbar-grupo">
           <div class="mes-nav">
             <button type="button" id="mesAnterior" aria-label="Mês anterior"><i class="ph ph-caret-left" aria-hidden="true"></i></button>
@@ -1253,24 +1295,24 @@
           <button type="button" class="btn-hoje" id="btnHoje" hidden>mês atual</button>
           <span class="badge quieto" id="prazoBadge" hidden></span>
         </div>
-        <div class="toolbar-grupo cresce">
+      </div>
+
+      <div class="toolbar lista-barra">
+        <div class="busca-junta">
+          <button type="button" class="btn btn-secondary" id="filtrosBtn" aria-expanded="false" aria-controls="filtrosPainel">
+            <i class="ph ph-funnel" aria-hidden="true"></i> Filtros <span class="cont" id="filtrosAtivos"></span> <i class="ph ph-caret-down seta" aria-hidden="true"></i>
+          </button>
           <div class="busca-wrap">
             <i class="ph ph-magnifying-glass" aria-hidden="true"></i>
             <input class="input" id="busca" type="search" placeholder="Buscar cliente" aria-label="Buscar cliente">
             <button type="button" class="busca-limpar" id="buscaLimpar" aria-label="Limpar busca" hidden><i class="ph ph-x" aria-hidden="true"></i></button>
           </div>
         </div>
-        <!-- A ação forte estava escondida atrás de um menu chamado "Ações".
-             Agora ela é o botão da barra; o que é de papelada desce pro menu. -->
         <div class="toolbar-grupo direita">
-          <button type="button" class="btn btn-secondary" id="filtrosBtn" aria-expanded="false" aria-controls="filtrosPainel">
-            <i class="ph ph-funnel" aria-hidden="true"></i> Filtros <span class="cont" id="filtrosAtivos"></span>
-          </button>
           <div class="visao" role="group" aria-label="Formato da lista">
             <button type="button" class="visao-btn" id="visaoLista" aria-pressed="true" title="Ver em lista"><i class="ph ph-list" aria-hidden="true"></i></button>
             <button type="button" class="visao-btn" id="visaoCartoes" aria-pressed="false" title="Ver em cartões"><i class="ph ph-squares-four" aria-hidden="true"></i></button>
           </div>
-          <button type="button" class="btn btn-primary" id="cobrarLote"><i class="ph ph-paper-plane-tilt" aria-hidden="true"></i> <span id="cobrarLoteRotulo">Cobrar os visíveis</span></button>
           <details class="mais" id="acoesLista">
             <summary class="btn btn-secondary" title="Exportar e imprimir" aria-label="Mais ações"><i class="ph ph-dots-three-outline" aria-hidden="true"></i></summary>
             <div class="mais-lista">
@@ -1279,35 +1321,12 @@
               <button type="button" class="btn" id="btnImprimir"><i class="ph ph-printer" aria-hidden="true"></i> Imprimir lista</button>
             </div>
           </details>
+          <button type="button" class="btn btn-primary" id="cobrarLote"><i class="ph ph-paper-plane-tilt" aria-hidden="true"></i> <span id="cobrarLoteRotulo">Cobrar os visíveis</span></button>
         </div>
       </div>
 
-      <!-- Isto é filtro, não painel: os números grandes só repetiam o que
-           o menu lateral já contava, e o formato de KPI convidava a ler em
-           vez de clicar. -->
-      <p class="situacao-linha" aria-live="polite"><span id="situacaoLinha"></span><span class="resultado" id="resultado"></span></p>
-      <div class="filtros-doc filtros-situacao" role="group" aria-label="Filtrar por situação">
-        <button type="button" class="chip" id="filtroTodos" data-filtro="todos" aria-pressed="true"><i class="ph ph-users" aria-hidden="true"></i>Todos <b id="numTodos"></b></button>
-        <button type="button" class="chip" id="filtroPendentes" data-filtro="pendentes" aria-pressed="false"><i class="ph ph-warning-circle" aria-hidden="true"></i>Com pendência <b id="numPendentes"></b></button>
-        <button type="button" class="chip" id="filtroCompletos" data-filtro="completos" aria-pressed="false"><i class="ph ph-check-circle" aria-hidden="true"></i>Completos <b id="numCompletos"></b></button>
-        <button type="button" class="chip" id="filtroSemEmail" data-filtro="semEmail" aria-pressed="false"><i class="ph ph-envelope-simple" aria-hidden="true"></i>Sem e-mail <b id="numSemEmail"></b></button>
-      </div>
-
       <div class="col-trabalho">
-          <!-- Painel de filtros: o que não se toca todo dia. Abre pelo botão
-               da barra, que conta quantos estão ligados. -->
           <div class="filtros-painel" id="filtrosPainel" hidden>
-            <div class="filtros-doc" role="group" aria-label="Ordem da lista">
-              <label class="rotulo" for="ordem">Ordem:</label>
-              <select class="select select-ordem" id="ordem" style="height:32px">
-                <option value="nome">Nome (A a Z)</option>
-                <option value="pendencias">Mais pendências primeiro</option>
-                <option value="atualizado">Atualizados por último</option>
-                <option value="cidade">Cidade</option>
-                <option value="atraso">Mais meses seguidos com pendência</option>
-                <option value="costume">Fora do costume primeiro</option>
-              </select>
-            </div>
           <div class="filtros-doc" role="group" aria-label="Filtrar por documento em falta">
             <span class="rotulo">Falta:</span>
             <button type="button" class="chip" data-tipo="extrato" aria-pressed="false"><i class="ph ph-bank" aria-hidden="true"></i>Extrato</button>
@@ -1320,6 +1339,27 @@
             <button type="button" class="chip" id="limparFiltros" hidden><i class="ph ph-x" aria-hidden="true"></i>Limpar filtros</button>
           </div>
           </div>
+          <p class="situacao-linha" aria-live="polite"><span id="situacaoLinha"></span><span class="resultado" id="resultado"></span></p>
+
+          <section class="caixa-p lista-caixa">
+            <div class="caixa-cab lista-cab">
+              <div class="estados filtros-situacao" role="group" aria-label="Filtrar por situação">
+        <button type="button" class="chip" id="filtroTodos" data-filtro="todos" aria-pressed="true"><i class="ph ph-users" aria-hidden="true"></i>Todos <b id="numTodos"></b></button>
+        <button type="button" class="chip" id="filtroPendentes" data-filtro="pendentes" aria-pressed="false"><i class="ph ph-warning-circle" aria-hidden="true"></i>Com pendência <b id="numPendentes"></b></button>
+        <button type="button" class="chip" id="filtroCompletos" data-filtro="completos" aria-pressed="false"><i class="ph ph-check-circle" aria-hidden="true"></i>Completos <b id="numCompletos"></b></button>
+        <button type="button" class="chip" id="filtroSemEmail" data-filtro="semEmail" aria-pressed="false"><i class="ph ph-envelope-simple" aria-hidden="true"></i>Sem e-mail <b id="numSemEmail"></b></button>
+              </div>
+              <label class="ordem-cab"><span>Ordem</span>
+              <select class="select select-ordem" id="ordem" >
+                <option value="nome">Nome (A a Z)</option>
+                <option value="pendencias">Mais pendências primeiro</option>
+                <option value="atualizado">Atualizados por último</option>
+                <option value="cidade">Cidade</option>
+                <option value="atraso">Mais meses seguidos com pendência</option>
+                <option value="costume">Fora do costume primeiro</option>
+              </select>
+              </label>
+            </div>
 
           <div id="skeleton" aria-hidden="true">
             <div class="skel-linha"><span class="skel" style="width:34%"></span><span class="skel" style="width:16%;margin-left:auto"></span><span class="skel" style="width:100px"></span></div>
@@ -1346,6 +1386,7 @@
           </div>
           <div id="painelCartoes" class="cartoes" hidden></div>
           <div id="listaAviso" class="vazio" hidden></div>
+          </section>
       </div>
     </div>
 
