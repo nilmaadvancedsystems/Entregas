@@ -251,6 +251,7 @@
   body.com-menu main > h1 { display: none; }
   body.com-menu .estado:empty { display: none; }
   /* uma seção por vez: a aba ativa mora no <body> */
+  body[data-aba="rota"] [data-aba]:not([data-aba="rota"]),
   body[data-aba="pagar"] [data-aba]:not([data-aba="pagar"]),
   body[data-aba="docs"] [data-aba]:not([data-aba="docs"]),
   body[data-aba="guias"] [data-aba]:not([data-aba="guias"]),
@@ -290,6 +291,18 @@
   #aPagar .guia:first-child { padding-top: 0; }
   footer { border-top: 1px solid var(--border); padding-top: 16px; }
 
+  /* entrega de hoje: quantas empresas faltam até a sua */
+  .rota-pos { text-align: center; padding: 8px 0 16px; }
+  .rota-num { font-size: 3.25rem; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+  .rota-pos.proxima .rota-num, .rota-pos.feita .rota-num { color: var(--ok); }
+  .rota-texto { color: var(--ink-soft); margin-top: 6px; }
+  .rota-estimativa { display: inline-block; margin-top: 10px; padding: 2px 10px; border-radius: 2em; background: var(--surface-2); font-size: .875rem; color: var(--ink-soft); }
+  .rota-antes { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--border); }
+  .rota-antes li { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: .9375rem; }
+  .rota-antes li span:first-child { flex: none; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-2); font-size: .75rem; font-weight: 600; color: var(--ink-soft); }
+  .rota-atualizado { display: flex; align-items: center; gap: 6px; margin-top: 12px; font-size: .8125rem; color: var(--ink-faint); }
+  .rota-atualizado::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--ok); }
+
   @media (min-width: 760px) {
     main { max-width: 880px; padding: 28px 24px 0; }
     .barra { padding-left: 24px; padding-right: 24px; }
@@ -310,6 +323,7 @@
 </header>
 <nav class="lado" id="lado" aria-label="Seções" hidden>
   <div class="lado-lista">
+    <button type="button" class="lado-item" data-ir="rota"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7"/><circle cx="7" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/></svg><span class="lado-rot">Entrega de hoje</span><span class="lado-num" data-num="rota"></span></button>
     <button type="button" class="lado-item" data-ir="pagar"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h4"/></svg><span class="lado-rot">Para pagar</span><span class="lado-num" data-num="pagar"></span></button>
     <button type="button" class="lado-item" data-ir="docs"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M8 8l4-4 4 4M5 14v5h14v-5"/></svg><span class="lado-rot">Documentos</span><span class="lado-num" data-num="docs"></span></button>
     <button type="button" class="lado-item" data-ir="guias"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/></svg><span class="lado-rot">Guias</span><span class="lado-num" data-num="guias"></span></button>
@@ -322,6 +336,13 @@
   <h1 id="quem">Abrindo…</h1>
   <p class="estado" id="estado" role="status" aria-live="polite">Buscando suas guias.</p>
   <div id="conteudo" hidden>
+    <!-- Acompanhar a entrega: aparece enquanto há entrega deste cliente na
+         rota do escritório (rotaLinks/{token}, mantido pelo app da equipe). -->
+    <section id="secRota" data-aba="rota" hidden aria-labelledby="tRota">
+      <h2 id="tRota">Entrega de hoje</h2>
+      <div class="bloco" id="rotaBloco" aria-live="polite"></div>
+    </section>
+
     <section id="secAPagar" data-aba="pagar" hidden aria-labelledby="tAPagar">
       <h2 id="tAPagar">Para pagar</h2>
       <div class="bloco" id="aPagar"></div>
@@ -500,6 +521,7 @@ async function carregar() {
     dados = snap.data();
     desenhar();
     registrar('abriu');
+    carregarRota();
   } catch (err) {
     // Sem internet ou servidor ocupado NÃO é "link morto": dizer isso faria o
     // cliente ligar pro escritório à toa. Tenta de novo sozinho.
@@ -930,6 +952,53 @@ async function copiarPix(codigo) {
 // situação do mês e o PIX pra quem quiser pagar na hora.
 // Quem recebe um link pedindo pagamento precisa ver de quem ele é e ter
 // como perguntar. Sem isso a página parece golpe, por mais certa que esteja.
+// ---------- entrega de hoje ----------
+// Lê rotaLinks/{token}: a mesma projeção pública do link de rota (quantas
+// paradas faltam e o código de quem está na frente), que o app da equipe
+// mantém enquanto há entrega deste cliente na fila. Sem ouvinte ao vivo
+// (Firestore Lite): relê a cada minuto com a página aberta.
+let rotaPrimeira = true;
+const minutosPorExtenso = m => m < 60 ? m + ' min' : Math.floor(m / 60) + 'h' + (m % 60 ? String(m % 60).padStart(2, '0') : '');
+async function carregarRota() {
+  if (!token) return;
+  let d = null;
+  try {
+    const snap = await getDoc(doc(db, 'rotaLinks', token));
+    d = snap.exists() ? snap.data() : null;
+  } catch (e) { return; }
+  const sec = $('secRota');
+  const valido = d && (!d.expiraEm || new Date(d.expiraEm) > new Date());
+  const feitaHoje = valido && d.concluida && d.atualizadoEm && new Date(d.atualizadoEm).toDateString() === new Date().toDateString();
+  const mostrar = !!(valido && (!d.concluida || feitaHoje));
+  const antes = sec.hidden;
+  sec.hidden = !mostrar;
+  if (mostrar) {
+    let h;
+    if (d.concluida) {
+      h = '<div class="rota-pos feita"><div class="rota-num">' + ICO.certo.replace('<svg', '<svg style="width:48px;height:48px"') + '</div>' +
+        '<div class="rota-texto">Entrega concluída. Obrigado!</div></div>';
+    } else {
+      const fila = Array.isArray(d.paradasAntes) ? d.paradasAntes : [];
+      const n = fila.length;
+      h = '<div class="rota-pos' + (n === 0 ? ' proxima' : '') + '"><div class="rota-num">' + n + '</div>' +
+        '<div class="rota-texto">' + (n === 0 ? 'Você é a próxima entrega!' : (n === 1 ? 'empresa na frente da sua' : 'empresas na frente da sua')) + '</div>' +
+        (typeof d.estimativaMinutos === 'number'
+          ? '<div class="rota-estimativa">' + (d.estimativaMinutos <= 1 ? 'Chegando em poucos minutos' : '~' + minutosPorExtenso(d.estimativaMinutos) + ' de espera') + '</div>' : '') +
+        '</div>';
+      if (n) h += '<ol class="rota-antes">' + fila.map((c, i) => '<li><span>' + (i + 1) + '</span><span>' + esc(c) + '</span></li>').join('') + '</ol>';
+      if (d.atualizadoEm) h += '<p class="rota-atualizado">Atualizado às ' + new Date(d.atualizadoEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + '</p>';
+    }
+    $('rotaBloco').innerHTML = h;
+  }
+  if (antes !== sec.hidden) {
+    atualizarMenuLateral();
+    // na primeira leitura, a entrega de hoje é o que o cliente veio ver
+    if (mostrar && rotaPrimeira && !d.concluida) irParaAba('rota');
+  }
+  rotaPrimeira = false;
+}
+setInterval(() => { if (document.visibilityState === 'visible' && dados) carregarRota(); }, 60000);
+
 // ---------- abas ----------
 // A aba ativa mora num atributo do <body>; quem esconde as outras seções é o
 // CSS, em qualquer largura.
@@ -965,7 +1034,7 @@ function atualizarMenuLateral() {
   // abre no que pede ação: o que há pra pagar, senão o que falta mandar
   const atual = document.body.dataset.aba;
   if (!atual || !abaTemConteudo(atual)) {
-    irParaAba(['pagar', 'docs', 'guias', 'duvidas'].find(abaTemConteudo) || 'guias');
+    irParaAba(['rota', 'pagar', 'docs', 'guias', 'duvidas'].find(abaTemConteudo) || 'guias');
   }
 }
 document.addEventListener('click', ev => {

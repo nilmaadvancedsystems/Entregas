@@ -6647,6 +6647,7 @@
     if (!db) return;
     unsubPendentes = db.collection('entregas').where('status', '==', 'pendente').limit(500).onSnapshot(function (snap) {
       pendentesCache = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+      pendentesCarregados_ = true;
       conferirClientesQueFaltam_();
       renderRota();
       renderClientesList();
@@ -6665,18 +6666,80 @@
   // aberta, recalculando e gravando de novo a cada mudança na fila.
   var rotaLinksCache = [];
   var unsubRotaLinks = null;
+  // Sem a fila carregada, "não está na fila" vira "entrega concluída" pra
+  // todo link aberto: nada é recalculado antes da primeira leitura.
+  var pendentesCarregados_ = false;
+  var rotaLinksCarregados_ = false;
   function subscribeRotaLinks_() {
     if (!db) return;
     if (unsubRotaLinks) unsubRotaLinks();
     unsubRotaLinks = db.collection('rotaLinks').where('expiraEm', '>', new Date().toISOString()).limit(200)
       .onSnapshot(function (snap) {
         rotaLinksCache = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+        rotaLinksCarregados_ = true;
         sincronizarRotaLinks_();
       }, function () {});
   }
 
+  // ---------- a rota no painel do cliente (cliente.html) ----------
+  // Quem tem link do portal não precisa de um link de rota à parte: enquanto
+  // houver entrega dele na fila, o app mantém rotaLinks/{token do portal}
+  // (a mesma projeção pública do link de rota: só quantas paradas faltam e
+  // o código de quem está na frente) e o portal mostra a aba "Entrega de
+  // hoje". O token é o do portal: quem abre o portal já é o dono dele.
+  var DIAS_ROTA_PORTAL = 7;
+  var rotaPortalEmAndamento_ = {};
+  function garantirRotaDoPortal_(token, chave, zona, nome) {
+    if (!db || !token) return Promise.resolve();
+    var link = rotaLinksCache.filter(function (l) { return l.id === token; })[0];
+    var limite = new Date(Date.now() + 24 * 3600000).toISOString();
+    var serve = link && link.clienteChave === chave && (link.zona || null) === (zona || null) && String(link.expiraEm) > limite;
+    if (serve) {
+      // voltou pra fila depois de concluída: reabre a mesma projeção
+      if (link.concluida) {
+        link.concluida = false;
+        return db.collection('rotaLinks').doc(token).update({ concluida: false, paradasAntes: [], atualizadoEm: new Date().toISOString() }).catch(function () {});
+      }
+      return Promise.resolve();
+    }
+    if (rotaPortalEmAndamento_[token]) return rotaPortalEmAndamento_[token];
+    // nome, zona e validade são fixos depois de criado (firestore.rules):
+    // mudou algum deles, apaga e cria de novo
+    var ref = db.collection('rotaLinks').doc(token);
+    var agora = new Date().toISOString();
+    rotaPortalEmAndamento_[token] = ref.delete().catch(function () {}).then(function () {
+      return ref.set({
+        clienteChave: chave,
+        clienteNomeParada: nome || '',
+        zona: zona || null,
+        portal: true,
+        criadoPor: (auth.currentUser && auth.currentUser.email) || '',
+        criadoPorNome: currentUserNome || '',
+        criadoEm: agora,
+        expiraEm: new Date(Date.now() + DIAS_ROTA_PORTAL * 86400000).toISOString(),
+        paradasAntes: [],
+        concluida: false,
+        estimativaMinutos: null,
+        atualizadoEm: agora
+      });
+    }).catch(function () {}).then(function () { delete rotaPortalEmAndamento_[token]; });
+    return rotaPortalEmAndamento_[token];
+  }
+  function sincronizarRotaNosPortais_() {
+    if (!db || !pendentesCarregados_ || !rotaLinksCarregados_ || !clientesCache.size) return;
+    var vistos = {};
+    ordenarPendentes_(pendentesCache.slice()).forEach(function (e) {
+      donosDoLinkDe_(e.clienteId).forEach(function (dono) {
+        if (!dono.portalToken || vistos[dono.portalToken]) return;
+        vistos[dono.portalToken] = true;
+        garantirRotaDoPortal_(dono.portalToken, chaveDaParada_(e), e.zona || null, dono.nomeFantasia || dono.nome || '');
+      });
+    });
+  }
+
   function sincronizarRotaLinks_() {
-    if (!db || !rotaLinksCache.length) return;
+    sincronizarRotaNosPortais_();
+    if (!db || !pendentesCarregados_ || !rotaLinksCache.length) return;
     var agora = new Date().toISOString();
     // ritmo medido nas entregas confirmadas de verdade (minutos entre uma
     // parada e outra da mesma pessoa, no mesmo dia) — mesma conta que já
@@ -11149,8 +11212,11 @@
   var HORAS_ROTA_LINK = 24;
 
   function abrirEnviarRotaCliente_(entrega, chaveParada, nomeParada) {
-    var token = gerarTokenAssinatura_();
-    var link = location.href.split(/[?#]/)[0] + '?rota=' + token;
+    // Cliente com painel (cliente.html): a posição já aparece lá, na aba
+    // "Entrega de hoje". Vai o link do painel, não um link de rota à parte.
+    var dono = donosDoLinkDe_(entrega.clienteId).filter(function (c) { return c.portalToken; })[0];
+    var token = dono ? dono.portalToken : gerarTokenAssinatura_();
+    var link = dono ? linkDoPortal_(dono.portalToken) : location.href.split(/[?#]/)[0] + '?rota=' + token;
 
     var root = $('modalRoot');
     root.innerHTML =
@@ -11164,14 +11230,14 @@
           '<button type="button" class="btn-chip" id="rotaLinkCopiarBtn"><i class="ph ph-copy" aria-hidden="true"></i> Copiar link</button>' +
           '<button type="button" class="btn-chip" id="rotaLinkWhatsBtn"><i class="ph ph-whatsapp-logo" aria-hidden="true"></i> Mandar no WhatsApp</button>' +
         '</div>' +
-        '<p class="card-hint">O cliente só vê quantas empresas faltam até a dele e os nomes de quem está na frente — nada de documento, valor ou data, e não dá pra mexer em nada. Vale 24h.</p>' +
+        '<p class="card-hint">' + (dono ? 'Abre o painel do cliente, na aba "Entrega de hoje".' : 'Vale 24h.') + '</p>' +
       '</div></div>';
 
     function fechar() { closeModal(); }
     $('rotaLinkVoltar').addEventListener('click', fechar);
     $('overlayRotaLink').addEventListener('click', function (e) { if (e.target.id === 'overlayRotaLink') fechar(); });
 
-    db.collection('rotaLinks').doc(token).set({
+    var preparar = dono ? garantirRotaDoPortal_(token, chaveParada, entrega.zona || null, dono.nomeFantasia || dono.nome || nomeParada) : db.collection('rotaLinks').doc(token).set({
       clienteChave: chaveParada,
       clienteNomeParada: nomeParada,
       zona: entrega.zona || null,
@@ -11183,7 +11249,8 @@
       concluida: false,
       estimativaMinutos: null,
       atualizadoEm: new Date().toISOString()
-    }).then(function () {
+    });
+    preparar.then(function () {
       $('rotaLinkStatus').textContent = 'Link pronto — atualiza sozinho conforme a rota andar.';
       if (typeof QRCode !== 'undefined') {
         new QRCode($('rotaLinkQr'), { text: link, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.M });
@@ -13425,6 +13492,8 @@
     currentUserNome = '';
     clientesCache = new Map();
     pendentesCache = [];
+    pendentesCarregados_ = false;
+    rotaLinksCarregados_ = false;
     clientesCompletos_ = false;
     esperandoTodosOsClientes_ = [];
     // memórias novas: a consulta rápida guardava documentos de cobrança (que só

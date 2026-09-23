@@ -324,3 +324,20 @@ node scripts/teste-pendencias.js && node scripts/teste-robo.js   # (teste-robo p
   - As frases explicativas das telas saíram. O aviso das variáveis do histórico ficou em uma linha.
 - **conciliador.html e cheque-especial.html:** com `?embutido=1`, que o Entregas passa no `data-src` dos iframes, somem a marca, o "Trocar de função" e a Aparência da barra própria. Assim não ficam duas barras. Abertos soltos, continuam como antes.
 - **Iframes do Contábil:** a altura passou a descontar a barra de cima.
+
+### Padronização final: Conta, IA, menu + submenu e rota no portal
+- **Conta e "Perguntar à IA" em todos os apps.** O `nilma-extras.js`, novo, leva ao Pendências e ao Fiscal:
+  - a janela de Conta (foto de perfil e troca de senha, gravadas no mesmo lugar que o Entregas usa);
+  - o painel Perguntar à IA, ancorado na caixa da barra de cima. Ele usa `conversasIA`, o mesmo caminho do Entregas, e é respondido pelo atendente do PC do escritório.
+  - O Pendências tem ainda a resposta rápida local: quem deve documento e a situação de um cliente.
+  - O Contábil roda dentro do Entregas e já tem os dois.
+- **Menu + submenu padrão.** O submenu é a barrinha de categorias do Entregas (`.mode-toggle.clientes-subnav`) e agora sai no `nilma-ui.css`, junto com o painel `.cq-*`.
+  - **Pendências:** a ficha do cliente, as Configurações (o menu vertical estilo Settings saiu) e o Robô (Caixa de entrada · Marcados · Histórico) usam esse submenu.
+  - **Fiscal:** o menu ficou Importar e conferir · Classificação · Configuração geral. Classificação tem o submenu Plano de contas · NCM e categorias · Tabelas de apoio.
+- **Rota de entrega no painel do cliente.**
+  - **No Entregas:** enquanto houver entrega do cliente na fila, o app mantém `rotaLinks/{token do portal}` (`garantirRotaDoPortal_` e `sincronizarRotaNosPortais_`). É a mesma projeção pública do link de rota.
+  - **No portal (cliente.html):** a aba "Entrega de hoje" mostra quantas empresas faltam, a estimativa e o código de quem está na frente. Ela relê a cada minuto e abre primeiro quando existe.
+  - "Enviar rota pro cliente" manda o link do painel quando o cliente tem um.
+  - Correção de passagem: a posição do link de rota não é mais recalculada antes da fila carregar. Antes, todo link aberto piscava "concluída".
+  - Nenhuma regra do Firestore mudou.
+- O cache do service worker subiu para `nilma-app-v7`.
