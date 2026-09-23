@@ -317,6 +317,31 @@
     .lado-lista { padding: 0 16px; }
     .lado-item { min-height: 48px; }
   }
+  /* mesma barra de cima dos apps: fundo da página, linha embaixo */
+  .barra, .lado:not([hidden]) { background: var(--bg); }
+  /* PC: igual aos apps do escritório — barra de cima fixa e as seções numa
+     barra lateral fixa à esquerda (232px), a seção ativa com o traço azul */
+  @media (min-width: 900px) {
+    .barra { position: fixed; top: 0; left: 0; right: 0; z-index: 20; height: 56px; min-height: 0; box-sizing: border-box; padding: 0 16px; }
+    body { padding-top: 56px; }
+    body.com-menu { padding-left: 232px; }
+    .lado:not([hidden]) {
+      position: fixed; top: 56px; left: 0; bottom: 0; width: 232px; z-index: 10;
+      border-bottom: 0; border-right: 1px solid var(--border); overflow-y: auto;
+    }
+    .lado-lista { flex-direction: column; gap: 2px; max-width: none; margin: 0; padding: 12px 8px; overflow: visible; }
+    .lado-item {
+      width: 100%; min-height: 40px; padding: 0 12px; border-radius: var(--r);
+      justify-content: flex-start; white-space: normal; text-align: left;
+    }
+    .lado-item:hover { background: var(--surface-2); color: var(--ink); }
+    .lado-item.ativa { background: var(--surface-2); }
+    .lado-item.ativa svg { color: var(--accent); }
+    .lado-item.ativa::after { left: -8px; right: auto; top: 8px; bottom: 8px; width: 3px; height: auto; }
+    .lado-rot { flex: 1; min-width: 0; }
+    main { max-width: 880px; padding: 28px 32px 0; }
+    footer { max-width: 880px; }
+  }
 </style>
 </head>
 <body>
