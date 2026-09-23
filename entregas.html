@@ -1560,6 +1560,31 @@
   /* Celular deitado: a faixa come a tela toda. */
   @media (max-height: 460px) { .auth-side { display: none; } }
 
+  /* Telas públicas (acompanhar entrega, assinar, convite): no desenho da
+     entrada do GitHub. Marca no alto, título centrado, o conteúdo numa caixa
+     só e o link de rodapé numa segunda caixa. */
+  :is(#rotaGate, #assinaturaGate, #conviteGate) { place-items: start center; padding-top: max(32px, env(safe-area-inset-top)); }
+  :is(#rotaGate, #assinaturaGate, #conviteGate) .auth-shell {
+    max-width: 400px; grid-template-columns: 1fr; background: none; border: 0; border-radius: 0; overflow: visible;
+  }
+  :is(#rotaGate, #assinaturaGate, #conviteGate) .auth-form { padding: 0; align-items: stretch; justify-content: flex-start; }
+  :is(#rotaGate, #assinaturaGate, #conviteGate) .auth-form > * { max-width: none; }
+  :is(#rotaGate, #assinaturaGate, #conviteGate) .auth-form::before {
+    content: "N"; align-self: center; width: 48px; height: 48px; border-radius: 50%; margin-bottom: var(--esp-4);
+    display: grid; place-items: center; background: var(--accent); color: var(--accent-ink);
+    font: 700 1.35rem/1 var(--font-display);
+  }
+  :is(#rotaGate, #assinaturaGate, #conviteGate) .auth-titulo { text-align: center; font-size: 1.5rem; font-weight: 400; letter-spacing: -.01em; }
+  :is(#rotaGate, #assinaturaGate, #conviteGate) .auth-sub { text-align: center; margin-bottom: var(--esp-4); }
+  :is(#rotaConteudo, #assinaturaConteudo, #conviteForm) {
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-md); padding: var(--esp-4);
+  }
+  #conviteGate .auth-rodape {
+    margin-top: var(--esp-4); padding: var(--esp-3) var(--esp-4); text-align: center;
+    border: 1px solid var(--border); border-radius: var(--r-md);
+  }
+  #rotaConteudo .rota-track-empresa { margin-top: 0; }
+
   .historico-mes .protocolo-btn { font-size: var(--t-xs); font-weight: 500; margin-left: 6px; padding: 0 4px; }
 
   /* o que a Receita diz do cliente */

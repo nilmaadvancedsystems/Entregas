@@ -306,3 +306,13 @@ node scripts/teste-pendencias.js && node scripts/teste-robo.js   # (teste-robo p
   - **Cobranças:** o título ficou só "Cobranças", com o mês ao lado, e a tabela foi para uma caixa "Enviadas no mês" com contador.
   - **Robô:** segue o desenho do Hoje. À esquerda ficam as caixas "Remetentes sem cliente", "E-mails com anexo", "Marcados em <mês>", "Execuções recentes" e "Marcações erradas". À direita, a caixa "Resumo" (pares rótulo e valor, como o "About" do GitHub).
   - As dobras (`details`) viraram caixas, e as dicas dos estados vazios saíram.
+
+### Etapa 5 — feita
+- **cliente.html:** continua sem depender de nada de fora (não carrega a casca; o desenho foi copiado no CSS da própria página).
+  - **Barra de cima:** "N · Nilma Contabilidade / CLIENTE".
+  - **Abas sublinhadas logo abaixo, em qualquer largura:** o menu lateral do PC saiu, e no celular também fica uma seção por vez.
+  - **Seções em caixas:** o h2 da seção vira o cabeçalho cinza da caixa. "O que falta" usa o contador em pílula.
+  - **Visual:** raio de 6px e os selos em pílula.
+  - **Textos:** as frases de abertura de Dúvidas e de Falar com o escritório saíram. A ajuda voltada ao cliente final foi mantida.
+- **Telas públicas do entregas.html (`#rotaGate`, `#assinaturaGate`, `#conviteGate`):** seguem a entrada do GitHub. Marca redonda no alto, título centrado, o conteúdo numa caixa única e o link de rodapé numa segunda caixa.
+- O cache do service worker subiu para `nilma-app-v6`.
