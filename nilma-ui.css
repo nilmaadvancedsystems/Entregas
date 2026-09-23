@@ -16,7 +16,7 @@
 
 /* ---------------------------------------------------------------
  tokens, tema escuro, paletas, preferências e barra de rolagem
- (entregas.html, linhas 76-358)
+ (entregas.html, linhas 73-365)
  --------------------------------------------------------------- */
 :root {
   /* --- neutros ---
@@ -117,23 +117,31 @@
   --lateral: 232px;
 
   /* --- tipografia ---
-     Uma família só, em pesos diferentes, mais a mono irmã pros números.
-     Plex foi desenhada pra software técnico; a mono casa com a sans porque
-     vem do mesmo desenho, então número em coluna não parece remendo. */
-  /* Inter, e não IBM Plex Sans. Plex vem de tipografia impressa e tem
-     hinting fraco em corpo pequeno: numa tela 1x (sem retina) a 13px ela
-     serrilha de verdade — foi o que apareceu no monitor do escritório.
-     Inter foi desenhada pra exatamente isso: texto de interface, tamanho
-     pequeno, tela comum. A mono continua JetBrains, que rasteriza limpo. */
-  --font-body: 'Inter', -apple-system, 'Segoe UI', system-ui, sans-serif;
+     Fonte do sistema (a mesma lista do github.com): Segoe UI no PC do
+     escritório — desenhada pro ClearType, nítida em 12–15px numa tela 1x —,
+     Roboto no Android, SF no iPhone. Nada baixado: offline fica igual a
+     online, sem pisca-troca de fonte, e nenhum IP vai pro Google Fonts.
+     Segoe UI não tem peso 500: a hierarquia usa só 400 e 600.
+     Mono só pra código, tecla e identificador lido dígito a dígito
+     (CNPJ, PIX, linha digitável); número de contagem/valor usa a sans
+     com tabular-nums. Piso de 12px: nada menor que isso na tela. */
+  --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", system-ui, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
   --font-display: var(--font-body);
-  --font-mono: 'JetBrains Mono', SFMono-Regular, Consolas, monospace;
-  --t-xs: .6875rem;
-  --t-sm: .75rem;
-  --t-base: .8125rem;
-  --t-md: .9375rem;
-  --t-lg: 1rem;
-  --t-xl: 1.25rem;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Roboto Mono", "Liberation Mono", monospace;
+  --t-xs: .75rem;      /* 12 — contador, selo */
+  --t-sm: .75rem;      /* 12 — legenda, meta, cabeçalho de tabela */
+  --t-base: .875rem;   /* 14 — botão, cabeçalho de caixa, célula, rótulo de campo */
+  --t-md: 1rem;        /* 16 no celular; 15 no PC (regra de 900px logo abaixo) */
+  --t-lg: 1rem;        /* 16 — título de seção */
+  --t-xl: 1.25rem;     /* 20 — título da página */
+  --t-2xl: 1.5rem;     /* 24 — número de painel, título das telas públicas */
+  --t-3xl: 2rem;       /* 32 */
+  --t-display: 2.5rem; /* 40 — o número grande da rota */
+  --t-nav: .875rem;    /* 14 no celular, 15 no PC — abas e trilha da barra de cima */
+  --lh: 1.5;
+  --lh-tight: 1.25;
+  --lh-ctl: 1.25rem;   /* 20px no tamanho normal; cresce com "grande"/"maior" */
+  --lh-pill: 1.125rem; /* 18px */
 
   /* --- movimento ---
      Saída exponencial, 120–280ms. Quem está numa tarefa não quer assistir
@@ -160,6 +168,8 @@
   --z-tela: 90;
   --z-assinatura: 100;
 }
+/* PC: corpo em 15px em TODOS os apps (antes a regra ficava num bloco que não ia pro nilma-ui.css) */
+@media (min-width: 900px) { :root { --t-md: .9375rem; --t-nav: .9375rem; } }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -304,7 +314,7 @@ html[data-animacao="reduzida"] *::after {
 
 /* ---------------------------------------------------------------
  base: corpo, tipografia, toque, ícones, foco
- (entregas.html, linhas 359-428)
+ (entregas.html, linhas 366-442)
  --------------------------------------------------------------- */
 /* ---------- base ---------- */
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -315,20 +325,27 @@ body {
   color: var(--ink);
   font-family: var(--font-body);
   font-size: var(--t-md);
-  line-height: 1.45;
+  line-height: var(--lh);
   /* Sem -webkit-font-smoothing: no Windows ele não faz nada e no Mac afina
      o traço, que é o contrário do que um app lido no sol precisa. */
   font-synthesis: none;
   overflow-x: hidden;
   max-width: 100vw;
 }
-h1, h2, h3 { font-family: var(--font-display); font-weight: 600; text-wrap: balance; margin: 0; }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 600; line-height: var(--lh-tight); text-wrap: balance; margin: 0; }
+b, strong { font-weight: 600; }
 button, input, select, textarea { font-family: inherit; font-size: inherit; color: inherit; }
 [hidden] { display: none !important; }
 /* Todo número que pode aparecer em coluna: mesma largura por dígito, então
    vírgula alinha com vírgula. */
 .num, .dash-num, .tab-badge, .auth-data, .historico-mes-total,
-.valor-row input, .summary-ring span, .busca-global-dica kbd {
+.valor-row input, .summary-ring span, .contagem, .linha-pos, .obrig-prazo,
+.papel-prazo, .rotafixa-pos, .saude-item b, .rota-track-numero,
+.cq-linha-meta, .cq-numero-valor {
+  font-variant-numeric: tabular-nums;
+}
+/* Mono fica pra código, tecla e identificador lido dígito a dígito. */
+.mono, code, kbd, .busca-global-dica kbd, .topo-busca-tecla, .doc-id {
   font-family: var(--font-mono); font-variant-numeric: tabular-nums;
 }
 
@@ -379,7 +396,7 @@ select:focus-visible, textarea:focus-visible, a:focus-visible, .chip:focus-visib
 
 /* ---------------------------------------------------------------
  cartão
- (entregas.html, linhas 696-739)
+ (entregas.html, linhas 710-753)
  --------------------------------------------------------------- */
 .card {
   background: none; border: none; border-radius: 0;
@@ -389,7 +406,7 @@ select:focus-visible, textarea:focus-visible, a:focus-visible, .chip:focus-visib
 .view > .card:first-child { border-top: none; padding-top: var(--esp-2); }
 .card h2, .modal h2 {
   font-family: var(--font-display); font-size: var(--t-lg); font-weight: 600;
-  letter-spacing: -.011em; color: var(--ink); margin-bottom: 3px;
+  color: var(--ink); margin-bottom: 3px;
   display: flex; align-items: center; gap: 8px; min-width: 0;
 }
 .card h2 .ph, .modal h2 .ph { color: var(--accent-forte); font-size: 1.05em; margin: 0; }
@@ -419,8 +436,8 @@ select:focus-visible, textarea:focus-visible, a:focus-visible, .chip:focus-visib
 .dash-item.neutro { --dash-cor: var(--ink-soft); }
 .dash-item.falha { --dash-cor: var(--danger-forte); }
 .dash-ico { font-size: .85rem; line-height: 1; color: var(--ink-faint); }
-.dash-num { font-size: 1.5rem; font-weight: 600; line-height: 1.1; letter-spacing: -.02em; color: var(--dash-cor); }
-.dash-label { font-size: var(--t-xs); color: var(--ink-soft); font-weight: 500; line-height: 1.25; }
+.dash-num { font-size: var(--t-2xl); font-weight: 600; line-height: var(--lh-tight); color: var(--dash-cor); }
+.dash-label { font-size: var(--t-xs); color: var(--ink-soft); font-weight: 400; line-height: var(--lh-tight); }
 
 /* ==========================================================================
    Formulário
@@ -428,16 +445,20 @@ select:focus-visible, textarea:focus-visible, a:focus-visible, .chip:focus-visib
 
 /* ---------------------------------------------------------------
  campo, entrada e erro de campo
- (entregas.html, linhas 740-789)
+ (entregas.html, linhas 754-807)
  --------------------------------------------------------------- */
 .field { display: block; margin-bottom: var(--esp-4); }
+/* rótulo de campo: 14px, 600, na cor do texto — a Nilma lê o rótulo
+   antes do campo; cinza de 12px sumia na tela */
 .field > span:first-child:not([class]),
 label.field > span,
-.campo-rotulo,
-.filtro > label {
-  display: block; font-size: var(--t-sm); font-weight: 500; color: var(--ink-soft); margin-bottom: 5px;
+.campo-rotulo {
+  display: block; font-size: var(--t-base); font-weight: 600; color: var(--ink); margin-bottom: 5px;
 }
-.sub-rotulo { display: block; font-size: var(--t-sm); font-weight: 500; color: var(--ink-soft); margin: 0 0 4px; }
+.filtro > label {
+  display: block; font-size: var(--t-sm); font-weight: 600; color: var(--ink-soft); margin-bottom: 5px;
+}
+.sub-rotulo { display: block; font-size: var(--t-base); font-weight: 600; color: var(--ink); margin: 0 0 4px; }
 
 .input, input[type="text"], input[type="month"], input[type="tel"], textarea, select {
   /* Com a folha toda na mesma cor, o campo precisa afundar pra parecer
@@ -483,14 +504,14 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  chip
- (entregas.html, linhas 1005-1024)
+ (entregas.html, linhas 1023-1042)
  --------------------------------------------------------------- */
 .chip { position: relative; }
 .chip input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
 .chip span {
   display: inline-flex; align-items: center; position: relative; min-height: var(--alvo); padding: 0 12px;
   border: 1px solid var(--border); border-radius: var(--r-sm);
-  background: var(--surface); font-size: var(--t-base); font-weight: 500; cursor: pointer;
+  background: var(--surface); font-size: var(--t-base); font-weight: 600; cursor: pointer;
   transition: background-color var(--dur-rapido) var(--ease), border-color var(--dur-rapido) var(--ease), color var(--dur-rapido) var(--ease);
 }
 .chip span:hover { border-color: var(--border-forte); }
@@ -500,7 +521,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 }
 .chip input:checked + span::before {
   content: "✓"; position: absolute; left: 11px; top: 50%; transform: translateY(-50%);
-  font-size: .78rem; font-weight: 700;
+  font-size: var(--t-xs); font-weight: 600;
 }
 .chip input:active + span { transform: scale(.97); }
 .chip input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -508,7 +529,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  botão
- (entregas.html, linhas 1040-1155)
+ (entregas.html, linhas 1058-1173)
  --------------------------------------------------------------- */
    Botões — uma forma só, três pesos
    ========================================================================== */
@@ -530,7 +551,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 .btn-chip {
   border: 1px solid var(--border); background: var(--surface); border-radius: var(--r-sm);
-  padding: 0 12px; min-height: var(--alvo); font-size: var(--t-base); font-weight: 500; cursor: pointer;
+  padding: 0 12px; min-height: var(--alvo); font-size: var(--t-base); font-weight: 600; cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center; gap: 0; color: var(--ink);
 }
 .btn-chip:hover { background: var(--surface-2); border-color: var(--border-forte); }
@@ -574,10 +595,10 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 .card.caixa > #fechamentoDetalhe, .card.caixa > #montagemList, .card.caixa > #fechamentoMesList { padding: 0 var(--esp-3); }
 .card.caixa > #graficoDiario, .card.caixa > #rankingEquipe, .card.caixa > #metaResumo,
 .card.caixa > .map-wrap, .card.caixa > .numeros-do-mes { padding: var(--esp-2) var(--esp-3); }
-.card.caixa .contagem, .card-head-row h2 .contagem { font-weight: 400; color: var(--ink-faint); font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: var(--t-sm); margin-left: 4px; }
+.card.caixa .contagem, .card-head-row h2 .contagem { font-weight: 400; color: var(--ink-faint); font-variant-numeric: tabular-nums; font-size: var(--t-sm); margin-left: 4px; }
 .card-ferramentas { display: flex; flex-wrap: wrap; gap: 6px; }
 /* "#1": posição na fila, mono e discreta, como a numeração da Ordem fixa */
-.linha-pos { flex: none; min-width: 26px; text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: var(--t-sm); color: var(--ink-faint); }
+.linha-pos { flex: none; min-width: 26px; text-align: right; font-variant-numeric: tabular-nums; font-size: var(--t-sm); color: var(--ink-faint); }
 .linha-pos::before { content: '#'; }
 .linha-acoes { display: flex; align-items: center; gap: 6px; flex: none; flex-wrap: wrap; justify-content: flex-end; }
 .entrega-row > .btn-chip, .entrega-row > .linha-acoes, .entrega-row > .status-pill { flex: none; }
@@ -629,12 +650,12 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  aviso flutuante
- (entregas.html, linhas 1389-1397)
+ (entregas.html, linhas 1407-1415)
  --------------------------------------------------------------- */
 .toast {
   position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 10px); z-index: var(--z-aviso);
   background: var(--ink); color: var(--bg); padding: 11px 16px; border-radius: var(--r-md);
-  font-size: var(--t-base); font-weight: 500; box-shadow: var(--shadow); opacity: 0; pointer-events: none;
+  font-size: var(--t-base); font-weight: 400; box-shadow: var(--shadow); opacity: 0; pointer-events: none;
   max-width: calc(100% - 32px);
   transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease);
 }
@@ -643,7 +664,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  janela (modal)
- (entregas.html, linhas 1402-1447)
+ (entregas.html, linhas 1420-1465)
  --------------------------------------------------------------- */
 .modal-overlay {
   position: fixed; inset: 0; background: var(--scrim); z-index: var(--z-veu);
@@ -686,7 +707,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 .auth-form .itens-list { margin-bottom: var(--esp-4); }
 .modal .itens-list span, .auth-form .itens-list span {
   background: var(--surface-2); border: 1px solid var(--border); color: var(--ink-soft);
-  font-size: var(--t-sm); font-weight: 500; padding: 3px 9px; border-radius: var(--r-xs);
+  font-size: var(--t-sm); font-weight: 600; padding: 3px 9px; border-radius: var(--r-xs);
 }
 .modal img.sig-preview { width: 100%; border: 1px solid var(--border); border-radius: var(--r-sm); background: #fff; margin: var(--esp-2) 0; }
 .modal dl { display: grid; grid-template-columns: auto 1fr; gap: 6px var(--esp-3); font-size: var(--t-base); margin: var(--esp-2) 0; }
@@ -694,12 +715,12 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  selo de situação
- (entregas.html, linhas 1252-1262)
+ (entregas.html, linhas 1270-1280)
  --------------------------------------------------------------- */
 /* ---------- selo de situação ---------- */
 .status-pill {
   font-size: var(--t-xs); font-weight: 600; padding: 4px 9px; border-radius: var(--r-xs);
-  white-space: nowrap; flex-shrink: 0; letter-spacing: .005em;
+  white-space: nowrap; flex-shrink: 0; line-height: var(--lh-pill);
 }
 .status-pill.entregue { background: var(--success-soft); color: var(--success-forte); }
 .status-pill.pendente { background: var(--warning-soft); color: var(--warning-forte); }
@@ -710,7 +731,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  tela vazia e janela
- (entregas.html, linhas 1263-1305)
+ (entregas.html, linhas 1281-1323)
  --------------------------------------------------------------- */
 .empty-state { color: var(--ink-faint); font-size: var(--t-base); text-align: center; padding: var(--esp-5) var(--esp-3); line-height: 1.5; }
 
@@ -727,7 +748,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 .honorario-linha:last-child { border-bottom: none; }
 .honorario-linha:hover { background: var(--surface-2); }
 .honorario-col-rotulo { display: inline; font-size: var(--t-xs); color: var(--ink-faint); margin-right: 4px; }
-.honorario-col-nome { font-weight: 500; }
+.honorario-col-nome { font-weight: 600; }
 .honorario-col-status { display: flex; }
 .honorario-acoes { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 4px; }
 @media (min-width: 900px) {
@@ -758,7 +779,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  casca GitHub: barra de cima, abas do módulo e gavetas (nilma-shell.js)
- (entregas.html, linhas 472-678)
+ (entregas.html, linhas 486-692)
  --------------------------------------------------------------- */
 /* ---------- casca GitHub: barra, abas e gavetas ---------- */
 /* A marcação nasce em nilma-shell.js; este bloco sai inteiro pra
@@ -784,7 +805,7 @@ html.com-casca body { padding-top: var(--topo-total); }
 .topo-btn[aria-expanded="true"] { background: var(--surface-2); color: var(--ink); border-color: var(--border); }
 .topo-btn .tab-badge {
   position: absolute; top: 2px; right: 2px; margin: 0;
-  font-size: var(--t-xs); min-width: 16px; height: 16px; line-height: 16px; padding: 0 4px;
+  font-size: var(--t-xs); min-width: 1rem; height: 1rem; line-height: 1rem; padding: 0 4px;
   background: var(--accent); color: var(--accent-ink);
 }
 .topo-marca {
@@ -810,7 +831,7 @@ html.com-casca body { padding-top: var(--topo-total); }
 /* no PC a seta fica só no módulo; o submódulo é o fim do caminho */
 @media (min-width: 600px) { .topo-sub[role="button"]::after { display: none; } .topo-sub[role="button"] { cursor: default; } .topo-sub[role="button"]:hover { background: none; } }
 .topo-sub {
-  font-weight: 500; font-size: var(--t-md); color: var(--ink-soft); min-width: 0;
+  font-weight: 400; font-size: var(--t-md); color: var(--ink-soft); min-width: 0;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .topo-vao { flex: 1; }
@@ -823,7 +844,7 @@ html.com-casca body { padding-top: var(--topo-total); }
 .topo-busca > .ph { font-size: 1rem; flex: none; }
 .topo-busca-texto { flex: 1; min-width: 0; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .topo-busca-tecla {
-  flex: none; font-family: var(--font-mono); font-size: var(--t-xs); line-height: 18px; min-width: 18px; text-align: center;
+  flex: none; font-family: var(--font-mono); font-size: var(--t-xs); line-height: var(--lh-pill); min-width: 18px; text-align: center;
   padding: 0 4px; border: 1px solid var(--border); border-bottom-width: 2px; border-radius: var(--r-xs); background: var(--surface); color: var(--ink-soft);
 }
 .topo-fim { display: flex; align-items: center; gap: var(--esp-1); flex: none; margin-left: var(--esp-1); }
@@ -836,7 +857,7 @@ html.com-casca body { padding-top: var(--topo-total); }
 .topo-avatar-ini {
   width: 100%; height: 100%; border-radius: 50%; display: inline-grid; place-items: center;
   background: var(--accent-soft) center/cover no-repeat; color: var(--accent-forte);
-  font-size: var(--t-sm); font-weight: 600; letter-spacing: .02em;
+  font-size: var(--t-sm); font-weight: 600;
 }
 @media (max-width: 899px) {
   .topo-busca { flex: none; width: var(--alvo); height: var(--alvo); padding: 0; justify-content: center; border-color: transparent; background: none; color: var(--ink-soft); }
@@ -865,7 +886,7 @@ html.com-casca body { padding-top: var(--topo-total); }
 .tab {
   flex: none; display: inline-flex; align-items: center; gap: var(--esp-2);
   padding: 0 var(--esp-3); margin-bottom: -1px; border: 0; border-bottom: 2px solid transparent;
-  background: none; color: var(--ink-soft); font: inherit; font-size: var(--t-md); white-space: nowrap; cursor: pointer;
+  background: none; color: var(--ink-soft); font: inherit; font-size: var(--t-nav); white-space: nowrap; cursor: pointer;
 }
 .tab:hover { color: var(--ink); }
 .tab:hover .tab-label { background: var(--surface-2); }
@@ -874,8 +895,8 @@ html.com-casca body { padding-top: var(--topo-total); }
 .tab-ico { display: inline-grid; place-items: center; color: var(--ink-faint); font-size: 1rem; }
 .tab.active .tab-ico { color: var(--accent-forte); }
 .tab-badge {
-  position: static; margin: 0; padding: 0 6px; min-width: 20px; height: 18px; line-height: 18px; text-align: center;
-  border-radius: var(--r-pill); background: var(--surface-2); color: var(--ink-soft); font-size: var(--t-xs); font-weight: 500;
+  position: static; margin: 0; padding: 0 6px; min-width: 1.25rem; height: var(--lh-pill); line-height: var(--lh-pill); text-align: center;
+  border-radius: var(--r-pill); background: var(--surface-2); color: var(--ink-soft); font-size: var(--t-xs); font-weight: 600;
 }
 .tab.active .tab-badge { background: var(--surface-2); color: var(--ink); }
 .tab-badge:empty { display: none; }
@@ -901,7 +922,7 @@ html.com-casca body { padding-top: var(--topo-total); }
 .gaveta-fechar { margin-left: auto; }
 .gaveta-corpo { flex: 1; overflow-y: auto; padding: var(--esp-2); }
 .gaveta-grupo + .gaveta-grupo { margin-top: var(--esp-2); padding-top: var(--esp-2); border-top: 1px solid var(--border); }
-.gaveta-grupo-titulo { padding: var(--esp-2) var(--esp-3) var(--esp-1); font-size: var(--t-xs); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-faint); }
+.gaveta-grupo-titulo { padding: var(--esp-2) var(--esp-3) var(--esp-1); font-size: var(--t-sm); font-weight: 600; color: var(--ink-faint); }
 .gaveta-item {
   position: relative; display: flex; align-items: center; gap: var(--esp-3); width: 100%; min-height: var(--alvo);
   padding: 0 var(--esp-3); border: 0; border-radius: var(--r-sm); background: none;
@@ -970,7 +991,7 @@ body:has(.gaveta:not([hidden])) { overflow: hidden; }
 
 /* ---------------------------------------------------------------
  submenu padrão (menu de 2º nível)
- (entregas.html, linhas 1765-1785)
+ (entregas.html, linhas 1782-1802)
  --------------------------------------------------------------- */
 /* ---------- submenu (menu de 2º nível) ---------- */
 /* O submenu padrão de todos os apps: a barrinha de categorias no alto do
@@ -983,7 +1004,7 @@ body:has(.gaveta:not([hidden])) { overflow: hidden; }
 }
 .mode-btn {
   flex: 1; border: none; background: transparent; padding: 8px 10px; border-radius: var(--r-xs);
-  font-weight: 500; font-size: var(--t-base); color: var(--ink-soft); cursor: pointer; min-height: 34px;
+  font-weight: 400; font-size: var(--t-base); color: var(--ink-soft); cursor: pointer; min-height: 34px;
 }
 .mode-btn:hover { color: var(--ink); }
 .mode-btn.active {
@@ -996,7 +1017,7 @@ body:has(.gaveta:not([hidden])) { overflow: hidden; }
 
 /* ---------------------------------------------------------------
  painel "Perguntar à IA" (nilma-extras.js)
- (entregas.html, linhas 2111-2207)
+ (entregas.html, linhas 2126-2222)
  --------------------------------------------------------------- */
 /* A consulta abre como uma barra de pesquisa aberta (o "Ask" do GitHub):
    no PC, uma caixa ancorada na barra de cima, cobrindo a caixa "Perguntar
@@ -1076,12 +1097,12 @@ body:has(.gaveta:not([hidden])) { overflow: hidden; }
 .cq-linha-nome { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cq-linha-meta {
   flex: none; font-size: var(--t-sm); color: var(--ink-soft);
-  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  font-variant-numeric: tabular-nums;
 }
 .cq-numeros { display: flex; flex-wrap: wrap; gap: var(--esp-4); margin-top: var(--esp-2); }
 .cq-numero-valor {
-  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
-  font-size: var(--t-xl); font-weight: 600; display: block; line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  font-size: var(--t-xl); font-weight: 600; display: block; line-height: var(--lh-tight);
 }
 .cq-numero-rotulo { font-size: var(--t-xs); color: var(--ink-faint); }
 
@@ -1141,7 +1162,7 @@ body:has(.gaveta:not([hidden])) { overflow: hidden; }
 .nilma-marca { display: flex; align-items: center; gap: 10px; padding: var(--esp-4) var(--esp-4) var(--esp-3); }
 .nilma-marca-sigla {
   width: 34px; height: 34px; flex: none; display: grid; place-items: center; border-radius: var(--r-md);
-  background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: var(--t-lg);
+  background: var(--accent); color: var(--accent-ink); font-weight: 600; font-size: var(--t-lg);
 }
 .nilma-marca-nome { font-weight: 600; font-size: var(--t-md); line-height: 1.2; }
 .nilma-marca-sub { font-size: var(--t-xs); color: var(--ink-faint); margin-top: 2px; }
@@ -1163,7 +1184,7 @@ body:has(.gaveta:not([hidden])) { overflow: hidden; }
   display: flex; align-items: flex-end; justify-content: space-between; gap: var(--esp-4); flex-wrap: wrap;
   padding-bottom: var(--esp-3); border-bottom: 1px solid var(--border); margin-bottom: var(--esp-5);
 }
-.nilma-topo h1 { font-size: var(--t-xl); letter-spacing: -.01em; }
+.nilma-topo h1 { font-size: var(--t-xl); }
 .nilma-topo .nilma-sub { color: var(--ink-soft); font-size: var(--t-base); margin: 4px 0 0; max-width: 76ch; line-height: 1.5; }
 .nilma-topo-acoes { display: flex; gap: 6px; flex-wrap: wrap; }
 

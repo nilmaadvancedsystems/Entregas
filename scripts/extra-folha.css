@@ -44,7 +44,7 @@
 .nilma-marca { display: flex; align-items: center; gap: 10px; padding: var(--esp-4) var(--esp-4) var(--esp-3); }
 .nilma-marca-sigla {
   width: 34px; height: 34px; flex: none; display: grid; place-items: center; border-radius: var(--r-md);
-  background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: var(--t-lg);
+  background: var(--accent); color: var(--accent-ink); font-weight: 600; font-size: var(--t-lg);
 }
 .nilma-marca-nome { font-weight: 600; font-size: var(--t-md); line-height: 1.2; }
 .nilma-marca-sub { font-size: var(--t-xs); color: var(--ink-faint); margin-top: 2px; }
@@ -66,7 +66,7 @@
   display: flex; align-items: flex-end; justify-content: space-between; gap: var(--esp-4); flex-wrap: wrap;
   padding-bottom: var(--esp-3); border-bottom: 1px solid var(--border); margin-bottom: var(--esp-5);
 }
-.nilma-topo h1 { font-size: var(--t-xl); letter-spacing: -.01em; }
+.nilma-topo h1 { font-size: var(--t-xl); }
 .nilma-topo .nilma-sub { color: var(--ink-soft); font-size: var(--t-base); margin: 4px 0 0; max-width: 76ch; line-height: 1.5; }
 .nilma-topo-acoes { display: flex; gap: 6px; flex-wrap: wrap; }
 
