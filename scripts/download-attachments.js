@@ -6,7 +6,9 @@
 //   3. registra a conversa (assunto, trecho, anexos) em documentosMensal.mensagens,
 //      que aparece no Histórico e na aba Comunicação do cliente;
 //   4. guarda em robo/estado os remetentes com anexo que não são de nenhum
-//      cliente (a tela sugere a quem vincular) e o histórico das execuções.
+//      cliente (a tela sugere a quem vincular) e o histórico das execuções;
+//   5. lista em robo/estado.spam o que o Gmail jogou no spam na mesma janela de
+//      dias (não lê documento de lá sozinho: a tela decide "Salvar" ou "É spam").
 //
 // Uso:
 //   node download-attachments.js [dias]            lê os últimos N dias (padrão 10)
@@ -40,6 +42,7 @@ const UMA_MENSAGEM = valorDe('--mensagem');
 const CLIENTE_FORCADO = valorDe('--cliente');
 const DIAS = parseInt(ARGS.find((a, i) => /^\d+$/.test(a) && !['--mensagem', '--cliente'].includes(ARGS[i - 1])), 10) || 10;
 const MAX_CAIXA = 150;                       // e-mails com anexo que a tela lista
+const MAX_SPAM = 100;                        // e-mails do spam que a tela lista
 
 // Cada escritório chama o mesmo documento de um jeito — "comprovante" quase nunca
 // vem escrito assim; na prática é "títulos pagos", "boletos liquidados" etc.
@@ -286,6 +289,64 @@ function montarIndices(clientesSnap) {
   return { porEmail, porDominio };
 }
 
+// ---------- spam ----------
+// Remetentes que a Nilma marcou "É spam" na tela (config/roboIgnorados). O robô
+// não lista mais nada deles, nem em "sem cliente" nem no spam. Se a leitura
+// falhar, segue sem a lista: pior caso o remetente reaparece na tela.
+async function lerIgnorados(db) {
+  try {
+    const d = (await db.collection('config').doc('roboIgnorados').get()).data() || {};
+    return new Set((Array.isArray(d.remetentes) ? d.remetentes : []).map(e => String(e).trim().toLowerCase()).filter(Boolean));
+  } catch (err) {
+    console.log('Remetentes ignorados não carregaram (' + err.message + '); segue sem eles.');
+    return new Set();
+  }
+}
+
+// robo/estado.spam a partir das mensagens do Gmail (o .data do messages.get).
+// Só cabeçalho e nome dos anexos: o robô não baixa nada do spam sozinho, porque
+// spam de verdade traz anexo perigoso. O e-mail de cliente vai no topo — é o
+// que a Nilma precisa ver e salvar (fila "salvar" com --mensagem ID).
+function montarSpam(mensagens, porEmail, porDominio, ignorados) {
+  return (mensagens || []).filter(m => m && m.id && m.payload).map(m => {
+    const headers = m.payload.headers || [];
+    const from = cabecalho(headers, 'From');
+    const remetente = extrairEmail(from);
+    const cliente = (porEmail.get(remetente) || porDominio.get(dominioDe(remetente)) || [])[0];
+    const ms = Number(m.internalDate);
+    return {
+      mensagemId: m.id, em: ms ? new Date(ms).toISOString() : '', remetente, nome: extrairNome(from),
+      assunto: cabecalho(headers, 'Subject'), arquivos: coletarAnexos(m.payload, []).map(a => a.filename),
+      clienteId: cliente ? String(cliente.id) : null, clienteNome: cliente ? (cliente.nome || cliente.nomeFantasia || '') : '',
+    };
+  })
+    .filter(s => s.remetente && !(ignorados && ignorados.has(s.remetente)))
+    .sort((a, b) => (a.clienteId ? 0 : 1) - (b.clienteId ? 0 : 1) || String(b.em).localeCompare(String(a.em)))
+    .slice(0, MAX_SPAM);
+}
+
+// Uma página só (até 100): spam de mais de 100 na janela é propaganda, e o de
+// cliente vai pro topo de qualquer jeito dentro do que foi lido.
+async function lerSpam(gmail, porEmail, porDominio, ignorados) {
+  const r = await comRetentativa(() => gmail.users.messages.list({ userId: 'me', q: `in:spam newer_than:${DIAS}d`, includeSpamTrash: true, maxResults: MAX_SPAM }));
+  const ids = (r.data.messages || []).map(m => m.id);
+  const mensagens = [];
+  let falhas = 0;
+  for (const id of ids) {
+    try {
+      await dormir(120);
+      mensagens.push((await comRetentativa(() => gmail.users.messages.get({ userId: 'me', id, format: 'full' }))).data);
+    } catch (err) {
+      // Apagado entre a lista e a leitura, por exemplo: pula só este.
+      falhas++;
+      console.error('  spam: e-mail', id, 'não abriu -', err.message);
+    }
+  }
+  // Tudo falhou (cota, rede): lista vazia apagaria a da tela; melhor manter a antiga.
+  if (ids.length && falhas === ids.length) throw new Error('nenhum e-mail do spam abriu');
+  return montarSpam(mensagens, porEmail, porDominio, ignorados);
+}
+
 // Duas buscas, não a caixa inteira: abrir todo e-mail estourava a cota do Gmail
 // lendo newsletter. Interessa (a) o que tem anexo — documento de cliente ou
 // remetente novo a vincular — e (b) qualquer conversa de remetente conhecido.
@@ -392,6 +453,8 @@ async function main() {
 
   const cobrancaSnap = await db.collection('config').doc('cobranca').get();
   const DIA_LIMITE = Number((cobrancaSnap.data() || {}).diaLimite) || 0;
+  // O --mensagem é pedido explícito da tela (e já recusa quem não é cliente).
+  const ignorados = UMA_MENSAGEM ? new Set() : await lerIgnorados(db);
 
   const tentativas = carregarTentativas();
   const processados = RELER ? new Set() : carregarProcessados();
@@ -432,7 +495,11 @@ async function main() {
     if (desdeUltimoSalvo >= 20) { desdeUltimoSalvo = 0; guardarAndamento(); }
     if (!UMA_MENSAGEM) {
       if (processados.has(id)) continue;
-      if (semCliente[id] && !ehConhecido(semCliente[id])) continue;   // ainda sem cliente: nada mudou
+      if (semCliente[id] && !ehConhecido(semCliente[id])) {
+        // Marcado "É spam" depois de lido: sai da espera e não volta mais.
+        if (ignorados.has(semCliente[id])) { processados.add(id); delete semCliente[id]; }
+        continue;   // ainda sem cliente: nada mudou
+      }
     }
     cont.emails++;
     desdeUltimoSalvo++;
@@ -456,6 +523,7 @@ async function main() {
         // Anexo de quem não é cliente não vai pro Drive: fica só em "remetentes
         // sem cliente" até alguém vincular o remetente a um cliente.
         if (UMA_MENSAGEM) throw new Error('o remetente não é de nenhum cliente; vincule o e-mail a um cliente antes de salvar');
+        if (ignorados.has(remetente)) { processados.add(id); continue; }   // "É spam" na tela: nunca mais relê
         if (anexos.length && !AUTOMATICO.test(from)) {
           // Fica de fora de "processados": depois que alguém vincular o
           // remetente a um cliente na tela, a próxima leitura reconhece.
@@ -645,6 +713,16 @@ async function main() {
     return;
   }
 
+  // Spam: só na leitura normal. Se falhar, não manda o campo e a tela continua
+  // com a lista da leitura anterior.
+  let spam = null;
+  try {
+    spam = await lerSpam(gmail, porEmail, porDominio, ignorados);
+    console.log(`No spam: ${spam.length} (${spam.filter(s => s.clienteId).length} de clientes)`);
+  } catch (err) {
+    console.error('Spam não foi lido -', err.message, '(fica a lista anterior)');
+  }
+
   // robo/estado: o que a página "Robô do Gmail" mostra.
   const roboRef = db.collection('robo').doc('estado');
   const roboAtual = (await roboRef.get()).data() || {};
@@ -653,7 +731,7 @@ async function main() {
   // --reler refaz a lista do zero; sem ele, soma ao que já estava.
   (!RELER && Array.isArray(roboAtual.naoReconhecidos) ? roboAtual.naoReconhecidos : [])
     .concat(naoReconhecidosNovos)
-    .filter(r => r && r.remetente && !reconhecido(r))
+    .filter(r => r && r.remetente && !reconhecido(r) && !ignorados.has(String(r.remetente).toLowerCase()))
     .forEach(r => {
       // Um por remetente, o mais recente: o mesmo fornecedor repetido 14 vezes
       // escondia os outros na tabela da tela.
@@ -680,7 +758,7 @@ async function main() {
   ].filter(Boolean).join(', ');
 
   if (!SIMULAR) {
-    await roboRef.set(Object.assign({ ultimaExecucao: execucao.em, ultimaExecucaoResumo: resumo, naoReconhecidos, execucoes, caixa }, comSalvos()), { merge: true });
+    await roboRef.set(Object.assign({ ultimaExecucao: execucao.em, ultimaExecucaoResumo: resumo, naoReconhecidos, execucoes, caixa }, comSalvos(), spam ? { spam } : {}), { merge: true });
     salvarProcessados(processados);
     gravarInteiro(SEM_CLIENTE_PATH, JSON.stringify(semCliente)); salvarTentativas(tentativas);
   }
@@ -699,7 +777,7 @@ if (require.main === module) {
 
 module.exports = {
   competenciaDoTexto, competenciaPresumida, mesesDoPortal, faltamNoMes, detectarTipos, coletarAnexos, IMAGEM_DE_ASSINATURA, AUTOMATICO,
-  desempatarPorDocumento, decodificarEntidades, extrairEmail, extrairNome, dominioDe, DOMINIOS_PUBLICOS,
+  desempatarPorDocumento, decodificarEntidades, extrairEmail, extrairNome, dominioDe, DOMINIOS_PUBLICOS, montarSpam, MAX_SPAM,
   // usados por envios-do-portal.js (documento que o cliente manda pelo link)
   PASTA_DESTINO, sanitizar, salvarArquivo, atualizarPortal, bancosNovos,
 };

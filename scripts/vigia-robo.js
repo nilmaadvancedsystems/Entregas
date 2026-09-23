@@ -357,7 +357,14 @@ async function montarResumo(hoje) {
   const leituras = (estado.execucoes || []).filter(e => deHoje(e.em));
   const soma = k => leituras.reduce((s, e) => s + (e[k] || 0), 0);
   const chegaram = (estado.caixa || []).filter(c => c.clienteId && deHoje(c.em));
-  const desconhecidos = (estado.naoReconhecidos || []).filter(r => deHoje(r.data));
+  // Quem a Nilma marcou "É spam" na tela depois da última leitura ainda está em
+  // naoReconhecidos; não faz sentido o resumo pedir pra vincular.
+  let ignorados = new Set();
+  try { ignorados = new Set((((await db.collection('config').doc('roboIgnorados').get()).data() || {}).remetentes || []).map(e => String(e).toLowerCase())); }
+  catch (e) { /* sem a lista, o resumo sai igual ao de antes */ }
+  const desconhecidos = (estado.naoReconhecidos || []).filter(r => deHoje(r.data) && !ignorados.has(String(r.remetente || '').toLowerCase()));
+  // E-mail de cliente que o Gmail jogou no spam: o robô não lê sozinho.
+  const noSpam = (estado.spam || []).filter(s => s && s.clienteId && deHoje(s.em));
 
   // O que o robô marcou hoje, direto da grade (somar as leituras contaria de
   // novo o mesmo e-mail relido).
@@ -392,6 +399,11 @@ async function montarResumo(hoje) {
   L.push('E-mails de clientes com anexo que chegaram hoje: ' + (chegaram.length || 'nenhum'));
   chegaram.slice(0, 30).forEach(c => L.push('  ' + c.clienteNome + ': ' + (c.arquivos || []).join(', ')));
   if (chegaram.length > 30) L.push('  e mais ' + (chegaram.length - 30));
+  if (noSpam.length) {
+    L.push('', 'E-mails de clientes no spam: ' + noSpam.length);
+    noSpam.slice(0, 15).forEach(s => L.push('  ' + (s.clienteNome || s.remetente) + ': ' + (s.assunto || '(sem assunto)')));
+    L.push('  Para salvar, abra a página "Robô do Gmail".');
+  }
   L.push('');
   L.push('Cobranças enviadas pelo robô hoje: ' + (enviados.length || 'nenhuma'));
   enviados.forEach(p => L.push('  ' + (p.tipo === 'lote' ? 'em lote, ' + plural(p.enviadosPara || 0, 'cliente', 'clientes') : (p.clienteNome || p.para)) + ' (' + (p.criadoPor || '') + ')'));
@@ -407,7 +419,7 @@ async function montarResumo(hoje) {
   L.push('', 'Andamento do mês', '  ' + linhaMes(compAtual, pAtual), '  ' + linhaMes(compAnt, pAnt));
   L.push('', '(Enviado pelo vigia do PC ' + os.hostname() + '. Para não receber, avise quem cuida do robô.)');
 
-  const houveAlgo = leituras.length || marcados.length || chegaram.length || enviados.length || comErro.length || desconhecidos.length;
+  const houveAlgo = leituras.length || marcados.length || chegaram.length || enviados.length || comErro.length || desconhecidos.length || noSpam.length;
   return { texto: L.join('\n'), houveAlgo, assunto: 'Robô do Gmail: resumo de ' + new Date().toLocaleDateString('pt-BR') +
     (comErro.length ? ' (' + plural(comErro.length, 'erro', 'erros') + ')' : '') };
 }

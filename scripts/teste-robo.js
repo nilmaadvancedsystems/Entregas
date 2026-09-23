@@ -43,6 +43,26 @@ igual('nada recebido: faltam os três', r.faltamNoMes({}, null), ['extrato', 'co
 igual('recebeu extrato, não tem aplicação', r.faltamNoMes({ documentosNaoAplicaveis: ['aplicacao'] }, { extrato: true }), ['comprovante']);
 igual('mês sem movimento não deve nada', r.faltamNoMes({}, { semMovimento: true }), []);
 
+// ---------- spam: o que a tela lista para salvar ou marcar "É spam" ----------
+const cliVolponi = { id: 'c1', nome: 'VOLPONI LTDA' };
+const spamEmail = new Map([['maria@gmail.com', [{ id: 'c2', nome: '', nomeFantasia: 'Padaria da Maria' }]]]);
+const spamDominio = new Map([['volponi.com.br', [cliVolponi]]]);
+const msgSpam = (id, from, quando, anexos) => ({ id, internalDate: String(Date.parse(quando)),
+  payload: { headers: [{ name: 'From', value: from }, { name: 'Subject', value: 'assunto ' + id }],
+    parts: (anexos || []).map(f => ({ filename: f, body: { attachmentId: 'a' + f, size: 10 }, headers: [] })) } });
+const spam = r.montarSpam([
+  msgSpam('m1', 'Loja <promo@loja.com>', '2026-09-20T10:00:00Z', ['cupom.pdf']),
+  msgSpam('m2', '"Financeiro" <fin@volponi.com.br>', '2026-09-18T10:00:00Z', ['extrato.pdf', 'image001.png']),
+  msgSpam('m3', 'Maria <MARIA@gmail.com>', '2026-09-19T10:00:00Z'),
+  msgSpam('m4', 'golpe@banco-falso.com', '2026-09-21T10:00:00Z', ['boleto.zip']),
+  { id: 'm5' },
+], spamEmail, spamDominio, new Set(['golpe@banco-falso.com']));
+igual('spam: de cliente primeiro, depois o mais novo; ignorado some', spam.map(x => x.mensagemId), ['m3', 'm2', 'm1']);
+igual('spam: cliente pelo domínio próprio, sem logo de assinatura', [spam[1].clienteId, spam[1].clienteNome, spam[1].nome, spam[1].arquivos], ['c1', 'VOLPONI LTDA', 'Financeiro', ['extrato.pdf']]);
+igual('spam: e-mail em minúsculas e nome fantasia quando falta o nome', [spam[0].remetente, spam[0].clienteNome], ['maria@gmail.com', 'Padaria da Maria']);
+igual('spam: quem não é cliente fica sem cliente', [spam[2].clienteId, spam[2].clienteNome, spam[2].em], [null, '', '2026-09-20T10:00:00.000Z']);
+igual('spam: no máximo ' + r.MAX_SPAM, r.montarSpam(Array.from({ length: 130 }, (_, i) => msgSpam('x' + i, 'a' + i + '@x.com', '2026-09-20T10:00:00Z')), spamEmail, spamDominio, new Set()).length, r.MAX_SPAM);
+
 // ---------- vigia de CNPJ: o que mudou na Receita ----------
 const cnpj = require('./vigia-cnpj');
 const daApi = { descricao_situacao_cadastral: 'Ativa', opcao_pelo_simples: true, opcao_pelo_mei: false, razao_social: 'PADARIA EXEMPLO LTDA', cnae_fiscal: 1091102,
