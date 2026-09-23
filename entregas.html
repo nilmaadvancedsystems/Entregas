@@ -2160,7 +2160,7 @@
     <h1 class="page-title" id="pageTitle">Nova entrega</h1>
     <div class="tela-acoes" id="telaAcoes">
       <button type="submit" class="btn btn-primary" id="submitBtn" form="form-nova" data-aba="nova">Confirmar entrega</button>
-      <button type="submit" class="btn btn-primary" id="solSubmitBtn" form="form-solicitacao" data-aba="solicitacoes" hidden>Enviar solicitação</button>
+      <button type="submit" class="btn btn-primary" id="solSubmitBtn" form="form-solicitacao" data-aba="solicitacoes" data-grupo="nova" hidden>Enviar solicitação</button>
     </div>
   </div>
   <div id="no-db" class="no-db" hidden>
@@ -3656,9 +3656,14 @@
     if (!caixa) return;
     var alguma = false;
     [].forEach.call(caixa.children, function (b) {
-      b.hidden = b.dataset.aba !== aba;
+      var grupoAtivo = typeof grupoAtivoDaAba_ !== 'undefined' ? grupoAtivoDaAba_[aba] : '';
+      b.hidden = b.dataset.aba !== aba || (!!b.dataset.grupo && b.dataset.grupo !== grupoAtivo);
       if (!b.hidden) alguma = true;
     });
+    if (typeof SUBMENUS_DAS_ABAS_ !== 'undefined' && SUBMENUS_DAS_ABAS_ && SUBMENUS_DAS_ABAS_[aba] && !mostrarAcaoDaTela_.atualizando) {
+      mostrarAcaoDaTela_.atualizando = true;
+      try { atualizarSubmenuDaAba_(aba); } finally { mostrarAcaoDaTela_.atualizando = false; }
+    }
     document.body.classList.toggle('tem-acao-fixa', alguma);
   }
   // ---------- tabs ----------
@@ -3740,9 +3745,8 @@
     // longa (quase a rota inteira, numa semana de muita guia vencendo
     // junto) — no celular, isso empurrava Recados e Atestados pra muito
     // longe da vista. Os dois cartões curtos e de ação vêm primeiro.
-    'tab-rota': ['recadosCard', 'atestadosCard', 'fechamentoCard', 'vencimentosCard'],
-    'tab-painel': ['alertaSemEntregaCard', 'graficoCard', 'rankingCard'],
-    'tab-solicitacoes': ['pendentesCard'],
+    // Rota, Painel e Solicitações saíram daqui: agora têm submenu próprio
+    // (SUBMENUS_DAS_ABAS_), no mesmo desenho de Clientes › Ajustes.
     'tab-perfil': ['competenciasCard', 'auditoriaCard'],
     'tab-clientes': ['importCard', 'enderecosCard', 'qualidadeRotaCard']
   };
@@ -4938,6 +4942,97 @@
   }
 
   montarAjustesNaAbaClientes_();
+
+  // ---------- submenus das abas de Entregas ----------
+  // O mesmo desenho que a Nilma aprovou em Clientes › Ajustes: a barra
+  // lateral escolhe a tela, e uma barrinha de categorias no alto do
+  // conteúdo troca o que aparece dentro dela. Categoria cujos cartões estão
+  // todos escondidos (sem cargo, sem nada pra mostrar) some do submenu; com
+  // uma categoria só, o submenu inteiro some.
+  var SUBMENUS_DAS_ABAS_ = {
+    rota: [
+      { id: 'paradas', rotulo: 'Paradas', icone: 'ph-path', els: ['rotaCard', 'vencimentosCard', 'montagemCard', 'atestadosCard'] },
+      { id: 'recados', rotulo: 'Recados', icone: 'ph-push-pin', els: ['recadosCard'] },
+      { id: 'fechamento', rotulo: 'Fechamento do dia', icone: 'ph-clipboard-text', els: ['fechamentoCard', 'obrigacoesCard'] }
+    ],
+    painel: [
+      { id: 'entregas', rotulo: 'Entregas', icone: 'ph-chart-bar', els: ['painelCard', 'alertaSemEntregaCard'] },
+      { id: 'mes', rotulo: 'Fechamento do mês', icone: 'ph-list-checks', els: ['fechamentoMesCard'] },
+      { id: 'numeros', rotulo: 'Números', icone: 'ph-chart-line-up', els: ['graficoCard', 'rankingCard', 'mapaCard'] }
+    ],
+    solicitacoes: [
+      { id: 'nova', rotulo: 'Nova solicitação', icone: 'ph-paper-plane-tilt', els: ['form-solicitacao'] },
+      { id: 'pendentes', rotulo: 'Pendentes', icone: 'ph-hourglass-medium', els: ['pendentesCard'] }
+    ]
+  };
+  var grupoAtivoDaAba_ = {};
+  function montarSubmenusDasAbas_() {
+    Object.keys(SUBMENUS_DAS_ABAS_).forEach(function (aba) {
+      var secao = $('tab-' + aba);
+      if (!secao || secao.querySelector(':scope > .aba-subnav')) return;
+      var grupos = SUBMENUS_DAS_ABAS_[aba];
+      var subnav = document.createElement('div');
+      subnav.className = 'mode-toggle clientes-subnav aba-subnav';
+      subnav.setAttribute('role', 'group');
+      subnav.setAttribute('aria-label', 'Categorias');
+      subnav.innerHTML = grupos.map(function (g, gi) {
+        return '<button type="button" class="mode-btn' + (gi === 0 ? ' active' : '') + '" data-grupo="' + g.id + '">' +
+          '<i class="ph ' + g.icone + '" aria-hidden="true"></i> ' + escapeHtml_(g.rotulo) + '</button>';
+      }).join('');
+      secao.insertBefore(subnav, secao.firstChild);
+      grupos.forEach(function (g, gi) {
+        var grupoEl = document.createElement('div');
+        grupoEl.className = 'card-grupo';
+        grupoEl.dataset.grupo = g.id;
+        grupoEl.hidden = gi !== 0;
+        g.els.forEach(function (id) { var el = $(id); if (el) grupoEl.appendChild(el); });
+        secao.appendChild(grupoEl);
+      });
+      subnav.querySelectorAll('.mode-btn').forEach(function (b) {
+        b.addEventListener('click', function () { mostrarGrupoDaAba_(aba, b.dataset.grupo); });
+      });
+      grupoAtivoDaAba_[aba] = grupos[0].id;
+    });
+  }
+  function mostrarGrupoDaAba_(aba, grupo) {
+    var secao = $('tab-' + aba);
+    if (!secao) return;
+    grupoAtivoDaAba_[aba] = grupo;
+    secao.querySelectorAll(':scope > .aba-subnav .mode-btn').forEach(function (b) { b.classList.toggle('active', b.dataset.grupo === grupo); });
+    secao.querySelectorAll(':scope > .card-grupo').forEach(function (g) { g.hidden = g.dataset.grupo !== grupo; });
+    mostrarAcaoDaTela_(aba);
+    if (aba === 'painel' && grupo === 'numeros' && painelMap) setTimeout(function () { painelMap.invalidateSize(); }, 50);
+  }
+  // Esconde categoria sem nada visível (e o submenu todo quando sobra uma).
+  function atualizarSubmenuDaAba_(aba) {
+    var grupos = SUBMENUS_DAS_ABAS_[aba];
+    var secao = $('tab-' + aba);
+    if (!grupos || !secao) return;
+    var visiveis = [];
+    grupos.forEach(function (g) {
+      var tem = g.els.some(function (id) { var el = $(id); return el && !el.hidden; });
+      var b = secao.querySelector(':scope > .aba-subnav .mode-btn[data-grupo="' + g.id + '"]');
+      if (b) b.hidden = !tem;
+      if (tem) visiveis.push(g.id);
+    });
+    var subnav = secao.querySelector(':scope > .aba-subnav');
+    if (subnav) subnav.hidden = visiveis.length < 2;
+    var ativo = grupoAtivoDaAba_[aba];
+    if (visiveis.length && visiveis.indexOf(ativo) === -1) mostrarGrupoDaAba_(aba, visiveis[0]);
+  }
+  montarSubmenusDasAbas_();
+  // O atalho dos estados vazios (vazioCom_) leva até um cartão: se ele está
+  // em outra categoria do submenu, abre essa categoria antes.
+  document.addEventListener('click', function (ev) {
+    var b = ev.target.closest('.vazio-acao');
+    if (!b) return;
+    var alvo = document.getElementById(b.dataset.clicar);
+    var grupo = alvo && alvo.closest('.card-grupo');
+    var secao = grupo && grupo.closest('.view');
+    if (grupo && grupo.hidden && secao && SUBMENUS_DAS_ABAS_[secao.id.replace('tab-', '')]) {
+      mostrarGrupoDaAba_(secao.id.replace('tab-', ''), grupo.dataset.grupo);
+    }
+  }, true);
 
   // ---------- signature (reusable pad factory) ----------
   function createSignaturePad(canvasEl, initialCssHeight) {

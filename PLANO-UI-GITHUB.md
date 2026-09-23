@@ -259,3 +259,12 @@ node scripts/teste-pendencias.js && node scripts/teste-robo.js   # (teste-robo p
 - Numeração `#n` na rota, nas solicitações e nos atestados.
 - Verificado: scripts compilam, testes de recorte passam, e o teste no Chromium (Firebase falso + modo demonstração) abriu as
   abas no PC e no celular, claro e escuro, sem erro de JS. Honorários não aparece no teste porque o usuário falso não tem cargo.
+
+### Submenus no Entregas (pedido da Nilma, 2026-09-23: "como ficou a parte de ajustes dos clientes")
+- A barra lateral escolhe a tela e uma barrinha de categorias no alto do conteúdo troca o que aparece, no mesmo componente
+  de Clientes › Ajustes (`SUBMENUS_DAS_ABAS_`):
+  - Rota: Paradas (rota, vencendo, montagem, atestados) · Recados · Fechamento do dia (fechamento e obrigações).
+  - Painel: Entregas (lista e "sem entrega há tempo") · Fechamento do mês · Números (gráfico, ranking, mapa).
+  - Solicitações: Nova solicitação · Pendentes. "Enviar solicitação" só aparece em Nova solicitação.
+- Categoria sem nada visível some do submenu; com uma só, o submenu inteiro some. Rota, Painel e Solicitações saíram da
+  faixa lateral de tela larga (os cartões agora se dividem pelo submenu).
