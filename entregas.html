@@ -1085,6 +1085,7 @@
   .lista-mais { display: flex; margin: var(--esp-2) var(--esp-3) var(--esp-2) auto; }
   /* informação curta de campo (não é dica: é dado que o app escreve) */
   .field-info { font-size: var(--t-sm); color: var(--ink-soft); margin: 4px 0 0; }
+  .avulso-toggle.avulso-embaixo { margin: var(--esp-2) 0 0; }
   .field-info:empty { display: none; }
   /* menu ⋯ de uma linha (Honorários): <details> ancorado, mesmo vocabulário do .menu-acoes */
   .menu-linha { position: relative; }
@@ -2211,10 +2212,6 @@
 
       <label class="field" id="clienteField">
         <span>Cliente</span>
-        <label class="avulso-toggle">
-          <input type="checkbox" id="avulsoToggle">
-          Pessoa física avulsa
-        </label>
         <div class="combobox" id="clienteComboboxWrap">
           <input class="input" id="clienteInput" type="text" placeholder="Buscar cliente..." autocomplete="off"
                  role="combobox" aria-expanded="false" aria-controls="clienteSuggestions"
@@ -2223,6 +2220,12 @@
         </div>
         <input class="input" id="avulsoNomeInput" type="text" placeholder="Nome da pessoa" hidden autocomplete="off">
         <div class="field-error" id="err-cliente">Selecione um cliente da lista, ou informe o nome.</div>
+        <!-- embaixo do campo: em cima, empurrava o campo pra baixo e a
+             Competência, ao lado, ficava desalinhada -->
+        <label class="avulso-toggle avulso-embaixo">
+          <input type="checkbox" id="avulsoToggle">
+          Pessoa física avulsa
+        </label>
       </label>
 
       <label class="field" id="competenciaField">
