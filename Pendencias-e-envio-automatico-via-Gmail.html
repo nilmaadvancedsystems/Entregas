@@ -1195,6 +1195,18 @@
   @media (min-width: 1100px) { .hoje-grade { grid-template-columns: minmax(0, 1fr) 340px; } }
   @media (max-width: 560px) { .caixa-p .tab-simples tr { padding-left: var(--esp-3); padding-right: var(--esp-3); } }
 
+  /* Robô: resumo como lista de pares, igual ao "About" do GitHub. */
+  .robo-resumo { margin: 0; }
+  .robo-resumo > div { display: flex; align-items: baseline; justify-content: space-between; gap: var(--esp-3); padding: var(--esp-2) var(--esp-3); border-bottom: 1px solid var(--border); }
+  .robo-resumo > div:last-child, .robo-resumo > div:has(~ div[hidden]):not(:has(~ div:not([hidden]))) { border-bottom: 0; }
+  .robo-resumo dt { font-size: var(--t-sm); color: var(--ink-soft); }
+  .robo-resumo dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
+  .robo-resumo dd.suave { font-weight: 500; font-size: var(--t-sm); }
+  #viewRobo .pagina-topo, #viewCobrancas .pagina-topo { margin-bottom: var(--esp-4); }
+  #roboAviso:not(:empty) { margin-bottom: var(--esp-4); }
+  .caixa-p .vazio { padding: 32px 16px; }
+  .caixa-p > .vazio[hidden] { display: none; }
+
   /* Visão anual como o gráfico de contribuições do GitHub. */
   .anual-caixa .caixa-cab .busca-wrap { flex: 0 1 320px; }
   .anual-caixa .caixa-cab .busca-wrap .input { height: 32px; background: var(--surface); }
@@ -1541,18 +1553,18 @@
     <!-- ================= PÁGINA: COBRANÇAS DO MÊS ================= -->
     <div id="viewCobrancas" hidden>
       <div class="pagina-topo">
-        <div>
-          <h1>Cobranças de <span id="cobMesLabel"></span></h1>
-
-        </div>
+        <div><h1>Cobranças</h1><span id="cobMesLabel" hidden></span></div>
         <div class="mes-nav">
           <button type="button" id="cobMesAnterior" aria-label="Mês anterior"><i class="ph ph-caret-left" aria-hidden="true"></i></button>
           <span class="mes-label" id="cobMesLabel2"></span>
           <button type="button" id="cobMesProximo" aria-label="Próximo mês"><i class="ph ph-caret-right" aria-hidden="true"></i></button>
         </div>
       </div>
-      <div class="tab-rolagem"><table class="tab-simples" id="tabCobrancas"></table></div>
-      <div id="cobrancasVazio" class="vazio" hidden></div>
+      <section class="caixa-p">
+        <div class="caixa-cab"><h2><i class="ph ph-paper-plane-tilt" aria-hidden="true"></i> Enviadas no mês</h2><span class="cont" id="cobN"></span></div>
+        <div class="tab-rolagem"><table class="tab-simples" id="tabCobrancas"></table></div>
+        <div id="cobrancasVazio" class="vazio" hidden></div>
+      </section>
     </div>
 
     <!-- ================= PÁGINA: ROBÔ DO GMAIL ================= -->
@@ -1569,36 +1581,44 @@
           <button type="button" class="btn btn-secondary" id="btnVerificarGmail"><i class="ph ph-arrows-clockwise" aria-hidden="true"></i> Verificar Gmail agora</button>
         </div>
       </div>
-      <div class="status-bloco">
-        <div class="item"><div class="rot">Documentos marcados em <span id="roboMesLabel"></span></div><div class="val" id="roboMarcados">–</div></div>
-        <div class="item"><div class="rot">Última leitura</div><div class="val suave" id="roboUltima">–</div></div>
-        <div class="item" hidden><div class="rot">Clientes que o robô reconhece</div><div class="val" id="roboComEmail">–</div></div>
-        <div class="item" hidden><div class="rot">Sem e-mail (fora do alcance)</div><div class="val" id="roboSemEmail">–</div></div>
-      </div>
       <div id="roboAviso"></div>
-      <section id="roboCaixaSecao" hidden>
-        <div class="painel-titulo"><h2>E-mails de clientes com anexo <span class="badge quieto" id="roboCaixaN"></span></h2></div>
-        <div class="tab-rolagem"><table class="tab-simples" id="tabCaixa"></table></div>
-      </section>
-      <section id="roboNaoRecSecao" hidden>
-        <div class="painel-titulo"><h2>Precisam de você: remetentes sem cliente <span class="badge quieto" id="roboNaoRecN"></span></h2></div>
-        <div class="tab-rolagem"><table class="tab-simples" id="tabNaoRec"></table></div>
-      </section>
-      <details class="dobra" id="roboMarcadosDobra">
-        <summary>Marcados pelo robô em <span id="roboMesLabel2"></span> <span class="cont" id="roboMarcadosN"></span></summary>
-        <div class="dobra-corpo">
-          <div class="tab-rolagem"><table class="tab-simples" id="tabRobo"></table></div>
-          <div id="roboVazio" class="vazio" hidden></div>
+      <!-- Mesmo desenho do Hoje: à esquerda o que pede ação, à direita o resumo. -->
+      <div class="hoje-grade">
+        <div class="hoje-principal">
+          <section class="caixa-p" id="roboNaoRecSecao" hidden>
+            <div class="caixa-cab"><h2><i class="ph ph-user-circle-plus" aria-hidden="true"></i> Remetentes sem cliente</h2><span class="cont" id="roboNaoRecN"></span></div>
+            <div class="tab-rolagem"><table class="tab-simples" id="tabNaoRec"></table></div>
+          </section>
+          <section class="caixa-p" id="roboCaixaSecao" hidden>
+            <div class="caixa-cab"><h2><i class="ph ph-paperclip" aria-hidden="true"></i> E-mails com anexo</h2><span class="cont" id="roboCaixaN"></span></div>
+            <div class="tab-rolagem"><table class="tab-simples" id="tabCaixa"></table></div>
+          </section>
+          <section class="caixa-p" id="roboMarcadosDobra">
+            <div class="caixa-cab"><h2><i class="ph ph-check-square" aria-hidden="true"></i> <span>Marcados em <span id="roboMesLabel2"></span></span></h2><span class="cont" id="roboMarcadosN"></span></div>
+            <div class="tab-rolagem"><table class="tab-simples" id="tabRobo"></table></div>
+            <div id="roboVazio" class="vazio" hidden></div>
+          </section>
+          <section class="caixa-p" id="roboExecSecao" hidden>
+            <div class="caixa-cab"><h2><i class="ph ph-clock-counter-clockwise" aria-hidden="true"></i> Execuções recentes</h2><span class="cont" id="roboExecN"></span></div>
+            <div class="tab-rolagem"><table class="tab-simples" id="tabExecRobo"></table></div>
+          </section>
+          <section class="caixa-p" id="roboErrosSecao" hidden>
+            <div class="caixa-cab"><h2><i class="ph ph-flag" aria-hidden="true"></i> Marcações erradas</h2><span class="cont" id="roboErrosN"></span></div>
+            <div class="tab-rolagem"><table class="tab-simples" id="tabErrosRobo"></table></div>
+          </section>
         </div>
-      </details>
-      <details class="dobra" id="roboExecSecao" hidden>
-        <summary>Execuções recentes <span class="cont" id="roboExecN"></span></summary>
-        <div class="dobra-corpo"><div class="tab-rolagem"><table class="tab-simples" id="tabExecRobo"></table></div></div>
-      </details>
-      <details class="dobra" id="roboErrosSecao" hidden>
-        <summary>Marcações erradas reportadas <span class="cont" id="roboErrosN"></span></summary>
-        <div class="dobra-corpo"><div class="tab-rolagem"><table class="tab-simples" id="tabErrosRobo"></table></div></div>
-      </details>
+        <aside class="hoje-lado">
+          <section class="caixa-p">
+            <div class="caixa-cab"><h2><i class="ph ph-gauge" aria-hidden="true"></i> Resumo</h2></div>
+            <dl class="robo-resumo">
+              <div><dt>Marcados em <span id="roboMesLabel"></span></dt><dd id="roboMarcados">–</dd></div>
+              <div><dt>Última leitura</dt><dd class="suave" id="roboUltima">–</dd></div>
+              <div hidden><dt>Clientes reconhecidos</dt><dd id="roboComEmail">–</dd></div>
+              <div hidden><dt>Sem e-mail</dt><dd id="roboSemEmail">–</dd></div>
+            </dl>
+          </section>
+        </aside>
+      </div>
     </div>
 
     <!-- ================= PÁGINA: CONFIGURAÇÕES ================= -->
@@ -4002,7 +4022,6 @@
       $('roboVazio').innerHTML = '';
       $('roboVazio').appendChild(ico('ph-robot'));
       $('roboVazio').appendChild(el('strong', null, 'Nenhum documento lido do Gmail em ' + competenciaPorExtenso(compAberta)));
-      $('roboVazio').appendChild(el('span', null, 'O robô grava na competência do documento, que costuma ser o mês anterior ao do e-mail.'));
     } else {
       var thead = el('thead'); var trh = el('tr');
       ['Cliente', 'Documento', 'Quando', 'Anexo'].forEach(function (c) { trh.appendChild(el('th', null, c)); });
@@ -4036,6 +4055,7 @@
     });
     cob.sort(function (a, b) { return String(b.em).localeCompare(String(a.em)); });
     $('menuNumCobrancas').textContent = cob.length ? cob.length : '';
+    $('cobN').textContent = cob.length || '';
     var tc = $('tabCobrancas');
     tc.innerHTML = '';
     $('cobrancasVazio').hidden = cob.length > 0;
@@ -4043,7 +4063,6 @@
       $('cobrancasVazio').innerHTML = '';
       $('cobrancasVazio').appendChild(ico('ph-paper-plane-tilt'));
       $('cobrancasVazio').appendChild(el('strong', null, 'Nenhuma cobrança em ' + competenciaPorExtenso(compAberta)));
-      $('cobrancasVazio').appendChild(el('span', null, 'Abra um cliente com pendência e use "Cobrar por e-mail".'));
     } else {
       var thead2 = el('thead'); var trh2 = el('tr');
       ['Cliente', 'Documentos cobrados', 'Para', 'Quando', 'Por'].forEach(function (c) { trh2.appendChild(el('th', null, c)); });
