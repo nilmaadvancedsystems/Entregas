@@ -16,7 +16,7 @@
 
 /* ---------------------------------------------------------------
  tokens, tema escuro, paletas, preferências e barra de rolagem
- (entregas.html, linhas 76-357)
+ (entregas.html, linhas 76-358)
  --------------------------------------------------------------- */
 :root {
   /* --- neutros ---
@@ -112,8 +112,9 @@
      calçada: 44px. No PC (media de 900px) cai, porque lá é mouse. */
   --alvo: 44px;
   --card-pad: 16px;
-  /* altura da barra de cima (casca GitHub) */
+  /* altura da barra de cima e largura da barra lateral de abas (casca GitHub) */
   --topo: 56px;
+  --lateral: 232px;
 
   /* --- tipografia ---
      Uma família só, em pesos diferentes, mais a mono irmã pros números.
@@ -303,7 +304,7 @@ html[data-animacao="reduzida"] *::after {
 
 /* ---------------------------------------------------------------
  base: corpo, tipografia, toque, ícones, foco
- (entregas.html, linhas 358-427)
+ (entregas.html, linhas 359-428)
  --------------------------------------------------------------- */
 /* ---------- base ---------- */
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -378,7 +379,7 @@ select:focus-visible, textarea:focus-visible, a:focus-visible, .chip:focus-visib
 
 /* ---------------------------------------------------------------
  cartão
- (entregas.html, linhas 640-683)
+ (entregas.html, linhas 666-709)
  --------------------------------------------------------------- */
 .card {
   background: none; border: none; border-radius: 0;
@@ -427,7 +428,7 @@ select:focus-visible, textarea:focus-visible, a:focus-visible, .chip:focus-visib
 
 /* ---------------------------------------------------------------
  campo, entrada e erro de campo
- (entregas.html, linhas 684-733)
+ (entregas.html, linhas 710-759)
  --------------------------------------------------------------- */
 .field { display: block; margin-bottom: var(--esp-4); }
 .field > span:first-child:not([class]),
@@ -482,7 +483,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  chip
- (entregas.html, linhas 953-972)
+ (entregas.html, linhas 979-998)
  --------------------------------------------------------------- */
 .chip { position: relative; }
 .chip input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
@@ -507,7 +508,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  botão
- (entregas.html, linhas 988-1040)
+ (entregas.html, linhas 1014-1066)
  --------------------------------------------------------------- */
    Botões — uma forma só, três pesos
    ========================================================================== */
@@ -565,7 +566,7 @@ html[data-densidade="compacto"] .rota-lote-btn { margin-left: 22px; max-width: c
 
 /* ---------------------------------------------------------------
  aviso flutuante
- (entregas.html, linhas 1275-1283)
+ (entregas.html, linhas 1301-1309)
  --------------------------------------------------------------- */
 .toast {
   position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 10px); z-index: var(--z-aviso);
@@ -579,7 +580,7 @@ html[data-densidade="compacto"] .rota-lote-btn { margin-left: 22px; max-width: c
 
 /* ---------------------------------------------------------------
  janela (modal)
- (entregas.html, linhas 1288-1333)
+ (entregas.html, linhas 1314-1359)
  --------------------------------------------------------------- */
 .modal-overlay {
   position: fixed; inset: 0; background: var(--scrim); z-index: var(--z-veu);
@@ -630,7 +631,7 @@ html[data-densidade="compacto"] .rota-lote-btn { margin-left: 22px; max-width: c
 
 /* ---------------------------------------------------------------
  selo de situação
- (entregas.html, linhas 1137-1147)
+ (entregas.html, linhas 1163-1173)
  --------------------------------------------------------------- */
 /* ---------- selo de situação ---------- */
 .status-pill {
@@ -646,7 +647,7 @@ html[data-densidade="compacto"] .rota-lote-btn { margin-left: 22px; max-width: c
 
 /* ---------------------------------------------------------------
  tela vazia e janela
- (entregas.html, linhas 1148-1191)
+ (entregas.html, linhas 1174-1217)
  --------------------------------------------------------------- */
 .empty-state { color: var(--ink-faint); font-size: var(--t-base); text-align: center; padding: var(--esp-5) var(--esp-3); line-height: 1.5; }
 
@@ -695,7 +696,7 @@ html[data-densidade="compacto"] .rota-lote-btn { margin-left: 22px; max-width: c
 
 /* ---------------------------------------------------------------
  casca GitHub: barra de cima, abas do módulo e gavetas (nilma-shell.js)
- (entregas.html, linhas 471-622)
+ (entregas.html, linhas 472-648)
  --------------------------------------------------------------- */
 /* ---------- casca GitHub: barra, abas e gavetas ---------- */
 /* A marcação nasce em nilma-shell.js; este bloco sai inteiro pra
@@ -849,6 +850,31 @@ body:has(.gaveta:not([hidden])) { overflow: hidden; }
   color: var(--ink); font-size: var(--t-base); line-height: 1.45;
 }
 .aviso-faixa > .ph { color: var(--warning-forte); font-size: 1.1rem; flex: none; margin-top: 1px; }
+/* --- PC: as abas do módulo viram barra lateral fixa ---
+   Duas barras laterais, como pediu a Nilma: esta, fixa, com as abas do
+   módulo; e o ☰, que abre por cima com módulos e ferramentas. No celular
+   as abas continuam sublinhadas logo abaixo da barra de cima. */
+@media (min-width: 900px) {
+  .tabs {
+    position: fixed; top: var(--topo-total); left: 0; bottom: 0; z-index: var(--z-fixo);
+    width: var(--lateral); min-height: 0; flex-direction: column; align-items: stretch; gap: 2px;
+    padding: var(--esp-3) var(--esp-2); border-bottom: 0; border-right: 1px solid var(--border);
+    overflow-x: hidden; overflow-y: auto;
+  }
+  .tab {
+    position: relative; justify-content: flex-start; min-height: var(--alvo); padding: 0 var(--esp-3);
+    margin: 0; border-bottom: 0; border-radius: var(--r-sm);
+  }
+  .tab:hover { background: var(--surface-2); }
+  .tab:hover .tab-label { background: none; }
+  .tab-label { flex: 1; min-width: 0; padding: 0; margin: 0; text-align: left; overflow: hidden; text-overflow: ellipsis; }
+  .tab.active { background: var(--surface-2); }
+  .tab.active::before {
+    content: ''; position: absolute; left: calc(-1 * var(--esp-2)); top: 6px; bottom: 6px;
+    width: 3px; border-radius: var(--r-pill); background: var(--accent);
+  }
+  body:has(> .tabs:not([hidden])) { padding-left: var(--lateral); }
+}
 /* ---------------------------------------------------------------
    Só destas telas: janela de Aparência (nilma-ui.js) e a moldura
    (menu lateral, cabeçalho de página). O entregas.html tem a

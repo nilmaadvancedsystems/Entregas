@@ -20,8 +20,10 @@ linha, botão de ação **com borda e fundo na mesma linha**.
 
 ### Decisões já tomadas com a Nilma (não perguntar de novo)
 
-1. Abas do módulo = abas horizontais sublinhadas abaixo da barra, no PC **e** no celular (roláveis).
-   Somem a coluna fixa de 224px do PC e a pílula flutuante do celular.
+1. **Revisado em 2026-09-23 (pedido da Nilma: "duas barras laterais, uma fixa do app e uma alternante"):**
+   no PC as abas do módulo ficam numa barra lateral FIXA à esquerda (`--lateral: 232px`, abaixo da barra de
+   cima) e o ☰ é a barra que abre e fecha por cima, com módulos e ferramentas. No celular as abas ficam
+   sublinhadas logo abaixo da barra de cima (roláveis) e o ☰ é o mesmo painel. Sai a pílula flutuante.
 2. A tela hub (cartões) SOME. O app abre no último módulo usado (`localStorage nilma_ultima_funcao`,
    padrão Entregas). Trocar de módulo é só pelo ☰.
 3. Consulta rápida vira a busca da barra superior (caixa no centro, atalho `/`).
@@ -239,3 +241,7 @@ node scripts/teste-pendencias.js && node scripts/teste-robo.js   # (teste-robo p
 - Cache do service worker subiu pra `nilma-app-v4`; `nilma-ui.css` regenerado com o bloco da casca.
 - Verificado: scripts compilam, `teste-consulta` / `teste-pendencias` / `teste-robo` passam, e um teste no Chromium com
   Firebase falso percorreu login, troca de módulo, as duas gavetas, Aparência, Conta, `/`, `#clientes` e sair, sem erro de JS.
+
+### Etapa 1 — ajuste pedido (2026-09-23)
+- Duas barras laterais no PC: a das abas do módulo, fixa, e o ☰, que abre e fecha por cima. No celular nada muda.
+- As ferramentas do Contábil (iframe) ocupam a tela à direita da barra lateral.

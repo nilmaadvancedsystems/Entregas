@@ -167,8 +167,9 @@
        calçada: 44px. No PC (media de 900px) cai, porque lá é mouse. */
     --alvo: 44px;
     --card-pad: 16px;
-    /* altura da barra de cima (casca GitHub) */
+    /* altura da barra de cima e largura da barra lateral de abas (casca GitHub) */
     --topo: 56px;
+    --lateral: 232px;
 
     /* --- tipografia ---
        Uma família só, em pesos diferentes, mais a mono irmã pros números.
@@ -620,6 +621,31 @@
     color: var(--ink); font-size: var(--t-base); line-height: 1.45;
   }
   .aviso-faixa > .ph { color: var(--warning-forte); font-size: 1.1rem; flex: none; margin-top: 1px; }
+  /* --- PC: as abas do módulo viram barra lateral fixa ---
+     Duas barras laterais, como pediu a Nilma: esta, fixa, com as abas do
+     módulo; e o ☰, que abre por cima com módulos e ferramentas. No celular
+     as abas continuam sublinhadas logo abaixo da barra de cima. */
+  @media (min-width: 900px) {
+    .tabs {
+      position: fixed; top: var(--topo-total); left: 0; bottom: 0; z-index: var(--z-fixo);
+      width: var(--lateral); min-height: 0; flex-direction: column; align-items: stretch; gap: 2px;
+      padding: var(--esp-3) var(--esp-2); border-bottom: 0; border-right: 1px solid var(--border);
+      overflow-x: hidden; overflow-y: auto;
+    }
+    .tab {
+      position: relative; justify-content: flex-start; min-height: var(--alvo); padding: 0 var(--esp-3);
+      margin: 0; border-bottom: 0; border-radius: var(--r-sm);
+    }
+    .tab:hover { background: var(--surface-2); }
+    .tab:hover .tab-label { background: none; }
+    .tab-label { flex: 1; min-width: 0; padding: 0; margin: 0; text-align: left; overflow: hidden; text-overflow: ellipsis; }
+    .tab.active { background: var(--surface-2); }
+    .tab.active::before {
+      content: ''; position: absolute; left: calc(-1 * var(--esp-2)); top: 6px; bottom: 6px;
+      width: 3px; border-radius: var(--r-pill); background: var(--accent);
+    }
+    body:has(> .tabs:not([hidden])) { padding-left: var(--lateral); }
+  }
   /* ---------- fim da casca GitHub ---------- */
 
   /* ==========================================================================
@@ -1268,7 +1294,7 @@
   }
   .offline-banner { margin-bottom: var(--esp-4); line-height: 1.4; }
   html.publico main, html.publico #tabsNav, html.publico #topo, html.publico .topbar, html.publico .gaveta, html.publico .gaveta-veu { display: none !important; }
-  html.publico body { padding-top: 0; }
+  html.publico body { padding-top: 0; padding-left: 0; }
   /* nas telas de tela cheia (login, assinar, rota) o aviso ficava ATRÁS delas:
      "link copiado" e os erros nunca apareciam */
   body:has(.auth-gate:not([hidden])) .toast { z-index: calc(var(--z-tela) + 5); }
@@ -1811,11 +1837,10 @@
     html[data-densidade="compacto"] { --linha: 34px; --alvo: 30px; --card-pad: 16px; }
 
     body { font-size: var(--t-md); }
-    .tabs { padding: 0 var(--esp-4); }
 
     /* ---------- modo ferramenta (Contábil) ----------
        A ferramenta (iframe) traz o próprio conteúdo: some o título da tela e
-       o iframe ocupa tudo abaixo da barra de cima e das abas (48px). */
+       o iframe ocupa tudo à direita da barra lateral e abaixo da de cima. */
     body.modo-secundario .tela-cabecalho { display: none; }
     body.modo-secundario main { padding: 0; }
     /* !important só porque o tamanho do iframe está no style da própria
@@ -1823,8 +1848,8 @@
     body.modo-secundario #frameConciliador,
     body.modo-secundario #frameCheque {
       /* altura explícita: iframe não estica com top+bottom como uma div */
-      position: fixed; top: calc(var(--topo-total) + 48px); left: 0; right: 0;
-      width: 100% !important; height: calc(100vh - var(--topo-total) - 48px) !important; border-radius: 0 !important;
+      position: fixed; top: var(--topo-total); left: var(--lateral); right: 0;
+      width: calc(100% - var(--lateral)) !important; height: calc(100vh - var(--topo-total)) !important; border-radius: 0 !important;
     }
 
     main { max-width: none; margin: 0; padding: var(--esp-5) var(--esp-5) var(--esp-6); }
