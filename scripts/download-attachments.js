@@ -25,11 +25,11 @@ const { FieldValue } = require('firebase-admin/firestore');
 const { getGmail } = require('./gmail-client');
 const { getDb } = require('./firestore-client');
 
+// O que o robô lembra entre uma leitura e outra (e-mails já lidos, anexo sem
+// dono, anexo que não baixa) — hoje no banco, não mais em arquivo. Ver lá.
+const estadoRobo = require('./estado-robo.js');
+
 const PASTA_DESTINO = 'G:\\Meu Drive\\Claudio Secretario';
-const PROCESSADOS_PATH = path.join(__dirname, 'gmail-processados.json');
-// E-mail com anexo de remetente sem cliente: guarda id -> remetente pra não abrir
-// de novo a cada execução. Só volta a ser lido quando o remetente for vinculado.
-const SEM_CLIENTE_PATH = path.join(__dirname, 'gmail-sem-cliente.json');
 const MAX_MENSAGENS = 500;          // teto por execução, pra uma janela grande não travar
 const MAX_NAO_RECONHECIDOS = 100;
 const MAX_EXECUCOES = 30;
@@ -105,32 +105,10 @@ function competenciaPresumida(dataMs, diaLimite) {
   return antes.getFullYear() + '-' + String(antes.getMonth() + 1).padStart(2, '0');
 }
 
-function carregarProcessados() {
-  try { return new Set(JSON.parse(fs.readFileSync(PROCESSADOS_PATH, 'utf8'))); }
-  catch (e) { return new Set(); }
-}
-// Grava num arquivo ao lado e troca de nome no fim. Agora que o controle vai pro
-// disco várias vezes por leitura, uma queda de luz no meio de uma gravação
-// deixava o arquivo cortado: ele abria como "nenhum e-mail lido" e o robô
-// refazia a janela inteira, remarcando o que alguém tinha desmarcado.
-function gravarInteiro(caminho, texto) {
-  fs.writeFileSync(caminho + '.tmp', texto);
-  fs.renameSync(caminho + '.tmp', caminho);
-}
-function salvarProcessados(set) {
-  gravarInteiro(PROCESSADOS_PATH, JSON.stringify(Array.from(set)));
-}
 // Anexo que não baixa: tenta de novo nas próximas leituras, mas só 3 vezes.
 // Sem teto, um anexo quebrado fazia o e-mail ser refeito de 2 em 2 horas por
 // semanas, remarcando o documento toda vez que alguém desmarcava.
-const TENTATIVAS_PATH = path.join(__dirname, 'gmail-tentativas.json');
 const MAX_TENTATIVAS = 3;
-function carregarTentativas() { try { return JSON.parse(fs.readFileSync(TENTATIVAS_PATH, 'utf8')); } catch (e) { return {}; } }
-function salvarTentativas(t) { try { gravarInteiro(TENTATIVAS_PATH, JSON.stringify(t)); } catch (e) {} }
-function carregarSemCliente() {
-  try { return JSON.parse(fs.readFileSync(SEM_CLIENTE_PATH, 'utf8')); }
-  catch (e) { return {}; }
-}
 
 function cabecalho(headers, nome) {
   return ((headers || []).find(h => h.name.toLowerCase() === nome.toLowerCase()) || {}).value || '';
@@ -458,10 +436,16 @@ async function main() {
   // O --mensagem é pedido explícito da tela (e já recusa quem não é cliente).
   const ignorados = UMA_MENSAGEM ? new Set() : await lerIgnorados(db);
 
-  const tentativas = carregarTentativas();
-  const processados = RELER ? new Set() : carregarProcessados();
-  const jaProcessados = carregarProcessados();
-  const semCliente = RELER ? {} : carregarSemCliente();
+  // O que o robô lembra entre uma leitura e outra vem do banco, não mais de
+  // arquivo ao lado do script — é o que permite ele rodar na nuvem, onde o
+  // disco nasce limpo a cada execução. Ver estado-robo.js.
+  const estado = await estadoRobo.carregar(db);
+  const tentativas = estado.tentativas;
+  const processados = RELER ? new Set() : estado.processados;
+  const jaProcessados = new Set(estado.processados);
+  const semCliente = RELER ? {} : estado.semCliente;
+  // o que for gravado daqui pra frente é sempre o estado de trabalho atual
+  const estadoAgora = () => ({ processados: processados, semCliente: semCliente, tentativas: tentativas });
   const ehConhecido = email => porEmail.has(email) || porDominio.has(dominioDe(email));
   const ids = UMA_MENSAGEM ? [UMA_MENSAGEM] : await listarMensagens(gmail, porEmail, porDominio);
   if (!UMA_MENSAGEM) console.log(`E-mails na janela de ${DIAS} dias: ${ids.length}`);
@@ -489,7 +473,10 @@ async function main() {
   let desdeUltimoSalvo = 0;
   const guardarAndamento = () => {
     if (SIMULAR || UMA_MENSAGEM) return;
-    try { salvarProcessados(processados); gravarInteiro(SEM_CLIENTE_PATH, JSON.stringify(semCliente)); salvarTentativas(tentativas); } catch (e) { /* tenta de novo no fim */ }
+    // O arquivo fecha na hora e segura um Ctrl+C; o banco vai logo atrás, sem
+    // travar a leitura (se falhar, a gravação do fim cobre).
+    estadoRobo.salvarLocal(estadoAgora());
+    estadoRobo.salvar(db, estadoAgora()).catch(() => {});
   };
   process.once('SIGINT', () => { guardarAndamento(); process.exit(130); });
 
@@ -706,8 +693,7 @@ async function main() {
   if (UMA_MENSAGEM) {
     if (!SIMULAR) {
       await db.collection('robo').doc('estado').set(Object.assign({ caixa }, comSalvos()), { merge: true });
-      salvarProcessados(processados);
-      gravarInteiro(SEM_CLIENTE_PATH, JSON.stringify(semCliente)); salvarTentativas(tentativas);
+      await estadoRobo.salvar(db, estadoAgora());
     }
     // A última linha é lida pelo vigia pra responder à tela.
     console.log('RESULTADO:' + JSON.stringify(resultado || { mensagemId: UMA_MENSAGEM, erro: 'e-mail não encontrado' }));
@@ -761,8 +747,7 @@ async function main() {
 
   if (!SIMULAR) {
     await roboRef.set(Object.assign({ ultimaExecucao: execucao.em, ultimaExecucaoResumo: resumo, naoReconhecidos, execucoes, caixa }, comSalvos(), spam ? { spam } : {}), { merge: true });
-    salvarProcessados(processados);
-    gravarInteiro(SEM_CLIENTE_PATH, JSON.stringify(semCliente)); salvarTentativas(tentativas);
+    await estadoRobo.salvar(db, estadoAgora());
   }
 
   console.log('---');
