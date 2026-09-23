@@ -886,6 +886,17 @@
 
 
   /* ordem fixa da rota */
+  /* Pix do honorário: o QR fica do lado do valor, não embaixo, pra caber
+     na tela do celular sem rolar na hora de mostrar pro cliente. */
+  .pix-valor-linha { display: block; }
+  .pix-valor-linha > span { display: block; font-size: var(--t-sm); color: var(--ink-soft); margin-bottom: 4px; }
+  .pix-qr { display: flex; gap: var(--esp-4); align-items: center; margin-top: var(--esp-3); }
+  .pix-qr[hidden] { display: none; }
+  .pix-qr #honorarioPixQr { flex: none; line-height: 0; background: #fff; padding: 8px; border: 1px solid var(--border); border-radius: var(--r-sm); }
+  .pix-qr #honorarioPixQr img, .pix-qr #honorarioPixQr canvas { display: block; }
+  .pix-qr-lado { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; min-width: 0; }
+  .pix-qr-sub { font-size: var(--t-sm); color: var(--ink-soft); }
+
   .rotafixa-zona-secao { margin-bottom: var(--esp-5); }
   /* Cabeçalho de seção estilo "barra de tabela" (GitHub): fundo levemente
      destacado, ocupando a largura da lista, em vez de um rótulo solto. */
@@ -2051,6 +2062,7 @@
     #form-solicitacao > .avulso-toggle { grid-column: 1 / -1; }
     #clienteField { grid-column: span 2; }
     #honorarioPixField { grid-column: 1 / -1; }
+    #honorarioPixCaixa { grid-column: 1 / -1; }
     #solDescricaoField { grid-column: 1 / -1; }
     #form-nova .mode-toggle { width: max-content; margin-bottom: var(--esp-5); }
     #form-nova .mode-btn { flex: none; padding: 8px 20px; white-space: nowrap; }
@@ -2357,8 +2369,22 @@
       <p class="field-info" id="honorarioInfoHint" hidden></p>
 
       <label class="field" id="honorarioPixField" hidden>
-        <span class="avulso-toggle"><input type="checkbox" id="honorarioPixToggle"> Recebido via Pix</span>
+        <span class="avulso-toggle"><input type="checkbox" id="honorarioPixToggle"> Pagamento via Pix</span>
       </label>
+      <div class="field" id="honorarioPixCaixa" hidden>
+        <label class="pix-valor-linha"><span>Valor do honorário</span>
+          <input class="input" id="honorarioPixValor" type="text" inputmode="decimal" placeholder="0,00" autocomplete="off">
+        </label>
+        <div class="pix-qr" id="honorarioPixQrWrap" hidden>
+          <div id="honorarioPixQr"></div>
+          <div class="pix-qr-lado">
+            <b id="honorarioPixTitulo">Pix do escritório</b>
+            <span class="pix-qr-sub" id="honorarioPixSub"></span>
+            <button type="button" class="btn-chip" id="honorarioPixCopiarBtn"><i class="ph ph-copy" aria-hidden="true"></i> Copiar código</button>
+          </div>
+        </div>
+        <p class="field-info" id="honorarioPixAviso" hidden></p>
+      </div>
 
       <label class="field" id="outroField">
         <span>Outro documento (opcional)</span>
@@ -4579,8 +4605,10 @@
   var escritorio_ = { pixChave: '', pixNome: '', pixCidade: '', honorarioTexto: '' };
 
   // BR Code estático do PIX, montado aqui (o app já tem o CRC16 que confere
-  // código de guia). Sem valor: o cliente digita quanto vai pagar.
-  function pixCopiaECola_(chave, nome, cidade) {
+  // código de guia). Sem valor, o cliente digita quanto vai pagar; com
+  // valor (campo 54), o app do banco já abre com o total do honorário
+  // preenchido — ninguém digita, ninguém erra o centavo.
+  function pixCopiaECola_(chave, nome, cidade, valor) {
     if (!chave) return '';
     var limpa = function (t, n) {
       return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -4588,8 +4616,12 @@
     };
     var campo = function (id, valor) { return id + String(valor.length).padStart(2, '0') + valor; };
     var conta = campo('00', 'BR.GOV.BCB.PIX') + campo('01', String(chave).trim());
+    // O campo 54 vai com ponto decimal e dois dígitos, do jeito que a
+    // especificação do Banco Central pede (150.00, nunca 150,00).
+    var comValor = (typeof valor === 'number' && isFinite(valor) && valor > 0)
+      ? campo('54', valor.toFixed(2)) : '';
     var payload = campo('00', '01') + campo('26', conta) + campo('52', '0000') + campo('53', '986') +
-      campo('58', 'BR') + campo('59', limpa(nome, 25)) + campo('60', limpa(cidade, 15)) +
+      comValor + campo('58', 'BR') + campo('59', limpa(nome, 25)) + campo('60', limpa(cidade, 15)) +
       campo('62', campo('05', '***')) + '6304';
     return payload + crc16Pix_(payload);
   }
@@ -6041,9 +6073,47 @@
     return marcados.length === 1 && marcados[0] === 'notas' && !$('outroInput').value.trim() && duplicatasExtras.length === 0;
   }
 
+  // O Pix do escritório vira QR na hora, já com o valor digitado: o office
+  // boy mostra a tela, o cliente aponta a câmera e paga sem digitar chave
+  // nem valor. O mesmo código sai no botão de copiar, pra quando o cliente
+  // preferir colar no app do banco dele.
+  function atualizarQrDoPix_() {
+    var caixa = $('honorarioPixCaixa');
+    if (!caixa) return;
+    var ligado = !$('honorarioPixField').hidden && $('honorarioPixToggle').checked;
+    caixa.hidden = !ligado;
+    if (!ligado) { $('honorarioPixValor').value = ''; return; }
+
+    var aviso = $('honorarioPixAviso');
+    var wrap = $('honorarioPixQrWrap');
+    if (!escritorio_.pixChave) {
+      wrap.hidden = true;
+      aviso.hidden = false;
+      aviso.textContent = 'Sem chave Pix cadastrada em Clientes e ajustes › Escritório — sem ela não dá pra gerar o QR.';
+      return;
+    }
+    aviso.hidden = true;
+
+    var valor = parseValor($('honorarioPixValor').value);
+    var codigo = pixCopiaECola_(escritorio_.pixChave, escritorio_.pixNome, escritorio_.pixCidade, valor);
+    if (!codigo || typeof QRCode === 'undefined') { wrap.hidden = true; return; }
+
+    var alvo = $('honorarioPixQr');
+    alvo.innerHTML = '';
+    try {
+      new QRCode(alvo, { text: codigo, width: 132, height: 132, correctLevel: QRCode.CorrectLevel.M });
+    } catch (e) { wrap.hidden = true; return; }
+    wrap.hidden = false;
+    $('honorarioPixSub').textContent = valor
+      ? fmtMoney(valor) + ' · ' + (escritorio_.pixNome || 'Nilma Contabilidade')
+      : 'sem valor — o cliente digita quanto vai pagar';
+    $('honorarioPixCopiarBtn').dataset.codigo = codigo;
+  }
+
   function atualizarCampoHonorarioPix_() {
     $('honorarioPixField').hidden = !isApenasHonorario_();
     if ($('honorarioPixField').hidden) $('honorarioPixToggle').checked = false;
+    atualizarQrDoPix_();
 
     // Como esse cliente costuma pagar o honorário (vem da planilha do
     // escritório) — ajuda a saber se é normal não ter Pix (Boleto/Paga
@@ -6064,6 +6134,13 @@
   $('competenciaInput').addEventListener('input', atualizarVencimentoAutomatico_);
   $('competenciaInput').addEventListener('change', atualizarVencimentoAutomatico_);
   $('outroInput').addEventListener('input', atualizarCampoHonorarioPix_);
+  $('honorarioPixToggle').addEventListener('change', atualizarQrDoPix_);
+  $('honorarioPixValor').addEventListener('input', atualizarQrDoPix_);
+  $('honorarioPixCopiarBtn').addEventListener('click', function () {
+    var codigo = $('honorarioPixCopiarBtn').dataset.codigo || '';
+    if (!codigo) return;
+    copiarTexto_(codigo, 'Código Pix copiado.');
+  });
   $('outroInput').addEventListener('input', renderValores);
 
   function getSelectedItens() {
@@ -6520,6 +6597,8 @@
       $('honorarioPixToggle').checked = false;
       $('honorarioPixField').hidden = true;
       $('honorarioInfoHint').hidden = true;
+      $('honorarioPixCaixa').hidden = true;
+      $('honorarioPixValor').value = '';
     }
     $('recebedorInput').value = '';
     sugerirRecebedores_(null, $('recebedorInput'));
