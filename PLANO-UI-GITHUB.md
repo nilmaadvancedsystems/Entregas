@@ -316,3 +316,11 @@ node scripts/teste-pendencias.js && node scripts/teste-robo.js   # (teste-robo p
   - **Textos:** as frases de abertura de Dúvidas e de Falar com o escritório saíram. A ajuda voltada ao cliente final foi mantida.
 - **Telas públicas do entregas.html (`#rotaGate`, `#assinaturaGate`, `#conviteGate`):** seguem a entrada do GitHub. Marca redonda no alto, título centrado, o conteúdo numa caixa única e o link de rodapé numa segunda caixa.
 - O cache do service worker subiu para `nilma-app-v6`.
+
+### Etapa 6 — feita
+- **lcdpr.html:** o `.nilma-app/.nilma-menu` deu lugar à casca comum `NilmaShell.montar({modulo:'Fiscal', moduloId:'fiscal'})`.
+  - As telas (Importar e conferir, Plano de contas, NCM e categorias, Tabelas de apoio, Configuração geral) viraram abas `.tab`. No PC ficam fixas à esquerda, com os rótulos de grupo e o estado da nuvem no pé; no celular ficam sublinhadas.
+  - Aparência e Sair foram para o menu da conta, e o avatar vem de `usuarios/{uid}`.
+  - As frases explicativas das telas saíram. O aviso das variáveis do histórico ficou em uma linha.
+- **conciliador.html e cheque-especial.html:** com `?embutido=1`, que o Entregas passa no `data-src` dos iframes, somem a marca, o "Trocar de função" e a Aparência da barra própria. Assim não ficam duas barras. Abertos soltos, continuam como antes.
+- **Iframes do Contábil:** a altura passou a descontar a barra de cima.

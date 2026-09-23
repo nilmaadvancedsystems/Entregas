@@ -146,6 +146,14 @@ tr.row-detail-hidden { display: none; }
 .gate-box { max-width: 380px; text-align: center; }
 .gate-box h1 { font-size: var(--t-lg); margin-bottom: 6px; }
 .gate-box p { color: var(--ink-soft); font-size: var(--t-base); margin: 0 0 var(--esp-2); }
+/* Moldura comum (nilma-shell.js): barra de cima + abas. As abas do LCDPR têm
+   rótulos de grupo e, no pé, o estado da nuvem (só no PC). */
+.tabs-grupo { font-size: var(--t-xs); color: var(--ink-faint); padding: var(--esp-4) 12px 4px; }
+.tabs-grupo:first-child { padding-top: var(--esp-2); }
+.tabs-pe { margin-top: auto; padding: var(--esp-3) 12px; font-size: var(--t-xs); color: var(--ink-faint); border-top: 1px solid var(--border); }
+@media (max-width: 899px) { .tabs-grupo, .tabs-pe { display: none; } }
+.lcdpr-conteudo { max-width: 1180px; margin: 0 auto; padding: var(--esp-5) var(--esp-4) var(--esp-6); }
+@media (min-width: 900px) { .lcdpr-conteudo { padding: var(--esp-5) var(--esp-6) var(--esp-6); } }
 </style>
 </head>
 <body>
@@ -157,23 +165,21 @@ tr.row-detail-hidden { display: none; }
     <p id="gateAction"></p>
   </div>
 </div>
-<div class="nilma-app" id="app" hidden>
-  <aside class="nilma-menu">
-    <div class="nilma-marca">
-      <div class="nilma-marca-sigla">N</div>
-      <div class="nilma-marca-texto">
-        <div class="nilma-marca-nome">Importador LCDPR</div>
-        <div class="nilma-marca-sub">Nilma Contabilidade</div>
-      </div>
-    </div>
-    <nav class="nilma-lista" id="navlist"></nav>
-    <div class="nilma-menu-pe">
-      <a class="nilma-item" href="entregas.html"><i class="ph ph-squares-four" aria-hidden="true"></i><span>Trocar de função</span></a>
-      <button type="button" class="nilma-item" id="aparenciaBtn"><i class="ph ph-paint-brush" aria-hidden="true"></i><span>Aparência</span></button>
-      <div class="nilma-estado" id="sidebarFoot">Conectando à nuvem…</div>
-    </div>
-  </aside>
-  <main class="nilma-conteudo"><div class="screen" id="screen"></div></main>
+<!-- Casca comum (barra de cima, menu ☰ e menu da conta): nilma-shell.js.
+     As telas do LCDPR são as abas (fixas à esquerda no PC, sublinhadas no
+     celular); renderNav() monta os botões dentro de #navlist. -->
+<script src="nilma-shell.js"></script>
+<script>
+  NilmaShell.montar({ modulo: 'Fiscal', moduloId: 'fiscal', busca: false, notas: false, buscaGlobal: false });
+  document.getElementById('topo').hidden = true;
+  document.getElementById('menuContaBtn').hidden = true;
+</script>
+<nav class="tabs" id="tabsNav" aria-label="Telas do LCDPR" hidden>
+  <div id="navlist" style="display:contents"></div>
+  <div class="tabs-pe" id="sidebarFoot">Conectando à nuvem…</div>
+</nav>
+<div id="app" hidden>
+  <main class="lcdpr-conteudo"><div class="screen" id="screen"></div></main>
 </div>
 
 <script>
@@ -494,10 +500,14 @@ function showGate(title, msg, actionHtml){
   document.getElementById('gateAction').innerHTML = actionHtml || '';
   document.getElementById('gate').hidden = false;
   document.getElementById('app').hidden = true;
+  document.getElementById('topo').hidden = true;
+  document.getElementById('tabsNav').hidden = true;
 }
 function showAppAndStart(){
   document.getElementById('gate').hidden = true;
   document.getElementById('app').hidden = false;
+  document.getElementById('topo').hidden = false;
+  document.getElementById('tabsNav').hidden = false;
   render();
   renderSidebarFoot();
   bootstrapCloud();
@@ -518,6 +528,14 @@ function startAccessCheck(){
     try{
       const snap = await db.collection('usuarios').doc(user.uid).get();
       const roles = snap.exists ? (snap.data().roles || []) : [];
+      const nome = (snap.exists && snap.data().nome) || user.displayName || user.email || '';
+      const partes = String(nome).trim().split(/[\s.@]+/).filter(Boolean);
+      NilmaShell.definirUsuario({
+        nome: nome,
+        iniciais: partes.length ? (partes[0][0] + (partes.length > 1 ? partes[partes.length - 1][0] : '')).toUpperCase() : '',
+        foto: (snap.exists && snap.data().fotoPerfil) || '',
+        podeVer: function (id, papel) { return !papel || roles.indexOf('admin') !== -1 || roles.indexOf(papel) !== -1; }
+      });
       // tema, cor, texto, espaçamento e animação: os mesmos do Entregas
       if (snap.exists && window.NilmaUI) {
         window.NilmaUI.daConta(snap.data());
@@ -539,9 +557,11 @@ function startAccessCheck(){
   });
 }
 
-document.getElementById('aparenciaBtn').addEventListener('click', function(){
-  if (window.NilmaUI) window.NilmaUI.abrirAparencia();
-});
+// Aparência e Sair ficam no menu da conta (avatar, no alto à direita).
+NilmaShell.ao('aparencia', function(){ if (window.NilmaUI) window.NilmaUI.abrirAparencia(); });
+NilmaShell.ao('sair', function(){ if (auth) auth.signOut().then(function(){ location.href = 'entregas.html'; }); else location.href = 'entregas.html'; });
+// Fiscal é esta mesma página: tocar nele no menu ☰ só fecha o menu.
+NilmaShell.ao('modulo', function(id){ return id === 'fiscal'; });
 
 const SETTINGS_FIELDS = ['config','categorias','planoContas','ncmRules','imoveis','ieDest','tipoDoc','tipoLanc'];
 
@@ -918,10 +938,10 @@ const NAV = [
 function renderNav(){
   const el = document.getElementById('navlist');
   el.innerHTML = NAV.map(item=>{
-    if(item.group) return `<div class="nilma-grupo">${esc(item.label)}</div>`;
-    const ativo = state.currentScreen===item.id ? ' ativo' : '';
-    return `<button type="button" class="nilma-item${ativo}" data-nav="${item.id}">` +
-      `<i class="ph ${item.icone}" aria-hidden="true"></i><span>${esc(item.label)}</span></button>`;
+    if(item.group) return `<div class="tabs-grupo">${esc(item.label)}</div>`;
+    const ativo = state.currentScreen===item.id;
+    return `<button type="button" class="tab${ativo ? ' active' : ''}" data-nav="${item.id}"${ativo ? ' aria-current="page"' : ''}>` +
+      `<span class="tab-ico"><i class="ph ${item.icone}" aria-hidden="true"></i></span><span class="tab-label">${esc(item.label)}</span></button>`;
   }).join('');
   el.querySelectorAll('[data-nav]').forEach(b=>b.addEventListener('click', ()=>{
     state.currentScreen = b.dataset.nav; save(); render();
@@ -990,7 +1010,6 @@ function screenImportar(){
     <div class="nilma-topo">
       <div>
         <h1>Importar relatórios do SIEG</h1>
-      <p class="nilma-sub">Envie um ou mais relatórios (.xlsx) — <strong>Detalhamento de Produtos</strong> (notas de compra) e/ou <strong>CT-e</strong> (fretes). O app reconhece o tipo de cada arquivo, agrupa por documento, descarta cancelados/notas de outros destinatários e classifica cada lançamento.</p>
       </div>
     </div>
 
@@ -1033,7 +1052,6 @@ function screenImportar(){
     </div>
 
     ${state.ui.showOnlyRevisar && revisar ? `<div class="grupos-revisar">
-      <p class="small">Agrupado pelo que essas notas têm em comum. Classificar o grupo vale para todas as linhas dele.</p>
       ${gruposDeRevisar().map(g=>`<div class="grupo-revisar">
         <div class="grupo-topo">
           <strong>${esc(g.fornecedor)}</strong>
@@ -1051,7 +1069,6 @@ function screenImportar(){
         <td>${i.ids && i.ids.length ? `<button class="btn btn-ghost" data-desfazer="${i.id}">Desfazer</button>` : (i.desfeita ? '<span class="small">desfeita</span>' : '')}</td>
       </tr>`).join('')}</tbody></table>
     </details>` : ''}
-    <p class="small" style="margin-bottom:10px">Clique na seta ▸ de uma linha pra ver/editar conta, código histórico, imóvel e o texto completo do histórico.</p>
     <div class="tablewrap">
       <table class="t">
         <thead><tr>
@@ -1163,7 +1180,6 @@ function screenPlano(){
     <div class="nilma-topo">
       <div>
         <h1>Plano de contas</h1>
-      <p class="nilma-sub">Contas usadas para classificar débito/crédito. Só contas <strong>A</strong> analíticas recebem lançamento — as <strong>S</strong> sintéticas são só agrupadoras.</p>
       </div>
     </div>
     <div class="toolbar"><span style="flex:1"></span><button class="btn btn-primary" data-add="planoContas">+ Nova conta</button></div>
@@ -1189,12 +1205,11 @@ function screenRegras(){
     <div class="nilma-topo">
       <div>
         <h1>NCM &amp; categorias</h1>
-      <p class="nilma-sub">A classificação de compras é feita <strong>só pelo NCM</strong> do produto — o código é lido de cada nota e fica guardado internamente (não aparece como coluna na tabela). Sem um prefixo de NCM cadastrado que bata com a nota, ela vai pra REVISAR.</p>
       </div>
     </div>
 
     <h2>Categorias rápidas</h2>
-    <p class="hint">Aparecem como atalho na coluna "Categoria rápida" da tabela de lançamentos, pra reclassificar manualmente. Use <span class="mono">{{doc}}</span>, <span class="mono">{{fornecedor}}</span> e <span class="mono">{{cnpj}}</span> no texto do histórico — são substituídos automaticamente.</p>
+    <p class="hint">Variáveis do histórico: <span class="mono">{{doc}}</span>, <span class="mono">{{fornecedor}}</span>, <span class="mono">{{cnpj}}</span>.</p>
     <div class="toolbar"><span style="flex:1"></span><button class="btn btn-primary" data-add="categorias">+ Nova categoria</button></div>
     <div class="tablewrap" style="margin-bottom:36px"><table class="t">
       <thead><tr><th style="width:220px">Nome da categoria</th><th style="width:90px">Conta</th><th style="width:90px">Cód. Hist.</th><th>Texto do histórico</th><th style="width:40px"></th></tr></thead>
@@ -1204,7 +1219,6 @@ function screenRegras(){
     <div class="section-sep"></div>
 
     <h2>Regras por NCM (código fiscal do produto)</h2>
-    <p class="hint">O prefixo é comparado com o início do NCM de cada linha de produto da nota. Um documento pode ter linhas com NCMs de categorias diferentes — nesse caso, a categoria escolhida é a que soma o maior valor entre as linhas que bateram alguma regra.</p>
     <div class="toolbar"><span style="flex:1"></span><button class="btn btn-primary" data-add="ncmRules">+ Nova regra de NCM</button></div>
     <div class="tablewrap"><table class="t">
       <thead><tr><th style="width:150px">Prefixo do NCM</th><th style="width:90px">Conta</th><th style="width:90px">Cód. Hist.</th><th>Texto do histórico</th><th style="width:40px"></th></tr></thead>
@@ -1219,14 +1233,12 @@ function screenTabelas(){
     <div class="nilma-topo">
       <div>
         <h1>Tabelas de apoio</h1>
-      <p class="nilma-sub">Imóveis, tipos de documento/lançamento e o mapeamento entre a Inscrição Estadual do destinatário e o imóvel correspondente.</p>
       </div>
     </div>
     <div class="twocol">
       <div>
         <details class="dobra">
           <summary>Imóveis rurais</summary>
-          <p class="hint">Código e nome de cada propriedade, como cadastrado no LCDPR.</p>
           <div class="tablewrap" style="margin-bottom:12px"><table class="t">
             <thead><tr><th style="width:70px">Código</th><th>Descrição</th><th style="width:40px"></th></tr></thead>
             <tbody>${ruleRows('imoveis',[{k:'codigo',w:'70px'},{k:'descricao'}])}</tbody>
@@ -1236,7 +1248,6 @@ function screenTabelas(){
 
         <details class="dobra">
           <summary>IE do destinatário → imóvel</summary>
-          <p class="hint">A Inscrição Estadual do destinatário decide automaticamente qual imóvel usar (relatório de Detalhamento de Produtos).</p>
           <div class="tablewrap" style="margin-bottom:12px"><table class="t">
             <thead><tr><th style="width:150px">IE Destinatário</th><th>Imóvel (código)</th><th style="width:40px"></th></tr></thead>
             <tbody>${ruleRows('ieDest',[{k:'ie',w:'150px'},{k:'imovel'}])}</tbody>
@@ -1278,7 +1289,6 @@ function screenConfig(){
     <div class="nilma-topo">
       <div>
         <h1>Configuração geral</h1>
-      <p class="nilma-sub">Padrões usados em toda linha gerada, e backup das suas configurações.</p>
       </div>
     </div>
     <div class="card">
@@ -1297,7 +1307,6 @@ function screenConfig(){
     </div>
 
     <h2>Backup</h2>
-    <p class="hint">Exporte suas configurações e regras (sem os lançamentos importados) para restaurar depois ou levar pra outro computador.</p>
     <div style="display:flex;gap:10px">
       <button class="btn btn-secondary" id="btnBackupExport">Exportar backup (.json)</button>
       <button class="btn btn-secondary" id="btnBackupImport">Importar backup (.json)</button>

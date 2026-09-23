@@ -2915,10 +2915,10 @@
     <!-- sem src de propósito: só carrega (data-src) na primeira vez que a
          aba é aberta, pra quem nunca usa Contábil não pagar o custo de
          carregar mais dois apps inteiros (Firebase incluso) à toa. -->
-    <iframe id="frameConciliador" data-src="conciliador.html" title="Conciliadorzinho" style="width:100%;height:calc(100vh - 16px);border:0;display:block;border-radius:var(--r-md);"></iframe>
+    <iframe id="frameConciliador" data-src="conciliador.html?embutido=1" title="Conciliadorzinho" style="width:100%;height:calc(100dvh - var(--topo-total, 56px) - 32px);min-height:480px;border:0;display:block;border-radius:var(--r-md);"></iframe>
   </section>
   <section id="tab-cheque" class="view" role="tabpanel" tabindex="-1" aria-labelledby="tabbtn-cheque" hidden>
-    <iframe id="frameCheque" data-src="cheque-especial.html" title="Cheque especial" style="width:100%;height:calc(100vh - 16px);border:0;display:block;border-radius:var(--r-md);"></iframe>
+    <iframe id="frameCheque" data-src="cheque-especial.html?embutido=1" title="Cheque especial" style="width:100%;height:calc(100dvh - var(--topo-total, 56px) - 32px);min-height:480px;border:0;display:block;border-radius:var(--r-md);"></iframe>
   </section>
 </main>
 

@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <title>Conciliadorzinho</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<script>if (/[?&]embutido=1/.test(location.search)) document.documentElement.classList.add('embutido');</script>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
@@ -634,6 +635,11 @@
     border-color: var(--accent); background: var(--accent-soft); box-shadow: none;
   }
   .brand-check-logo { width: 84px; height: 30px; border-radius: var(--r-sm); }
+  /* Dentro do Entregas (iframe com ?embutido=1): a barra de cima é a do
+     app, então some a marca, o "Trocar de função" e a aparência daqui. */
+  html.embutido .topbar .brand, html.embutido .topbar a[href="entregas.html"], html.embutido #configBtn { display: none !important; }
+  html.embutido .topbar { justify-content: flex-end; border-bottom: 0; padding-bottom: 0; margin-bottom: 12px; }
+  html.embutido .app { padding-top: 12px; }
 </style>
 </head>
 <body>
