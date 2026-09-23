@@ -341,3 +341,9 @@ node scripts/teste-pendencias.js && node scripts/teste-robo.js   # (teste-robo p
   - Correção de passagem: a posição do link de rota não é mais recalculada antes da fila carregar. Antes, todo link aberto piscava "concluída".
   - Nenhuma regra do Firestore mudou.
 - O cache do service worker subiu para `nilma-app-v7`.
+
+### Módulos com submódulos (Contábil, Fiscal) e correção do Contábil
+- **Gaveta ☰ em dois níveis.** Tocar em Contábil ou em Fiscal não entra direto. O título da gaveta passa a ser o do módulo, aparece o ← de voltar, e a gaveta lista os submódulos: Conciliadorzinho e Cheque especial no Contábil; Importador LCDPR no Fiscal. Só a escolha do submódulo abre a página. Esc volta um nível antes de fechar.
+- **Barra de cima:** mostra "Nilma / Módulo ⌄ / Submódulo". O nome do módulo reabre a lista dos submódulos (`NilmaShell.definirSubmodulo`, `abrirSubmodulos`). No celular o título alterna: com submódulo aberto, só ele aparece, e tocar nele abre a lista.
+- **Links diretos:** `entregas.html#contabil/conciliador` e `#contabil/cheque`, com `entrarModoSecundario_(nome, aba)`.
+- **Correção:** "Clientes e ajustes" aparecia na barra do Contábil quando o app abria direto nele. O `startApp()` não roda nesse caminho, e era só ele que escondia a aba. Agora a aba nasce `hidden` e `entrarModoSecundario_` esconde o menu de Clientes.

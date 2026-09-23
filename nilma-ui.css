@@ -379,7 +379,7 @@ select:focus-visible, textarea:focus-visible, a:focus-visible, .chip:focus-visib
 
 /* ---------------------------------------------------------------
  cartão
- (entregas.html, linhas 667-710)
+ (entregas.html, linhas 696-739)
  --------------------------------------------------------------- */
 .card {
   background: none; border: none; border-radius: 0;
@@ -428,7 +428,7 @@ select:focus-visible, textarea:focus-visible, a:focus-visible, .chip:focus-visib
 
 /* ---------------------------------------------------------------
  campo, entrada e erro de campo
- (entregas.html, linhas 711-760)
+ (entregas.html, linhas 740-789)
  --------------------------------------------------------------- */
 .field { display: block; margin-bottom: var(--esp-4); }
 .field > span:first-child:not([class]),
@@ -483,7 +483,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  chip
- (entregas.html, linhas 976-995)
+ (entregas.html, linhas 1005-1024)
  --------------------------------------------------------------- */
 .chip { position: relative; }
 .chip input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
@@ -508,7 +508,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  botão
- (entregas.html, linhas 1011-1126)
+ (entregas.html, linhas 1040-1155)
  --------------------------------------------------------------- */
    Botões — uma forma só, três pesos
    ========================================================================== */
@@ -629,7 +629,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  aviso flutuante
- (entregas.html, linhas 1360-1368)
+ (entregas.html, linhas 1389-1397)
  --------------------------------------------------------------- */
 .toast {
   position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 10px); z-index: var(--z-aviso);
@@ -643,7 +643,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  janela (modal)
- (entregas.html, linhas 1373-1418)
+ (entregas.html, linhas 1402-1447)
  --------------------------------------------------------------- */
 .modal-overlay {
   position: fixed; inset: 0; background: var(--scrim); z-index: var(--z-veu);
@@ -694,7 +694,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  selo de situação
- (entregas.html, linhas 1223-1233)
+ (entregas.html, linhas 1252-1262)
  --------------------------------------------------------------- */
 /* ---------- selo de situação ---------- */
 .status-pill {
@@ -710,7 +710,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  tela vazia e janela
- (entregas.html, linhas 1234-1276)
+ (entregas.html, linhas 1263-1305)
  --------------------------------------------------------------- */
 .empty-state { color: var(--ink-faint); font-size: var(--t-base); text-align: center; padding: var(--esp-5) var(--esp-3); line-height: 1.5; }
 
@@ -758,7 +758,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  casca GitHub: barra de cima, abas do módulo e gavetas (nilma-shell.js)
- (entregas.html, linhas 472-649)
+ (entregas.html, linhas 472-678)
  --------------------------------------------------------------- */
 /* ---------- casca GitHub: barra, abas e gavetas ---------- */
 /* A marcação nasce em nilma-shell.js; este bloco sai inteiro pra
@@ -798,6 +798,21 @@ html.com-casca body { padding-top: var(--topo-total); }
   font-weight: 600; font-size: var(--t-md); color: var(--ink); min-width: 0;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+/* módulo com submódulos (Contábil, Fiscal): o nome abre a lista deles */
+.topo-modulo[role="button"], .topo-sub[role="button"] { cursor: pointer; padding: 4px 6px; margin: 0 -4px; border-radius: var(--r-sm); }
+.topo-modulo[role="button"] { flex: none; }
+.topo-modulo[role="button"]::after, .topo-sub[role="button"]::after {
+  content: ""; display: inline-block; width: 5px; height: 5px; margin: 0 2px 3px 7px;
+  border-right: 1.5px solid var(--ink-faint); border-bottom: 1.5px solid var(--ink-faint); transform: rotate(45deg);
+}
+.topo-modulo[role="button"]:hover, .topo-sub[role="button"]:hover { background: var(--surface-2); }
+.topo-modulo[role="button"]:focus-visible, .topo-sub[role="button"]:focus-visible { outline: 2px solid var(--foco, var(--accent)); outline-offset: 1px; }
+/* no PC a seta fica só no módulo; o submódulo é o fim do caminho */
+@media (min-width: 600px) { .topo-sub[role="button"]::after { display: none; } .topo-sub[role="button"] { cursor: default; } .topo-sub[role="button"]:hover { background: none; } }
+.topo-sub {
+  font-weight: 500; font-size: var(--t-md); color: var(--ink-soft); min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .topo-vao { flex: 1; }
 .topo-busca {
   margin-left: auto; flex: 0 1 320px; min-width: 0; display: inline-flex; align-items: center; gap: var(--esp-2);
@@ -832,6 +847,11 @@ html.com-casca body { padding-top: var(--topo-total); }
 @media (max-width: 599px) {
   .topo-nome, .topo-sep { display: none; }
   .topo-marca { padding: 0; }
+  /* no celular o título alterna: com submódulo aberto, só ele aparece
+     (e abre a lista dos irmãos); sem submódulo, o nome do módulo */
+  #topo:has(.topo-sub:not([hidden])) .topo-modulo,
+  #topo:has(.topo-sub:not([hidden])) .topo-marca { display: none; }
+  .topo-sub { color: var(--ink); font-weight: 600; }
 }
 
 /* --- abas do módulo (Code · Issues · Pull requests) --- */
@@ -896,6 +916,15 @@ html.com-casca body { padding-top: var(--topo-total); }
 .gaveta-item[aria-current="page"] > .ph { color: var(--accent-forte); }
 .gaveta-item.perigo { color: var(--danger-forte); }
 .gaveta-item.perigo > .ph { color: inherit; }
+/* gaveta em dois níveis: módulo com submódulos leva a seta; no segundo
+   nível o título vira o do módulo e aparece o ← de voltar */
+.gaveta-item > .ph.gaveta-seta { width: auto; margin-left: auto; font-size: .9rem; }
+.gaveta-grupo.gaveta-sub { margin-top: 0; padding-top: var(--esp-2); border-top: 0; }
+.gaveta-voltar { flex: none; margin-left: calc(var(--esp-2) * -1); }
+.gaveta-cabeca:has(.gaveta-voltar:not([hidden])) { padding-left: var(--esp-3); }
+.gaveta-sub:not([hidden]) { animation: gavetaDesce var(--dur) var(--ease); }
+@keyframes gavetaDesce { from { opacity: 0; transform: translateX(12px); } to { opacity: 1; transform: none; } }
+html[data-animacao="reduzida"] .gaveta-sub { animation: none; }
 .gaveta-fio { border-top: 1px solid var(--border); margin: var(--esp-2) 0; }
 .gaveta-pe { flex: none; padding: var(--esp-3) var(--esp-4); border-top: 1px solid var(--border); color: var(--ink-faint); font-size: var(--t-sm); }
 .gaveta-pe:empty { display: none; }
@@ -941,7 +970,7 @@ body:has(.gaveta:not([hidden])) { overflow: hidden; }
 
 /* ---------------------------------------------------------------
  submenu padrão (menu de 2º nível)
- (entregas.html, linhas 1736-1756)
+ (entregas.html, linhas 1765-1785)
  --------------------------------------------------------------- */
 /* ---------- submenu (menu de 2º nível) ---------- */
 /* O submenu padrão de todos os apps: a barrinha de categorias no alto do
@@ -967,7 +996,7 @@ body:has(.gaveta:not([hidden])) { overflow: hidden; }
 
 /* ---------------------------------------------------------------
  painel "Perguntar à IA" (nilma-extras.js)
- (entregas.html, linhas 2077-2173)
+ (entregas.html, linhas 2106-2202)
  --------------------------------------------------------------- */
 /* A consulta abre como uma barra de pesquisa aberta (o "Ask" do GitHub):
    no PC, uma caixa ancorada na barra de cima, cobrindo a caixa "Perguntar

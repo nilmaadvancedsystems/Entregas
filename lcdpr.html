@@ -174,6 +174,8 @@ tr.row-detail-hidden { display: none; }
 <script src="nilma-extras.js"></script>
 <script>
   NilmaShell.montar({ modulo: 'Fiscal', moduloId: 'fiscal', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false });
+  // o LCDPR é um submódulo do Fiscal: "Nilma / Fiscal / Importador LCDPR"
+  NilmaShell.definirSubmodulo('fiscal/lcdpr', 'Importador LCDPR');
   document.getElementById('topo').hidden = true;
 </script>
 <nav class="tabs" id="tabsNav" aria-label="Telas do LCDPR" hidden>
@@ -565,7 +567,7 @@ function startAccessCheck(){
 NilmaShell.ao('aparencia', function(){ if (window.NilmaUI) window.NilmaUI.abrirAparencia(); });
 NilmaShell.ao('sair', function(){ if (auth) auth.signOut().then(function(){ location.href = 'entregas.html'; }); else location.href = 'entregas.html'; });
 // Fiscal é esta mesma página: tocar nele no menu ☰ só fecha o menu.
-NilmaShell.ao('modulo', function(id){ return id === 'fiscal'; });
+NilmaShell.ao('modulo', function(id){ return id === 'fiscal' || id === 'fiscal/lcdpr'; });
 // Conta (foto e senha) e "Perguntar à IA": os mesmos do Entregas (nilma-extras.js).
 var contaAtual = { nome: '', foto: '', iniciais: '' };
 NilmaExtras.ligar({

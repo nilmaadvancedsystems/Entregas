@@ -18,8 +18,16 @@
     { id: 'clientes',   rotulo: 'Clientes e ajustes', icone: 'ph-users',           href: 'entregas.html#clientes' },
     // papel = cargo que precisa ter pra ver o item (mesmos data-cargo da
     // antiga tela de cartões); sem papel, todo mundo vê
-    { id: 'contabil',   rotulo: 'Contábil',           icone: 'ph-calculator',           href: 'entregas.html#contabil', papel: 'contabil' },
-    { id: 'fiscal',     rotulo: 'Fiscal',             icone: 'ph-file-text',            href: 'lcdpr.html', papel: 'fiscal' },
+    // sub = submódulos: tocar no módulo não entra direto; a gaveta troca de
+    // nível (título vira o do módulo, com ← pra voltar) e lista os
+    // submódulos. Só depois de escolher um é que a página abre.
+    { id: 'contabil',   rotulo: 'Contábil',           icone: 'ph-calculator',           href: 'entregas.html#contabil', papel: 'contabil', sub: [
+      { id: 'contabil/conciliador', rotulo: 'Conciliadorzinho', icone: 'ph-credit-card', href: 'entregas.html#contabil/conciliador' },
+      { id: 'contabil/cheque',      rotulo: 'Cheque especial',  icone: 'ph-bank',        href: 'entregas.html#contabil/cheque' }
+    ] },
+    { id: 'fiscal',     rotulo: 'Fiscal',             icone: 'ph-file-text',            href: 'lcdpr.html', papel: 'fiscal', sub: [
+      { id: 'fiscal/lcdpr', rotulo: 'Importador LCDPR', icone: 'ph-file-arrow-up', href: 'lcdpr.html' }
+    ] },
     { id: 'pendencias', rotulo: 'Pendências',         icone: 'ph-envelope-simple-open', href: 'Pendencias-e-envio-automatico-via-Gmail.html', papel: 'contabil' }
   ];
 
@@ -56,8 +64,19 @@
   // ---------- marcação ----------
   function htmlModulo(m) {
     return '<a class="gaveta-item" data-modulo="' + escapar(m.id) + '" href="' + escapar(m.href) + '"' +
-      (m.papel ? ' data-papel="' + escapar(m.papel) + '"' : '') + '>' +
-      '<i class="ph ' + escapar(m.icone) + '" aria-hidden="true"></i><span>' + escapar(m.rotulo) + '</span></a>';
+      (m.papel ? ' data-papel="' + escapar(m.papel) + '"' : '') +
+      (m.sub && m.sub.length ? ' data-tem-sub="1" aria-haspopup="true"' : '') + '>' +
+      '<i class="ph ' + escapar(m.icone) + '" aria-hidden="true"></i><span>' + escapar(m.rotulo) + '</span>' +
+      (m.sub && m.sub.length ? '<i class="ph ph-caret-right gaveta-seta" aria-hidden="true"></i>' : '') + '</a>';
+  }
+  // segundo nível da gaveta: um grupo por módulo que tem submódulos
+  function htmlSubmodulos(m) {
+    if (!m.sub || !m.sub.length) return '';
+    return '<div class="gaveta-grupo gaveta-sub" data-sub-de="' + escapar(m.id) + '" hidden>' +
+      m.sub.map(function (s) {
+        return '<a class="gaveta-item" data-modulo="' + escapar(s.id) + '" data-pai="' + escapar(m.id) + '" href="' + escapar(s.href) + '">' +
+          '<i class="ph ' + escapar(s.icone) + '" aria-hidden="true"></i><span>' + escapar(s.rotulo) + '</span></a>';
+      }).join('') + '</div>';
   }
   function htmlAba(a) {
     return '<button type="button" class="tab" role="tab" data-tab="' + escapar(a.id) + '" id="tabbtn-' + escapar(a.id) + '"' +
@@ -68,7 +87,9 @@
       '</button>';
   }
   function htmlCasca(o) {
-    var modulos = (o.modulos || MODULOS_PADRAO).map(htmlModulo).join('');
+    var listaModulos = o.modulos || MODULOS_PADRAO;
+    var modulos = listaModulos.map(htmlModulo).join('');
+    var submodulos = listaModulos.map(htmlSubmodulos).join('');
     var marcaHref = o.marcaHref || 'entregas.html';
     return '' +
       '<header class="gh-topo" id="topo">' +
@@ -79,6 +100,8 @@
           '<img class="topo-logo" id="topoLogo" alt="" hidden><span class="topo-nome">' + escapar(o.marca || 'Nilma') + '</span></a>' +
         '<span class="topo-sep" aria-hidden="true">/</span>' +
         '<span class="topo-modulo" id="topoModulo">' + escapar(o.modulo || '') + '</span>' +
+        '<span class="topo-sep topo-sep-sub" id="topoSubSep" aria-hidden="true" hidden>/</span>' +
+        '<span class="topo-sub" id="topoSub" hidden></span>' +
         (o.busca === false ? '<span class="topo-vao"></span>' :
         '<button type="button" class="topo-busca" id="topoBusca" title="' + escapar(o.buscaRotulo || 'Consulta rápida') + ' (/)" aria-label="' + escapar(o.buscaRotulo || 'Consulta rápida') + '">' +
           '<i class="ph ' + escapar(o.buscaIcone || 'ph-magnifying-glass') + '" aria-hidden="true"></i>' +
@@ -99,11 +122,13 @@
       (o.semMenu ? '' :
       '<aside class="gaveta" id="menuApp" hidden role="dialog" aria-modal="true" aria-labelledby="menuAppTitulo" tabindex="-1">' +
         '<div class="gaveta-cabeca">' +
+          '<button type="button" class="topo-btn gaveta-voltar" id="menuAppVoltar" hidden aria-label="Voltar aos módulos"><i class="ph ph-arrow-left" aria-hidden="true"></i></button>' +
           '<span class="gaveta-titulo" id="menuAppTitulo">' + escapar(o.marca || 'Nilma') + '</span>' +
           '<button type="button" class="topo-btn gaveta-fechar" aria-label="Fechar o menu"><i class="ph ph-x" aria-hidden="true"></i></button>' +
         '</div>' +
         '<nav class="gaveta-corpo" aria-label="Módulos e ferramentas">' +
           '<div class="gaveta-grupo" id="menuAppModulos"><div class="gaveta-grupo-titulo">Módulos</div>' + modulos + '</div>' +
+          submodulos +
           '<div class="gaveta-grupo" id="menuAppFerramentas"><div class="gaveta-grupo-titulo">Ferramentas</div>' +
             (o.notas === false ? '' : '<button type="button" class="gaveta-item" id="menuNotasBtn" hidden><i class="ph ph-note" aria-hidden="true"></i><span>Anotações</span></button>') +
             (o.buscaGlobal === false ? '' : '<button type="button" class="gaveta-item" id="menuBuscaBtn"><i class="ph ph-magnifying-glass" aria-hidden="true"></i><span>Busca</span><kbd>Ctrl K</kbd></button>') +
@@ -138,6 +163,9 @@
     var veu = $('gavetaVeu');
     g.classList.remove('gaveta-saindo');
     if (veu) { veu.classList.remove('gaveta-saindo'); veu.hidden = false; }
+    // a gaveta de módulos sempre abre no primeiro nível (abrirSubmodulos
+    // desce logo depois, quando é o caso)
+    if (id === 'menuApp') voltarAosModulos(false);
     g.hidden = false;
     gavetaAberta = g;
     gatilho = quemAbriu || doc.activeElement;
@@ -170,6 +198,7 @@
     }
     if (!semDevolverFoco && gatilho && doc.body.contains(gatilho)) { try { gatilho.focus(); } catch (e) {} }
     gatilho = null;
+    if (g.id === 'menuApp') setTimeout(function () { if (!gavetaAberta) voltarAosModulos(false); }, 200);
     chamar('fechou', g.id);
   }
   function focaveis(box) {
@@ -187,6 +216,37 @@
     return !!doc.querySelector('#modalRoot .modal, .modal-overlay:not([hidden]), dialog[open], .busca-global:not([hidden])');
   }
 
+  // ---------- gaveta em dois níveis (módulo › submódulo) ----------
+  function mostrarSubmodulos(moduloId) {
+    var grupo = doc.querySelector('#menuApp .gaveta-sub[data-sub-de="' + moduloId + '"]');
+    if (!grupo) return false;
+    var item = doc.querySelector('#menuAppModulos .gaveta-item[data-modulo="' + moduloId + '"] span');
+    [].forEach.call(doc.querySelectorAll('#menuApp .gaveta-sub'), function (g) { g.hidden = g !== grupo; });
+    mostrar('menuAppModulos', false);
+    mostrar('menuAppFerramentas', false);
+    mostrar('menuAppVoltar', true);
+    var t = $('menuAppTitulo');
+    if (t) t.textContent = item ? item.textContent : moduloId;
+    var primeiro = grupo.querySelector('.gaveta-item');
+    if (primeiro && gavetaAberta) primeiro.focus();
+    return true;
+  }
+  function voltarAosModulos(focar) {
+    [].forEach.call(doc.querySelectorAll('#menuApp .gaveta-sub'), function (g) { g.hidden = true; });
+    mostrar('menuAppModulos', true);
+    mostrar('menuAppFerramentas', true);
+    mostrar('menuAppVoltar', false);
+    var t = $('menuAppTitulo');
+    if (t) t.textContent = opcoes.marca || 'Nilma';
+    if (focar) { var a = doc.querySelector('#menuAppModulos .gaveta-item:not([hidden])'); if (a) a.focus(); }
+  }
+  // abre a gaveta já no nível dos submódulos (toque no nome do módulo na barra)
+  function abrirSubmodulos(moduloId, quemAbriu) {
+    if (!doc.querySelector('#menuApp .gaveta-sub[data-sub-de="' + moduloId + '"]')) return;
+    abrirGaveta('menuApp', quemAbriu);
+    mostrarSubmodulos(moduloId);
+  }
+
   // ---------- ligação dos eventos ----------
   function ligar() {
     var menuBtn = $('menuAppBtn'), avatarBtn = $('avatarBtn'), veu = $('gavetaVeu');
@@ -197,14 +257,42 @@
 
     // itens da gaveta de módulos: a página decide se troca de módulo por
     // dentro (retorna true) ou se navega normalmente pelo href
-    var modulosEl = $('menuAppModulos');
-    if (modulosEl) modulosEl.addEventListener('click', function (ev) {
+    // Módulo com submódulos (Contábil, Fiscal) não entra direto: a gaveta
+    // desce um nível e a escolha é do submódulo.
+    var gavetaMenu = $('menuApp');
+    if (gavetaMenu) gavetaMenu.addEventListener('click', function (ev) {
       var a = ev.target.closest('.gaveta-item[data-modulo]');
       if (!a) return;
       var id = a.dataset.modulo;
+      if (a.dataset.temSub) { ev.preventDefault(); mostrarSubmodulos(id); return; }
       if (chamar('modulo', id, ev)) { ev.preventDefault(); fecharGaveta(true); return; }
       fecharGaveta(true);
     });
+    var voltarBtn = $('menuAppVoltar');
+    if (voltarBtn) voltarBtn.addEventListener('click', function () { voltarAosModulos(true); });
+    // o nome do módulo na barra abre a lista dos submódulos dele
+    var moduloEl = $('topoModulo');
+    if (moduloEl) {
+      var abrirDoTopo = function (ev) {
+        if (!moduloEl.dataset.temSub) return;
+        if (ev.type === 'keydown' && ev.key !== 'Enter' && ev.key !== ' ') return;
+        ev.preventDefault();
+        abrirSubmodulos(moduloEl.dataset.temSub, moduloEl);
+      };
+      moduloEl.addEventListener('click', abrirDoTopo);
+      moduloEl.addEventListener('keydown', abrirDoTopo);
+    }
+    var subEl = $('topoSub');
+    if (subEl) {
+      var abrirDoSub = function (ev) {
+        if (!subEl.dataset.temSub || janela.matchMedia('(min-width: 600px)').matches) return;
+        if (ev.type === 'keydown' && ev.key !== 'Enter' && ev.key !== ' ') return;
+        ev.preventDefault();
+        abrirSubmodulos(subEl.dataset.temSub, subEl);
+      };
+      subEl.addEventListener('click', abrirDoSub);
+      subEl.addEventListener('keydown', abrirDoSub);
+    }
     function botao(id, evento) {
       var b = $(id);
       if (!b) return;
@@ -232,7 +320,12 @@
     });
 
     doc.addEventListener('keydown', function (ev) {
-      if (ev.key === 'Escape' && gavetaAberta) { ev.preventDefault(); fecharGaveta(); return; }
+      if (ev.key === 'Escape' && gavetaAberta) {
+        ev.preventDefault();
+        if (gavetaAberta.id === 'menuApp' && $('menuAppVoltar') && !$('menuAppVoltar').hidden) { voltarAosModulos(true); return; }
+        fecharGaveta();
+        return;
+      }
       if (ev.key === 'Tab' && gavetaAberta) {
         var alvos = focaveis(gavetaAberta);
         if (!alvos.length) return;
@@ -298,10 +391,35 @@
     [].forEach.call(doc.querySelectorAll('#menuAppModulos .gaveta-item[data-modulo]'), function (a) {
       if (a.dataset.modulo === id) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
     });
+    // módulo com submódulos: o nome na barra vira botão que abre a lista
+    var temSub = !!doc.querySelector('#menuApp .gaveta-sub[data-sub-de="' + id + '"]');
+    if (m) {
+      if (temSub) { m.dataset.temSub = id; m.setAttribute('role', 'button'); m.tabIndex = 0; m.title = 'Trocar de ' + (nome || id); }
+      else { delete m.dataset.temSub; m.removeAttribute('role'); m.removeAttribute('tabindex'); m.removeAttribute('title'); }
+    }
+    if (!temSub) definirSubmodulo('', '');
     if (nome != null && opcoes.titulo !== false) {
       var base = opcoes.tituloBase || 'Nilma';
       doc.title = nome ? nome + ' — ' + base : base;
     }
+  }
+  // "Nilma / Contábil / Cheque especial": o submódulo aberto entra na barra
+  // e fica marcado na gaveta.
+  function definirSubmodulo(id, nome) {
+    var s = $('topoSub');
+    if (s) {
+      s.textContent = nome || '';
+      s.hidden = !nome;
+      // no celular é ele o título (o nome do módulo some): tocar abre a lista
+      var pai = id ? String(id).split('/')[0] : '';
+      if (nome && doc.querySelector('#menuApp .gaveta-sub[data-sub-de="' + pai + '"]')) { s.dataset.temSub = pai; s.setAttribute('role', 'button'); s.tabIndex = 0; }
+      else { delete s.dataset.temSub; s.removeAttribute('role'); s.removeAttribute('tabindex'); }
+    }
+    mostrar('topoSubSep', !!nome);
+    [].forEach.call(doc.querySelectorAll('#menuApp .gaveta-sub .gaveta-item'), function (a) {
+      if (id && a.dataset.modulo === id) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+    });
+    if (nome && opcoes.titulo !== false) doc.title = nome + ' — ' + (opcoes.tituloBase || 'Nilma');
   }
   function definirLogo(src) {
     var img = $('topoLogo');
@@ -335,6 +453,8 @@
     gavetaAberta: function () { return gavetaAberta ? gavetaAberta.id : ''; },
     definirUsuario: definirUsuario,
     definirModulo: definirModulo,
+    definirSubmodulo: definirSubmodulo,
+    abrirSubmodulos: function (id) { abrirSubmodulos(id); },
     definirLogo: definirLogo,
     filtrarModulos: filtrarModulos,
     ativarAba: ativarAba,
