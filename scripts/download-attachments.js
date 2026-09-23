@@ -18,6 +18,7 @@
 //   node download-attachments.js --mensagem ID [--cliente CLIENTE_ID]
 //                                                  salva os anexos de UM e-mail no Drive agora
 //                                                  (é o que o botão "Salvar no Drive" da tela usa)
+require('./fuso.js');   // define o fuso do escritório antes de qualquer data
 const fs = require('fs');
 const path = require('path');
 const pdfParse = require('pdf-parse');

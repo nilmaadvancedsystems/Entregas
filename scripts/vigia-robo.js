@@ -20,6 +20,7 @@
 // Uso: node vigia-robo.js [--a-cada MINUTOS] [--ver-resumo]
 //   --a-cada 120   além dos pedidos, lê o Gmail sozinho a cada 120 minutos
 //   --ver-resumo   só mostra o resumo de hoje na tela (não envia, não liga o vigia)
+require('./fuso.js');   // define o fuso do escritório antes de qualquer data
 const path = require('path');
 const os = require('os');
 const { spawn } = require('child_process');
