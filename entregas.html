@@ -1854,7 +1854,7 @@
     }
     body { padding: 0 !important; background: #fff; }
     .topbar, #topo, #tabsNav, .gaveta, .gaveta-veu, .aviso-faixa, .toast, .auth-gate,
-    .busca-global, .cq-painel, .cq-botao,
+    .busca-global, .cq-painel,
     .filters, .modal-close, .btn, .btn-chip, .link-btn, .icon-btn,
     .mode-toggle, .dash-strip, .offline-banner, .tela-acoes, .card-ferramentas, .linha-acoes, .menu-linha { display: none !important; }
     main { padding: 0 !important; max-width: none !important; }
@@ -2026,46 +2026,53 @@
      É das poucas peças que de fato flutuam, então ganha --shadow. Fica em
      --z-modal: acima do menu e das listas suspensas, abaixo do aviso e da
      tela de assinatura, que continuam tendo que passar por cima de tudo. */
-  .cq-botao {
-    position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: var(--z-fixo);
-    width: 48px; height: 48px; border-radius: var(--r-pill);
-    border: 1px solid var(--border); background: var(--surface);
-    color: var(--accent-forte); font-size: 1.3rem; line-height: 1;
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer; box-shadow: var(--shadow);
-    transition: transform var(--dur-rapido) var(--ease), border-color var(--dur) var(--ease);
-  }
-  .cq-botao:hover { border-color: var(--border-forte); transform: translateY(-1px); }
-  .cq-botao:active { transform: translateY(0); }
-  /* no celular, com o botão principal preso no rodapé, o chat sobe acima dele */
-  @media (max-width: 899px) {
-    body.tem-acao-fixa .cq-botao { bottom: calc(46px + var(--esp-2) * 2 + 16px + env(safe-area-inset-bottom, 0px)); }
-  }
-
+  /* A consulta abre como uma barra de pesquisa aberta (o "Ask" do GitHub):
+     no PC, uma caixa ancorada na barra de cima, cobrindo a caixa "Perguntar
+     à IA", com a pergunta em cima e a conversa embaixo; no celular, a tela
+     toda, também com a pergunta em cima. Posição no PC: posicionarConsulta_. */
   .cq-painel {
     position: fixed; z-index: var(--z-modal); background: var(--surface);
     display: flex; flex-direction: column; box-shadow: var(--shadow);
   }
-  /* Celular: ocupa a tela. Em 375px um painel de lado vira uma fresta. */
-  @media (max-width: 899px) { .cq-painel { inset: 0; } }
+  @media (max-width: 899px) { .cq-painel { inset: 0; padding-top: env(safe-area-inset-top, 0px); } }
   @media (min-width: 900px) {
-    .cq-painel { top: 0; right: 0; bottom: 0; width: 400px; border-left: 1px solid var(--border); }
+    .cq-painel {
+      top: 8px; right: 16px; width: 560px; max-height: min(640px, calc(100vh - 32px));
+      border: 1px solid var(--border-forte); border-radius: var(--r-md);
+      animation: cqAbre var(--dur) var(--ease);
+    }
+    .cq-painel .cq-conversa:empty { display: none; }
   }
-
-  .cq-cabeca {
-    display: flex; align-items: center; gap: var(--esp-2);
-    padding: var(--esp-3) var(--esp-4);
-    border-bottom: 1px solid var(--border); flex: none;
+  @keyframes cqAbre { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+  .cq-barra {
+    display: flex; align-items: flex-end; gap: var(--esp-2); flex: none;
+    padding: var(--esp-2) var(--esp-2) var(--esp-2) var(--esp-3);
+    border-bottom: 1px solid var(--border);
   }
-  .cq-cabeca h2 { font-size: var(--t-lg); margin: 0; flex: 1; }
-  .cq-cabeca .cq-ico { color: var(--accent-forte); font-size: 1.1rem; line-height: 1; }
+  .cq-barra .cq-ico { color: var(--accent-forte); font-size: 1.15rem; line-height: 1; align-self: center; }
+  .cq-campo {
+    flex: 1; resize: none; max-height: 120px; min-height: 36px; border: 0; background: none; outline: none;
+    padding: 8px 4px; color: var(--ink); font-family: inherit; font-size: var(--t-md); line-height: 1.4;
+  }
+  .cq-campo::placeholder { color: var(--ink-faint); }
+  /* o foco é da barra inteira (traço embaixo), não do campo: sem moldura dupla */
+  .cq-campo:focus, .cq-campo:focus-visible { outline: none; box-shadow: none; border: 0; background: none; }
+  .cq-barra:focus-within { box-shadow: inset 0 -2px 0 var(--accent); }
+  .cq-enviar { flex: none; width: 36px; min-height: 36px; height: 36px; padding: 0; }
+  .cq-barra .icon-btn { margin-left: 0; width: 36px; height: 36px; }
+  .cq-opcoes {
+    display: flex; align-items: center; gap: var(--esp-2); flex-wrap: wrap; flex: none;
+    padding: var(--esp-2) var(--esp-3); border-bottom: 1px solid var(--border); background: var(--surface-2);
+  }
+  .cq-opcoes .cq-limpar { margin-left: auto; }
+  .cq-modo { flex: none; margin: 0; }
+  .cq-modo .mode-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 30px; padding: 4px 10px; flex: none; }
   .cq-modelo-select {
     width: auto; min-height: 30px; padding: 4px 22px 4px 8px;
     font-size: var(--t-xs); flex: none;
   }
-
   .cq-conversa {
-    flex: 1; overflow-y: auto; padding: var(--esp-4);
+    flex: 1; min-height: 0; overflow-y: auto; padding: var(--esp-4);
     display: flex; flex-direction: column; gap: var(--esp-3);
   }
 
@@ -2117,24 +2124,6 @@
   }
   .cq-exemplo:hover { border-color: var(--border-forte); color: var(--ink); }
 
-  .cq-rodape {
-    flex: none; border-top: 1px solid var(--border);
-    padding: var(--esp-3) var(--esp-4);
-    display: flex; gap: var(--esp-2); align-items: flex-end;
-    /* No celular o teclado some com o campo se ele encostar na borda. */
-    padding-bottom: max(var(--esp-3), env(safe-area-inset-bottom));
-  }
-  .cq-campo {
-    flex: 1; resize: none; max-height: 120px; min-height: 42px;
-    font-family: inherit; font-size: var(--t-md); line-height: 1.4;
-  }
-  .cq-enviar { flex: none; width: 42px; height: 42px; padding: 0; }
-  /* Mesmo seletor de "Entregar agora / Preparar rota", encostado no campo:
-     a escolha vale pra próxima pergunta, então mora junto de onde ela é
-     escrita, não lá no cabeçalho. */
-  .cq-modo { flex: none; margin: var(--esp-2) var(--esp-4) 0; }
-  .cq-modo .mode-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 32px; padding: 6px 8px; }
-
 </style>
 </head>
 <body>
@@ -2142,7 +2131,7 @@
      rápida · anotações · avatar) e as duas gavetas. Nasce aqui, antes do
      resto, porque os scripts do app procuram #notasBtn, #topo etc. -->
 <script src="nilma-shell.js"></script>
-<script>NilmaShell.montar({ modulo: 'Entregas', moduloId: 'entregas', buscaRotulo: 'Buscar cliente, entrega…' });</script>
+<script>NilmaShell.montar({ modulo: 'Entregas', moduloId: 'entregas', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle' });</script>
 <!-- Abas do módulo, sublinhadas, logo abaixo da barra. -->
 <nav class="tabs" id="tabsNav" role="tablist">
   <button class="tab active" data-tab="nova" role="tab" id="tabbtn-nova" aria-controls="tab-nova" aria-selected="true"><span class="tab-ico"><i class="ph ph-pen-nib" aria-hidden="true"></i></span><span class="tab-label">Nova entrega</span></button>
@@ -2901,40 +2890,36 @@
 <div class="sr-only" id="avisoLeitor" role="status" aria-live="polite"></div>
 <div id="modalRoot"></div>
 
-<!-- Consulta rápida (chat com a IA). Botão redondo no canto de baixo, na
-     moldura, fora das .view, pra servir em qualquer aba. Nasce escondido:
-     só aparece depois do login. -->
-<button type="button" class="cq-botao" id="cqBotao" hidden title="Consulta rápida" aria-label="Consulta rápida">
-  <i class="ph ph-chats-circle" aria-hidden="true"></i>
-</button>
+<!-- Consulta rápida (chat com a IA). Abre pela caixa "Perguntar à IA" da
+     barra de cima (ou pela tecla /), como uma barra de pesquisa aberta:
+     a pergunta em cima, a conversa embaixo. -->
 
-<div class="cq-painel" id="cqPainel" hidden role="dialog" aria-modal="false" aria-labelledby="cqTitulo">
-  <div class="cq-cabeca">
-    <span class="cq-ico"><i class="ph-fill ph-chats-circle" aria-hidden="true"></i></span>
-    <h2 id="cqTitulo">Consulta</h2>
-    <!-- Mesmo campo que Perfil → Reforço de IA da Consulta grava
-         (config/integracoes.iaModelo) — só num lugar mais à mão. Some pra
-         quem não é admin: é ajuste que vale pro escritório inteiro, não
-         preferência de cada um. -->
+<div class="cq-painel" id="cqPainel" hidden role="dialog" aria-modal="false" aria-label="Perguntar à IA">
+  <!-- em cima, no lugar da caixa da barra: o campo da pergunta -->
+  <div class="cq-barra">
+    <span class="cq-ico"><i class="ph ph-chats-circle" aria-hidden="true"></i></span>
+    <textarea class="cq-campo" id="cqCampo" rows="1" placeholder="Pergunte algo, ex.: o que falta na rota" aria-label="Sua pergunta"></textarea>
+    <button type="button" class="btn btn-primary cq-enviar" id="cqEnviar" title="Perguntar" aria-label="Perguntar"><i class="ph ph-arrow-up" aria-hidden="true"></i></button>
+    <button type="button" class="icon-btn" id="cqFechar" title="Fechar (Esc)" aria-label="Fechar"><i class="ph ph-x" aria-hidden="true"></i></button>
+  </div>
+  <!-- logo abaixo, as opções da próxima pergunta, numa fileira só -->
+  <div class="cq-opcoes">
+    <!-- Só aparece quando a IA de fato responde (PC do escritório ligado e
+         chave configurada); sem ela, tudo é resposta rápida mesmo. -->
+    <div class="mode-toggle cq-modo" id="cqModo" role="group" aria-label="Tipo de resposta" hidden>
+      <button type="button" class="mode-btn active" data-modo="rapida" aria-pressed="true"><i class="ph ph-lightning" aria-hidden="true"></i> Rápida</button>
+      <button type="button" class="mode-btn" data-modo="ia" aria-pressed="false"><i class="ph ph-sparkle" aria-hidden="true"></i> Com IA</button>
+    </div>
+    <!-- Mesmo campo que Ajustes do app → Integrações grava
+         (config/integracoes.iaModelo). Só pra admin. -->
     <select class="input cq-modelo-select" id="cqModeloSelect" hidden title="Modelo do reforço de IA" aria-label="Modelo do reforço de IA">
       <option value="gemini-flash-latest">Flash</option>
       <option value="gemini-3.8-flash">Flash 3.8</option>
       <option value="gemini-pro-latest">Pro</option>
     </select>
-    <button type="button" class="icon-btn" id="cqLimpar" title="Limpar"><i class="ph ph-trash" aria-hidden="true"></i></button>
-    <button type="button" class="icon-btn" id="cqFechar" title="Fechar"><i class="ph ph-x" aria-hidden="true"></i></button>
+    <button type="button" class="btn-chip cq-limpar" id="cqLimpar" title="Limpar a conversa"><i class="ph ph-trash" aria-hidden="true"></i> Limpar</button>
   </div>
   <div class="cq-conversa" id="cqConversa" aria-live="polite"></div>
-  <!-- Só aparece quando a IA de fato responde (PC do escritório ligado e
-       chave configurada); sem ela, tudo é resposta rápida mesmo. -->
-  <div class="mode-toggle cq-modo" id="cqModo" role="group" aria-label="Tipo de resposta" hidden>
-    <button type="button" class="mode-btn active" data-modo="rapida" aria-pressed="true"><i class="ph ph-lightning" aria-hidden="true"></i> Rápida · sem custo</button>
-    <button type="button" class="mode-btn" data-modo="ia" aria-pressed="false"><i class="ph ph-sparkle" aria-hidden="true"></i> Chat com IA</button>
-  </div>
-  <div class="cq-rodape">
-    <textarea class="input cq-campo" id="cqCampo" rows="1" placeholder="Pergunte: pendências de setembro, entregas do…" aria-label="Sua pergunta"></textarea>
-    <button type="button" class="btn btn-primary cq-enviar" id="cqEnviar" title="Perguntar"><i class="ph ph-arrow-up" aria-hidden="true"></i></button>
-  </div>
 </div>
 
 <div class="busca-global" id="buscaGlobal" hidden>
@@ -13576,10 +13561,6 @@
     appStarted = true;
     setupCanvas();
     captureGeo();
-    // A consulta rápida vale pra todo mundo que entra: ela só lê o que a
-    // pessoa já podia ver nas abas, e as regras do Firestore continuam
-    // valendo em cada consulta que ela faz.
-    $('cqBotao').hidden = false;
     $('form-equipe').hidden = !temPapel('admin');
     $('auditoriaCard').hidden = !temPapel('admin');
     $('competenciasCard').hidden = !temPapel('admin');
@@ -14648,12 +14629,11 @@
     if (id === 'contabil' && podeContabil_()) { sairDeAbaSecundaria_(); entrarModoSecundario_('contabil'); return true; }
     return false;   // Fiscal e Pendências são outras páginas: segue o link
   });
-  // A caixa da barra de cima (e a tecla /) é a busca geral, a mesma do
-  // Ctrl K. O chat da consulta com IA voltou a ser o botão redondo no canto
-  // de baixo, como a Nilma pediu.
+  // A caixa da barra de cima (e a tecla /) abre o chat da consulta com IA,
+  // que se abre como uma barra de pesquisa aberta, logo abaixo dela.
   NilmaShell.ao('busca', function () {
-    if (!auth.currentUser) return false;
-    abrirBuscaGlobal_();
+    if (!auth.currentUser || !appStarted) return false;
+    abrirConsultaRapida_();
     return true;
   });
   NilmaShell.ao('buscaGlobal', function () { abrirBuscaGlobal_(); });
@@ -14686,7 +14666,6 @@
       NilmaShell.mostrarInstalar(!!promptInstalar);
       // Sai a consulta rápida junto com o resto: fora do login não há o que
       // consultar, e o histórico da conversa anterior não fica na tela.
-      $('cqBotao').hidden = true;
       $('cqPainel').hidden = true;
       cqHistorico = [];
       cqSoltarConversaIa_();
@@ -15923,7 +15902,7 @@
     });
     $('cqCampo').placeholder = modo === 'ia'
       ? 'Pergunte do seu jeito — a IA consulta o sistema…'
-      : 'Pergunte: pendências de setembro, entregas do…';
+      : 'Pergunte algo, ex.: o que falta na rota';
     if (!cqHistorico.length) cqRender_();
   }
 
@@ -16032,24 +16011,49 @@
   });
 
   function cqFechar_() {
+    if ($('cqPainel').hidden) return;
     $('cqPainel').hidden = true;
-    $('cqBotao').hidden = false;
+    $('topoBusca') && $('topoBusca').setAttribute('aria-expanded', 'false');
+    var busca = $('topoBusca');
+    if (busca && !matchMedia('(hover: none)').matches) busca.focus();
   }
+  // No PC o painel abre ancorado na caixa "Perguntar à IA": mesma borda
+  // direita, cobrindo a caixa, como uma barra de pesquisa que se abriu.
+  function posicionarConsulta_() {
+    var painel = $('cqPainel'), caixa = $('topoBusca');
+    if (!painel || !caixa) return;
+    if (!matchMedia('(min-width: 900px)').matches) { painel.style.left = painel.style.right = painel.style.top = painel.style.width = ''; return; }
+    var r = caixa.getBoundingClientRect();
+    var largura = Math.min(Math.max(r.width, 560), window.innerWidth - 32);
+    var direita = Math.max(16, window.innerWidth - r.right);
+    painel.style.width = largura + 'px';
+    painel.style.right = direita + 'px';
+    painel.style.left = 'auto';
+    painel.style.top = Math.max(8, r.top) + 'px';
+  }
+  window.addEventListener('resize', function () { if (!$('cqPainel').hidden) posicionarConsulta_(); });
+  // clique fora do painel (e fora da caixa que o abre) fecha, como numa busca
+  document.addEventListener('pointerdown', function (ev) {
+    var painel = $('cqPainel');
+    if (!painel || painel.hidden) return;
+    if (painel.contains(ev.target) || ev.target.closest('#topoBusca') || ev.target.closest('#modalRoot')) return;
+    cqFechar_();
+  });
 
-  // Abre pelo botão redondo do canto de baixo.
+  // Abre pela caixa "Perguntar à IA" da barra de cima (ou pela tecla /).
   function abrirConsultaRapida_() {
     garantirTodosOsClientes_();   // a consulta rápida responde sobre qualquer cliente
     // Só agora: quem nunca abre o painel não fica com um listener aberto no
     // Firestore o dia inteiro. É a mesma economia que as abas já fazem com
     // os iframes, que só carregam na primeira vez que são abertas.
     cqEscutarRobo_();
+    posicionarConsulta_();
     $('cqPainel').hidden = false;
-    $('cqBotao').hidden = true;
+    $('topoBusca') && $('topoBusca').setAttribute('aria-expanded', 'true');
     cqRenderModo_();
     cqRender_();
     if (!matchMedia('(hover: none)').matches) $('cqCampo').focus();
   }
-  $('cqBotao').addEventListener('click', abrirConsultaRapida_);
   $('cqFechar').addEventListener('click', cqFechar_);
   $('cqLimpar').addEventListener('click', function () {
     cqHistorico = [];
