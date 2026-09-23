@@ -295,3 +295,7 @@ node scripts/teste-pendencias.js && node scripts/teste-robo.js   # (teste-robo p
   no ⋯ ficaram só as exceções (mês sem movimento, não se aplica).
 - Saíram as frases explicativas fixas (páginas do Robô e as explicações de cada modelo/opção em Configurações).
 - `scripts/teste-pendencias.js` (32) e `teste-robo.js` passam; nenhuma das 11 funções recortadas foi tocada.
+
+### Pendências — sem explicações e "Hoje" refeito
+- **Hoje** agora é feito de caixas no estilo GitHub. No PC a coluna principal tem "Próximo a cobrar" e "Outros para cobrar" (tabela com "Cobrar" por linha e "Ver todos" no cabeçalho). A coluna lateral tem "O mês", "Chegou hoje" e "Quem mais atrasa". No celular tudo vira uma coluna só.
+- Frases explicativas saíram ou foram encurtadas (Robô, Visão anual, lote, acesso negado, vazios). Em Clientes, a frase de situação sumiu porque os números já estão nos filtros, e o rótulo "Mostrar:" saiu.

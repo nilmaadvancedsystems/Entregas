@@ -174,7 +174,6 @@
   .foco-card .docs { display: flex; gap: 6px; flex-wrap: wrap; margin-top: var(--esp-3); }
   .foco-card .fila-linha { display: flex; align-items: center; gap: var(--esp-3); }
   .foco-card .fila-linha .barra { flex: 1; }
-  #hojeOutrosDobra, #hojeOutrosDobra ~ details.dobra { max-width: 720px; }
   .foco-card .rot { font-size: var(--t-sm); color: var(--ink-faint); }
   .foco-card .nome { font-size: var(--t-2xl); font-weight: 600; letter-spacing: -.02em; line-height: 1.2; margin-top: 4px; text-wrap: balance; }
   .foco-card .falta { font-size: var(--t-base); color: var(--ink-soft); margin-top: var(--esp-2); }
@@ -413,8 +412,11 @@
   @media (min-width: 700px) { .kpis { grid-template-columns: repeat(3, 1fr); } }
   @media (min-width: 1000px) { .kpis { grid-template-columns: repeat(var(--kpi-cols, 4), 1fr); } }
   .situacao-linha {
-    margin: var(--esp-4) 0 var(--esp-2); font-size: var(--t-md); color: var(--ink-soft);
+    margin: var(--esp-2) 0 0; font-size: var(--t-sm); color: var(--ink-soft);
   }
+  .situacao-linha:has(#situacaoLinha:empty):has(#resultado:empty) { display: none; }
+  .situacao-linha #situacaoLinha:empty + .resultado::before { content: none; }
+  .filtros-situacao { margin-top: var(--esp-3); }
   .filtros-situacao { margin-bottom: var(--esp-3); }
   .filtros-situacao .chip b { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink-faint); }
   .filtros-situacao .chip[aria-pressed="true"] b { color: inherit; }
@@ -1173,6 +1175,27 @@
   .ap-tema { display: flex; align-items: center; gap: var(--esp-3); margin-bottom: var(--esp-4); }
   .ap-tema .ap-rotulo { font-weight: 600; }
   html.com-casca #authGate { z-index: 200; }
+  /* ---------- caixas (mesmo desenho das listas do Entregas) ---------- */
+  .caixa-p { border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface); margin-bottom: var(--esp-4); overflow: hidden; }
+  .caixa-cab { display: flex; align-items: center; gap: var(--esp-2); flex-wrap: wrap; min-height: 44px; padding: 6px var(--esp-3); background: var(--surface-2); border-bottom: 1px solid var(--border); }
+  .caixa-cab h2 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: var(--t-base); font-weight: 600; }
+  .caixa-cab h2 .ph { color: var(--accent-forte); }
+  .caixa-cab .cont { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: var(--t-sm); color: var(--ink-faint); }
+  .caixa-cab .caixa-acao { margin-left: auto; }
+  .caixa-p .foco-card { max-width: none; border: 0; border-radius: 0; box-shadow: none; padding: var(--esp-4); }
+  .caixa-p .progresso-mes { max-width: none; margin: 0; padding: var(--esp-3); }
+  .caixa-p .timeline li { padding-left: var(--esp-3); padding-right: var(--esp-3); }
+  .caixa-p .timeline li:last-child, .caixa-p .tab-simples tr:last-child td { border-bottom: 0; }
+  .caixa-p .tab-simples th { background: none; }
+  .caixa-p .tab-simples td:first-child, .caixa-p .tab-simples th:first-child { padding-left: var(--esp-3); }
+  .caixa-p .tab-simples td:last-child, .caixa-p .tab-simples th:last-child { padding-right: var(--esp-3); }
+  .caixa-p .tab-simples tbody tr:hover { background: var(--surface-2); }
+  .caixa-p .lado-vazio { padding: var(--esp-3); }
+  .caixa-p > .tab-rolagem:has(table:empty) { display: none; }
+  #viewHoje .pagina-topo { margin-bottom: var(--esp-4); }
+  .hoje-grade { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 var(--esp-5); align-items: start; }
+  @media (min-width: 1100px) { .hoje-grade { grid-template-columns: minmax(0, 1fr) 340px; } }
+  @media (max-width: 560px) { .caixa-p .tab-simples tr { padding-left: var(--esp-3); padding-right: var(--esp-3); } }
 </style>
 </head>
 <body>
@@ -1264,7 +1287,6 @@
            vez de clicar. -->
       <p class="situacao-linha" aria-live="polite"><span id="situacaoLinha"></span><span class="resultado" id="resultado"></span></p>
       <div class="filtros-doc filtros-situacao" role="group" aria-label="Filtrar por situação">
-        <span class="rotulo">Mostrar:</span>
         <button type="button" class="chip" id="filtroTodos" data-filtro="todos" aria-pressed="true"><i class="ph ph-users" aria-hidden="true"></i>Todos <b id="numTodos"></b></button>
         <button type="button" class="chip" id="filtroPendentes" data-filtro="pendentes" aria-pressed="false"><i class="ph ph-warning-circle" aria-hidden="true"></i>Com pendência <b id="numPendentes"></b></button>
         <button type="button" class="chip" id="filtroCompletos" data-filtro="completos" aria-pressed="false"><i class="ph ph-check-circle" aria-hidden="true"></i>Completos <b id="numCompletos"></b></button>
@@ -1341,27 +1363,40 @@
         </div>
       </div>
       <div id="hojeAvisos"></div>
-      <div class="progresso-mes" id="hojeKpis"></div>
-      <div class="foco-card" id="hojeFoco"></div>
-      <details class="dobra" id="hojeOutrosDobra">
-        <summary>Outros para cobrar <span class="cont" id="hojeOutrosN"></span></summary>
-        <div class="dobra-corpo">
-          <div class="tab-rolagem"><table class="tab-simples" id="hojeCobrar"></table></div>
-          <div id="hojeCobrarVazio" class="lado-vazio" hidden></div>
-          <button type="button" class="btn btn-ghost btn-sm" id="hojeVerPendentes" style="margin-top:8px">Ver todos os pendentes <i class="ph ph-arrow-right" aria-hidden="true"></i></button>
+      <!-- Hoje em caixas, como o resto do app: à esquerda o trabalho (quem
+           cobrar), à direita o que se confere de relance. No celular, uma
+           coluna só, nesta mesma ordem. -->
+      <div class="hoje-grade">
+        <div class="hoje-principal">
+          <section class="caixa-p">
+            <div class="caixa-cab"><h2><i class="ph ph-paper-plane-tilt" aria-hidden="true"></i> Próximo a cobrar</h2><span class="cont" id="hojeFilaN"></span></div>
+            <div class="foco-card" id="hojeFoco"></div>
+          </section>
+          <section class="caixa-p" id="hojeOutrosDobra">
+            <div class="caixa-cab">
+              <h2><i class="ph ph-list-bullets" aria-hidden="true"></i> Outros para cobrar</h2><span class="cont" id="hojeOutrosN"></span>
+              <button type="button" class="btn btn-secondary btn-sm caixa-acao" id="hojeVerPendentes">Ver todos <i class="ph ph-arrow-right" aria-hidden="true"></i></button>
+            </div>
+            <div class="tab-rolagem"><table class="tab-simples" id="hojeCobrar"></table></div>
+            <div id="hojeCobrarVazio" class="lado-vazio" hidden></div>
+          </section>
         </div>
-      </details>
-      <details class="dobra">
-        <summary>Chegou hoje <span class="cont" id="hojeChegouN"></span></summary>
-        <div class="dobra-corpo"><ul class="timeline" id="hojeChegou"></ul></div>
-      </details>
-      <details class="dobra">
-        <summary>Quem mais atrasa</summary>
-        <div class="dobra-corpo">
-          <div class="tab-rolagem"><table class="tab-simples" id="hojeRanking"></table></div>
-          <div id="hojeRankingVazio" class="lado-vazio" hidden></div>
-        </div>
-      </details>
+        <aside class="hoje-lado">
+          <section class="caixa-p">
+            <div class="caixa-cab"><h2><i class="ph ph-calendar-check" aria-hidden="true"></i> O mês</h2></div>
+            <div class="progresso-mes" id="hojeKpis"></div>
+          </section>
+          <section class="caixa-p">
+            <div class="caixa-cab"><h2><i class="ph ph-tray-arrow-down" aria-hidden="true"></i> Chegou hoje</h2><span class="cont" id="hojeChegouN"></span></div>
+            <ul class="timeline" id="hojeChegou"></ul>
+          </section>
+          <section class="caixa-p">
+            <div class="caixa-cab"><h2><i class="ph ph-hourglass-medium" aria-hidden="true"></i> Quem mais atrasa</h2></div>
+            <div class="tab-rolagem"><table class="tab-simples" id="hojeRanking"></table></div>
+            <div id="hojeRankingVazio" class="lado-vazio" hidden></div>
+          </section>
+        </aside>
+      </div>
     </div>
 
     <!-- ================= PÁGINA: VISÃO ANUAL ================= -->
@@ -3399,11 +3434,8 @@
     // Uma frase no lugar de quatro números soltos: diz o que fazer hoje.
     var linha = $('situacaoLinha');
     if (linha) {
-      linha.textContent = !clientesCarregados ? 'Carregando os clientes…'
-        : !pronto ? clientesCache.length + ' clientes ativos.'
-        : totalPendentes === 0 ? 'Tudo em dia: nenhum dos ' + clientesCache.length + ' clientes ativos está com pendência.'
-        : totalPendentes + ' de ' + clientesCache.length + ' clientes ainda devem documento'
-          + (totalSemEmail ? ' · ' + totalSemEmail + ' sem e-mail cadastrado' : '') + '.';
+      // Os números já estão nos filtros; a frase só aparece enquanto carrega.
+      linha.textContent = !clientesCarregados ? 'Carregando…' : '';
     }
     $('menuNumTodos').textContent = clientesCarregados ? clientesCache.length : '';
     atualizarMenu();
@@ -3719,7 +3751,7 @@
       al.appendChild(ico('ph-warning-circle'));
       var cp = el('div', 'corpo');
       cp.appendChild(el('div', 'titulo', ultimaExec ? 'Robô sem rodar há ' + plural(uteis, 'dia útil', 'dias úteis') : 'Nenhuma execução do robô registrada'));
-      cp.appendChild(el('div', 'texto', 'Ele roda num computador do escritório (node scripts/download-attachments.js). Confira se a máquina está ligada e a tarefa agendada ativa.' + (ultimaExec ? ' Última execução: ' + dataHora(ultimaExec) + '.' : '')));
+      cp.appendChild(el('div', 'texto', 'Confira o PC do robô.' + (ultimaExec ? ' Última execução: ' + dataHora(ultimaExec) + '.' : '')));
       al.appendChild(cp);
       $('roboAviso').appendChild(al);
     }
@@ -4062,9 +4094,6 @@
       };
     });
     bloco.appendChild(desenharLinhaDoMes_(pontos));
-    var legLinha = el('p', 'grafico-pe');
-    legLinha.textContent = 'Quanto dos documentos do mês já tinha chegado. Os riscos embaixo de cada mês são as cobranças enviadas.';
-    bloco.appendChild(legLinha);
 
     var mapa = el('div', 'mapa-meses');
     var compAberta = competenciaStr(competenciaAtual);
@@ -4333,7 +4362,7 @@
     var hojeStr = hoje.getFullYear() + '-' + pad2(hoje.getMonth() + 1) + '-' + pad2(hoje.getDate());
     var pendentes = clientesCache.filter(function (c) { return faltandoDe(c.id).length > 0; });
     var pz = prazoDoMes();
-    $('hojeSub').textContent = hoje.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }) + ' · documentos de ' + competenciaPorExtenso(compAberta) + (pz ? ', ' + descreverPrazo(pz) : '');
+    $('hojeSub').textContent = hoje.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
 
     // avisos
     var av = $('hojeAvisos');
@@ -4341,7 +4370,6 @@
     if (roboParado) {
       var a1 = el('div', 'alerta-pend bloqueio fino'); a1.appendChild(ico('ph-robot'));
       var c1 = el('div', 'corpo'); c1.appendChild(el('div', 'titulo', 'Robô do Gmail sem rodar há ' + plural(uteis, 'dia útil', 'dias úteis') + '.'));
-      c1.appendChild(el('div', 'texto', 'A fila abaixo pode estar desatualizada.'));
       a1.appendChild(c1);
       var ac1 = el('div', 'acoes'); var b1 = el('button', 'btn btn-ghost btn-sm', 'Ver robô'); b1.type = 'button';
       b1.addEventListener('click', function () { paginaAtual = 'robo'; aplicarLayout(); window.scrollTo(0, 0); }); ac1.appendChild(b1); a1.appendChild(ac1);
@@ -4353,7 +4381,7 @@
     if (!roboParado && configRobo.status === 'erro') {
       var a3 = el('div', 'alerta-pend bloqueio fino'); a3.appendChild(ico('ph-robot'));
       var c3 = el('div', 'corpo'); c3.appendChild(el('div', 'titulo', 'A última leitura do Gmail falhou.'));
-      c3.appendChild(el('div', 'texto', configRobo.statusMsg || 'A fila abaixo pode estar desatualizada.'));
+      if (configRobo.statusMsg) c3.appendChild(el('div', 'texto', configRobo.statusMsg));
       a3.appendChild(c3);
       var ac3 = el('div', 'acoes'); var b3 = el('button', 'btn btn-ghost btn-sm', 'Ver robô'); b3.type = 'button';
       b3.addEventListener('click', function () { paginaAtual = 'robo'; aplicarLayout(); window.scrollTo(0, 0); }); ac3.appendChild(b3); a3.appendChild(ac3);
@@ -4384,8 +4412,9 @@
     var semEmailPend = pendentes.filter(function (c) { return !c.email; }).length;
     var partesPm = [plural(pendentes.length, 'com pendência', 'com pendência')];
     if (semEmailPend) partesPm.push(semEmailPend + ' sem e-mail');
-    partesPm.push(rotuloCurtoDoMes(compAnt) + ' fechou com ' + pctAnt + '%');
+    partesPm.push(rotuloCurtoDoMes(compAnt) + ': ' + pctAnt + '%');
     kp.appendChild(el('div', 'pm-sub', partesPm.join(' · ')));
+    if (pz) kp.appendChild(el('div', 'pm-sub', 'Prazo: ' + descreverPrazo(pz)));
     var chegaram = [];
     statusCache.forEach(function (dado, clienteId) {
       var det = dado.detalhes || {};
@@ -4413,7 +4442,7 @@
     $('hojeChegouN').textContent = chegaram.length || '';
     if (!chegaram.length) {
       var li0 = el('li'); li0.style.gridTemplateColumns = '1fr'; li0.style.color = 'var(--ink-faint)'; li0.style.fontSize = 'var(--t-sm)';
-      li0.textContent = 'Nada marcado hoje ainda.'; ul.appendChild(li0);
+      li0.textContent = 'Nada hoje.'; ul.appendChild(li0);
     } else {
       chegaram.slice(0, 30).forEach(function (x, i) {
         var c = clientesPorId.get(x.clienteId);
@@ -4442,17 +4471,16 @@
       focoAtual = null;
       foco.classList.add('vazio-foco');
       foco.appendChild(ico('ph-check-circle'));
-      foco.appendChild(el('div', 'corpo', pendentes.length ? 'Todo pendente com e-mail já foi cobrado nos últimos 7 dias. Nada a fazer agora.' : 'Ninguém com pendência. Mês fechado.'));
+      foco.appendChild(el('div', 'corpo', pendentes.length ? 'Nada a cobrar agora.' : 'Mês fechado.'));
+      $('hojeFilaN').textContent = '';
     } else {
       foco.classList.remove('vazio-foco');
       // Quantos clientes já foram cobrados hoje: é o que enche a barra da fila.
       var feitasHoje = 0;
       statusCache.forEach(function (dado) { if ((dado.cobrancas || []).some(function (x) { return x.canal !== 'coleta' && String(x.em).slice(0, 10) === hojeStr; })) feitasHoje++; });
       var corpoF = el('div', 'corpo');
-      var topoF = el('div', 'topo');
-      topoF.appendChild(el('span', 'rot', 'Próximo a cobrar'));
-      topoF.appendChild(el('span', 'contagem', feitasHoje ? feitasHoje + ' de ' + (feitasHoje + fila.length) + ' hoje' : plural(fila.length, 'na fila', 'na fila')));
-      corpoF.appendChild(topoF);
+      // a contagem da fila vai pro cabeçalho da caixa
+      $('hojeFilaN').textContent = feitasHoje ? feitasHoje + ' de ' + (feitasHoje + fila.length) + ' hoje' : plural(fila.length, 'na fila', 'na fila');
       corpoF.appendChild(el('div', 'nome', nomeExibicao(atual.c)));
       var docsF = el('div', 'docs');
       faltandoDe(atual.c.id).forEach(function (t) { docsF.appendChild(badge(t.curto, 'pend', t.icone)); });
@@ -4469,9 +4497,9 @@
       var bRev = el('button', 'btn btn-secondary'); bRev.type = 'button'; bRev.textContent = 'Revisar antes';
       bRev.title = 'Abre a mensagem para editar antes de mandar';
       bRev.addEventListener('click', function () { abrirModalCobranca(atual.c.id); });
-      var bVer = el('button', 'btn btn-ghost'); bVer.type = 'button'; bVer.textContent = 'Abrir cliente';
+      var bVer = el('button', 'btn btn-secondary'); bVer.type = 'button'; bVer.textContent = 'Abrir cliente';
       bVer.addEventListener('click', function () { abrirDetalhe(atual.c.id, 'abaDocs'); });
-      var bPular = el('button', 'btn btn-ghost'); bPular.type = 'button'; bPular.textContent = 'Pular';
+      var bPular = el('button', 'btn btn-secondary'); bPular.type = 'button'; bPular.textContent = 'Pular';
       bPular.title = 'Deixa este para depois e mostra o próximo (tecla P)';
       bPular.addEventListener('click', function () { hojePulados.push(atual.c.id); renderPaginas(); });
       // quem cobra 40 por dia no PC não tira a mão do teclado
@@ -4878,7 +4906,7 @@
       alerta.classList.add('bloqueio');
       alerta.appendChild(ico('ph-warning-circle'));
       corpo.appendChild(el('div', 'titulo', 'Sem e-mail cadastrado'));
-      corpo.appendChild(el('div', 'texto', 'Sem e-mail não há reconhecimento automático nem cobrança.' + (faltando.length ? ' Faltam ' + faltando.map(function (t) { return t.curto.toLowerCase(); }).join(', ') + '.' : '')));
+      corpo.appendChild(el('div', 'texto', 'Sem e-mail.' + (faltando.length ? ' Faltam ' + faltando.map(function (t) { return t.curto.toLowerCase(); }).join(', ') + '.' : '')));
       var b = el('button', 'btn btn-secondary btn-sm'); b.type = 'button';
       b.appendChild(ico('ph-pencil-simple')); b.appendChild(document.createTextNode(' Cadastrar e-mail'));
       b.addEventListener('click', function () { selecionarAba('abaComunicacao'); $('detEmailInput').focus(); });
@@ -5561,8 +5589,8 @@
       a.appendChild(ico(iconeNome)); a.appendChild(el('span', null, texto));
       avisos.appendChild(a);
     }
-    if (!cliente.email) aviso('erro', 'ph-warning-circle', 'Este cliente não tem e-mail cadastrado. Informe um abaixo: ele será salvo no cadastro ao abrir a cobrança.');
-    if (faltando.length === 0) aviso('info', 'ph-check-circle', 'Nenhum documento em falta neste mês. Você pode enviar mesmo assim, mas a mensagem vai sem itens.');
+    if (!cliente.email) aviso('erro', 'ph-warning-circle', 'Sem e-mail cadastrado. Informe abaixo.');
+    if (faltando.length === 0) aviso('info', 'ph-check-circle', 'Nada em falta neste mês.');
     var cobs = cobrancasDe(clienteId).sort(function (a, b) { return String(b.em).localeCompare(String(a.em)); });
     if (cobs.length) {
       var horas = (Date.now() - new Date(cobs[0].em).getTime()) / 36e5;
@@ -5741,7 +5769,7 @@
   function textoRodapeEnvio(prefixo) {
     return (prefixo || '') + (vigiaLigado()
       ? 'Enviar manda na hora pela caixa ' + CAIXA_GMAIL + '.'
-      : 'O PC do robô está desligado: Enviar deixa na fila e sai quando ele ligar. Para mandar agora, use Abrir no Gmail.');
+      : 'PC do robô desligado: Enviar deixa na fila. Pra mandar agora, use Abrir no Gmail.');
   }
 
   // ---------- fila e vigia na página do robô ----------
@@ -5955,7 +5983,7 @@
     var a = el('div', 'modal-aviso info');
     a.appendChild(ico('ph-info'));
     var jaCobrados = modalLoteIds.filter(function (id) { return numeroDaCobranca(id) > 1; }).length;
-    a.appendChild(el('span', null, 'Vai para os clientes visíveis na lista com pendência e e-mail. Mensagem genérica, sem citar documentos de cada um.'
+    a.appendChild(el('span', null, 'Mensagem genérica, em Cco, pros visíveis com pendência.'
       + (jaCobrados ? ' ' + plural(jaCobrados, 'já foi cobrado', 'já foram cobrados') + ' neste mês.' : '')));
     $('modalAvisos').appendChild(a);
     $('cobPara').type = 'text';
@@ -6405,7 +6433,7 @@
       $('tabsNav').hidden = !podeUsar;
       if (!podeUsar) {
         document.querySelector('.app').innerHTML = '<div id="negado"><i class="ph ph-lock" style="font-size:32px;"></i>' +
-          '<p>Sua conta não tem acesso a este painel (precisa do papel admin ou contábil).</p></div>';
+          '<p>Sua conta não tem acesso a esta tela.</p></div>';
         return;
       }
       paginaAtual = 'hoje';
