@@ -8,9 +8,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
 <!-- Aparência (tema, cor, texto, espaçamento, animação) igual à do Entregas:
      o script vem ANTES da folha e sem defer, senão a tela pisca no tema errado. -->
@@ -19,14 +16,18 @@
 <style>
 /* Tokens, base e componentes (botão, cartão, campo, chip, selo, aviso) vêm de
    nilma-ui.css, gerado do entregas.html. Aqui fica só o que é do LCDPR:
-   a tabela de lançamentos, a área de arrastar arquivo e as etiquetas. */
-h1, h2, h3 { letter-spacing: -.01em; }
-h2 { font-size: var(--t-lg); margin: 0 0 var(--esp-2); }
+   a tabela de lançamentos, a área de arrastar arquivo e as etiquetas.
+   Fonte é a do sistema (vem da folha): nada de letter-spacing nem peso 500
+   — Segoe UI não tem 500, a hierarquia é só 400 e 600. */
+h2 { font-size: var(--t-lg); line-height: var(--lh); margin: 0 0 var(--esp-2); }
 h3 { font-size: var(--t-md); margin: 0 0 var(--esp-2); }
 a { color: var(--accent-forte); }
 
 .registro-import { margin-bottom: var(--esp-4); }
 .registro-tab td { padding: 6px 8px; }
+/* Nome de arquivo vem sem espaço (Relatorio_Detalhamento_..._fazenda.xlsx):
+   sem quebrar em qualquer ponto ele empurra a página pro lado no celular. */
+.registro-tab td:first-child { overflow-wrap: anywhere; }
 .badge-erro { color: var(--danger); font-weight: 600; }
 .dropzone.lendo { opacity: .7; pointer-events: none; }
 
@@ -34,14 +35,21 @@ a { color: var(--accent-forte); }
    vem junto do dado. Os alvos sobem pra 44px — é dedo, não mouse. */
 @media (max-width: 800px) {
   .tablewrap { overflow-x: visible; }
+  /* Tabela e tbody viram bloco: senão a tabela mede a largura mínima pela
+     opção mais comprida do select e o cartão passa da borda (sem rolagem,
+     porque o body corta o que sobra) — some a seta do select e a borda. */
+  table.t, table.t tbody { display: block; }
   table.t thead { display: none; }
   table.t tr { display: block; padding: var(--esp-3) 0; border-bottom: 1px solid var(--border); }
   table.t td { display: flex; gap: var(--esp-2); align-items: center; padding: 3px 0; border: none; text-align: left !important; }
   table.t td[data-rot]::before { content: attr(data-rot); flex: none; min-width: 96px; font-size: var(--t-xs); color: var(--ink-faint); }
-  table.t td select, table.t td .tbl-input { width: 100%; min-height: 44px; }
+  table.t td select, table.t td .tbl-input { width: 100%; min-width: 0; min-height: 44px; }
+  table.t td > .truncate { flex: 1; min-width: 0; max-width: none; }
   .icon-btn, .chev { min-width: 44px; min-height: 44px; }
   .bulkbar select { min-width: 0; width: 100%; min-height: 44px; }
-  .row-detail td { display: block; }
+  /* "table.t td" acima pesa mais que ".row-detail td": sem o table.t aqui o
+     detalhe aberto virava flex e espremia Histórico/Produto ao lado da grade. */
+  table.t .row-detail td { display: block; }
 }
 
 /* pendências agrupadas: uma decisão para as notas que são a mesma coisa */
@@ -57,8 +65,8 @@ a { color: var(--accent-forte); }
 
 /* progresso da revisão: a pergunta é "dá pra exportar?", não "quantos são?" */
 .progresso-lcdpr { margin: var(--esp-4) 0; }
-.progresso-topo { display: flex; justify-content: space-between; gap: var(--esp-3); font-size: var(--t-md); font-weight: 600; margin-bottom: 6px; }
-.progresso-valor { color: var(--ink-soft); font-weight: 500; font-variant-numeric: tabular-nums; }
+.progresso-topo { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 var(--esp-3); font-size: var(--t-md); font-weight: 600; margin-bottom: 6px; }
+.progresso-valor { color: var(--ink-soft); font-weight: 400; font-variant-numeric: tabular-nums; white-space: nowrap; } /* "R$" não se separa do valor no celular */
 .progresso-lcdpr .barra { height: 8px; border-radius: var(--r-pill); background: var(--surface-2); overflow: hidden; }
 .progresso-lcdpr .barra span { display: block; height: 100%; background: var(--accent); border-radius: inherit; transition: width var(--dur) var(--ease); }
 .progresso-pe { margin: 6px 0 0; color: var(--ink-soft); }
@@ -74,7 +82,8 @@ a { color: var(--accent-forte); }
 
 /* números do topo: sem caixa dentro de caixa, só uma régua de 1px entre eles */
 .stats { display: flex; flex-wrap: wrap; gap: var(--esp-5); padding: 0 0 var(--esp-4); margin-bottom: var(--esp-4); border-bottom: 1px solid var(--border); }
-.stat b { display: block; font-size: 1.5rem; font-weight: 600; font-family: var(--font-mono); font-variant-numeric: tabular-nums; line-height: 1.1; }
+/* número de contagem é sans com dígitos de mesma largura; mono fica pra CNPJ */
+.stat b { display: block; font-size: var(--t-2xl); font-weight: 600; font-variant-numeric: tabular-nums; line-height: var(--lh-tight); }
 .stat span { font-size: var(--t-sm); color: var(--ink-faint); }
 
 .toolbar { display: flex; gap: var(--esp-2); flex-wrap: wrap; align-items: center; margin-bottom: var(--esp-3); }
@@ -89,7 +98,7 @@ a { color: var(--accent-forte); }
 .tablewrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--r-md); }
 table.t { width: 100%; border-collapse: collapse; font-size: var(--t-base); }
 table.t th {
-  text-align: left; font-size: var(--t-xs); font-weight: 600; color: var(--ink-faint); padding: 9px 10px;
+  text-align: left; font-size: var(--t-sm); font-weight: 600; line-height: var(--lh-pill); color: var(--ink-soft); padding: 9px 10px;
   border-bottom: 1px solid var(--border); white-space: nowrap; position: sticky; top: 0; background: var(--surface); z-index: 1;
 }
 table.t td { padding: 7px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
@@ -102,13 +111,16 @@ table.t tbody tr.revisar { background: var(--warning-soft); }
 textarea.tbl-input { resize: vertical; min-height: 38px; font-family: inherit; }
 tr.row-detail td { background: var(--surface-2); padding: var(--esp-4); }
 tr.row-detail-hidden { display: none; }
-.detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--esp-3); margin-bottom: var(--esp-3); }
-.detail-field label { display: block; font-size: var(--t-xs); color: var(--ink-faint); margin-bottom: 4px; }
+/* Coluna mínima em rem (cresce com "Texto maior") e larga o bastante pro
+   CPF/CNPJ de 18 caracteres em mono: com 150px ele saía "12.345.678/000".
+   O min(100%…) deixa uma coluna só no celular estreito. */
+.detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); gap: var(--esp-3); margin-bottom: var(--esp-3); }
+.detail-field label { display: block; font-size: var(--t-sm); font-weight: 600; color: var(--ink-soft); margin-bottom: 4px; }
 .detail-field input, .detail-field textarea { width: 100%; }
 .status-cell { display: flex; flex-direction: column; gap: 3px; align-items: flex-start; }
 
 /* etiquetas: o mesmo formato do selo de situação do Entregas */
-.tag { display: inline-flex; align-items: center; font-size: var(--t-xs); padding: 2px 8px; border-radius: var(--r-pill); font-weight: 600; }
+.tag { display: inline-flex; align-items: center; font-size: var(--t-xs); line-height: var(--lh-pill); padding: 1px 8px; border-radius: var(--r-pill); font-weight: 600; }
 .tag-nf { background: var(--accent-soft); color: var(--accent-forte); }
 .tag-cte { background: var(--accent-2-soft); color: var(--accent-2-forte, var(--accent-2)); }
 .tag-warn { background: var(--warning-soft); color: var(--warning-forte); }
@@ -118,6 +130,7 @@ tr.row-detail-hidden { display: none; }
 .tag-neutro { background: var(--surface-2); color: var(--ink-faint); }
 
 .small { font-size: var(--t-sm); color: var(--ink-faint); }
+/* mono só pro que se lê dígito a dígito: CPF/CNPJ e códigos. Data e valor usam .num */
 .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 .hint { color: var(--ink-soft); font-size: var(--t-base); max-width: 74ch; margin: 0 0 var(--esp-3); }
 .desc { color: var(--ink-soft); max-width: 76ch; margin: 0; }
@@ -125,7 +138,8 @@ tr.row-detail-hidden { display: none; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--esp-4); }
 .twocol { display: grid; grid-template-columns: 1fr 1fr; gap: var(--esp-5); }
 @media (max-width: 900px) { .twocol, .grid2 { grid-template-columns: 1fr; } }
-.field label { display: block; font-size: var(--t-sm); color: var(--ink-soft); margin-bottom: 5px; }
+/* rótulo de campo: 14/600 na cor do texto, igual ao do Entregas */
+.field label { display: block; font-size: var(--t-base); font-weight: 600; color: var(--ink); margin-bottom: 5px; }
 .field input, .field select { width: 100%; }
 .section-sep { height: 1px; background: var(--border); margin: var(--esp-5) 0; }
 .icon-btn, .chev {
@@ -135,7 +149,7 @@ tr.row-detail-hidden { display: none; }
 .icon-btn:hover { background: var(--accent-soft); color: var(--accent-forte); }
 .chev:hover { background: var(--surface-2); color: var(--ink); }
 .chev.open { transform: rotate(90deg); }
-.badge-count { background: var(--accent); color: var(--accent-ink); font-size: var(--t-xs); border-radius: var(--r-pill); padding: 1px 6px; margin-left: 6px; }
+.badge-count { background: var(--accent); color: var(--accent-ink); font-size: var(--t-xs); font-weight: 600; line-height: var(--lh-pill); font-variant-numeric: tabular-nums; border-radius: var(--r-pill); padding: 0 6px; margin-left: 6px; }
 .truncate { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
 .toast { right: 20px; left: auto; bottom: 20px; transform: none; max-width: 360px; }
 .toast.show { transform: none; }
@@ -144,11 +158,11 @@ tr.row-detail-hidden { display: none; }
 .gate { position: fixed; inset: 0; z-index: 200; display: flex; align-items: center; justify-content: center; background: var(--bg); padding: 20px; }
 .gate[hidden], #app[hidden] { display: none; }
 .gate-box { max-width: 380px; text-align: center; }
-.gate-box h1 { font-size: var(--t-lg); margin-bottom: 6px; }
+.gate-box h1 { font-size: var(--t-xl); margin-bottom: 6px; }
 .gate-box p { color: var(--ink-soft); font-size: var(--t-base); margin: 0 0 var(--esp-2); }
 /* Moldura comum (nilma-shell.js): barra de cima + abas. As abas do LCDPR têm
    rótulos de grupo e, no pé, o estado da nuvem (só no PC). */
-.tabs-grupo { font-size: var(--t-xs); color: var(--ink-faint); padding: var(--esp-4) 12px 4px; }
+.tabs-grupo { font-size: var(--t-sm); font-weight: 600; line-height: var(--lh-pill); color: var(--ink-soft); padding: var(--esp-4) 12px 4px; }
 .tabs-grupo:first-child { padding-top: var(--esp-2); }
 .tabs-pe { margin-top: auto; padding: var(--esp-3) 12px; font-size: var(--t-xs); color: var(--ink-faint); border-top: 1px solid var(--border); }
 @media (max-width: 899px) { .tabs-grupo, .tabs-pe { display: none; } }
@@ -992,6 +1006,16 @@ function render(){
       grupo.sub.map(s=>`<button type="button" class="mode-btn${s.id===state.currentScreen?' active':''}" data-sub="${s.id}"><i class="ph ${s.icone}" aria-hidden="true"></i> ${esc(s.label)}</button>`).join('') +
       `</div>`);
     el.classList.add('com-submenu');
+    // No celular a faixa não cabe e rola de lado (sem barra visível): sem
+    // isto, "Tabelas de apoio" ativa ficava meio cortada na borda direita.
+    // Centraliza a categoria ativa só dentro da faixa (mexer em scrollLeft
+    // não rola a página, ao contrário de scrollIntoView); o vizinho cortado
+    // que sobra de cada lado mostra que dá para arrastar.
+    const faixa = el.querySelector('.aba-subnav'), ativa = faixa && faixa.querySelector('.mode-btn.active');
+    if(ativa && faixa.scrollWidth > faixa.clientWidth){
+      const f = faixa.getBoundingClientRect(), a = ativa.getBoundingClientRect();
+      faixa.scrollLeft += (a.left + a.width/2) - (f.left + f.width/2);
+    }
     el.querySelectorAll('[data-sub]').forEach(b=>b.addEventListener('click', ()=>{
       state.currentScreen = b.dataset.sub; save(); render();
     }));
@@ -1112,7 +1136,7 @@ function screenImportar(){
       <table class="t">
         <thead><tr>
           <th></th><th style="width:110px">Status</th><th style="min-width:200px">Categoria rápida</th><th>Data</th>
-          <th style="min-width:170px">Fornecedor</th><th>Documento</th><th>Valor</th><th style="width:34px"></th>
+          <th style="min-width:170px">Fornecedor</th><th>Documento</th><th style="text-align:right">Valor</th><th style="width:34px"></th>
         </tr></thead>
         <tbody>
         ${list.length? list.map(r=>rowHtml(r)).join('') : `<tr><td colspan="8" style="text-align:center;color:var(--ink-faint);padding:24px">Nenhum lançamento ainda. Importe um relatório acima.</td></tr>`}
@@ -1139,10 +1163,10 @@ function rowHtml(r){
     <td style="text-align:center"><input type="checkbox" data-sel="${r.id}" ${r.selected?'checked':''}></td>
     <td><div class="status-cell"><span class="tag ${r.origem==='NF'?'tag-nf':'tag-cte'}">${r.origem}</span>${r.revisar?'<span class="tag tag-warn">REVISAR</span>':origemTagHtml}</div></td>
     <td data-rot="Categoria"><select data-catsel="${r.id}">${catOptions}</select></td>
-    <td class="mono small" data-rot="Data" style="white-space:nowrap">${fmtDateBR(r.data)}</td>
+    <td class="num" data-rot="Data" style="white-space:nowrap">${fmtDateBR(r.data)}</td>
     <td data-rot="Fornecedor"><span class="truncate" title="${esc(r.fornecedor)}">${esc(r.fornecedor)}</span></td>
     <td data-rot="Documento" style="white-space:nowrap">${esc(r.documento)}</td>
-    <td data-rot="Valor" style="text-align:right;white-space:nowrap" class="mono">${fmtMoney(r.valor)}</td>
+    <td data-rot="Valor" style="text-align:right;white-space:nowrap" class="num">${fmtMoney(r.valor)}</td>
     <td style="text-align:center"><button class="chev${open?' open':''}" data-expand="${r.id}" title="Ver/editar detalhes">▸</button></td>
   </tr>`;
   if(!open) return compact;
@@ -1332,7 +1356,7 @@ function screenConfig(){
     </div>
     <div class="card">
       <div class="grid2">
-        <div class="field"><label>CPF/CNPJ do produtor (só números)</label><input id="cfgCpf" value="${esc(c.cpfProdutor)}"></div>
+        <div class="field"><label>CPF/CNPJ do produtor (só números)</label><input id="cfgCpf" class="mono" inputmode="numeric" value="${esc(c.cpfProdutor)}"></div>
         <div class="field"><label>Conta credora padrão</label><input id="cfgContaCred" value="${esc(c.contaCredoraPadrao)}"></div>
       </div>
       <div class="grid2" style="margin-top:18px">
@@ -1346,7 +1370,7 @@ function screenConfig(){
     </div>
 
     <h2>Backup</h2>
-    <div style="display:flex;gap:10px">
+    <div style="display:flex;flex-wrap:wrap;gap:10px">
       <button class="btn btn-secondary" id="btnBackupExport">Exportar backup (.json)</button>
       <button class="btn btn-secondary" id="btnBackupImport">Importar backup (.json)</button>
       <input type="file" id="backupFile" accept=".json" style="display:none">

@@ -119,37 +119,47 @@ solto — foi assim que o aviso saía atrás do modal.
 
 ## Tipografia
 
-**Inter** (400/500/600/700) + **JetBrains Mono**.
+**Fonte do sistema**, a mesma lista do github.com: Segoe UI no PC do
+escritório, Roboto no Android, SF no iPhone. Mono do sistema (Consolas no PC).
+Nada é baixado.
 
-O caminho até aqui: Plus Jakarta Sans era geométrica e arredondada, puxava pro
-amigável e brigava com "ferramenta". Troquei por IBM Plex Sans — e ela
-**serrilhou no monitor do escritório**. Plex vem de tipografia impressa e tem
-hinting fraco em corpo pequeno; numa tela 1x (sem retina) a 13px o traço
-quebra. Inter foi desenhada exatamente pra esse caso: texto de interface,
-corpo pequeno, tela comum.
+O caminho até aqui: Plus Jakarta Sans (arredondada demais pra ferramenta) →
+IBM Plex Sans (**serrilhou** a 13px no monitor 1x do escritório) → Inter
+(boa, mas vinha do Google Fonts: offline caía na fonte do sistema de qualquer
+jeito, porque o service worker não guarda arquivo de outro site, e a letra
+pequena de 11–13px continuava apertada). A Segoe UI foi desenhada pro
+ClearType do Windows: é a fonte mais nítida que existe naquele monitor, e é a
+que a Nilma já lê o dia inteiro no Windows e no Outlook.
 
-Nada de `-webkit-font-smoothing: antialiased` — no Windows não faz nada e no
-Mac afina o traço, que é o contrário do que um app lido no sol precisa.
+Só dois pesos: **400 e 600**. A Segoe UI não tem 500 (sai igual ao 400), então
+botão, rótulo, contador e selo usam 600. Sem `letter-spacing`, sem caixa alta
+na interface, sem `-webkit-font-smoothing` (no Windows não faz nada e no Mac
+afina o traço).
 
-Escala fixa em rem, razão ~1,15 — nada de `clamp()`. Interface de produto é
-vista em DPI constante; título fluido só encolhe onde não devia.
+Escala fixa em rem, com **piso de 12px** — nada menor na tela:
 
 | Token | px | Onde |
 |---|---|---|
-| `--t-xs` | 11 | selo de situação, rótulo de indicador |
-| `--t-sm` | 12 | legenda, meta da linha, dica |
-| `--t-base` | 13 | comprimido, sugestão |
-| `--t-md` | **15 no celular / 14 no PC** | corpo, campo, botão |
-| `--t-lg` | 16 | título de cartão |
+| `--t-xs` / `--t-sm` | 12 | contador, selo, legenda, meta, cabeçalho de tabela |
+| `--t-base` | 14 | botão, cabeçalho de caixa, célula, rótulo de campo (600, cor do texto) |
+| `--t-md` | **16 no celular / 15 no PC** | corpo, campo |
+| `--t-lg` | 16 | título de seção |
 | `--t-xl` | 20 | título de tela |
+| `--t-2xl` | 24 | número de painel, título das telas públicas |
+| `--t-display` | 40 | o número grande da rota |
+| `--t-nav` | 14 / 15 | abas e trilha da barra de cima |
 
-O corpo cai pra 14px só a partir de 900px — 13px é agressivo demais em tela 1x.
-A densidade vem de `--linha` (a altura da linha), não de espremer a letra, e
-quem lê na calçada com sol na tela não paga pela densidade do monitor.
+A regra de 15px no PC fica junto dos tokens (recorte que vai pro
+`nilma-ui.css`), então vale em todos os apps — antes ela morava num bloco que
+não saía do Entregas, e as outras telas ficavam com 15px e o Entregas com 14.
+Altura de linha: `--lh` 1.5 no corpo, `--lh-tight` 1.25 em título; controles
+e selos usam `--lh-ctl`/`--lh-pill` em rem, que crescem junto com "Texto
+grande"/"maior".
 
-**Mono + `tabular-nums`** em tudo que pode aparecer em coluna: contagem de
-indicador, contador de aba, data da entrada, total do mês, campo de valor,
-teclas de atalho. Vírgula alinha com vírgula.
+**Mono só pra identificador lido dígito a dígito**: CNPJ/CPF, linha
+digitável, PIX copia-e-cola, código, tecla (`.mono`, `code`, `kbd`). Contador,
+valor, data e posição usam a sans com `tabular-nums` — vírgula alinha com
+vírgula do mesmo jeito.
 
 ---
 
@@ -310,9 +320,8 @@ Os nomes de classe ficaram todos — o JavaScript não sabe que o visual mudou.
 
 ## Cuidado na publicação
 
-Fonte: o `<head>` pede **Inter + JetBrains Mono** ao Google Fonts. Mesma origem
-(`fonts.googleapis.com` / `fonts.gstatic.com`) que já era carregada, então não
-muda nada de CSP nem de domínio autorizado.
+Fonte: nenhuma é baixada — a lista é a do sistema (ver Tipografia). Nada de
+`fonts.googleapis.com` no `<head>` de nenhum app.
 
 Se o service worker estiver com cache de versão anterior, suba o nome do cache
 (`nilma-app-v1` → `v2`) — senão o navegador serve a folha velha e a tela sai

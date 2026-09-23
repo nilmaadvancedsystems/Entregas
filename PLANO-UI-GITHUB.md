@@ -120,7 +120,7 @@ troca de módulo sem recarregar (gancho `modulo` devolve `true`). Papéis: Cont�
 | **Flash** (aviso amarelo "robô parado") | `padding: 16px`, `border: 1px solid`, raio 6px, fundo `--bgColor-attention-muted` (#fff8c5), ícone à esquerda, ação à direita | `.aviso-faixa` em `main` junto de `#offline-banner`: `background: var(--warning-soft); border: 1px solid var(--warning); color: var(--warning-forte)` |
 | **Overlay / Dialog** (motion) | `Overlay--motion-slideInLeft/Right` 250ms `cubic-bezier(.33,1,.68,1)`, respeita `prefers-reduced-motion`; véu clicável fecha; ESC fecha; foco preso; foco devolvido ao gatilho | `@keyframes gavetaEntra/gavetaSai` (`translateX(∓100%)`) `var(--dur-lento) var(--ease)`; guardadas por `movimentoLigado_()` e pelo bloco `@media (prefers-reduced-motion: reduce)`; fechar = classe `.gaveta-saindo` + `setTimeout(180)` + `hidden = true` (copiar `closeModal`) |
 | **Cores** (claro) | canvas #fff, muted #f6f8fa, border #d1d9e0, fg #1f2328, fg-muted #59636e, accent #0969da, success #1f883d, attention #9a6700, danger #d1242f; (escuro) canvas #0d1117, muted #151b23, border #3d444d, fg #f0f6fc, fg-muted #9198a1, accent #4493f8 | Já cobertos por `--bg/--surface-2/--border/--ink/--ink-soft/--accent/--success/--warning/--danger` — **não** copiar hex do GitHub: a paleta é da Nilma (7 cores + claro/escuro) |
-| **Tipografia** | 14px corpo / 12px pequeno / 20px título; `line-height: 1.5`; mono só em código e contadores | `--t-md` corpo (15 no celular / 14 no PC), `--t-sm` 12, `--t-xl` 20 — igual ao Primer no PC; mono + `tabular-nums` nos contadores (já é regra da casa) |
+| **Tipografia** | fonte do sistema; 14px corpo / 12px pequeno / 20px título; `line-height: 1.5`; mono só em código | fonte do sistema (Segoe UI/Roboto/SF), sem Google Fonts; `--t-md` corpo 16 no celular / 15 no PC em todos os apps; piso de 12px; só 400 e 600; mono só em identificador, números com `tabular-nums` |
 | **Foco** | `outline: 2px solid --focus-outlineColor (#0969da); outline-offset: -2px` em botões, `2px` em links | `:focus-visible` já existe no app com `var(--accent)`; as gavetas e as abas novas herdam |
 | **Pontos de quebra** | 544 / 768 / 1012 / 1280 | Casa: 600 (celular largo), 900 (PC), 1200 (duas colunas) — manter os da casa |
 
@@ -357,3 +357,11 @@ node scripts/teste-pendencias.js && node scripts/teste-robo.js   # (teste-robo p
 - **Textos que saíram:** "Etapa N de M", as descrições das etapas, as dicas dos campos e a dobra "O que a ferramenta faz". A dobra "Convenção de sinais" ficou, porque guarda uma configuração.
 - **Entregas:** no Contábil, o cabeçalho de tela do app some também no celular (o título saía repetido) e o iframe fica sem borda arredondada.
 - Abertas sozinhas, as ferramentas continuam como antes.
+
+### Fontes
+- A tipografia passou a ser a do sistema, a mesma lista do github.com: Segoe UI no PC, Roboto no Android e SF no iPhone. Os links do Google Fonts saíram de todos os apps.
+- Escala com piso de 12px; corpo com 15px no PC em todos os apps (a regra agora está no recorte dos tokens) e 16px no celular. Rótulos de campo com 14px e peso 600.
+- Só os pesos 400 e 600. Saíram o espaçamento entre letras e a caixa alta.
+- A fonte mono ficou só para os identificadores (CNPJ, PIX, códigos). Contadores e valores usam a sans com `tabular-nums`.
+- A especificação veio de um painel de 3 propostas e 2 juízes. Nas impressões, só o nome da fonte mudou.
+- O cache do service worker subiu para `nilma-app-v8`.
