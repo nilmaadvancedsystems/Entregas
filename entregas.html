@@ -889,6 +889,16 @@
 
 
   /* ordem fixa da rota */
+  /* Pix do honorário: o QR fica do lado do valor, não embaixo, pra caber
+     na tela do celular sem rolar na hora de mostrar pro cliente. */
+  .pix-valor-linha { display: block; }
+  .pix-valor-linha > span { display: block; font-size: var(--t-sm); color: var(--ink-soft); margin-bottom: 4px; }
+  .pix-qr { display: flex; gap: var(--esp-4); align-items: center; margin-top: var(--esp-3); }
+  .pix-qr .pix-qr-alvo { flex: none; line-height: 0; background: #fff; padding: 8px; border: 1px solid var(--border); border-radius: var(--r-sm); }
+  .pix-qr .pix-qr-alvo img, .pix-qr .pix-qr-alvo canvas { display: block; }
+  .pix-qr-lado { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; min-width: 0; }
+  .pix-qr-sub { font-size: var(--t-sm); color: var(--ink-soft); }
+
   /* Cada região é UMA caixa (Box do GitHub): cabeçalho cinza com a
      contagem, as linhas, e o campo "Adicionar cliente…" como rodapé DENTRO
      dela — antes o campo boiava fora, e 3 regiões pareciam 6 blocos. Sem
@@ -2296,6 +2306,7 @@
     #form-solicitacao > .avulso-toggle { grid-column: 1 / -1; }
     #clienteField { grid-column: span 2; }
     #honorarioPixField { grid-column: 1 / -1; }
+    #honorarioPixCaixa { grid-column: 1 / -1; }
     #solDescricaoField { grid-column: 1 / -1; }
     #form-nova .mode-toggle { width: max-content; margin-bottom: var(--esp-5); }
     #form-nova .mode-btn { flex: none; padding: 8px 20px; white-space: nowrap; }
@@ -2606,8 +2617,22 @@
       <p class="field-info" id="honorarioInfoHint" hidden></p>
 
       <label class="field" id="honorarioPixField" hidden>
-        <span class="avulso-toggle"><input type="checkbox" id="honorarioPixToggle"> Recebido via Pix</span>
+        <span class="avulso-toggle"><input type="checkbox" id="honorarioPixToggle"> Pagamento via Pix</span>
       </label>
+      <div class="field" id="honorarioPixCaixa" hidden>
+        <label class="pix-valor-linha"><span>Valor do honorário</span>
+          <input class="input" id="honorarioPixValor" type="text" inputmode="decimal" placeholder="0,00" autocomplete="off">
+        </label>
+        <div class="pix-qr" id="honorarioPixQrWrap" hidden>
+          <div class="pix-qr-alvo" id="honorarioPixQr"></div>
+          <div class="pix-qr-lado">
+            <b id="honorarioPixTitulo">Pix do escritório</b>
+            <span class="pix-qr-sub" id="honorarioPixSub"></span>
+            <button type="button" class="btn-chip" id="honorarioPixCopiarBtn"><i class="ph ph-copy" aria-hidden="true"></i> Copiar código</button>
+          </div>
+        </div>
+        <p class="field-info" id="honorarioPixAviso" hidden></p>
+      </div>
 
       <label class="field" id="outroField">
         <span>Outro documento (opcional)</span>
@@ -2682,6 +2707,7 @@
         <button type="button" class="btn-chip" id="rotaLerGuiaBtn" hidden><i class="ph ph-barcode" aria-hidden="true"></i> Ler guia</button>
         <button type="button" class="btn-chip" id="rotaMapsBtn"><i class="ph ph-map-trifold" aria-hidden="true"></i> Abrir no Maps</button>
         <button type="button" class="btn-chip" id="rotaEnviarLinkBtn"><i class="ph ph-share-network" aria-hidden="true"></i> Enviar rota pro cliente</button>
+        <button type="button" class="btn-chip" id="rotaProtocoloBtn"><i class="ph ph-printer" aria-hidden="true"></i> Protocolo</button>
       </div>
       <div class="filters">
         <div class="filtro">
@@ -4869,8 +4895,36 @@
   var escritorio_ = { pixChave: '', pixNome: '', pixCidade: '', honorarioTexto: '' };
 
   // BR Code estático do PIX, montado aqui (o app já tem o CRC16 que confere
-  // código de guia). Sem valor: o cliente digita quanto vai pagar.
-  function pixCopiaECola_(chave, nome, cidade) {
+  // código de guia). Sem valor, o cliente digita quanto vai pagar; com
+  // valor (campo 54), o app do banco já abre com o total do honorário
+  // preenchido — ninguém digita, ninguém erra o centavo.
+  // A chave vai no código do jeito que o Banco Central pede, não do jeito
+  // que foi digitada: CPF e CNPJ só com dígito (o banco recusa o código
+  // colado quando a chave vem com ponto, barra ou traço — era exatamente
+  // isso que dava erro), telefone com +55 na frente, e-mail em minúscula, e
+  // chave aleatória como veio. Quem cadastra continua podendo digitar com
+  // máscara; a conversão acontece aqui.
+  function normalizarChavePix_(chave) {
+    var t = String(chave || '').trim();
+    if (!t) return '';
+    if (t.indexOf('@') !== -1) return t.toLowerCase();
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(t)) return t.toLowerCase();
+    var digitos = t.replace(/\D/g, '');
+    if (!digitos) return t;
+    // Telefone: quem digita com + ou com parênteses de DDD está dizendo que
+    // é telefone. 11 dígitos também é o tamanho de um CPF, então só esses
+    // sinais desempatam — CPF nu (11 dígitos, sem sinal nenhum) continua CPF.
+    var pareceTelefone = t.charAt(0) === '+' || /\(\s*\d{2}\s*\)/.test(t);
+    if (pareceTelefone) {
+      var semPais = digitos.replace(/^55/, '');
+      return '+55' + semPais;
+    }
+    if (digitos.length === 11 || digitos.length === 14) return digitos;  // CPF ou CNPJ
+    return t;
+  }
+
+  function pixCopiaECola_(chave, nome, cidade, valor) {
+    chave = normalizarChavePix_(chave);
     if (!chave) return '';
     var limpa = function (t, n) {
       return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -4878,8 +4932,12 @@
     };
     var campo = function (id, valor) { return id + String(valor.length).padStart(2, '0') + valor; };
     var conta = campo('00', 'BR.GOV.BCB.PIX') + campo('01', String(chave).trim());
+    // O campo 54 vai com ponto decimal e dois dígitos, do jeito que a
+    // especificação do Banco Central pede (150.00, nunca 150,00).
+    var comValor = (typeof valor === 'number' && isFinite(valor) && valor > 0)
+      ? campo('54', valor.toFixed(2)) : '';
     var payload = campo('00', '01') + campo('26', conta) + campo('52', '0000') + campo('53', '986') +
-      campo('58', 'BR') + campo('59', limpa(nome, 25)) + campo('60', limpa(cidade, 15)) +
+      comValor + campo('58', 'BR') + campo('59', limpa(nome, 25)) + campo('60', limpa(cidade, 15)) +
       campo('62', campo('05', '***')) + '6304';
     return payload + crc16Pix_(payload);
   }
@@ -4889,9 +4947,14 @@
   function atualizarPreviaDoPix_() {
     if (!$('escPixPreview')) return;
     var codigo = pixCopiaECola_($('escPixChave').value.trim(), $('escPixNome').value.trim(), $('escPixCidade').value.trim());
-    // Com código, nada a dizer (o botão do cliente simplesmente funciona);
-    // sem chave, um aviso curto, porque aí o honorário some do link.
-    $('escPixPreview').textContent = codigo ? '' : 'Sem chave PIX, o cliente não vê o honorário.';
+    // Sem chave, um aviso curto (aí o honorário some do link). Com chave,
+    // só fala quando a conversão muda alguma coisa — que é o caso que já
+    // deu erro no banco: CNPJ digitado com ponto e barra vai como dígito.
+    var digitada = $('escPixChave').value.trim();
+    var chaveNoCodigo = normalizarChavePix_(digitada);
+    $('escPixPreview').textContent = !codigo
+      ? 'Sem chave PIX, o cliente não vê o honorário.'
+      : (chaveNoCodigo !== digitada ? 'No código vai ' + chaveNoCodigo : '');
   }
   function renderEscritorio_(preencher) {
     var card = $('escritorioCard');
@@ -6365,9 +6428,60 @@
     return marcados.length === 1 && marcados[0] === 'notas' && !$('outroInput').value.trim() && duplicatasExtras.length === 0;
   }
 
+  // O Pix do escritório vira QR na hora, já com o valor digitado: o office
+  // boy mostra a tela, o cliente aponta a câmera e paga sem digitar chave
+  // nem valor. O mesmo código sai no botão de copiar, pra quando o cliente
+  // preferir colar no app do banco dele.
+  // O mesmo bloco de Pix serve em dois momentos: ao registrar a entrega e
+  // ao confirmá-la na rota, na porta do cliente — que é quando o dinheiro
+  // realmente troca de mãos. Os ids mudam, o resto é igual, então o
+  // desenho do QR mora numa função só.
+  function montarBlocoDoPix_(ids) {
+    var caixa = $(ids.caixa);
+    if (!caixa) return;
+    caixa.hidden = !ids.ligado();
+    if (caixa.hidden) { if ($(ids.valor)) $(ids.valor).value = ''; return; }
+
+    var wrap = $(ids.wrap);
+    var aviso = $(ids.aviso);
+    if (!escritorio_.pixChave) {
+      wrap.hidden = true;
+      if (aviso) {
+        aviso.hidden = false;
+        aviso.textContent = 'Sem chave Pix cadastrada em Escritório.';
+      }
+      return;
+    }
+    if (aviso) aviso.hidden = true;
+
+    var valor = parseValor($(ids.valor).value);
+    var codigo = pixCopiaECola_(escritorio_.pixChave, escritorio_.pixNome, escritorio_.pixCidade, valor);
+    if (!codigo || typeof QRCode === 'undefined') { wrap.hidden = true; return; }
+
+    var alvo = $(ids.qr);
+    alvo.innerHTML = '';
+    try {
+      new QRCode(alvo, { text: codigo, width: 132, height: 132, correctLevel: QRCode.CorrectLevel.M });
+    } catch (e) { wrap.hidden = true; return; }
+    wrap.hidden = false;
+    $(ids.sub).textContent = valor
+      ? fmtMoney(valor) + ' · ' + (escritorio_.pixNome || 'Nilma Contabilidade')
+      : 'sem valor — o cliente digita quanto vai pagar';
+    $(ids.botao).dataset.codigo = codigo;
+  }
+
+  function atualizarQrDoPix_() {
+    montarBlocoDoPix_({
+      ligado: function () { return !$('honorarioPixField').hidden && $('honorarioPixToggle').checked; },
+      caixa: 'honorarioPixCaixa', valor: 'honorarioPixValor', wrap: 'honorarioPixQrWrap',
+      qr: 'honorarioPixQr', sub: 'honorarioPixSub', botao: 'honorarioPixCopiarBtn', aviso: 'honorarioPixAviso'
+    });
+  }
+
   function atualizarCampoHonorarioPix_() {
     $('honorarioPixField').hidden = !isApenasHonorario_();
     if ($('honorarioPixField').hidden) $('honorarioPixToggle').checked = false;
+    atualizarQrDoPix_();
 
     // Como esse cliente costuma pagar o honorário (vem da planilha do
     // escritório) — ajuda a saber se é normal não ter Pix (Boleto/Paga
@@ -6388,6 +6502,13 @@
   $('competenciaInput').addEventListener('input', atualizarVencimentoAutomatico_);
   $('competenciaInput').addEventListener('change', atualizarVencimentoAutomatico_);
   $('outroInput').addEventListener('input', atualizarCampoHonorarioPix_);
+  $('honorarioPixToggle').addEventListener('change', atualizarQrDoPix_);
+  $('honorarioPixValor').addEventListener('input', atualizarQrDoPix_);
+  $('honorarioPixCopiarBtn').addEventListener('click', function () {
+    var codigo = $('honorarioPixCopiarBtn').dataset.codigo || '';
+    if (!codigo) return;
+    copiarTexto_(codigo, 'Código Pix copiado.');
+  });
   $('outroInput').addEventListener('input', renderValores);
 
   function getSelectedItens() {
@@ -6844,6 +6965,8 @@
       $('honorarioPixToggle').checked = false;
       $('honorarioPixField').hidden = true;
       $('honorarioInfoHint').hidden = true;
+      $('honorarioPixCaixa').hidden = true;
+      $('honorarioPixValor').value = '';
     }
     $('recebedorInput').value = '';
     sugerirRecebedores_(null, $('recebedorInput'));
@@ -7199,6 +7322,14 @@
     this.hidden = true;
     $('rotaFiltroZonaBtn').setAttribute('aria-expanded', 'false');
     $('rotaFiltroZonaBtn').focus();
+  });
+
+  // O papel do dia: o que ainda falta entregar e o que já foi entregue hoje,
+  // na mesma folha — serve tanto pra levar na mão quanto pra arquivar
+  // depois, já com as assinaturas colhidas na tela.
+  $('rotaProtocoloBtn').addEventListener('click', function () {
+    var doDia = pendentesCache.concat(confirmadasHoje_().filter(function (e) { return e.status === 'confirmada'; }));
+    abrirProtocoloDeEntregas_('Rota de ' + new Date().toLocaleDateString('pt-BR'), doDia);
   });
 
   $('rotaAddBtn').addEventListener('click', function () {
@@ -10788,8 +10919,13 @@
         '<dt>Localização</dt><dd>' + geoLink + '</dd>' +
       '</dl>' +
       '<button type="button" class="btn-chip accent" id="compartilharComprovanteBtn"><i class="ph ph-whatsapp-logo" aria-hidden="true"></i> Enviar comprovante</button> ' +
+      '<button type="button" class="btn-chip" id="imprimirComprovanteBtn"><i class="ph ph-printer" aria-hidden="true"></i> Imprimir</button> ' +
       (podeExcluir(entrega) ? '<button type="button" class="btn-chip danger" id="excluirEntregaBtn"><i class="ph ph-trash" aria-hidden="true"></i> Excluir entrega</button>' : '');
     $('modalClose').addEventListener('click', function () { renderHistoricoList(cliente, historico); });
+
+    $('imprimirComprovanteBtn').addEventListener('click', function () {
+      abrirProtocoloDeEntregas_(clienteLabel(cliente), [entrega]);
+    });
 
     $('compartilharComprovanteBtn').addEventListener('click', function () {
       var itensTxt = entrega.itens.map(function (i) {
@@ -11241,9 +11377,20 @@
             '<i class="ph ph-warning" aria-hidden="true"></i> Cliente ausente / entrega não realizada' +
           '</label>' +
           '<label class="field" id="pendingHonorarioPixField" hidden>' +
-            '<span class="avulso-toggle"><input type="checkbox" id="pendingHonorarioPixToggle"> Recebido via Pix</span>' +
-            '<span class="card-hint" style="margin-top:4px;display:block;">Em dinheiro o próprio dinheiro é o comprovante — não precisa de foto nem assinatura. Via Pix, marque aqui e anexe o comprovante.</span>' +
+            '<span class="avulso-toggle"><input type="checkbox" id="pendingHonorarioPixToggle"> Pagamento via Pix</span>' +
           '</label>' +
+          '<div class="field" id="pendingPixCaixa" hidden>' +
+            '<label class="pix-valor-linha"><span>Valor do honorário</span>' +
+              '<input class="input" id="pendingPixValor" type="text" inputmode="decimal" placeholder="0,00" autocomplete="off"></label>' +
+            '<div class="pix-qr" id="pendingPixQrWrap" hidden>' +
+              '<div class="pix-qr-alvo" id="pendingPixQr"></div>' +
+              '<div class="pix-qr-lado"><b>Pix do escritório</b>' +
+                '<span class="pix-qr-sub" id="pendingPixSub"></span>' +
+                '<button type="button" class="btn-chip" id="pendingPixCopiarBtn"><i class="ph ph-copy" aria-hidden="true"></i> Copiar código</button>' +
+              '</div>' +
+            '</div>' +
+            '<p class="field-info" id="pendingPixAviso" hidden></p>' +
+          '</div>' +
           '<label class="field" id="pendingFalhaMotivoField" hidden>' +
             '<span>O que aconteceu</span>' +
             '<textarea class="input" id="pendingFalhaMotivo" rows="2" placeholder="Ex.: Estabelecimento fechado, ninguém atendeu..."></textarea>' +
@@ -11402,6 +11549,22 @@
     var soNotas = soDoTipo_('Notas');
     if (soHonorario) $('pendingHonorarioPixField').hidden = false;
 
+    // O QR aparece aqui também: é na porta do cliente, confirmando a
+    // entrega, que ele pergunta "qual a chave?" — e aí é só virar a tela.
+    function atualizarQrDoPixPendente_() {
+      montarBlocoDoPix_({
+        ligado: function () { return !$('pendingHonorarioPixField').hidden && $('pendingHonorarioPixToggle').checked; },
+        caixa: 'pendingPixCaixa', valor: 'pendingPixValor', wrap: 'pendingPixQrWrap',
+        qr: 'pendingPixQr', sub: 'pendingPixSub', botao: 'pendingPixCopiarBtn', aviso: 'pendingPixAviso'
+      });
+    }
+    $('pendingHonorarioPixToggle').addEventListener('change', atualizarQrDoPixPendente_);
+    $('pendingPixValor').addEventListener('input', atualizarQrDoPixPendente_);
+    $('pendingPixCopiarBtn').addEventListener('click', function () {
+      var codigo = $('pendingPixCopiarBtn').dataset.codigo || '';
+      if (codigo) copiarOuMostrar_('Pix do escritório', codigo, 'Código Pix copiado.');
+    });
+
     motivosEmUmToque_($('pendingFalhaMotivo'));
     function atualizarModoFalhaPendente() {
       var isFalha = $('pendingFalhaToggle').checked;
@@ -11412,6 +11575,8 @@
       $('pendingSemComprovanteWrap').hidden = isFalha;
       $('pendingSemComprovanteField').hidden = isFalha || !semComprovante;
       $('pendingHonorarioPixField').hidden = isFalha || !soHonorario;
+      if ($('pendingHonorarioPixField').hidden) $('pendingHonorarioPixToggle').checked = false;
+      atualizarQrDoPixPendente_();
       $('pendingFotoLabel').textContent = isFalha ? 'Foto (obrigatória)' : 'Foto (opcional se colher assinatura)';
       $('pendingConfirmBtn').textContent = isFalha ? 'Registrar entrega não realizada' : 'Confirmar entrega';
     }
@@ -15063,6 +15228,100 @@
         '</body></html>';
       aba.document.open(); aba.document.write(html); aba.document.close();
       registrarAuditoria_('protocolo_emitido', clienteLabel(cliente) + ' · ' + fmtCompetencia(comp));
+    }).catch(function (err) {
+      aba.close();
+      showToast(errMsg(err, 'Não foi possível montar o protocolo.'), 'error');
+    });
+  }
+
+  // ---------- protocolo de um punhado de entregas (pra imprimir) ----------
+  // O protocolo do mês é de um cliente só, e só se chega nele pela ficha.
+  // Este aqui é o papel de QUALQUER conjunto: uma entrega, uma parada com
+  // várias empresas assinadas juntas, ou o dia inteiro. Sai sem QR e sem
+  // código de conferência de propósito: é o papel que vai pro arquivo
+  // físico do escritório, e tem que imprimir sem depender de internet.
+  function abrirProtocoloDeEntregas_(titulo, entregas) {
+    var lista = (entregas || []).filter(Boolean);
+    if (!lista.length) { showToast('Não há entregas para imprimir.', 'error'); return; }
+    var aba = window.open('', '_blank');
+    if (!aba) { showToast('O navegador bloqueou a nova aba. Permita pop-ups para este site.', 'error'); return; }
+    aba.document.write('<!doctype html><meta charset="utf-8"><title>Protocolo</title><body style="font:14px system-ui;padding:24px">Preparando o protocolo...</body>');
+    var ordenadas = lista.slice().sort(function (a, b) {
+      return String(a.confirmadoEm || a.criadoEm).localeCompare(String(b.confirmadoEm || b.criadoEm));
+    });
+    Promise.all(ordenadas.map(function (e) {
+      if (!e.temAssinatura) return Promise.resolve(null);
+      return getAnexos(e.id).then(function (a) { return (a && a.assinatura) || null; }).catch(function () { return null; });
+    })).then(function (assinaturas) {
+      var h = function (t) { return escapeHtml_(t == null ? '' : String(t)); };
+      // Parada assinada de uma vez: a MESMA assinatura vale por várias linhas.
+      // Repetir a imagem em cada linha daria a entender que foram várias
+      // assinaturas diferentes, então ela sai uma vez só, no pé, dizendo
+      // por quantas empresas responde.
+      var colhidas = assinaturas.filter(Boolean);
+      var assinaturaUnica = (colhidas.length > 1 && colhidas.every(function (a) { return a === colhidas[0]; })) ? colhidas[0] : null;
+      var total = 0;
+      var linhas = ordenadas.map(function (e, i) {
+        var itens = (e.itens || []).map(function (it) {
+          var tipo = typeof it === 'string' ? it : it.tipo;
+          var valor = (it && it.valor != null) ? it.valor : null;
+          if (valor) total += valor;
+          return h(tipo) + (valor != null ? ' <span class="v">' + h(fmtMoney(valor)) + '</span>' : '');
+        }).join('<br>') || 'documentos';
+        var entregue = e.status === 'confirmada';
+        var situacao = entregue ? (e.recebidoPeloLink ? 'Recebido pelo link' : 'Entregue')
+          : (e.status === 'falha' ? 'Não entregue' : (e.status === 'link' ? 'No link, aguardando' : 'Na rota'));
+        var assinaturaDaLinha = assinaturaUnica ? '' :
+          (assinaturas[i] ? '<img src="' + h(assinaturas[i]) + '" alt="assinatura">'
+            : (e.recebidoPeloLink ? '<span class="m">confirmado pelo link</span>'
+              : (e.temFoto ? '<span class="m">comprovado por foto</span>'
+                : (entregue ? '' : '<span class="linha"></span>'))));
+        return '<tr><td class="n">' + (i + 1) + '</td>' +
+          '<td><b>' + h(e.clienteNome || 'sem nome') + '</b>' +
+            (e.competencia ? '<div class="m">competência ' + h(fmtCompetencia(e.competencia)) + '</div>' : '') + '</td>' +
+          '<td>' + itens + (e.vencimento ? '<div class="m">vence ' + h(e.vencimento.split('-').reverse().join('/')) + '</div>' : '') + '</td>' +
+          '<td><b>' + situacao + '</b><div class="m">' + h(fmtDateTime(e.confirmadoEm || e.criadoEm)) + '</div>' +
+            (entregue && e.recebedor ? '<div class="m">recebido por ' + h(e.recebedor) + '</div>' : '') + '</td>' +
+          '<td class="a">' + assinaturaDaLinha + '</td></tr>';
+      }).join('');
+      var entregues = ordenadas.filter(function (e) { return e.status === 'confirmada'; }).length;
+      var quemRecebeu = ordenadas.map(function (e) { return e.recebedor; }).filter(Boolean)[0] || '';
+      var quemEntregou = ordenadas.map(function (e) { return e.entregadoPorNome; }).filter(Boolean)[0] || currentUserNome || '';
+      var quando = ordenadas.map(function (e) { return e.confirmadoEm; }).filter(Boolean)[0] || '';
+      var html = '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Protocolo - ' + h(titulo) + '</title><style>' +
+        '@page{size:A4;margin:16mm}*{box-sizing:border-box}body{font:12px/1.45 -apple-system,"Segoe UI",Inter,Arial,sans-serif;color:#111;margin:0 auto;padding:24px;max-width:900px}' +
+        'h1{font-size:18px;margin:0 0 2px}header{display:flex;justify-content:space-between;gap:24px;border-bottom:2px solid #111;padding-bottom:10px;margin-bottom:14px}' +
+        '.m{color:#555;font-size:11px}.v{color:#555}table{width:100%;border-collapse:collapse}' +
+        'th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#555;border-bottom:1px solid #999;padding:6px 8px}' +
+        'td{vertical-align:top;padding:8px;border-bottom:1px solid #ddd}tr{break-inside:avoid}' +
+        'td.n{color:#777;width:24px}td.a{width:160px}td.a img{width:150px;border:1px solid #ccc;display:block}' +
+        '.linha{display:block;border-bottom:1px solid #111;height:24px}' +
+        '.assina{margin-top:20px;border:1px solid #bbb;padding:14px;display:flex;gap:20px;align-items:flex-start;break-inside:avoid}' +
+        '.assina img{width:260px;border:1px solid #ccc;display:block}.assina .quem{flex:1}' +
+        'footer{margin-top:16px;display:flex;justify-content:space-between;gap:24px;font-size:11px;color:#555;border-top:1px solid #ddd;padding-top:10px}' +
+        '.barra{margin:0 0 14px}.barra button{font:inherit;padding:8px 14px;cursor:pointer}' +
+        '@media print{.barra{display:none}body{padding:0}}</style></head><body>' +
+        '<div class="barra"><button onclick="window.print()">Imprimir ou salvar em PDF</button></div>' +
+        '<header><div><h1>Protocolo de entrega de documentos</h1><div class="m">Nilma Contabilidade</div></div>' +
+        '<div style="text-align:right"><b>' + h(titulo) + '</b>' +
+          (quemEntregou ? '<div class="m">Entregue por: ' + h(quemEntregou) + '</div>' : '') +
+          '<div class="m">' + h(fmtDateTime(quando || new Date().toISOString())) + '</div></div></header>' +
+        '<table><thead><tr><th></th><th>Empresa</th><th>Documentos</th><th>Situação</th><th>' +
+          (assinaturaUnica ? '' : 'Assinatura') + '</th></tr></thead><tbody>' + linhas + '</tbody></table>' +
+        (assinaturaUnica
+          ? '<div class="assina"><img src="' + h(assinaturaUnica) + '" alt="Assinatura de recebimento">' +
+            '<div class="quem"><b>Recebimento</b><div class="m">As ' + ordenadas.length +
+            ' entregas acima foram entregues juntas e assinadas de uma vez' + (quando ? ', em ' + h(fmtDateTime(quando)) : '') + '.</div>' +
+            (quemRecebeu ? '<div style="margin-top:12px">Recebido por: <b>' + h(quemRecebeu) + '</b></div>'
+              : '<div class="m" style="margin-top:10px">Nome de quem recebeu</div><span class="linha"></span>') +
+            '</div></div>'
+          : '') +
+        '<footer><div>' + ordenadas.length + ' registro(s), ' + entregues + ' entregue(s)' +
+          (total ? ' · total das guias ' + h(fmtMoney(total)) : '') + '</div>' +
+        '<div>Emitido em ' + h(fmtDateTime(new Date().toISOString())) + ' por ' + h(currentUserNome || '') + '</div></footer>' +
+        '</body></html>';
+      aba.document.open(); aba.document.write(html); aba.document.close();
+      registrarAuditoria_('protocolo_emitido', titulo + ' · ' + ordenadas.length + ' entrega(s)');
     }).catch(function (err) {
       aba.close();
       showToast(errMsg(err, 'Não foi possível montar o protocolo.'), 'error');
