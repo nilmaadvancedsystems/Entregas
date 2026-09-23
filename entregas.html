@@ -1015,7 +1015,7 @@
      ========================================================================== */
   .btn {
     border: 1px solid transparent; border-radius: var(--r-sm); padding: 12px 16px;
-    font-weight: 600; font-size: var(--t-md); cursor: pointer; width: 100%;
+    font-weight: 600; font-size: var(--t-md); cursor: pointer; width: auto;
     min-height: 46px; display: inline-flex; align-items: center; justify-content: center;
     transition: transform var(--dur-rapido) var(--ease), background-color var(--dur) var(--ease),
                 border-color var(--dur) var(--ease), opacity var(--dur-rapido) var(--ease);
@@ -1043,21 +1043,66 @@
   @keyframes confirmando-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .72; } }
   /* Ação que vale pra linha inteira: no celular ocupa a largura toda porque é
      o único alvo; no PC volta a ter tamanho de botão (ver media query). */
-  .btn-chip.largura-total { width: 100%; margin-top: var(--esp-2); }
+  /* Botão de largura toda só onde é o único alvo: janelas, login e quem
+     pedir .largura-total. Na tela o botão tem o tamanho do rótulo. */
+  .modal .btn, .auth-form .btn, .btn.largura-total { width: 100%; }
 
-  /* "Assinar as N juntas": fica pendurado abaixo das linhas da parada,
-     recuado até a coluna de texto delas (fora do espaço da alça de
-     arrastar). O recuo vinha escrito no JS em pixel fixo — aqui ele
-     acompanha o modo compacto, e o rótulo (que agora traz nome e valor de
-     cada empresa) pode quebrar em vez de esticar a linha no celular. */
-  .rota-lote-btn {
-    margin: 2px 0 4px 26px;
-    max-width: calc(100% - 26px);
-    justify-content: flex-start; text-align: left;
-    height: auto; padding-top: 6px; padding-bottom: 6px;
-    white-space: normal; line-height: 1.3;
+  /* ---------- listas no estilo do GitHub (Etapa 2) ----------
+     .card.caixa = o "Box" do GitHub: borda, cabeçalho com fundo e linhas
+     com hover — o mesmo desenho da Ordem fixa da rota (.rotafixa-*), que a
+     Nilma aprovou. Formulários continuam seção plana. */
+  .card.caixa, .view > .card.caixa:first-child, .col-lado > .card.caixa:first-child {
+    padding: 0; margin-bottom: var(--esp-4);
+    border: 1px solid var(--border); border-radius: var(--r-md); overflow: visible; background: var(--surface);
   }
-  html[data-densidade="compacto"] .rota-lote-btn { margin-left: 22px; max-width: calc(100% - 22px); }
+  .card.caixa > .card-head-row {
+    margin: 0; padding: var(--esp-2) var(--esp-3); min-height: var(--alvo);
+    background: var(--surface-2); border-bottom: 1px solid var(--border); border-radius: var(--r-md) var(--r-md) 0 0;
+  }
+  .card.caixa > .card-head-row > h2 { font-size: var(--t-base); margin: 0 auto 0 0; }
+  .card.caixa > .card-ferramentas, .card.caixa > .filters, .card.caixa > .linha-busca-cnpj,
+  .card.caixa > .painel-resumo, .card.caixa > .dash-strip, .card.caixa > .fecha-barra {
+    margin: 0; padding: var(--esp-2) var(--esp-3); border-bottom: 1px solid var(--border);
+  }
+  .card.caixa > .fecha-barra { padding: 0; }
+  .card.caixa .entrega-row, .card.caixa .history-row, .card.caixa .fecha-linha, .card.caixa .montagem-linha {
+    padding-left: var(--esp-3); padding-right: var(--esp-3);
+  }
+  .card.caixa .entrega-row:hover { background: var(--surface-2); }
+  .card.caixa > div:last-child > .entrega-row:last-child { border-radius: 0 0 var(--r-md) var(--r-md); }
+  .card.caixa .empty-state { padding: var(--esp-4) var(--esp-3); }
+  .card.caixa > #recadosList, .card.caixa > #fechamentoDetalhe { margin-top: 0 !important; }
+  .card.caixa > #fechamentoDetalhe, .card.caixa > #montagemList, .card.caixa > #fechamentoMesList { padding: 0 var(--esp-3); }
+  .card.caixa > #graficoDiario, .card.caixa > #rankingEquipe, .card.caixa > #metaResumo,
+  .card.caixa > .map-wrap, .card.caixa > .numeros-do-mes { padding: var(--esp-2) var(--esp-3); }
+  .card.caixa .contagem, .card-head-row h2 .contagem { font-weight: 400; color: var(--ink-faint); font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: var(--t-sm); margin-left: 4px; }
+  .card-ferramentas { display: flex; flex-wrap: wrap; gap: 6px; }
+  /* "#1": posição na fila, mono e discreta, como a numeração da Ordem fixa */
+  .linha-pos { flex: none; min-width: 26px; text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: var(--t-sm); color: var(--ink-faint); }
+  .linha-pos::before { content: '#'; }
+  .linha-acoes { display: flex; align-items: center; gap: 6px; flex: none; flex-wrap: wrap; justify-content: flex-end; }
+  .entrega-row > .btn-chip, .entrega-row > .linha-acoes, .entrega-row > .status-pill { flex: none; }
+  .lista-mais { display: flex; margin: var(--esp-2) var(--esp-3) var(--esp-2) auto; }
+  /* informação curta de campo (não é dica: é dado que o app escreve) */
+  .field-info { font-size: var(--t-sm); color: var(--ink-soft); margin: 4px 0 0; }
+  .field-info:empty { display: none; }
+  /* menu ⋯ de uma linha (Honorários): <details> ancorado, mesmo vocabulário do .menu-acoes */
+  .menu-linha { position: relative; }
+  .menu-linha > summary { list-style: none; cursor: pointer; }
+  .menu-linha > summary::-webkit-details-marker { display: none; }
+  .btn-chip.so-icone { width: var(--alvo); padding: 0; justify-content: center; }
+  /* ação principal da tela, à direita do título */
+  .tela-acoes { display: flex; align-items: center; gap: var(--esp-2); }
+  .tela-acoes:not(:has(> :not([hidden]))) { display: none; }
+  @media (max-width: 899px) {
+    .tela-acoes {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: var(--z-fixo);
+      padding: var(--esp-2) var(--esp-4) calc(var(--esp-2) + env(safe-area-inset-bottom, 0px));
+      background: var(--bg); border-top: 1px solid var(--border);
+    }
+    .tela-acoes .btn { flex: 1; }
+    body.tem-acao-fixa main { padding-bottom: calc(46px + var(--esp-6) + env(safe-area-inset-bottom, 0px)); }
+  }
 
   .link-btn {
     border: none; background: none; color: var(--accent-forte); font-weight: 600;
@@ -1188,7 +1233,7 @@
   .honorario-col-rotulo { display: inline; font-size: var(--t-xs); color: var(--ink-faint); margin-right: 4px; }
   .honorario-col-nome { font-weight: 500; }
   .honorario-col-status { display: flex; }
-  .honorario-acoes { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+  .honorario-acoes { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 4px; }
   @media (min-width: 900px) {
     /* "auto" na última coluna deixava ela crescer pra caber os 4 botões
        numa linha só, espremendo Nome e Ponto de referência (é isso que
@@ -1196,12 +1241,12 @@
        + flex-wrap: os botões quebram em até 2 linhas dentro da própria
        coluna, sem roubar espaço das outras. */
     .honorarios-cabecalho {
-      display: grid; grid-template-columns: minmax(0,1.6fr) 120px 70px minmax(0,1.3fr) 108px 190px;
+      display: grid; grid-template-columns: minmax(0,1.6fr) 120px 70px minmax(0,1.3fr) 108px minmax(220px, auto);
       gap: 0 var(--esp-2); padding: 8px var(--esp-3); background: var(--surface-2);
       font-size: var(--t-xs); font-weight: 600; color: var(--ink-soft);
     }
     .honorario-linha {
-      grid-template-columns: minmax(0,1.6fr) 120px 70px minmax(0,1.3fr) 108px 190px;
+      grid-template-columns: minmax(0,1.6fr) 120px 70px minmax(0,1.3fr) 108px minmax(220px, auto);
       gap: 0 var(--esp-2); align-items: center; min-height: var(--linha); padding: 6px var(--esp-3);
     }
     .honorario-col-rotulo { display: none; }
@@ -1212,7 +1257,6 @@
     .honorario-linha > div { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
     .honorario-col-sub { color: var(--ink-faint); font-size: var(--t-sm); }
     .honorario-linha > .honorario-acoes { margin-top: 0; justify-content: flex-end; overflow: visible; white-space: normal; }
-    .honorario-acoes .btn-chip, .honorario-acoes .link-btn { font-size: var(--t-xs); padding: 4px 8px; }
   }
 
   /* ---------- esqueleto de carregamento ---------- */
@@ -1811,7 +1855,7 @@
     .topbar, #topo, #tabsNav, .gaveta, .gaveta-veu, .aviso-faixa, .toast, .auth-gate,
     .busca-global, .cq-painel,
     .filters, .modal-close, .btn, .btn-chip, .link-btn, .icon-btn,
-    .mode-toggle, .dash-strip, .offline-banner { display: none !important; }
+    .mode-toggle, .dash-strip, .offline-banner, .tela-acoes, .card-ferramentas, .linha-acoes, .menu-linha { display: none !important; }
     main { padding: 0 !important; max-width: none !important; }
     .view { max-width: none !important; }
     .card { border: 1px solid #BBB !important; break-inside: avoid; page-break-inside: avoid; margin-bottom: 12px; }
@@ -1883,7 +1927,6 @@
       margin-top: 0; flex: 0 1 auto; min-width: 0;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap; word-break: normal;
     }
-    .btn-chip.largura-total { width: auto; margin-top: 0; margin-left: auto; }
     .nota-row { padding: var(--esp-2) 0; }
 
     /* Indicadores em formato de painel: ícone, número e rótulo na mesma
@@ -1907,13 +1950,13 @@
     #form-solicitacao > h2, #form-solicitacao > .card-hint,
     #form-equipe > h2, #form-equipe > .card-hint,
     #form-equipe > .field:last-of-type, #form-equipe > button,
-    #form-solicitacao > .avulso-toggle, #solSubmitBtn { grid-column: 1 / -1; }
+    #form-solicitacao > .avulso-toggle { grid-column: 1 / -1; }
     #clienteField { grid-column: span 2; }
     #honorarioPixField { grid-column: 1 / -1; }
     #solDescricaoField { grid-column: 1 / -1; }
     #form-nova .mode-toggle { width: max-content; margin-bottom: var(--esp-5); }
     #form-nova .mode-btn { flex: none; padding: 8px 20px; white-space: nowrap; }
-    #submitBtn, #solSubmitBtn, #form-equipe > button, #form-cliente button[type="submit"] {
+    #form-equipe > button, #form-cliente button[type="submit"] {
       width: max-content; min-width: 220px; justify-self: start;
     }
     #form-cliente .row2 { display: grid; grid-template-columns: 1fr 1fr; }
@@ -2115,6 +2158,10 @@
 <main>
   <div class="tela-cabecalho">
     <h1 class="page-title" id="pageTitle">Nova entrega</h1>
+    <div class="tela-acoes" id="telaAcoes">
+      <button type="submit" class="btn btn-primary" id="submitBtn" form="form-nova" data-aba="nova">Confirmar entrega</button>
+      <button type="submit" class="btn btn-primary" id="solSubmitBtn" form="form-solicitacao" data-aba="solicitacoes" hidden>Enviar solicitação</button>
+    </div>
   </div>
   <div id="no-db" class="no-db" hidden>
     Não foi possível conectar ao banco de dados. Verifique sua internet e recarregue a página.
@@ -2132,26 +2179,8 @@
   </div>
 
   <section id="tab-nova" class="view" role="tabpanel" tabindex="-1" aria-labelledby="tabbtn-nova">
-    <div class="dash-strip" id="dashStrip">
-      <button type="button" class="dash-item ok" data-goto="painel">
-        <span class="dash-ico"><i class="ph ph-check" aria-hidden="true"></i></span>
-        <span class="dash-num" id="dashHoje">–</span>
-        <span class="dash-label">entregues hoje</span>
-      </button>
-      <button type="button" class="dash-item rota" data-goto="rota">
-        <span class="dash-ico"><i class="ph ph-truck" aria-hidden="true"></i></span>
-        <span class="dash-num" id="dashRota">–</span>
-        <span class="dash-label">na rota</span>
-      </button>
-      <button type="button" class="dash-item neutro" data-goto="clientes">
-        <span class="dash-ico"><i class="ph ph-users" aria-hidden="true"></i></span>
-        <span class="dash-num" id="dashClientes">–</span>
-        <span class="dash-label">clientes ativos</span>
-      </button>
-    </div>
     <form id="form-nova" class="card" novalidate>
       <h2><i class="ph ph-pen-nib" aria-hidden="true"></i> Registrar entrega</h2>
-      <p class="card-hint" id="formHint">Preencha na hora, colha a assinatura e pronto — sem protocolo de papel.</p>
 
       <div class="mode-toggle" id="modeToggle">
         <button type="button" class="mode-btn active" data-mode="agora">Entregar agora</button>
@@ -2184,7 +2213,7 @@
         <span>Cliente</span>
         <label class="avulso-toggle">
           <input type="checkbox" id="avulsoToggle">
-          Pessoa física avulsa, sem cadastro (ex.: entrega de CCIR)
+          Pessoa física avulsa
         </label>
         <div class="combobox" id="clienteComboboxWrap">
           <input class="input" id="clienteInput" type="text" placeholder="Buscar cliente..." autocomplete="off"
@@ -2205,7 +2234,6 @@
       <label class="field" id="vencimentoField">
         <span>Vencimento (opcional)</span>
         <input class="input" id="vencimentoInput" type="date">
-        <span class="card-hint" style="margin-top:4px;display:block;">Vem preenchido sozinho pra DAS, FGTS, DARF e eSocial (ou lido do PDF, se você anexar a guia) — feriado não entra na conta, só confira. Serve pro aviso de documento vencendo.</span>
       </label>
 
       <label class="field" id="itensField">
@@ -2221,11 +2249,10 @@
         </div>
       </div>
 
-      <p class="card-hint" id="honorarioInfoHint" hidden style="margin:0 0 var(--esp-3);"></p>
+      <p class="field-info" id="honorarioInfoHint" hidden></p>
 
       <label class="field" id="honorarioPixField" hidden>
         <span class="avulso-toggle"><input type="checkbox" id="honorarioPixToggle"> Recebido via Pix</span>
-        <span class="card-hint" style="margin-top:4px;display:block;">Em dinheiro o próprio dinheiro é o comprovante — não precisa de foto nem assinatura. Via Pix, marque aqui e anexe o comprovante da transferência.</span>
       </label>
 
       <label class="field" id="outroField">
@@ -2244,71 +2271,64 @@
       </label>
 
       <div class="field" id="pdfField">
-        <span>Anexar PDF do documento (opcional — tenta preencher cliente, tipo e competência sozinho)</span>
+        <span>PDF do documento (opcional)</span>
         <input type="file" accept="application/pdf" id="pdfInput" class="foto-file-input">
-        <label for="pdfInput" class="btn btn-secondary foto-label"><i class="ph ph-file-pdf" aria-hidden="true"></i> Anexar PDF do documento</label>
-        <div class="card-hint" id="pdfStatus" style="margin-top:6px;"></div>
+        <label for="pdfInput" class="btn btn-secondary foto-label"><i class="ph ph-file-pdf" aria-hidden="true"></i> Anexar PDF</label>
+        <div class="field-info" id="pdfStatus"></div>
       </div>
 
       <div class="field" id="fotoField">
-        <span id="fotoLabel">Foto (opcional se colher assinatura)</span>
+        <span id="fotoLabel">Foto</span>
         <input type="file" accept="image/*" capture="environment" id="fotoInput" class="foto-file-input">
         <label for="fotoInput" class="btn btn-secondary foto-label"><i class="ph ph-camera" aria-hidden="true"></i> Tirar foto / anexar</label>
         <div class="foto-preview-wrap" id="fotoPreviewWrap" hidden>
           <img id="fotoPreview" class="foto-preview" alt="Foto anexada">
-          <button type="button" class="link-btn" id="fotoRemove">Remover foto</button>
+          <button type="button" class="btn-chip danger" id="fotoRemove"><i class="ph ph-trash" aria-hidden="true"></i> Remover</button>
         </div>
         <div class="field-error" id="err-foto">Anexe uma foto — é obrigatória nesse caso.</div>
       </div>
 
       <div class="field" id="assinaturaField">
-        <span id="assinaturaLabel">Assinatura (opcional se anexar foto)</span>
+        <span id="assinaturaLabel">Assinatura</span>
         <div class="sig-wrap">
           <canvas id="sigCanvas"></canvas>
-          <div class="sig-placeholder" id="sigPlaceholder"><i class="ph ph-pen-nib" aria-hidden="true"></i> Assine aqui com o dedo ou o mouse</div>
+          <div class="sig-placeholder" id="sigPlaceholder"><i class="ph ph-pen-nib" aria-hidden="true"></i> Assine aqui</div>
           <div class="sig-row">
             <span class="sig-status" id="sigStatus">Sem assinatura ainda.</span>
-            <button type="button" class="link-btn sig-fullscreen-btn"><i class="ph ph-arrows-out" aria-hidden="true"></i> Tela cheia</button>
-            <button type="button" class="link-btn" id="clearSig">Limpar</button>
+            <button type="button" class="btn-chip sig-fullscreen-btn"><i class="ph ph-arrows-out" aria-hidden="true"></i> Tela cheia</button>
+            <button type="button" class="btn-chip" id="clearSig"><i class="ph ph-eraser" aria-hidden="true"></i> Limpar</button>
           </div>
         </div>
         <div class="field-error" id="err-assinatura">Colha a assinatura ou anexe uma foto antes de confirmar.</div>
         <div class="geo-status" id="geoStatus"><i class="ph ph-map-pin" aria-hidden="true"></i> obtendo localização...</div>
       </div>
 
-      <button type="submit" class="btn btn-primary" id="submitBtn">Confirmar entrega</button>
     </form>
   </section>
 
   <section id="tab-rota" class="view" role="tabpanel" tabindex="-1" aria-labelledby="tabbtn-rota" hidden>
-    <div class="card" id="recadosCard">
+    <div class="card caixa" id="recadosCard">
       <div class="card-head-row">
         <h2><i class="ph ph-push-pin" aria-hidden="true"></i> Recados</h2>
         <button type="button" class="btn-chip accent" id="recadoNovoBtn">+ Novo recado</button>
       </div>
-      <p class="card-hint">Avisos rápidos da equipe: cliente que mudou de endereço, portão que só abre de tarde, quem está de férias.</p>
       <div class="linha-busca-cnpj" id="recadoForm" hidden style="margin-top:12px;">
         <input class="input" id="recadoTexto" type="text" maxlength="280" placeholder="Ex.: Drogaria Antonino fecha das 12h às 14h" enterkeyhint="send">
         <button type="button" class="btn btn-secondary" id="recadoSalvarBtn">Publicar</button>
       </div>
       <div id="recadosList" style="margin-top:12px;"></div>
     </div>
-    <div class="card">
+    <div class="card caixa" id="rotaCard">
       <div class="card-head-row">
-        <h2><i class="ph ph-path" aria-hidden="true"></i> Rota de entregas</h2>
+        <h2><i class="ph ph-path" aria-hidden="true"></i> Rota de entregas <span class="contagem" id="rotaPrevisao" hidden></span></h2>
         <button type="button" class="btn-chip accent" id="rotaAddBtn">+ Adicionar à rota</button>
-        <div class="menu-acoes">
-          <button type="button" class="btn-chip" id="rotaMaisBtn" aria-haspopup="true" aria-expanded="false" aria-controls="rotaMaisPainel" aria-label="Mais ações da rota"><i class="ph ph-dots-three" aria-hidden="true"></i></button>
-          <div class="menu-acoes-painel" id="rotaMaisPainel" role="menu" hidden>
-            <button type="button" class="menu-acoes-item" role="menuitem" id="rotaProximidadeBtn"><i class="ph ph-navigation-arrow" aria-hidden="true"></i> Ordenar por proximidade</button>
-            <button type="button" class="menu-acoes-item" role="menuitem" id="rotaLerGuiaBtn" hidden><i class="ph ph-barcode" aria-hidden="true"></i> Ler guia</button>
-            <button type="button" class="menu-acoes-item" role="menuitem" id="rotaMapsBtn"><i class="ph ph-map-trifold" aria-hidden="true"></i> Abrir no Maps</button>
-            <button type="button" class="menu-acoes-item" role="menuitem" id="rotaEnviarLinkBtn"><i class="ph ph-share-network" aria-hidden="true"></i> Enviar rota pro cliente</button>
-          </div>
-        </div>
       </div>
-      <p class="card-hint">Documentos e valores já prontos — falta só colher a assinatura na hora da entrega.</p>
-      <p class="card-hint" id="rotaPrevisao" hidden></p>
+      <div class="card-ferramentas">
+        <button type="button" class="btn-chip" id="rotaProximidadeBtn"><i class="ph ph-navigation-arrow" aria-hidden="true"></i> Ordenar por proximidade</button>
+        <button type="button" class="btn-chip" id="rotaLerGuiaBtn" hidden><i class="ph ph-barcode" aria-hidden="true"></i> Ler guia</button>
+        <button type="button" class="btn-chip" id="rotaMapsBtn"><i class="ph ph-map-trifold" aria-hidden="true"></i> Abrir no Maps</button>
+        <button type="button" class="btn-chip" id="rotaEnviarLinkBtn"><i class="ph ph-share-network" aria-hidden="true"></i> Enviar rota pro cliente</button>
+      </div>
       <div class="filters">
         <div class="filtro">
           <label for="rotaBusca">Buscar cliente</label>
@@ -2336,34 +2356,30 @@
       </div>
       <div id="rotaList"><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
     </div>
-    <div class="card" id="montagemCard" hidden>
+    <div class="card caixa" id="montagemCard" hidden>
       <div class="card-head-row">
-        <h2><i class="ph ph-package" aria-hidden="true"></i> Montagem do dia</h2>
+        <h2><i class="ph ph-package" aria-hidden="true"></i> Montagem do dia <span class="contagem" id="montagemResumo"></span></h2>
         <button type="button" class="btn-chip accent" id="etiquetasBtn"><i class="ph ph-printer" aria-hidden="true"></i> Etiquetas</button>
       </div>
-      <p class="card-hint" id="montagemResumo"></p>
       <div id="montagemList"></div>
     </div>
-    <div class="card" id="obrigacoesCard" hidden>
+    <div class="card caixa" id="obrigacoesCard" hidden>
       <div class="card-head-row">
         <h2><i class="ph ph-calendar-dots" aria-hidden="true"></i> Obrigações do mês</h2>
       </div>
-      <p class="card-hint">Datas do escritório, já ajustadas para dia útil. O número ao lado é quanta guia desse tipo ainda está na rota.</p>
       <div id="obrigacoesList"></div>
     </div>
-    <div class="card" id="vencimentosCard" hidden>
+    <div class="card caixa" id="vencimentosCard" hidden>
       <div class="card-head-row">
         <h2><i class="ph ph-clock-countdown" aria-hidden="true"></i> Vencendo</h2>
       </div>
-      <p class="card-hint">Guias que estão na rota e vencem nos próximos dias — entregar essas primeiro.</p>
       <div id="vencimentosList"></div>
     </div>
-    <div class="card" id="fechamentoCard">
+    <div class="card caixa" id="fechamentoCard">
       <div class="card-head-row">
         <h2><i class="ph ph-clipboard-text" aria-hidden="true"></i> Fechamento do dia</h2>
         <button type="button" class="btn-chip" id="fechamentoCopiarBtn"><i class="ph ph-whatsapp-logo" aria-hidden="true"></i> Copiar resumo</button>
       </div>
-      <p class="card-hint">Como está o dia até agora — dá pra conferir antes de encerrar e mandar o resumo pra quem precisa.</p>
       <div class="dash-strip">
         <div class="dash-item ok"><span class="dash-ico"><i class="ph ph-check" aria-hidden="true"></i></span><span class="dash-num" id="fechEntregues">0</span><span class="dash-label">entregues hoje</span></div>
         <div class="dash-item falha"><span class="dash-ico"><i class="ph ph-x-circle" aria-hidden="true"></i></span><span class="dash-num" id="fechFalhas">0</span><span class="dash-label">não entregues hoje</span></div>
@@ -2371,23 +2387,21 @@
       </div>
       <div id="fechamentoDetalhe" style="margin-top:12px;"></div>
     </div>
-    <div class="card" id="atestadosCard" hidden>
+    <div class="card caixa" id="atestadosCard" hidden>
       <div class="card-head-row">
         <h2><i class="ph ph-first-aid-kit" aria-hidden="true"></i> Atestados para buscar</h2>
       </div>
-      <p class="card-hint">Pedidos de busca de atestado nas clínicas (Assegi, Preventive etc.) — marque como buscado quando pegar.</p>
       <div id="atestadosList"></div>
     </div>
   </section>
 
   <section id="tab-painel" class="view" role="tabpanel" tabindex="-1" aria-labelledby="tabbtn-painel" hidden>
-    <div class="card">
+    <div class="card caixa" id="painelCard">
       <div class="card-head-row">
         <h2><i class="ph ph-chart-bar" aria-hidden="true"></i> Painel de entregas</h2>
         <button type="button" class="btn-chip" id="exportPdfBtn"><i class="ph ph-file-pdf" aria-hidden="true"></i> Exportar PDF</button>
         <button type="button" class="btn-chip accent" id="exportBtn"><i class="ph ph-download-simple" aria-hidden="true"></i> Exportar planilha</button>
       </div>
-      <p class="card-hint">Quem já recebeu na competência selecionada. Toque em um cliente para ver o histórico completo.</p>
       <div class="filters">
         <div class="filtro">
           <label for="painelCompetencia">Competência</label>
@@ -2411,48 +2425,43 @@
       </div>
       <div id="painelList"><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
     </div>
-    <div class="card" id="alertaSemEntregaCard" hidden>
+    <div class="card caixa" id="alertaSemEntregaCard" hidden>
       <div class="card-head-row">
         <h2><i class="ph ph-warning-circle" aria-hidden="true"></i> Sem entrega há tempo</h2>
         <button type="button" class="btn-chip" id="verSemEntregaBtn"></button>
       </div>
-      <p class="card-hint">Clientes ativos sem nenhuma entrega confirmada nas últimas 3 competências.</p>
     </div>
-    <div class="card" id="fechamentoMesCard">
+    <div class="card caixa" id="fechamentoMesCard">
       <div class="card-head-row">
-        <h2><i class="ph ph-list-checks" aria-hidden="true"></i> Fechamento do mês</h2>
+        <h2><i class="ph ph-list-checks" aria-hidden="true"></i> Fechamento do mês <span class="contagem" id="fechamentoMesResumo"></span></h2>
         <div style="display:flex;gap:6px;align-items:center">
           <label class="sr-only" for="fechamentoMesSelect">Competência</label>
           <input class="input" id="fechamentoMesSelect" type="month" style="width:auto;padding:0 8px">
           <button type="button" class="btn-chip" id="relatorioPessoaBtn"><i class="ph ph-printer" aria-hidden="true"></i> Relatório do mês</button>
         </div>
       </div>
-      <p class="card-hint" id="fechamentoMesResumo"></p>
       <div class="fecha-barra"><span id="fechamentoMesBarra" style="width:0%"></span></div>
       <div id="fechamentoMesList"></div>
     </div>
-    <div class="card" id="graficoCard">
+    <div class="card caixa" id="graficoCard">
       <div class="card-head-row">
         <h2><i class="ph ph-chart-line-up" aria-hidden="true"></i> Entregas por dia</h2>
       </div>
-      <p class="card-hint">Entregas confirmadas na competência selecionada, por dia.</p>
       <div id="graficoDiario" style="overflow-x:auto;"></div>
     </div>
-    <div class="card" id="rankingCard">
+    <div class="card caixa" id="rankingCard">
       <div class="card-head-row">
         <h2><i class="ph ph-trophy" aria-hidden="true"></i> Ranking da equipe</h2>
         <button type="button" class="btn-chip" id="definirMetaBtn" hidden><i class="ph ph-target" aria-hidden="true"></i> Meta do mês</button>
       </div>
-      <p class="card-hint">Quem mais confirmou entregas nesta competência.</p>
       <div id="metaResumo" hidden></div>
       <div id="rankingEquipe"></div>
     </div>
-    <div class="card">
+    <div class="card caixa" id="mapaCard">
       <div class="card-head-row">
         <h2><i class="ph ph-map-trifold" aria-hidden="true"></i> Mapa de entregas</h2>
         <button type="button" class="btn-chip" id="painelMapaBtn" aria-expanded="false" aria-controls="painelMapaCaixa">Mostrar</button>
       </div>
-      <p class="card-hint">Pontos capturados nas entregas confirmadas e nas não realizadas desta competência.</p>
       <div class="painel-resumo">
         <div class="summary-ring" id="summaryRing" style="--pct:0"><span id="summaryPct">–</span></div>
         <div class="summary-text"><span class="skeleton skeleton-linha"></span></div>
@@ -2466,7 +2475,7 @@
         </div>
       </div>
       <details class="numeros-do-mes" id="numerosDoMes" hidden>
-        <summary class="card-hint">Números do mês</summary>
+        <summary>Números do mês</summary>
         <div id="numerosDoMesCorpo"></div>
       </details>
     </div>
@@ -2475,7 +2484,6 @@
   <section id="tab-solicitacoes" class="view" role="tabpanel" tabindex="-1" aria-labelledby="tabbtn-solicitacoes" hidden>
     <form id="form-solicitacao" class="card" novalidate>
       <h2><i class="ph ph-paper-plane-tilt" aria-hidden="true"></i> Nova solicitação</h2>
-      <p class="card-hint">Peça pra alguém entregar ou buscar algum documento — vira uma tarefa pro office boy.</p>
       <label class="field">
         <span>Tipo</span>
         <select class="input" id="solTipo">
@@ -2516,9 +2524,8 @@
         <div class="field-error" id="err-solDescricao">Descreva o que precisa ser feito.</div>
       </label>
       <label class="avulso-toggle"><input type="checkbox" id="solUrgente"> Urgente</label>
-      <button type="submit" class="btn btn-primary" id="solSubmitBtn">Enviar solicitação</button>
     </form>
-    <div class="card" id="pendentesCard">
+    <div class="card caixa" id="pendentesCard">
       <div class="card-head-row">
         <h2><i class="ph ph-hourglass-medium" aria-hidden="true"></i> Pendentes</h2>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
@@ -2663,14 +2670,13 @@
   </section>
 
   <section id="tab-honorarios" class="view" role="tabpanel" tabindex="-1" aria-labelledby="tabHonorarios" hidden>
-    <div class="card">
+    <div class="card caixa" id="honorariosCard">
       <div class="card-head-row">
-        <h2><i class="ph ph-hand-coins" aria-hidden="true"></i> Honorários</h2>
+        <h2><i class="ph ph-hand-coins" aria-hidden="true"></i> Honorários <span class="contagem" id="honorariosResumoTab"></span></h2>
         <button type="button" class="btn-chip" id="exportHonorariosBtn"><i class="ph ph-download-simple" aria-hidden="true"></i> Exportar planilha</button>
         <button type="button" class="btn-chip" id="addHonorarioClienteBtn"><i class="ph ph-plus" aria-hidden="true"></i> Adicionar cliente</button>
         <button type="button" class="btn-chip accent" id="importHonorariosBtn"><i class="ph ph-upload-simple" aria-hidden="true"></i> Preencher de arquivo</button>
       </div>
-      <p class="card-hint">Quem paga em dinheiro, Pix ou boleto — alguém do escritório precisa ir até o cliente. "Recebido" é lido da própria entrega confirmada NESSE MÊS (pela data real da entrega, não pela competência escrita no documento); não é um controle separado.</p>
       <div class="filters">
         <div class="filtro">
           <label for="honorariosMes">Mês da entrega</label>
@@ -2704,7 +2710,6 @@
           </div>
         </div>
       </div>
-      <p class="card-hint" id="honorariosResumoTab" style="margin-top:8px;"></p>
       <div id="honorariosResumo" hidden></div>
       <div class="honorarios-tabela" id="honorariosTabela">
         <div class="honorarios-cabecalho">
@@ -3315,19 +3320,6 @@
     showToast('Algo deu errado. Tente de novo.', 'error');
   });
 
-  document.querySelectorAll('.dash-item[data-goto]').forEach(function (item) {
-    item.addEventListener('click', function () {
-      var alvo = document.querySelector('.tab[data-tab="' + item.dataset.goto + '"]');
-      if (alvo) alvo.click();
-    });
-  });
-
-  function updateDashStrip() {
-    var hoje = confirmadasHoje_().filter(function (e) { return e.status === 'confirmada'; }).length;
-    $('dashHoje').textContent = hoje;
-    $('dashRota').textContent = pendentesCache.length;
-    $('dashClientes').textContent = clientesDoEntregas_().length;
-  }
 
   function fmtDateTime(iso) {
     try {
@@ -3656,6 +3648,19 @@
       ico.classList.toggle('ph-fill', t.classList.contains('active'));
     });
   }
+  // Ação principal de cada tela (Confirmar entrega, Enviar solicitação) mora
+  // no cabeçalho, à direita do título — como "New issue" no GitHub. No
+  // celular ela fica presa no rodapé (body.tem-acao-fixa abre espaço).
+  function mostrarAcaoDaTela_(aba) {
+    var caixa = $('telaAcoes');
+    if (!caixa) return;
+    var alguma = false;
+    [].forEach.call(caixa.children, function (b) {
+      b.hidden = b.dataset.aba !== aba;
+      if (!b.hidden) alguma = true;
+    });
+    document.body.classList.toggle('tem-acao-fixa', alguma);
+  }
   // ---------- tabs ----------
   document.querySelectorAll('.tab').forEach(function (btn) {
     btn.addEventListener('click', function () {
@@ -3680,6 +3685,7 @@
       marcarIconeAba_();
       var lbl = btn.querySelector('.tab-label');
       if (lbl && $('pageTitle')) $('pageTitle').textContent = lbl.textContent;
+      mostrarAcaoDaTela_(btn.dataset.tab);
       ['nova', 'rota', 'painel', 'solicitacoes', 'clientes', 'honorarios', 'perfil', 'conciliador', 'cheque'].forEach(function (name) {
         var el = $('tab-' + name);
         var papelPermite = name === 'perfil' ? temPapel('admin')
@@ -3715,6 +3721,7 @@
   });
 
   marcarIconeAba_();
+  mostrarAcaoDaTela_('nova');
 
   // ---------- faixa de contexto (só no monitor) ----------
   // Cada aba tem seções que a pessoa LÊ de relance (recados, fechamento do
@@ -4270,8 +4277,8 @@
     var feitos = PASSOS_DO_FECHAMENTO_.filter(function (p) { return passos[p.id]; }).length;
     var pct = Math.round(feitos / PASSOS_DO_FECHAMENTO_.length * 100);
     $('fechamentoMesBarra').style.width = pct + '%';
-    $('fechamentoMesResumo').textContent = feitos + ' de ' + PASSOS_DO_FECHAMENTO_.length + ' passos de ' +
-      fmtCompetencia(fechamentoMes_.competencia) + (feitos === PASSOS_DO_FECHAMENTO_.length ? ' — mês fechado.' : '.');
+    $('fechamentoMesResumo').textContent = '· ' + (feitos === PASSOS_DO_FECHAMENTO_.length
+      ? 'mês fechado' : feitos + ' de ' + PASSOS_DO_FECHAMENTO_.length);
     var el = $('fechamentoMesList');
     el.innerHTML = '';
     PASSOS_DO_FECHAMENTO_.forEach(function (p) {
@@ -4281,9 +4288,10 @@
       linha.innerHTML = '<input type="checkbox"' + (marca ? ' checked' : '') + '>' +
         '<span><span class="fecha-nome"></span><span class="fecha-sub"></span></span>';
       linha.querySelector('.fecha-nome').textContent = p.nome;
+      // só o que aconteceu (quem marcou e quando); a explicação do passo saiu
       linha.querySelector('.fecha-sub').textContent = marca
-        ? 'feito por ' + (marca.por || 'alguém') + ' em ' + fmtDateTime(marca.em)
-        : p.sub;
+        ? (marca.por || 'alguém') + ' · ' + fmtDateTime(marca.em)
+        : '';
       linha.querySelector('input').addEventListener('change', function () {
         marcarPassoDoFechamento_(p.id, this.checked);
       });
@@ -6117,11 +6125,6 @@
       if (semPresenca) { $('falhaToggle').checked = false; }
       if (!isRota) { $('zonaSelect').value = ''; }
       atualizarModoFalha();
-      $('formHint').textContent = isLink
-        ? 'Anexe o PDF da guia: ela aparece na página do cliente, ele toca em "Recebi" e isso entra no protocolo do mês, marcado como recebido pelo link.'
-        : (isRota
-          ? 'Prepare os documentos e valores agora; a assinatura fica para quando entregar de fato.'
-          : 'Preencha na hora, colha a assinatura ou anexe uma foto — sem protocolo de papel.');
     });
   });
 
@@ -6437,7 +6440,6 @@
         showToast('Esta competência tem mais de ' + LIMITE_PAINEL + ' entregas: o Painel pode não estar mostrando todas.', 'error');
       }
       renderPainel();
-      updateDashStrip();
     }, function (err) { showToast(errMsg(err, 'Não foi possível carregar o painel.'), 'error'); });
   }
 
@@ -6455,7 +6457,6 @@
     var inicio = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate()).toISOString();
     unsubEntregasHoje = db.collection('entregas').where('confirmadoEm', '>=', inicio).onSnapshot(function (snap) {
       entregasHojeCache = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
-      updateDashStrip();
       if (typeof renderFechamentoDia_ === 'function') renderFechamentoDia_();
     }, function () { /* sem isto, cai no que o Painel tiver */ });
   }
@@ -6492,7 +6493,6 @@
       renderRota();
       renderClientesList();
       renderQualidadeRota_();
-      updateDashStrip();
       renderFechamentoDia_();
       renderVencimentos_();
       renderObrigacoes_();
@@ -6602,30 +6602,6 @@
     $('rotaFiltroZonaBtn').focus();
   });
 
-  // ---------- menu de ações da rota ----------
-  // A ação de todo dia é tocar numa parada. Os quatro botões de apoio saem
-  // da frente e ficam aqui, a um toque.
-  $('rotaMaisBtn').addEventListener('click', function (ev) {
-    ev.stopPropagation();
-    var p = $('rotaMaisPainel');
-    var abrir = p.hidden;
-    p.hidden = !abrir;
-    this.setAttribute('aria-expanded', abrir ? 'true' : 'false');
-    if (abrir) { var primeiro = p.querySelector('.menu-acoes-item:not([hidden])'); if (primeiro) primeiro.focus(); }
-  });
-  $('rotaMaisPainel').addEventListener('click', function () { fecharMenuDaRota_(); });
-  $('rotaMaisPainel').addEventListener('keydown', function (ev) {
-    if (ev.key === 'Escape') { fecharMenuDaRota_(); $('rotaMaisBtn').focus(); }
-  });
-  document.addEventListener('click', function (ev) {
-    if (!ev.target.closest('.menu-acoes')) fecharMenuDaRota_();
-  });
-  function fecharMenuDaRota_() {
-    var p = $('rotaMaisPainel');
-    if (!p || p.hidden) return;
-    p.hidden = true;
-    $('rotaMaisBtn').setAttribute('aria-expanded', 'false');
-  }
   $('rotaAddBtn').addEventListener('click', function () {
     document.querySelector('.tab[data-tab="nova"]').click();
     document.querySelector('#modeToggle .mode-btn[data-mode="rota"]').click();
@@ -6998,20 +6974,19 @@
     if (!ritmo || !quantasParadas) { el.hidden = true; return; }
 
     var duracao = ritmo.minutos * quantasParadas;
-    var texto = 'No seu ritmo (≈ ' + ritmo.minutos + ' min por parada, medido em ' +
-      ritmo.amostras + ' entregas), essas ' + quantasParadas + ' paradas levam ~' +
-      fmtDuracao_(duracao) + ' depois que você sair.';
+    var texto = '· ~' + fmtDuracao_(duracao);
 
     // Só dá pra dizer a que horas termina se a rota JÁ começou — a rota
     // costuma ser montada 1 a 2 horas antes de sair, e contar a partir de
     // "agora" nesse momento daria um horário errado.
     var jaComecou = confirmadasHoje_().some(function (e) { return e.status === 'confirmada'; });
     if (jaComecou) {
-      texto += ' Terminando por volta das ' + fmtHoraCurta_(new Date(Date.now() + duracao * 60000)) + '.';
+      texto += ' · até ' + fmtHoraCurta_(new Date(Date.now() + duracao * 60000));
     }
 
     el.hidden = false;
     el.textContent = texto;
+    el.title = 'No seu ritmo: ≈ ' + ritmo.minutos + ' min por parada (' + ritmo.amostras + ' entregas medidas)';
   }
 
   // ---------- mural de recados ----------
@@ -7041,7 +7016,7 @@
     });
     el.innerHTML = '';
     if (!vivos.length) {
-      el.innerHTML = vazioCom_('Nenhum recado. Use pra avisar a equipe de algo do dia a dia.', '+ Novo recado', 'recadoNovoBtn');
+      el.innerHTML = vazioCom_('Nenhum recado.', '+ Novo recado', 'recadoNovoBtn');
       return;
     }
     var meuEmail = (auth.currentUser && auth.currentUser.email) || '';
@@ -7258,7 +7233,7 @@
     var feitas = montagemFeita_();
     $('montagemResumo').textContent = feitas.filter(function (id) {
       return grupos.some(function (g) { return (g.clienteId || g.nome) === id; });
-    }).length + ' de ' + grupos.length + ' separados. O risco vale só pra hoje, neste aparelho.';
+    }).length + ' de ' + grupos.length + ' separados';
     var el = $('montagemList');
     el.innerHTML = '';
     grupos.forEach(function (g) {
@@ -7368,6 +7343,11 @@
       row.querySelector('.er-nome').textContent = x.e.clienteNome || 'sem cliente';
       row.querySelector('.er-sub').textContent = itensStr + ' · ' + fmtCompetencia(x.e.competencia);
       row.querySelector('.status-pill').textContent = textoPrazo_(x.dias);
+      var assinar = document.createElement('button');
+      assinar.type = 'button';
+      assinar.className = 'btn-chip accent';
+      assinar.innerHTML = '<i class="ph ph-signature" aria-hidden="true"></i> Assinar';
+      row.appendChild(assinar);
       row.addEventListener('click', function () { openConfirmPendingModal(x.e); });
       el.appendChild(row);
     });
@@ -7375,8 +7355,7 @@
       var resto = lista.length - visiveis.length;
       var btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = 'btn-chip';
-      btn.style.width = '100%';
+      btn.className = 'btn-chip lista-mais';
       btn.textContent = mostrarTodosVencimentos_ ? 'Mostrar menos' : ('Mostrar mais ' + resto);
       btn.addEventListener('click', function () { mostrarTodosVencimentos_ = !mostrarTodosVencimentos_; renderVencimentos_(); });
       el.appendChild(btn);
@@ -7768,15 +7747,15 @@
     var linhasQueValem = todasLinhas.filter(function (x) { return !x.naoAplicavel; });
     var totalPendentesReal = linhasQueValem.filter(function (x) { return !x.recebido; }).length;
     $('honorariosResumoTab').textContent = linhasQueValem.length
-      ? totalPendentesReal + ' de ' + linhasQueValem.length + ' ainda não entregues em ' + fmtCompetencia(mesAno) +
-        (linhas.length !== todasLinhas.length ? ' · mostrando ' + linhas.length + ' com o filtro atual' : '')
+      ? '· ' + totalPendentesReal + ' de ' + linhasQueValem.length + ' pendentes' +
+        (linhas.length !== todasLinhas.length ? ' · ' + linhas.length + ' no filtro' : '')
       : '';
     atualizarBadge_($('honorariosBadge'), totalPendentesReal);
 
     var el = $('honorariosTabList');
     el.innerHTML = '';
     if (!todasLinhas.length) {
-      el.innerHTML = '<div class="empty-state">Nenhum cliente de cobrança por visita ainda — importe a planilha no botão acima.</div>';
+      el.innerHTML = '<div class="empty-state">Nenhum cliente de cobrança por visita.</div>';
       return;
     }
     if (!linhas.length) {
@@ -7824,35 +7803,53 @@
         btnRegistrar.addEventListener('click', function () { irRegistrarHonorario_(c); });
         acoes.appendChild(btnRegistrar);
 
+        // As duas ações de exceção ficam num menu ⋯ ao lado: na linha, só
+        // Registrar e Editar, com borda.
+        var mais = document.createElement('details');
+        mais.className = 'menu-linha';
+        mais.innerHTML = '<summary class="btn-chip so-icone" aria-label="Mais ações" title="Mais ações"><i class="ph ph-dots-three" aria-hidden="true"></i></summary>' +
+          '<div class="menu-acoes-painel" role="menu"></div>';
+        var painelMais = mais.querySelector('.menu-acoes-painel');
+
         var btnSemComprovante = document.createElement('button');
         btnSemComprovante.type = 'button';
-        btnSemComprovante.className = 'btn-chip';
+        btnSemComprovante.className = 'menu-acoes-item';
         btnSemComprovante.innerHTML = '<i class="ph ph-note-pencil" aria-hidden="true"></i> Já entreguei';
         btnSemComprovante.title = 'Marcar como entregue sem comprovante — pra entregas antigas, de antes do app';
-        btnSemComprovante.addEventListener('click', function () { abrirMarcarHonorarioSemComprovante_(c, mesAno); });
-        acoes.appendChild(btnSemComprovante);
+        btnSemComprovante.addEventListener('click', function () { mais.open = false; abrirMarcarHonorarioSemComprovante_(c, mesAno); });
+        painelMais.appendChild(btnSemComprovante);
 
         var btnNaoAplica = document.createElement('button');
         btnNaoAplica.type = 'button';
-        btnNaoAplica.className = 'btn-chip';
-        btnNaoAplica.textContent = 'Não se aplica';
+        btnNaoAplica.className = 'menu-acoes-item';
+        btnNaoAplica.innerHTML = '<i class="ph ph-prohibit" aria-hidden="true"></i> Não se aplica';
         btnNaoAplica.title = 'Esse cliente não deve honorário este mês (bimestral, sazonal etc.)';
-        btnNaoAplica.addEventListener('click', function () { marcarHonorarioNaoAplicavel_(c, mesAno); });
-        acoes.appendChild(btnNaoAplica);
+        btnNaoAplica.addEventListener('click', function () { mais.open = false; marcarHonorarioNaoAplicavel_(c, mesAno); });
+        painelMais.appendChild(btnNaoAplica);
       }
 
       var btnEditar = document.createElement('button');
       btnEditar.type = 'button';
-      btnEditar.className = 'link-btn';
-      btnEditar.style.cssText = 'font-size:var(--t-xs);padding:4px;';
-      btnEditar.textContent = 'Editar';
+      btnEditar.className = 'btn-chip';
+      btnEditar.innerHTML = '<i class="ph ph-pencil-simple" aria-hidden="true"></i> Editar';
       btnEditar.title = 'Corrigir forma, dia ou ponto de referência — ou remover esse cliente da lista de honorários';
       btnEditar.addEventListener('click', function (ev) { ev.stopPropagation(); abrirEditarHonorarioCliente_(c); });
       acoes.appendChild(btnEditar);
+      if (typeof mais !== 'undefined' && mais && chaveStatus !== 'naoaplicavel' && chaveStatus !== 'recebido') acoes.appendChild(mais);
 
       el.appendChild(row);
     });
   }
+  // menu ⋯ de uma linha: fecha ao clicar fora, e um aberto por vez
+  document.addEventListener('click', function (ev) {
+    document.querySelectorAll('details.menu-linha[open]').forEach(function (d) {
+      if (!d.contains(ev.target)) d.open = false;
+    });
+  });
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key !== 'Escape') return;
+    document.querySelectorAll('details.menu-linha[open]').forEach(function (d) { d.open = false; });
+  });
 
   // Pra quem foi entregue antes do app existir e não tem como provar. Grava
   // direto (sem passar pelo formulário de Nova entrega, que exigiria
@@ -8451,7 +8448,7 @@
     var listEl = $('rotaList');
     listEl.innerHTML = '';
     if (list.length === 0) {
-      listEl.innerHTML = '<div class="empty-state">Nenhuma entrega na rota. Toque em "+ Adicionar à rota" para preparar a próxima.</div>';
+      listEl.innerHTML = '<div class="empty-state">Nenhuma entrega na rota.</div>';
       renderPrevisaoRota_(0);
       return;
     }
@@ -8467,7 +8464,7 @@
     });
     var loteJaOferecido = {};
 
-    list.forEach(function (e) {
+    list.forEach(function (e, posicao) {
       var row = document.createElement('div');
       row.className = 'entrega-row st-rota rota-item';
       row.dataset.id = e.id;
@@ -8480,14 +8477,18 @@
       var aviso = avisoDaParada_(e, clienteDaLinha);
       row.innerHTML =
         '<button type="button" class="rota-drag-handle" aria-label="Mover ' + escapeHtml_(e.clienteNome || 'parada') + ' na ordem da rota. Alt com seta para cima ou para baixo."><i class="ph ph-dots-six-vertical" aria-hidden="true"></i></button>' +
+        '<span class="linha-pos">' + (posicao + 1) + '</span>' +
         '<div class="rota-item-conteudo"><div class="er-nome"></div><div class="er-sub"></div>' +
         (aviso ? '<div class="er-aviso"><i class="ph ph-warning-circle" aria-hidden="true"></i><span></span></div>' : '') + '</div>' +
-        '<span class="status-pill ' + (e.tentativa > 1 ? 'falha' : 'rota') + '">' + (e.tentativa > 1 ? e.tentativa + 'ª vez' : 'Assinar') + '</span>';
+        '<div class="linha-acoes">' +
+          (e.tentativa > 1 ? '<span class="status-pill falha">' + e.tentativa + 'ª vez</span>' : '') +
+          '<button type="button" class="btn-chip accent rota-assinar"><i class="ph ph-signature" aria-hidden="true"></i> Assinar</button>' +
+        '</div>';
       row.querySelector('.er-nome').textContent = e.clienteNome;
       row.querySelector('.er-sub').textContent = subtitle;
       if (aviso) row.querySelector('.er-aviso span').textContent = aviso;
       row.addEventListener('click', function (ev) {
-        if (ev.target.closest('.rota-drag-handle')) return;
+        if (ev.target.closest('.rota-drag-handle') || ev.target.closest('.rota-lote-btn')) return;
         openConfirmPendingModal(e);
       });
       habilitarDragRota_(row);
@@ -8513,14 +8514,17 @@
           var totalDaParada_ = doParada.reduce(function (soma, x) {
             return soma + (x.itens || []).reduce(function (s, i) { return s + ((i && i.valor) || 0); }, 0);
           }, 0);
+          // Na MESMA linha da primeira entrega da parada, ao lado de
+          // "Assinar" — antes ficava pendurado embaixo, fora da linha.
           var btnLote = document.createElement('button');
           btnLote.type = 'button';
-          btnLote.className = 'btn-chip accent rota-lote-btn';
-          btnLote.innerHTML = '<i class="ph ph-signature" aria-hidden="true"></i> Assinar as ' + doParada.length + ' juntas' +
-            (totalDaParada_ > 0 ? ' · ' + escapeHtml_(fmtMoney(totalDaParada_)) : '') +
-            (nomesDaParada.length > 1 ? ' (' + escapeHtml_(tituloParada) + ')' : '');
-          btnLote.addEventListener('click', function () { openConfirmLoteModal_(tituloParada, doParada); });
-          listEl.appendChild(btnLote);
+          btnLote.className = 'btn-chip rota-lote-btn';
+          btnLote.innerHTML = '<i class="ph ph-stack" aria-hidden="true"></i> Assinar as ' + doParada.length;
+          btnLote.title = 'Assinar as ' + doParada.length + ' entregas desta parada juntas' +
+            (totalDaParada_ > 0 ? ' · ' + fmtMoney(totalDaParada_) : '') +
+            (nomesDaParada.length > 1 ? ' (' + tituloParada + ')' : '');
+          btnLote.addEventListener('click', function (ev) { ev.stopPropagation(); openConfirmLoteModal_(tituloParada, doParada); });
+          row.querySelector('.linha-acoes').appendChild(btnLote);
         }
       }
     });
@@ -8929,18 +8933,17 @@
     lista.sort(function (a, b) { return new Date(a.criadoEm) - new Date(b.criadoEm); });
     var listEl = $('atestadosList');
     listEl.innerHTML = '';
-    lista.forEach(function (s) {
+    lista.forEach(function (s, i) {
       var row = document.createElement('div');
-      row.style.flexWrap = 'wrap';
       row.className = 'entrega-row st-' + (s.urgente ? 'rota' : 'pendente');
-      row.innerHTML = '<div><div class="er-nome"></div><div class="er-sub"></div></div>' +
+      row.innerHTML = '<span class="linha-pos">' + (i + 1) + '</span><div><div class="er-nome"></div><div class="er-sub"></div></div>' +
         '<span class="status-pill ' + (s.urgente ? 'rota' : 'pendente') + '">' + (s.urgente ? 'Urgente' : 'Pendente') + '</span>';
       row.querySelector('.er-nome').textContent = (s.atestadoFuncionario || 'funcionário') + ' — ' + (s.atestadoEmpresa || 'empresa não informada');
       row.querySelector('.er-sub').textContent = 'Clínica: ' + (s.atestadoClinica || 'não informada') + ' · pedido por ' + (s.criadoPorNome || s.criadoPor || 'alguém da equipe') + ' · ' + fmtDateTime(s.criadoEm);
       if (podeConcluirSolicitacao(s)) {
         var btn = document.createElement('button');
         btn.type = 'button';
-        btn.className = 'btn-chip accent largura-total';
+        btn.className = 'btn-chip accent';
         btn.innerHTML = '<i class="ph ph-check" aria-hidden="true"></i> Buscado';
         btn.addEventListener('click', function (ev) { ev.stopPropagation(); concluirSolicitacao_(s.id); });
         row.appendChild(btn);
@@ -9080,14 +9083,14 @@
         : vazioCom_('Nenhuma solicitação pendente.', '+ Nova solicitação', 'form-solicitacao');
       return;
     }
-    lista.forEach(function (s) {
+    lista.forEach(function (s, i) {
       var row = document.createElement('div');
-      row.style.flexWrap = 'wrap';
       var subtitle = tipoSolicitacaoLabel(s.tipo) + (s.local ? ' · ' + s.local : '') + ' · pedido por ' + (s.criadoPorNome || s.criadoPor || 'alguém da equipe') + ' · ' + fmtDateTime(s.criadoEm);
       var pillClass = s.status === 'concluida' ? 'entregue' : (s.urgente ? 'rota' : 'pendente');
       row.className = 'entrega-row st-' + pillClass;
       var pillLabel = s.status === 'concluida' ? 'Concluída' : (s.urgente ? 'Urgente' : 'Pendente');
       row.innerHTML =
+        '<span class="linha-pos">' + (i + 1) + '</span>' +
         '<div><div class="er-nome"></div><div class="er-sub"></div></div>' +
         '<span class="status-pill ' + pillClass + '">' + pillLabel + '</span>';
       row.querySelector('.er-nome').textContent = s.descricao;
@@ -9095,7 +9098,7 @@
       if (s.status !== 'concluida' && podeConcluirSolicitacao(s)) {
         var btn = document.createElement('button');
         btn.type = 'button';
-        btn.className = 'btn-chip accent largura-total';
+        btn.className = 'btn-chip accent';
         btn.innerHTML = '<i class="ph ph-check" aria-hidden="true"></i> Concluir';
         btn.addEventListener('click', function (ev) { ev.stopPropagation(); concluirSolicitacao_(s.id); });
         row.appendChild(btn);
@@ -9378,17 +9381,18 @@
     }
     linhas.forEach(function (item) {
       var c = item.c, entregas = item.entregas, latest = item.latest;
-      var row = document.createElement('button');
-      row.type = 'button';
+      // linha = div (não dá pra pôr botão dentro de botão) + ação com borda
+      var row = document.createElement('div');
       var subtitle = latest
         ? fmtDateTime(latest.confirmadoEm || latest.criadoEm) + (item.status === 'rota' ? (latest.status === 'link' ? ' · no link, aguardando o cliente' : ' · aguardando assinatura') : '') + (item.status === 'falha' ? ' · ' + (latest.motivoFalha || 'não entregue') : '') + (entregas.length > 1 ? ' · +' + (entregas.length - 1) + ' entrega(s) nesta competência' : '')
         : 'Sem entrega registrada nesta competência';
       var pillClass = item.status === 'entregue' ? 'entregue' : (item.status === 'rota' ? 'rota' : (item.status === 'falha' ? 'falha' : 'pendente'));
-      row.className = 'entrega-row st-' + pillClass;
+      row.className = 'entrega-row cr-clickable st-' + pillClass;
       var pillLabel = item.status === 'entregue' ? 'Entregue' : (item.status === 'rota' ? (latest && latest.status === 'link' ? 'No link' : 'Na rota') : (item.status === 'falha' ? 'Não entregue' : 'Sem entrega'));
       row.innerHTML =
         '<div><div class="er-nome"></div><div class="er-sub"></div></div>' +
-        '<span class="status-pill ' + pillClass + '">' + pillLabel + '</span>';
+        '<span class="status-pill ' + pillClass + '">' + pillLabel + '</span>' +
+        '<button type="button" class="btn-chip"><i class="ph ph-clock-counter-clockwise" aria-hidden="true"></i> Histórico</button>';
       row.querySelector('.er-nome').textContent = clienteLabel(c);
       row.querySelector('.er-sub').textContent = subtitle;
       row.addEventListener('click', function () { openClienteHistorico(c); });
@@ -9397,15 +9401,15 @@
     avulsos.forEach(function (e) {
       var isConfirmada = e.status === 'confirmada';
       var itensStr = (e.itens || []).map(function (i) { return typeof i === 'string' ? i : i.tipo; }).join(', ');
-      var row = document.createElement('button');
-      row.type = 'button';
+      var row = document.createElement('div');
       var subtitle = 'Avulso · ' + fmtDateTime(e.confirmadoEm || e.criadoEm) + (itensStr ? ' · ' + itensStr : '') + (isConfirmada ? '' : ' · aguardando assinatura');
       var pillClass = isConfirmada ? 'entregue' : 'rota';
-      row.className = 'entrega-row st-' + pillClass;
+      row.className = 'entrega-row cr-clickable st-' + pillClass;
       var pillLabel = isConfirmada ? 'Entregue' : 'Na rota';
       row.innerHTML =
         '<div><div class="er-nome"></div><div class="er-sub"></div></div>' +
-        '<span class="status-pill ' + pillClass + '">' + pillLabel + '</span>';
+        '<span class="status-pill ' + pillClass + '">' + pillLabel + '</span>' +
+        '<button type="button" class="btn-chip"><i class="ph ph-eye" aria-hidden="true"></i> Ver</button>';
       row.querySelector('.er-nome').textContent = e.clienteNome;
       row.querySelector('.er-sub').textContent = subtitle;
       row.addEventListener('click', function () {
@@ -10441,11 +10445,11 @@
             '<span>Assinatura (opcional se anexar foto)</span>' +
             '<div class="sig-wrap">' +
               '<canvas id="loteSigCanvas"></canvas>' +
-              '<div class="sig-placeholder" id="loteSigPlaceholder"><i class="ph ph-pen-nib" aria-hidden="true"></i> Assine aqui com o dedo ou o mouse</div>' +
+              '<div class="sig-placeholder" id="loteSigPlaceholder"><i class="ph ph-pen-nib" aria-hidden="true"></i> Assine aqui</div>' +
               '<div class="sig-row">' +
                 '<span class="sig-status" id="loteSigStatus">Sem assinatura ainda.</span>' +
-                '<button type="button" class="link-btn sig-fullscreen-btn"><i class="ph ph-arrows-out" aria-hidden="true"></i> Tela cheia</button>' +
-                '<button type="button" class="link-btn" id="loteClearSig">Limpar</button>' +
+                '<button type="button" class="btn-chip sig-fullscreen-btn"><i class="ph ph-arrows-out" aria-hidden="true"></i> Tela cheia</button>' +
+                '<button type="button" class="btn-chip" id="loteClearSig"><i class="ph ph-eraser" aria-hidden="true"></i> Limpar</button>' +
               '</div>' +
             '</div>' +
             '<div class="field-error show" id="loteSigError" hidden>Colha a assinatura ou anexe uma foto antes de confirmar.</div>' +
@@ -10664,11 +10668,11 @@
             '<span id="pendingAssinaturaLabel">Assinatura (opcional se anexar foto)</span>' +
             '<div class="sig-wrap">' +
               '<canvas id="pendingSigCanvas"></canvas>' +
-              '<div class="sig-placeholder" id="pendingSigPlaceholder"><i class="ph ph-pen-nib" aria-hidden="true"></i> Assine aqui com o dedo ou o mouse</div>' +
+              '<div class="sig-placeholder" id="pendingSigPlaceholder"><i class="ph ph-pen-nib" aria-hidden="true"></i> Assine aqui</div>' +
               '<div class="sig-row">' +
                 '<span class="sig-status" id="pendingSigStatus">Sem assinatura ainda.</span>' +
-                '<button type="button" class="link-btn sig-fullscreen-btn"><i class="ph ph-arrows-out" aria-hidden="true"></i> Tela cheia</button>' +
-                '<button type="button" class="link-btn" id="pendingClearSig">Limpar</button>' +
+                '<button type="button" class="btn-chip sig-fullscreen-btn"><i class="ph ph-arrows-out" aria-hidden="true"></i> Tela cheia</button>' +
+                '<button type="button" class="btn-chip" id="pendingClearSig"><i class="ph ph-eraser" aria-hidden="true"></i> Limpar</button>' +
               '</div>' +
             '</div>' +
             '<button type="button" class="link-btn" id="assinarNoCelularBtn" style="margin:8px 0 0;"><i class="ph ph-device-mobile" aria-hidden="true"></i> Assinar no celular do cliente</button>' +
@@ -13426,7 +13430,8 @@
     honorarios: function () { renderHonorariosTab_(); },
     painel: function () { renderPainel(); },
     rota: function () { renderRota(); },
-    nova: function () { updateDashStrip(); }
+    // os números que Nova entrega mostrava viraram os selos das abas
+    nova: function () {}
   };
   var BADGE_DA_ABA_ = {
     rota: function () { atualizarBadge_($('rotaBadge'), pendentesCache.length); }
@@ -13922,6 +13927,7 @@
     if ($('tab-nova')) $('tab-nova').hidden = false;
     marcarIconeAba_();
     if ($('pageTitle')) $('pageTitle').textContent = 'Nova entrega';
+    mostrarAcaoDaTela_('nova');
   }
 
   // ---------- módulo Clientes ----------

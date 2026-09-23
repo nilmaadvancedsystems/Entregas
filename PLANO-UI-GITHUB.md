@@ -245,3 +245,17 @@ node scripts/teste-pendencias.js && node scripts/teste-robo.js   # (teste-robo p
 ### Etapa 1 — ajuste pedido (2026-09-23)
 - Duas barras laterais no PC: a das abas do módulo, fixa, e o ☰, que abre e fecha por cima. No celular nada muda.
 - As ferramentas do Contábil (iframe) ocupam a tela à direita da barra lateral.
+
+### Etapa 2 — feita (aguardando a Nilma revisar no ar)
+- Textos explicativos das cinco abas fora (Nova entrega, Rota, Painel, Solicitações, Honorários). Os que o app escreve na hora
+  viraram contagem curta no cabeçalho da lista: "~1h20 · até 15:40" na rota, "2 de 5 separados", "3 de 7" no fechamento do mês,
+  "4 de 12 pendentes" nos honorários. Saiu a faixa de números do alto de Nova entrega (os selos das abas já contam).
+- Botão principal no cabeçalho da tela, à direita do título ("Confirmar entrega", "Enviar solicitação"). No celular fica preso
+  no rodapé. `.btn` deixou de ter largura total fora de janelas e do login.
+- Listas no formato de caixa do GitHub (`.card.caixa`): borda, cabeçalho com fundo e botões à direita, linhas com hover.
+- Ações com borda na mesma linha: "Assinar" na rota e em Vencendo, "Assinar as N" na primeira entrega da parada (antes ficava
+  pendurado embaixo), "Buscado" e "Concluir" sem ocupar a largura toda, "Histórico" no Painel, "Registrar" e "Editar" nos
+  Honorários com um menu ⋯ para "Já entreguei" e "Não se aplica". O menu ⋯ da rota virou uma fileira de botões.
+- Numeração `#n` na rota, nas solicitações e nos atestados.
+- Verificado: scripts compilam, testes de recorte passam, e o teste no Chromium (Firebase falso + modo demonstração) abriu as
+  abas no PC e no celular, claro e escuro, sem erro de JS. Honorários não aparece no teste porque o usuário falso não tem cargo.

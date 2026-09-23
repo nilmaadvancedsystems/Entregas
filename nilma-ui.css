@@ -508,13 +508,13 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  botão
- (entregas.html, linhas 1014-1066)
+ (entregas.html, linhas 1014-1111)
  --------------------------------------------------------------- */
    Botões — uma forma só, três pesos
    ========================================================================== */
 .btn {
   border: 1px solid transparent; border-radius: var(--r-sm); padding: 12px 16px;
-  font-weight: 600; font-size: var(--t-md); cursor: pointer; width: 100%;
+  font-weight: 600; font-size: var(--t-md); cursor: pointer; width: auto;
   min-height: 46px; display: inline-flex; align-items: center; justify-content: center;
   transition: transform var(--dur-rapido) var(--ease), background-color var(--dur) var(--ease),
               border-color var(--dur) var(--ease), opacity var(--dur-rapido) var(--ease);
@@ -542,21 +542,66 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 @keyframes confirmando-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .72; } }
 /* Ação que vale pra linha inteira: no celular ocupa a largura toda porque é
    o único alvo; no PC volta a ter tamanho de botão (ver media query). */
-.btn-chip.largura-total { width: 100%; margin-top: var(--esp-2); }
+/* Botão de largura toda só onde é o único alvo: janelas, login e quem
+   pedir .largura-total. Na tela o botão tem o tamanho do rótulo. */
+.modal .btn, .auth-form .btn, .btn.largura-total { width: 100%; }
 
-/* "Assinar as N juntas": fica pendurado abaixo das linhas da parada,
-   recuado até a coluna de texto delas (fora do espaço da alça de
-   arrastar). O recuo vinha escrito no JS em pixel fixo — aqui ele
-   acompanha o modo compacto, e o rótulo (que agora traz nome e valor de
-   cada empresa) pode quebrar em vez de esticar a linha no celular. */
-.rota-lote-btn {
-  margin: 2px 0 4px 26px;
-  max-width: calc(100% - 26px);
-  justify-content: flex-start; text-align: left;
-  height: auto; padding-top: 6px; padding-bottom: 6px;
-  white-space: normal; line-height: 1.3;
+/* ---------- listas no estilo do GitHub (Etapa 2) ----------
+   .card.caixa = o "Box" do GitHub: borda, cabeçalho com fundo e linhas
+   com hover — o mesmo desenho da Ordem fixa da rota (.rotafixa-*), que a
+   Nilma aprovou. Formulários continuam seção plana. */
+.card.caixa, .view > .card.caixa:first-child, .col-lado > .card.caixa:first-child {
+  padding: 0; margin-bottom: var(--esp-4);
+  border: 1px solid var(--border); border-radius: var(--r-md); overflow: visible; background: var(--surface);
 }
-html[data-densidade="compacto"] .rota-lote-btn { margin-left: 22px; max-width: calc(100% - 22px); }
+.card.caixa > .card-head-row {
+  margin: 0; padding: var(--esp-2) var(--esp-3); min-height: var(--alvo);
+  background: var(--surface-2); border-bottom: 1px solid var(--border); border-radius: var(--r-md) var(--r-md) 0 0;
+}
+.card.caixa > .card-head-row > h2 { font-size: var(--t-base); margin: 0 auto 0 0; }
+.card.caixa > .card-ferramentas, .card.caixa > .filters, .card.caixa > .linha-busca-cnpj,
+.card.caixa > .painel-resumo, .card.caixa > .dash-strip, .card.caixa > .fecha-barra {
+  margin: 0; padding: var(--esp-2) var(--esp-3); border-bottom: 1px solid var(--border);
+}
+.card.caixa > .fecha-barra { padding: 0; }
+.card.caixa .entrega-row, .card.caixa .history-row, .card.caixa .fecha-linha, .card.caixa .montagem-linha {
+  padding-left: var(--esp-3); padding-right: var(--esp-3);
+}
+.card.caixa .entrega-row:hover { background: var(--surface-2); }
+.card.caixa > div:last-child > .entrega-row:last-child { border-radius: 0 0 var(--r-md) var(--r-md); }
+.card.caixa .empty-state { padding: var(--esp-4) var(--esp-3); }
+.card.caixa > #recadosList, .card.caixa > #fechamentoDetalhe { margin-top: 0 !important; }
+.card.caixa > #fechamentoDetalhe, .card.caixa > #montagemList, .card.caixa > #fechamentoMesList { padding: 0 var(--esp-3); }
+.card.caixa > #graficoDiario, .card.caixa > #rankingEquipe, .card.caixa > #metaResumo,
+.card.caixa > .map-wrap, .card.caixa > .numeros-do-mes { padding: var(--esp-2) var(--esp-3); }
+.card.caixa .contagem, .card-head-row h2 .contagem { font-weight: 400; color: var(--ink-faint); font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: var(--t-sm); margin-left: 4px; }
+.card-ferramentas { display: flex; flex-wrap: wrap; gap: 6px; }
+/* "#1": posição na fila, mono e discreta, como a numeração da Ordem fixa */
+.linha-pos { flex: none; min-width: 26px; text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: var(--t-sm); color: var(--ink-faint); }
+.linha-pos::before { content: '#'; }
+.linha-acoes { display: flex; align-items: center; gap: 6px; flex: none; flex-wrap: wrap; justify-content: flex-end; }
+.entrega-row > .btn-chip, .entrega-row > .linha-acoes, .entrega-row > .status-pill { flex: none; }
+.lista-mais { display: flex; margin: var(--esp-2) var(--esp-3) var(--esp-2) auto; }
+/* informação curta de campo (não é dica: é dado que o app escreve) */
+.field-info { font-size: var(--t-sm); color: var(--ink-soft); margin: 4px 0 0; }
+.field-info:empty { display: none; }
+/* menu ⋯ de uma linha (Honorários): <details> ancorado, mesmo vocabulário do .menu-acoes */
+.menu-linha { position: relative; }
+.menu-linha > summary { list-style: none; cursor: pointer; }
+.menu-linha > summary::-webkit-details-marker { display: none; }
+.btn-chip.so-icone { width: var(--alvo); padding: 0; justify-content: center; }
+/* ação principal da tela, à direita do título */
+.tela-acoes { display: flex; align-items: center; gap: var(--esp-2); }
+.tela-acoes:not(:has(> :not([hidden]))) { display: none; }
+@media (max-width: 899px) {
+  .tela-acoes {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: var(--z-fixo);
+    padding: var(--esp-2) var(--esp-4) calc(var(--esp-2) + env(safe-area-inset-bottom, 0px));
+    background: var(--bg); border-top: 1px solid var(--border);
+  }
+  .tela-acoes .btn { flex: 1; }
+  body.tem-acao-fixa main { padding-bottom: calc(46px + var(--esp-6) + env(safe-area-inset-bottom, 0px)); }
+}
 
 .link-btn {
   border: none; background: none; color: var(--accent-forte); font-weight: 600;
@@ -566,7 +611,7 @@ html[data-densidade="compacto"] .rota-lote-btn { margin-left: 22px; max-width: c
 
 /* ---------------------------------------------------------------
  aviso flutuante
- (entregas.html, linhas 1301-1309)
+ (entregas.html, linhas 1345-1353)
  --------------------------------------------------------------- */
 .toast {
   position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 10px); z-index: var(--z-aviso);
@@ -580,7 +625,7 @@ html[data-densidade="compacto"] .rota-lote-btn { margin-left: 22px; max-width: c
 
 /* ---------------------------------------------------------------
  janela (modal)
- (entregas.html, linhas 1314-1359)
+ (entregas.html, linhas 1358-1403)
  --------------------------------------------------------------- */
 .modal-overlay {
   position: fixed; inset: 0; background: var(--scrim); z-index: var(--z-veu);
@@ -631,7 +676,7 @@ html[data-densidade="compacto"] .rota-lote-btn { margin-left: 22px; max-width: c
 
 /* ---------------------------------------------------------------
  selo de situação
- (entregas.html, linhas 1163-1173)
+ (entregas.html, linhas 1208-1218)
  --------------------------------------------------------------- */
 /* ---------- selo de situação ---------- */
 .status-pill {
@@ -647,7 +692,7 @@ html[data-densidade="compacto"] .rota-lote-btn { margin-left: 22px; max-width: c
 
 /* ---------------------------------------------------------------
  tela vazia e janela
- (entregas.html, linhas 1174-1217)
+ (entregas.html, linhas 1219-1261)
  --------------------------------------------------------------- */
 .empty-state { color: var(--ink-faint); font-size: var(--t-base); text-align: center; padding: var(--esp-5) var(--esp-3); line-height: 1.5; }
 
@@ -666,7 +711,7 @@ html[data-densidade="compacto"] .rota-lote-btn { margin-left: 22px; max-width: c
 .honorario-col-rotulo { display: inline; font-size: var(--t-xs); color: var(--ink-faint); margin-right: 4px; }
 .honorario-col-nome { font-weight: 500; }
 .honorario-col-status { display: flex; }
-.honorario-acoes { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+.honorario-acoes { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 4px; }
 @media (min-width: 900px) {
   /* "auto" na última coluna deixava ela crescer pra caber os 4 botões
      numa linha só, espremendo Nome e Ponto de referência (é isso que
@@ -674,12 +719,12 @@ html[data-densidade="compacto"] .rota-lote-btn { margin-left: 22px; max-width: c
      + flex-wrap: os botões quebram em até 2 linhas dentro da própria
      coluna, sem roubar espaço das outras. */
   .honorarios-cabecalho {
-    display: grid; grid-template-columns: minmax(0,1.6fr) 120px 70px minmax(0,1.3fr) 108px 190px;
+    display: grid; grid-template-columns: minmax(0,1.6fr) 120px 70px minmax(0,1.3fr) 108px minmax(220px, auto);
     gap: 0 var(--esp-2); padding: 8px var(--esp-3); background: var(--surface-2);
     font-size: var(--t-xs); font-weight: 600; color: var(--ink-soft);
   }
   .honorario-linha {
-    grid-template-columns: minmax(0,1.6fr) 120px 70px minmax(0,1.3fr) 108px 190px;
+    grid-template-columns: minmax(0,1.6fr) 120px 70px minmax(0,1.3fr) 108px minmax(220px, auto);
     gap: 0 var(--esp-2); align-items: center; min-height: var(--linha); padding: 6px var(--esp-3);
   }
   .honorario-col-rotulo { display: none; }
@@ -690,7 +735,6 @@ html[data-densidade="compacto"] .rota-lote-btn { margin-left: 22px; max-width: c
   .honorario-linha > div { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
   .honorario-col-sub { color: var(--ink-faint); font-size: var(--t-sm); }
   .honorario-linha > .honorario-acoes { margin-top: 0; justify-content: flex-end; overflow: visible; white-space: normal; }
-  .honorario-acoes .btn-chip, .honorario-acoes .link-btn { font-size: var(--t-xs); padding: 4px 8px; }
 }
 
 
