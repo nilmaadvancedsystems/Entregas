@@ -45,7 +45,7 @@ a { color: var(--accent-forte); }
   table.t td[data-rot]::before { content: attr(data-rot); flex: none; min-width: 96px; font-size: var(--t-xs); color: var(--ink-faint); }
   table.t td select, table.t td .tbl-input { width: 100%; min-width: 0; min-height: 44px; }
   table.t td > .truncate { flex: 1; min-width: 0; max-width: none; }
-  .icon-btn, .chev { min-width: 44px; min-height: 44px; }
+  .chev { min-width: 44px; min-height: 44px; }
   .bulkbar select { min-width: 0; width: 100%; min-height: 44px; }
   /* "table.t td" acima pesa mais que ".row-detail td": sem o table.t aqui o
      detalhe aberto virava flex e espremia Histórico/Produto ao lado da grade. */
@@ -132,27 +132,169 @@ tr.row-detail-hidden { display: none; }
 .small { font-size: var(--t-sm); color: var(--ink-faint); }
 /* mono só pro que se lê dígito a dígito: CPF/CNPJ e códigos. Data e valor usam .num */
 .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
-.hint { color: var(--ink-soft); font-size: var(--t-base); max-width: 74ch; margin: 0 0 var(--esp-3); }
-.desc { color: var(--ink-soft); max-width: 76ch; margin: 0; }
-.card { border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface); padding: var(--esp-4); margin-bottom: var(--esp-4); }
-.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--esp-4); }
-.twocol { display: grid; grid-template-columns: 1fr 1fr; gap: var(--esp-5); }
-@media (max-width: 900px) { .twocol, .grid2 { grid-template-columns: 1fr; } }
+.twocol { display: grid; grid-template-columns: 1fr 1fr; gap: 0 var(--esp-5); }
+@media (max-width: 900px) { .twocol { grid-template-columns: 1fr; } }
 /* rótulo de campo: 14/600 na cor do texto, igual ao do Entregas */
 .field label { display: block; font-size: var(--t-base); font-weight: 600; color: var(--ink); margin-bottom: 5px; }
 .field input, .field select { width: 100%; }
-.section-sep { height: 1px; background: var(--border); margin: var(--esp-5) 0; }
-.icon-btn, .chev {
+.chev {
   width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center;
   border-radius: var(--r-sm); background: none; border: 1px solid transparent; color: var(--ink-faint); cursor: pointer;
 }
-.icon-btn:hover { background: var(--accent-soft); color: var(--accent-forte); }
+
+/* ---------- telas de cadastro (Classificação e Configuração geral) ----------
+   Mesmo desenho das configurações do Entregas: formulário é seção plana com
+   "subhead" (título + régua), lista comprida é caixa do GitHub (.card.caixa,
+   de nilma-ui.css) com contador e o "+ Novo" no cabeçalho. */
+.subhead {
+  display: flex; align-items: center; gap: var(--esp-2); font-size: var(--t-lg); font-weight: 600; line-height: var(--lh-tight);
+  margin: var(--esp-5) 0 var(--esp-3); padding-bottom: var(--esp-2); border-bottom: 1px solid var(--border);
+}
+.nilma-topo + .subhead { margin-top: 0; }
+/* campos lado a lado no PC, um por linha no celular; sem esticar até 1180px */
+.cfg-campos { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr)); gap: var(--esp-3) var(--esp-4); max-width: 46rem; }
+/* imóvel e tipo de lançamento têm nomes compridos: na meia largura cortavam */
+.cfg-campos .largo { grid-column: 1 / -1; }
+/* Uma seta só para os selects dos ajustes (formulário e tabelas): o Chromium
+   desenha setas diferentes conforme o fundo do campo, e o mesmo componente
+   parecia dois. A seta usa a cor do texto, então vale no modo escuro. */
+.cfg-tela select, table.t-cfg select.tbl-input {
+  appearance: none; -webkit-appearance: none; padding-right: 30px;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: calc(100% - 17px) 50%, calc(100% - 12px) 50%;
+  background-size: 5px 5px, 5px 5px; background-repeat: no-repeat;
+  text-overflow: ellipsis;
+}
+/* o que se usa uma vez na vida (backup, limpar) fica dobrado no pé */
+.cfg-raro { margin-top: var(--esp-6); padding-top: var(--esp-2); border-top: 1px solid var(--border); }
+.cfg-raro > summary { min-height: var(--alvo); }
+.cfg-raro-acoes { display: flex; flex-wrap: wrap; gap: var(--esp-2); align-items: center; margin-top: var(--esp-2); }
+.cfg-raro-acoes .sep { flex: 1; }
+/* mesma altura dos botões do cabeçalho das caixas; 44px de toque no celular */
+@media (min-width: 801px) { .cfg-raro-acoes .btn-chip { min-height: 32px; } }
+/* Configuração geral: coluna de formulário, não a largura toda do monitor */
+.cfg-tela > :not(.nilma-topo) { max-width: 46rem; }
+
+/* a tabela mora dentro da caixa: a borda é a da caixa */
+.card.caixa > .tablewrap { border: 0; border-radius: 0 0 var(--r-md) var(--r-md); }
+.card.caixa > .card-head-row .input { width: auto; flex: 0 1 16rem; min-height: 32px; padding: 4px 8px; font-size: var(--t-base); }
+.card.caixa > .card-head-row .btn-chip { min-height: 32px; }
+/* variáveis do histórico sempre à vista, como as do modelo de e-mail das Pendências */
+.caixa-vars {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: var(--esp-2) var(--esp-3);
+  border-bottom: 1px solid var(--border); font-size: var(--t-sm); color: var(--ink-faint);
+}
+.caixa-vars code {
+  font-family: var(--font-mono); font-size: var(--t-sm); color: var(--ink); background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: var(--r-xs); padding: 0 6px;
+}
+.tabelas-apoio { align-items: start; }
+
+/* Linha de ~40px: td 3px + campo 32px. O campo parece texto até passar o
+   mouse na linha ou focar — 125 linhas com borda viram uma grade de caixas.
+   O th começa onde começa o texto do campo (8px + borda + 6px). */
+table.t-cfg th { padding: 6px 8px 6px 15px; background: var(--surface); }
+table.t-cfg td { padding: 3px 8px; }
+table.t-cfg .tbl-input { min-height: 32px; padding: 4px 6px; font-size: var(--t-base); }
+table.t-cfg select.tbl-input { width: 100%; background-color: transparent; }
+/* texto longo quebra a linha e cresce com o texto; com uma linha só fica da
+   altura dos outros campos (32px) e a linha continua com ~40px */
+table.t-cfg textarea.tbl-longo {
+  display: block; resize: none; overflow: hidden; field-sizing: content;
+  min-height: 32px; line-height: 22px; padding: 4px 6px; font-family: inherit;
+}
+table.t-cfg tbody tr:hover .tbl-input { border-color: var(--border); }
+/* o filtro esconde a linha com [hidden]; a grade do celular venceria o display do navegador */
+table.t-cfg tr[hidden] { display: none !important; }
+table.t-cfg .c-cod { width: 6rem; }
+table.t-cfg .c-conta { width: 5.5rem; }
+table.t-cfg .c-hist { width: 6.5rem; }
+table.t-cfg .c-nome { width: 16rem; }
+table.t-cfg .c-clas { width: 10rem; }
+table.t-cfg .c-tipo { width: 8.5rem; }
+table.t-cfg .c-ie { width: 10rem; }
+table.t-cfg .c-del { width: 3rem; text-align: center; }
+table.t-cfg .del {
+  width: 28px; height: 28px; display: inline-grid; place-items: center; border: 1px solid var(--border); border-radius: var(--r-sm);
+  background: var(--surface); color: var(--ink-soft); cursor: pointer; font-size: var(--t-sm);
+}
+table.t-cfg .del:hover { color: var(--danger-forte); border-color: var(--danger); background: var(--danger-soft); }
+table.t-cfg .vazio td { text-align: center; color: var(--ink-faint); padding: var(--esp-4); }
+table.t-cfg tbody tr.vazio:hover { background: none; }
+/* Larguras fixas por coluna e o histórico/nome com o resto: sem isso, em
+   1024px com texto maior a tabela passava da caixa e o ✕ só aparecia
+   rolando de lado. */
+@media (min-width: 801px) { table.t-cfg { table-layout: fixed; } }
+/* notebook e texto maior: o histórico quebra a linha e precisa da sobra —
+   com 11rem de nome ele ficava com ~200px e partia palavra no meio */
+@media (min-width: 801px) and (max-width: 1100px) {
+  table.t-cfg .c-nome { width: 9rem; }
+  table.t-cfg .c-conta { width: 4.5rem; }
+  table.t-cfg .c-hist { width: 5.5rem; }
+}
+/* nome da categoria é o que identifica a linha: 16rem quebrava "Adubos,
+   Defensivos e Fertilizantes"; mais que 18rem tirava espaço do histórico */
+@media (min-width: 1101px) { table.t-cfg.t-cat .c-nome { width: 18rem; } }
+
+/* Celular: cada linha vira uma grade de 2–3 faixas (em vez de uma linha por
+   célula, que dava 320px por regra). O cabeçalho some: na grade ele virava
+   uma pilha de rótulos soltos; quem nomeia o campo é o rótulo de 12px em
+   cima dele (data-rot da célula) — preenchido, "805 | 91011" não dizia qual
+   era a conta e qual o cód. hist. */
+@media (max-width: 800px) {
+  table.t.t-cfg thead { display: none; }
+  /* topo: rótulos na mesma altura mesmo com a descrição em 3 linhas; o ✕
+     desce 18px (o rótulo) pra alinhar com o 1º campo da faixa */
+  table.t.t-cfg tr { display: grid; gap: 6px 8px; padding: 6px 12px; border-bottom: 1px solid var(--border); align-items: start; }
+  table.t.t-cfg td[data-rot]::before { display: block; min-width: 0; margin-bottom: 2px; font-size: var(--t-xs); line-height: 16px; color: var(--ink-soft); }
+  table.t.t-cfg tbody tr:last-child { border-bottom: 0; }
+  table.t.t-cfg td { display: block; padding: 0; border: 0; min-width: 0; width: auto; }
+  table.t.t-cfg td.c-del { justify-self: end; padding-top: 18px; }
+  table.t.t-cfg .vazio { display: block; }
+  table.t.t-cfg .vazio td { padding: var(--esp-3) 0; }
+  table.t.t-cfg .tbl-input { min-height: 44px; width: 100%; border-color: var(--border); background-color: var(--surface-2); font-size: var(--t-md); }
+  table.t.t-cfg textarea.tbl-longo { padding: 10px 8px; }
+  table.t.t-cfg .del { width: 44px; height: 44px; }
+  .card.caixa > .card-head-row .input { order: 3; flex: 1 1 100%; min-height: 44px; font-size: var(--t-md); }
+  .card.caixa > .card-head-row .btn-chip { min-height: 44px; }
+  /* Colunas só em fração (nada de rem fixo): com 4rem/7.5rem/9rem, em 320px
+     e texto maior, o nome da conta e o select do imóvel ficavam com 0px. */
+  table.t.t-2 tr { grid-template-columns: 3.5rem minmax(0,1fr) 44px; }
+  /* IE tem 12–14 dígitos: ganha a linha de cima inteira, o imóvel vai embaixo */
+  table.t.t-ie tr { grid-template-columns: minmax(0,1fr) 44px; grid-template-areas: "a e" "b b"; }
+  table.t.t-ncm tr, table.t.t-cat tr { grid-template-columns: minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 44px; }
+  /* plano: o nome (o que identifica a conta) e o ✕ em cima, com a linha
+     toda; código curto, classificação e tipo embaixo */
+  table.t.t-plano tr { grid-template-columns: minmax(0,2fr) minmax(0,3fr) minmax(0,3fr) 44px; grid-template-areas: "b b b e" "a c d d"; }
+  /* em 320px não cabem código, "Disponível" e "Analítica" lado a lado: o
+     tipo desce pra uma linha própria e código/classificação dividem a do meio */
+  @media (max-width: 360px) { table.t.t-plano tr { grid-template-areas: "b b b e" "a a c c" "d d d d"; } }
+  /* NCM, conta e cód. hist. em cima (o cód. hist. de 5 dígitos leva a sobra);
+     histórico e ✕ embaixo */
+  table.t.t-ncm tr { grid-template-areas: "a b c c" "d d d e"; }
+  /* conta e cód. hist. dividem a linha do meio (com 1/4 cada, o cód. hist.
+     de 5 dígitos cortava em 320px com texto maior) */
+  table.t.t-cat tr { grid-template-areas: "a a a e" "b b c c" "d d d d"; }
+  :is(table.t.t-plano, table.t.t-ncm, table.t.t-cat, table.t.t-ie) :is(th, td):nth-child(1) { grid-area: a; }
+  :is(table.t.t-plano, table.t.t-ncm, table.t.t-cat, table.t.t-ie) :is(th, td):nth-child(2) { grid-area: b; }
+  :is(table.t.t-plano, table.t.t-ncm, table.t.t-cat) :is(th, td):nth-child(3) { grid-area: c; }
+  :is(table.t.t-plano, table.t.t-ncm, table.t.t-cat) :is(th, td):nth-child(4) { grid-area: d; }
+  :is(table.t.t-plano, table.t.t-ncm, table.t.t-cat) :is(th, td):nth-child(5), table.t.t-ie :is(th, td):nth-child(3) { grid-area: e; }
+  :is(table.t.t-plano, table.t.t-ncm, table.t.t-cat, table.t.t-ie) .vazio td { grid-area: auto; }
+}
 .chev:hover { background: var(--surface-2); color: var(--ink); }
 .chev.open { transform: rotate(90deg); }
 .badge-count { background: var(--accent); color: var(--accent-ink); font-size: var(--t-xs); font-weight: 600; line-height: var(--lh-pill); font-variant-numeric: tabular-nums; border-radius: var(--r-pill); padding: 0 6px; margin-left: 6px; }
 .truncate { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
 .toast { right: 20px; left: auto; bottom: 20px; transform: none; max-width: 360px; }
-.toast.show { transform: none; }
+.toast.show { transform: none; pointer-events: auto; }  /* o "Desfazer" precisa receber o clique */
+/* botão do aviso na cor do texto do aviso: vale no claro (fundo escuro) e no escuro */
+.toast-acao {
+  margin-left: 10px; min-height: 32px; padding: 4px 10px; border: 1px solid currentColor; border-radius: var(--r-sm);
+  background: transparent; color: inherit; font-weight: 600; cursor: pointer;
+}
+.toast-acao:hover { text-decoration: underline; }
+@media (max-width: 800px) { .toast-acao { min-height: 44px; } }
 
 /* porta de entrada (sem login ainda) */
 .gate { position: fixed; inset: 0; z-index: 200; display: flex; align-items: center; justify-content: center; background: var(--bg); padding: 20px; }
@@ -692,27 +834,42 @@ function findCategoriaLabel(conta, codHist){
 let toastTimer=null;
 let desfazerLote = null;
 let buscaTimer = null;
+// Quem fica sem volta quando o aviso some ou é trocado por outro (as
+// exclusões acumuladas, por exemplo). Aviso seguido com o MESMO aoExpirar
+// não encerra o anterior: ele soma, e o Desfazer vale para tudo.
+let toastAoExpirar = null;
+function encerraToastAnterior(aoExpirarNovo){
+  const f = toastAoExpirar; toastAoExpirar = null;
+  if(f && f!==aoExpirarNovo) f();
+}
 // Toast com saída: aplicar em lote reescrevia 200 linhas sem volta.
-function toastComDesfazer(msg, aoDesfazer){
+function toastComDesfazer(msg, aoDesfazer, aoExpirar){
+  encerraToastAnterior(aoExpirar);
+  toastAoExpirar = aoExpirar || null;
   let el = document.getElementById('__toast');
   if(!el){ el=document.createElement('div'); el.id='__toast'; el.className='toast'; document.body.appendChild(el); }
   el.textContent = msg + ' ';
   const b = document.createElement('button');
-  b.className = 'btn btn-ghost';
+  // .toast-acao, não .btn-ghost: o vermelho do ghost sobre o fundo quase
+  // preto do aviso dava 1,6:1 — o Desfazer sumia no modo claro.
+  b.type = 'button';
+  b.className = 'toast-acao';
   b.textContent = 'Desfazer';
-  b.style.marginLeft = '10px';
-  b.onclick = ()=>{ el.style.display='none'; aoDesfazer(); };
+  b.onclick = ()=>{ clearTimeout(toastTimer); toastAoExpirar = null; el.style.display='none'; el.classList.remove('show'); aoDesfazer(); };
   el.appendChild(b);
-  el.style.display='block';
+  // .toast da folha comum nasce com opacidade 0 e só aparece com .show — sem
+  // ela o aviso (e o Desfazer) ficava invisível.
+  el.style.display='block'; el.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(()=>{ el.style.display='none'; }, 7000);
+  toastTimer = setTimeout(()=>{ el.style.display='none'; el.classList.remove('show'); encerraToastAnterior(null); }, 7000);
 }
 function toast(msg){
+  encerraToastAnterior(null);
   let el = document.getElementById('__toast');
   if(!el){ el=document.createElement('div'); el.id='__toast'; el.className='toast'; document.body.appendChild(el); }
-  el.textContent = msg; el.style.display='block';
+  el.textContent = msg; el.style.display='block'; el.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(()=>{ el.style.display='none'; }, 3200);
+  toastTimer = setTimeout(()=>{ el.style.display='none'; el.classList.remove('show'); }, 3200);
 }
 let uid = 1;
 
@@ -958,13 +1115,16 @@ function exportPlanilha(){
 
 /* ============================== NAVEGAÇÃO / RENDER ============================== */
 // Menu (abas da casca) e submenu (a barrinha de categorias no alto do
-// conteúdo), no mesmo padrão do Entregas: "Classificação" junta as três
-// telas de regras, e cada uma vira uma categoria do submenu.
+// conteúdo), no mesmo padrão do Entregas: "Classificação" junta as telas
+// de regras, e cada uma vira uma categoria do submenu. Categorias e regras
+// de NCM eram uma página só de 143 linhas; agora cada uma tem a sua. O id
+// "regras" fica (a tela aberta por último é guardada com ele).
 const NAV = [
   {id:'importar', label:'Importar e conferir', icone:'ph-tray-arrow-down'},
   {id:'classificacao', label:'Classificação', icone:'ph-tag', sub:[
+    {id:'categorias', label:'Categorias', icone:'ph-tag'},
+    {id:'regras', label:'Regras de NCM', icone:'ph-barcode'},
     {id:'plano', label:'Plano de contas', icone:'ph-list-numbers'},
-    {id:'regras', label:'NCM e categorias', icone:'ph-tag'},
     {id:'tabelas', label:'Tabelas de apoio', icone:'ph-table'}
   ]},
   {id:'config', label:'Configuração geral', icone:'ph-gear'}
@@ -995,6 +1155,7 @@ function render(){
   const el = document.getElementById('screen');
   if(state.currentScreen==='importar') el.innerHTML = screenImportar();
   else if(state.currentScreen==='plano') el.innerHTML = screenPlano();
+  else if(state.currentScreen==='categorias') el.innerHTML = screenCategorias();
   else if(state.currentScreen==='regras') el.innerHTML = screenRegras();
   else if(state.currentScreen==='tabelas') el.innerHTML = screenTabelas();
   else if(state.currentScreen==='config') el.innerHTML = screenConfig();
@@ -1221,161 +1382,216 @@ function talvezVirarRegra(row){
   const quantas = state.lancamentos.filter(r=>ncmDaLinha(r).startsWith(prefixo)).length;
   const ok = confirm('Classificar sempre o NCM ' + prefixo + '… na conta ' + row.contaDeved + '?\n\n' +
     'Vale para ' + quantas + ' lançamento(s) desta importação e para as próximas, sem passar por REVISAR.\n' +
-    'Dá para mudar depois em NCM & categorias.');
+    'Dá para mudar depois em Classificação › Regras de NCM.');
   if(!ok) return;
   state.ncmRules.push({prefixo:prefixo, conta:row.contaDeved, codHist:row.codHist||'', historico:row.historico||''});
   toast('Regra criada para o NCM ' + prefixo + '.');
 }
 
+/* ============================== TELAS DE CADASTRO ============================== */
+// Todas as listas editáveis seguem o mesmo molde: caixa com contador e o
+// "+ Novo" no cabeçalho, uma linha por item, ✕ com borda no fim. Os campos
+// mantêm data-arr/data-i/data-f/data-add/data-del — wireScreen() salva cada
+// mudança sozinho, sem botão Salvar.
+function campoTab(arr, i, f, v, rot, op){
+  op = op||{};
+  // Texto longo (nome, histórico, descrição) quebra a linha e cresce com o texto:
+  // num campo de uma linha só se viam uns 30 caracteres do modelo no celular.
+  if(op.longo) return `<textarea class="tbl-input tbl-longo" rows="1" data-arr="${arr}" data-i="${i}" data-f="${f}" aria-label="${rot}">${esc(v)}</textarea>`;
+  // sem type="text": a regra comum de input[type=text] venceria a .tbl-input
+  // e a linha voltaria a ter 42px de campo cinza.
+  return `<input class="tbl-input${op.mono?' mono':''}" data-arr="${arr}" data-i="${i}" data-f="${f}" value="${esc(v)}" aria-label="${rot}"` +
+    `${op.num?' inputmode="numeric"':''}>`;
+}
+// A célula leva o nome curto da coluna: no celular (sem cabeçalho) ele vira
+// o rótulo de 12px em cima do campo — só o placeholder sumia ao preencher.
+function celTab(arr, i, f, v, rot, op){
+  return `<td data-rot="${(op&&op.ph)||rot}">${campoTab(arr, i, f, v, rot, op)}</td>`;
+}
+function botaoRemover(arr, i){
+  return `<button type="button" class="del" data-del="${arr}" data-i="${i}" aria-label="Remover" title="Remover">✕</button>`;
+}
+function linhaVazia(cols, txt){ return `<tr class="vazio"><td colspan="${cols}">${txt}</td></tr>`; }
+function caixaCadastro(titulo, n, extraHead, addArr, addTxt, addRot, corpo){
+  return `<div class="card caixa">
+    <div class="card-head-row"><h2>${titulo} <span class="contagem">${n}</span></h2>${extraHead||''}` +
+    `<button type="button" class="btn-chip" data-add="${addArr}" aria-label="${addRot}">+ ${addTxt}</button></div>
+    ${corpo}</div>`;
+}
+function tabelaCadastro(tipo, ths, linhas){
+  return `<div class="tablewrap"><table class="t t-cfg t-${tipo}"><thead><tr>${ths}<th class="c-del"></th></tr></thead><tbody>${linhas}</tbody></table></div>`;
+}
+const VARIAVEIS_HIST = `<div class="caixa-vars">Variáveis <code>{{doc}}</code> <code>{{fornecedor}}</code> <code>{{cnpj}}</code></div>`;
+
 /* ============================== TELA: PLANO DE CONTAS ============================== */
 function screenPlano(){
+  // Tipo guarda A/S (é o que a planilha do LCDPR usa); só o rótulo é por extenso.
   const rows = state.planoContas.map((c,i)=>`<tr>
-    <td><input class="tbl-input" data-arr="planoContas" data-i="${i}" data-f="codigo" value="${esc(c.codigo)}" style="width:80px"></td>
-    <td><input class="tbl-input" data-arr="planoContas" data-i="${i}" data-f="nome" value="${esc(c.nome)}"></td>
-    <td><input class="tbl-input" data-arr="planoContas" data-i="${i}" data-f="classificacao" value="${esc(c.classificacao)}" style="width:140px"></td>
-    <td><select data-arr="planoContas" data-i="${i}" data-f="tipo">
-      <option value="A" ${c.tipo==='A'?'selected':''}>A</option>
-      <option value="S" ${c.tipo==='S'?'selected':''}>S</option>
+    ${celTab('planoContas',i,'codigo',c.codigo,'Código',{mono:1})}
+    ${celTab('planoContas',i,'nome',c.nome,'Nome da conta',{longo:1})}
+    ${celTab('planoContas',i,'classificacao',c.classificacao,'Classificação')}
+    <td data-rot="Tipo"><select class="tbl-input" data-arr="planoContas" data-i="${i}" data-f="tipo" aria-label="Tipo">
+      <option value="A" ${c.tipo==='A'?'selected':''}>Analítica</option>
+      <option value="S" ${c.tipo==='S'?'selected':''}>Sintética</option>
     </select></td>
-    <td><button class="icon-btn" data-del="planoContas" data-i="${i}" title="Remover">✕</button></td>
+    <td class="c-del">${botaoRemover('planoContas',i)}</td>
   </tr>`).join('');
   return `<section>
-    <div class="nilma-topo">
-      <div>
-        <h1>Plano de contas</h1>
-      </div>
-    </div>
-    <div class="toolbar"><span style="flex:1"></span><button class="btn btn-primary" data-add="planoContas">+ Nova conta</button></div>
-    <div class="tablewrap"><table class="t">
-      <thead><tr><th style="width:90px">Código</th><th>Nome da conta</th><th style="width:150px">Classificação</th><th style="width:70px">Tipo</th><th style="width:40px"></th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table></div>
+    <div class="nilma-topo"><div><h1>Plano de contas</h1></div></div>
+    ${caixaCadastro('Plano de contas', state.planoContas.length, '', 'planoContas', 'Nova conta', 'Nova conta',
+      tabelaCadastro('plano', '<th class="c-cod">Código</th><th>Nome da conta</th><th class="c-clas">Classificação</th><th class="c-tipo">Tipo</th>',
+        rows || linhaVazia(5, 'Nenhuma conta.')))}
   </section>`;
 }
 
-/* ============================== TELA: REGRAS ============================== */
-function ruleRows(arrName, cols){
-  return state[arrName].map((row,i)=>{
-    const tds = cols.map(c=>{
-      if(c.w) return `<td><input class="tbl-input" data-arr="${arrName}" data-i="${i}" data-f="${c.k}" value="${esc(row[c.k])}" style="width:${c.w}"></td>`;
-      return `<td><input class="tbl-input" data-arr="${arrName}" data-i="${i}" data-f="${c.k}" value="${esc(row[c.k])}"></td>`;
-    }).join('');
-    return `<tr>${tds}<td><button class="icon-btn" data-del="${arrName}" data-i="${i}" title="Remover">✕</button></td></tr>`;
-  }).join('');
-}
-function screenRegras(){
+/* ============================== TELA: CATEGORIAS ============================== */
+function screenCategorias(){
+  const rows = state.categorias.map((c,i)=>`<tr>
+    ${celTab('categorias',i,'nome',c.nome,'Nome',{longo:1})}
+    ${celTab('categorias',i,'conta',c.conta,'Conta',{mono:1})}
+    ${celTab('categorias',i,'codHist',c.codHist,'Código do histórico',{mono:1,num:1,ph:'Cód. hist.'})}
+    ${celTab('categorias',i,'historico',c.historico,'Histórico',{longo:1})}
+    <td class="c-del">${botaoRemover('categorias',i)}</td>
+  </tr>`).join('');
   return `<section>
-    <div class="nilma-topo">
-      <div>
-        <h1>NCM &amp; categorias</h1>
-      </div>
-    </div>
-
-    <h2>Categorias rápidas</h2>
-    <p class="hint">Variáveis do histórico: <span class="mono">{{doc}}</span>, <span class="mono">{{fornecedor}}</span>, <span class="mono">{{cnpj}}</span>.</p>
-    <div class="toolbar"><span style="flex:1"></span><button class="btn btn-primary" data-add="categorias">+ Nova categoria</button></div>
-    <div class="tablewrap" style="margin-bottom:36px"><table class="t">
-      <thead><tr><th style="width:220px">Nome da categoria</th><th style="width:90px">Conta</th><th style="width:90px">Cód. Hist.</th><th>Texto do histórico</th><th style="width:40px"></th></tr></thead>
-      <tbody>${ruleRows('categorias',[{k:'nome',w:'220px'},{k:'conta',w:'90px'},{k:'codHist',w:'90px'},{k:'historico'}])}</tbody>
-    </table></div>
-
-    <div class="section-sep"></div>
-
-    <h2>Regras por NCM (código fiscal do produto)</h2>
-    <div class="toolbar"><span style="flex:1"></span><button class="btn btn-primary" data-add="ncmRules">+ Nova regra de NCM</button></div>
-    <div class="tablewrap"><table class="t">
-      <thead><tr><th style="width:150px">Prefixo do NCM</th><th style="width:90px">Conta</th><th style="width:90px">Cód. Hist.</th><th>Texto do histórico</th><th style="width:40px"></th></tr></thead>
-      <tbody>${ruleRows('ncmRules',[{k:'prefixo',w:'150px'},{k:'conta',w:'90px'},{k:'codHist',w:'90px'},{k:'historico'}])}</tbody>
-    </table></div>
+    <div class="nilma-topo"><div><h1>Categorias</h1></div></div>
+    ${caixaCadastro('Categorias', state.categorias.length, '', 'categorias', 'Nova categoria', 'Nova categoria', VARIAVEIS_HIST +
+      tabelaCadastro('cat', '<th class="c-nome">Nome</th><th class="c-conta">Conta</th><th class="c-hist">Cód. hist.</th><th>Histórico</th>',
+        rows || linhaVazia(5, 'Nenhuma categoria.')))}
   </section>`;
+}
+
+/* ============================== TELA: REGRAS DE NCM ============================== */
+// A ORDEM das regras importa: vale o primeiro prefixo que casa (classifyNF e
+// regraQuePega). Por isso o filtro só esconde linhas — não reordena nem
+// remonta a tela — e data-i continua sendo o índice real da lista.
+let filtroNcm = '';   // sobrevive ao render(), mas não vai pro backup nem pra nuvem
+function screenRegras(){
+  const rows = state.ncmRules.map((r,i)=>`<tr>
+    ${celTab('ncmRules',i,'prefixo',r.prefixo,'NCM',{mono:1,num:1})}
+    ${celTab('ncmRules',i,'conta',r.conta,'Conta',{mono:1})}
+    ${celTab('ncmRules',i,'codHist',r.codHist,'Código do histórico',{mono:1,num:1,ph:'Cód. hist.'})}
+    ${celTab('ncmRules',i,'historico',r.historico,'Histórico',{longo:1})}
+    <td class="c-del">${botaoRemover('ncmRules',i)}</td>
+  </tr>`).join('');
+  const filtro = `<input type="search" class="input" id="filtroNcm" placeholder="Filtrar NCM ou conta" aria-label="Filtrar regras" value="${esc(filtroNcm)}">`;
+  return `<section>
+    <div class="nilma-topo"><div><h1>Regras de NCM</h1></div></div>
+    ${caixaCadastro('Regras por NCM', state.ncmRules.length, filtro, 'ncmRules', 'Nova regra', 'Nova regra de NCM', VARIAVEIS_HIST +
+      tabelaCadastro('ncm', '<th class="c-cod">NCM</th><th class="c-conta">Conta</th><th class="c-hist">Cód. hist.</th><th>Histórico</th>',
+        rows ? rows + `<tr class="vazio" id="ncmNenhuma" hidden><td colspan="5">Nenhuma regra.</td></tr>` : linhaVazia(5, 'Nenhuma regra.')))}
+  </section>`;
+}
+function aplicaFiltroNcm(){
+  const campo = document.getElementById('filtroNcm');
+  if(!campo) return;
+  const q = campo.value.trim().toUpperCase();
+  const soDigitos = /^\d+$/.test(q);
+  const caixa = campo.closest('.caixa');
+  const linhas = [...caixa.querySelectorAll('tbody tr:not(.vazio)')];
+  let visiveis = 0;
+  linhas.forEach(tr=>{
+    const valores = [...tr.querySelectorAll('input, textarea')].map(i=>i.value.toUpperCase());
+    // NCM completo (8 dígitos) também acha a regra de prefixo que o pega
+    const pref = valores[0].trim();
+    const ok = !q || valores.some(v=>v.includes(q)) || (soDigitos && pref && q.startsWith(pref));
+    tr.hidden = !ok;
+    if(ok) visiveis++;
+  });
+  caixa.querySelector('.contagem').textContent = q ? visiveis + ' de ' + linhas.length : linhas.length;
+  const nenhuma = document.getElementById('ncmNenhuma');
+  if(nenhuma) nenhuma.hidden = !(q && !visiveis);
 }
 
 /* ============================== TELA: TABELAS DE APOIO ============================== */
+function tabelaCodigoDescricao(arr, titulo, addTxt, addRot){
+  const rows = state[arr].map((r,i)=>`<tr>
+    ${celTab(arr,i,'codigo',r.codigo,'Código',{mono:1})}
+    ${celTab(arr,i,'descricao',r.descricao,'Descrição',{longo:1})}
+    <td class="c-del">${botaoRemover(arr,i)}</td>
+  </tr>`).join('');
+  return caixaCadastro(titulo, state[arr].length, '', arr, addTxt, addRot,
+    tabelaCadastro('2', '<th class="c-cod">Código</th><th>Descrição</th>', rows || linhaVazia(3, 'Nada cadastrado.')));
+}
+// Imóvel do vínculo por lista (antes era código digitado). Código gravado
+// que não existe mais na lista continua como opção marcada: a tela não
+// pode fingir outro imóvel.
+function opcoesImovelIE(atual){
+  const conhecido = state.imoveis.some(m=>m.codigo===atual);
+  return (conhecido ? '' : `<option value="${esc(atual)}" selected>${esc(atual||'—')}</option>`) +
+    state.imoveis.map(m=>`<option value="${esc(m.codigo)}" ${m.codigo===atual?'selected':''}>${esc(m.codigo)} — ${esc(m.descricao)}</option>`).join('');
+}
+// Imóveis e vínculos moram na mesma tela: editar um imóvel salva sem
+// remontar (remontar tiraria o foco do campo seguinte), então as listas do
+// vínculo são refeitas no lugar — senão ofereciam o código antigo.
+function atualizaSelectsImovelIE(){
+  document.querySelectorAll('select[data-arr="ieDest"][data-f="imovel"]').forEach(sel=>{
+    const r = state.ieDest[Number(sel.dataset.i)];
+    if(r) sel.innerHTML = opcoesImovelIE(r.imovel);
+  });
+}
 function screenTabelas(){
+  const ie = state.ieDest.map((r,i)=>{
+    const opts = opcoesImovelIE(r.imovel);
+    return `<tr>
+      ${celTab('ieDest',i,'ie',r.ie,'IE do destinatário',{mono:1,ph:'IE'})}
+      <td data-rot="Imóvel"><select class="tbl-input" data-arr="ieDest" data-i="${i}" data-f="imovel" aria-label="Imóvel">${opts}</select></td>
+      <td class="c-del">${botaoRemover('ieDest',i)}</td>
+    </tr>`;
+  }).join('');
   return `<section>
-    <div class="nilma-topo">
+    <div class="nilma-topo"><div><h1>Tabelas de apoio</h1></div></div>
+    <div class="twocol tabelas-apoio">
       <div>
-        <h1>Tabelas de apoio</h1>
-      </div>
-    </div>
-    <div class="twocol">
-      <div>
-        <details class="dobra">
-          <summary>Imóveis rurais</summary>
-          <div class="tablewrap" style="margin-bottom:12px"><table class="t">
-            <thead><tr><th style="width:70px">Código</th><th>Descrição</th><th style="width:40px"></th></tr></thead>
-            <tbody>${ruleRows('imoveis',[{k:'codigo',w:'70px'},{k:'descricao'}])}</tbody>
-          </table></div>
-          <button class="btn btn-secondary" data-add="imoveis">+ Imóvel</button>
-        </details>
-
-        <details class="dobra">
-          <summary>IE do destinatário → imóvel</summary>
-          <div class="tablewrap" style="margin-bottom:12px"><table class="t">
-            <thead><tr><th style="width:150px">IE Destinatário</th><th>Imóvel (código)</th><th style="width:40px"></th></tr></thead>
-            <tbody>${ruleRows('ieDest',[{k:'ie',w:'150px'},{k:'imovel'}])}</tbody>
-          </table></div>
-          <button class="btn btn-secondary" data-add="ieDest">+ Mapeamento</button>
-        </details>
+        ${tabelaCodigoDescricao('imoveis', 'Imóveis rurais', 'Novo imóvel', 'Novo imóvel rural')}
+        ${caixaCadastro('IE → imóvel', state.ieDest.length, '', 'ieDest', 'Novo vínculo', 'Novo vínculo de IE a imóvel',
+          tabelaCadastro('ie', '<th class="c-ie">IE</th><th>Imóvel</th>', ie || linhaVazia(3, 'Nada cadastrado.')))}
       </div>
       <div>
-        <details class="dobra">
-          <summary>Tipo de documento</summary>
-          <div class="tablewrap" style="margin-bottom:12px"><table class="t">
-            <thead><tr><th style="width:70px">Código</th><th>Descrição</th><th style="width:40px"></th></tr></thead>
-            <tbody>${ruleRows('tipoDoc',[{k:'codigo',w:'70px'},{k:'descricao'}])}</tbody>
-          </table></div>
-          <button class="btn btn-secondary" data-add="tipoDoc">+ Tipo de documento</button>
-        </details>
-
-        <details class="dobra">
-          <summary>Tipo de lançamento</summary>
-          <div class="tablewrap" style="margin-bottom:12px"><table class="t">
-            <thead><tr><th style="width:70px">Código</th><th>Descrição</th><th style="width:40px"></th></tr></thead>
-            <tbody>${ruleRows('tipoLanc',[{k:'codigo',w:'70px'},{k:'descricao'}])}</tbody>
-          </table></div>
-          <button class="btn btn-secondary" data-add="tipoLanc">+ Tipo de lançamento</button>
-        </details>
+        ${tabelaCodigoDescricao('tipoDoc', 'Tipos de documento', 'Novo tipo', 'Novo tipo de documento')}
+        ${tabelaCodigoDescricao('tipoLanc', 'Tipos de lançamento', 'Novo tipo', 'Novo tipo de lançamento')}
       </div>
     </div>
   </section>`;
 }
 
 /* ============================== TELA: CONFIG ============================== */
+// Importar backup chama render(): sem lembrar, a dobra fechava e o botão
+// que acabou de ser usado sumia. Não vai pra nuvem.
+let backupAberto = false;
 function screenConfig(){
   const c = state.config;
-  const imovelOptions = state.imoveis.map(i=>`<option value="${esc(i.codigo)}" ${i.codigo===c.imovelPadrao?'selected':''}>${esc(i.codigo)} — ${esc(i.descricao)}</option>`).join('');
-  const tipoDocOptions = state.tipoDoc.map(t=>`<option value="${esc(t.codigo)}" ${t.codigo===c.tipoDocPadrao?'selected':''}>${esc(t.codigo)} — ${esc(t.descricao)}</option>`).join('');
-  const tipoLancOptions = state.tipoLanc.map(t=>`<option value="${esc(t.codigo)}" ${t.codigo===c.tipoLancPadrao?'selected':''}>${esc(t.codigo)} — ${esc(t.descricao)}</option>`).join('');
+  const opcoes = (lista, atual) => lista.map(t=>`<option value="${esc(t.codigo)}" ${t.codigo===atual?'selected':''}>${esc(t.codigo)} — ${esc(t.descricao)}</option>`).join('');
   const catOptions = state.categorias.map(cat=>`<option value="${esc(cat.nome)}" ${cat.nome===c.categoriaFretesCTe?'selected':''}>${esc(cat.nome)}</option>`).join('');
-  return `<section>
-    <div class="nilma-topo">
-      <div>
-        <h1>Configuração geral</h1>
-      </div>
-    </div>
-    <div class="card">
-      <div class="grid2">
-        <div class="field"><label>CPF/CNPJ do produtor (só números)</label><input id="cfgCpf" class="mono" inputmode="numeric" value="${esc(c.cpfProdutor)}"></div>
-        <div class="field"><label>Conta credora padrão</label><input id="cfgContaCred" value="${esc(c.contaCredoraPadrao)}"></div>
-      </div>
-      <div class="grid2" style="margin-top:18px">
-        <div class="field"><label>Imóvel padrão</label><select id="cfgImovel">${imovelOptions}</select></div>
-        <div class="field"><label>Tipo de documento padrão</label><select id="cfgTipoDoc">${tipoDocOptions}</select></div>
-      </div>
-      <div class="grid2" style="margin-top:18px">
-        <div class="field"><label>Tipo de lançamento padrão</label><select id="cfgTipoLanc">${tipoLancOptions}</select></div>
-        <div class="field"><label>Categoria padrão p/ CT-e (frete)</label><select id="cfgCatFretes">${catOptions}</select></div>
-      </div>
+  // Os ids do backup/limpeza precisam estar sempre na tela: wireScreen() liga
+  // os quatro sem checar. Dentro do <details> fechado eles continuam no DOM.
+  return `<section class="cfg-tela">
+    <div class="nilma-topo"><div><h1>Configuração geral</h1></div></div>
+
+    <h2 class="subhead">Produtor</h2>
+    <div class="cfg-campos">
+      <div class="field"><label for="cfgCpf">CPF/CNPJ</label><input type="text" id="cfgCpf" class="mono" inputmode="numeric" value="${esc(c.cpfProdutor)}"></div>
     </div>
 
-    <h2>Backup</h2>
-    <div style="display:flex;flex-wrap:wrap;gap:10px">
-      <button class="btn btn-secondary" id="btnBackupExport">Exportar backup (.json)</button>
-      <button class="btn btn-secondary" id="btnBackupImport">Importar backup (.json)</button>
-      <input type="file" id="backupFile" accept=".json" style="display:none">
-      <button class="btn btn-ghost" id="btnResetData" style="margin-left:auto;color:var(--danger)">Limpar todos os lançamentos</button>
+    <h2 class="subhead">Padrões do lançamento</h2>
+    <div class="cfg-campos">
+      <div class="field"><label for="cfgContaCred">Conta credora</label><input type="text" id="cfgContaCred" class="mono" value="${esc(c.contaCredoraPadrao)}"></div>
+      <div class="field"><label for="cfgTipoDoc">Tipo de documento</label><select id="cfgTipoDoc">${opcoes(state.tipoDoc, c.tipoDocPadrao)}</select></div>
+      <div class="field largo"><label for="cfgImovel">Imóvel</label><select id="cfgImovel">${opcoes(state.imoveis, c.imovelPadrao)}</select></div>
+      <div class="field largo"><label for="cfgTipoLanc">Tipo de lançamento</label><select id="cfgTipoLanc">${opcoes(state.tipoLanc, c.tipoLancPadrao)}</select></div>
+      <div class="field"><label for="cfgCatFretes">Categoria do CT-e (frete)</label><select id="cfgCatFretes">${catOptions}</select></div>
     </div>
+
+    <details class="dobra cfg-raro" id="cfgRaro"${backupAberto?' open':''}>
+      <summary>Backup e limpeza</summary>
+      <div class="cfg-raro-acoes">
+        <button type="button" class="btn-chip" id="btnBackupExport">Exportar backup</button>
+        <button type="button" class="btn-chip" id="btnBackupImport">Importar backup</button>
+        <input type="file" id="backupFile" accept=".json" hidden>
+        <span class="sep"></span>
+        <button type="button" class="btn-chip danger" id="btnResetData">Limpar lançamentos importados</button>
+      </div>
+    </details>
   </section>`;
 }
 
@@ -1469,20 +1685,47 @@ function wireScreen(){
     const evt = inp.tagName==='SELECT' ? 'change' : 'change';
     inp.addEventListener(evt, ()=>{
       const arr = state[inp.dataset.arr]; const i = Number(inp.dataset.i); const f = inp.dataset.f;
+      // o histórico vai numa linha só do arquivo do LCDPR: quebra colada vira espaço
+      if(inp.tagName==='TEXTAREA' && /\n/.test(inp.value)){ inp.value = inp.value.replace(/\s*\n\s*/g, ' '); ajustaAltura(inp); }
       if(arr && arr[i]){ arr[i][f] = inp.value; save(); }
+      if(inp.dataset.arr==='imoveis') atualizaSelectsImovelIE();
     });
   });
+  // Campo de texto longo: Enter não quebra linha (o texto é de uma linha só)
+  // e, sem field-sizing (Firefox), a altura acompanha o texto por script.
+  document.querySelectorAll('textarea.tbl-longo').forEach(ta=>{
+    ta.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); ta.blur(); } });
+    if(!CAMPO_CRESCE_SOZINHO){ ajustaAltura(ta); ta.addEventListener('input', ()=>ajustaAltura(ta)); }
+  });
+  // A linha nova ia pro fim de 125 regras, fora da tela e sem foco: agora
+  // limpa o filtro (senão ela nasce escondida), rola até ela e foca o 1º campo.
   document.querySelectorAll('[data-add]').forEach(btn=>btn.addEventListener('click', ()=>{
     const arrName = btn.dataset.add;
     const blank = blankRowFor(arrName);
     state[arrName].push(blank);
+    if(arrName==='ncmRules') filtroNcm = '';
     save(); render();
+    const nova = document.querySelector(`[data-arr="${arrName}"][data-i="${state[arrName].length-1}"]`);
+    if(nova){ nova.scrollIntoView({block:'center'}); nova.focus({preventScroll:true}); }
   }));
+  // Remover era sem volta; o item volta pro mesmo lugar (a ordem das regras
+  // de NCM decide qual vale). Exclusões seguidas somam no mesmo aviso e o
+  // Desfazer devolve todas — antes o 2º aviso apagava a volta do 1º.
   document.querySelectorAll('[data-del]').forEach(btn=>btn.addEventListener('click', ()=>{
     const arrName = btn.dataset.del; const i = Number(btn.dataset.i);
-    state[arrName].splice(i,1);
+    const [item] = state[arrName].splice(i,1);
+    // o vizinho de baixo ancora a volta: se a nuvem trocar a lista enquanto
+    // o aviso está aberto, o índice guardado já não aponta pro mesmo lugar
+    removidosPendentes.push({arrName, i, item, depois: state[arrName][i]});
     save(); render();
+    const n = removidosPendentes.length;
+    toastComDesfazer(n===1 ? 'Removido.' : n + ' itens removidos.', desfazRemocoes, esqueceRemocoes);
   }));
+  const campoFiltroNcm = document.getElementById('filtroNcm');
+  if(campoFiltroNcm){
+    campoFiltroNcm.addEventListener('input', ()=>{ filtroNcm = campoFiltroNcm.value; aplicaFiltroNcm(); });
+    aplicaFiltroNcm();
+  }
 
   // Config
   const cfgCpf = document.getElementById('cfgCpf');
@@ -1497,6 +1740,8 @@ function wireScreen(){
     bind('cfgTipoDoc','tipoDocPadrao');
     bind('cfgTipoLanc','tipoLancPadrao');
     bind('cfgCatFretes','categoriaFretesCTe');
+    const dobraRaro = document.getElementById('cfgRaro');
+    dobraRaro.addEventListener('toggle', ()=>{ backupAberto = dobraRaro.open; });
 
     document.getElementById('btnBackupExport').addEventListener('click', ()=>{
       const backup = {config:state.config, categorias:state.categorias, planoContas:state.planoContas, ncmRules:state.ncmRules, imoveis:state.imoveis, ieDest:state.ieDest, tipoDoc:state.tipoDoc, tipoLanc:state.tipoLanc};
@@ -1523,6 +1768,29 @@ function wireScreen(){
       }
     });
   }
+}
+const CAMPO_CRESCE_SOZINHO = typeof CSS!=='undefined' && CSS.supports && CSS.supports('field-sizing', 'content');
+function ajustaAltura(ta){
+  if(CAMPO_CRESCE_SOZINHO) return;
+  ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 2 + 'px';
+}
+// Exclusões ainda desfazíveis (as do aviso aberto), da mais antiga à mais nova.
+let removidosPendentes = [];
+function esqueceRemocoes(){ removidosPendentes = []; }
+function desfazRemocoes(){
+  // da mais nova pra mais antiga: cada índice foi medido depois das anteriores
+  removidosPendentes.slice().reverse().forEach(({arrName, i, item, depois})=>{
+    const lista = state[arrName];
+    let pos = -1;
+    if(depois!==undefined){
+      pos = lista.indexOf(depois);
+      if(pos===-1){ const alvo = JSON.stringify(depois); pos = lista.findIndex(x=>JSON.stringify(x)===alvo); }
+    }
+    if(pos===-1) pos = depois===undefined ? lista.length : Math.min(i, lista.length);
+    lista.splice(pos, 0, item);
+  });
+  removidosPendentes = [];
+  save(); render();
 }
 function blankRowFor(arrName){
   switch(arrName){

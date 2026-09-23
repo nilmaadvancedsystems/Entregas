@@ -423,8 +423,11 @@
   }
   @keyframes ripple { to { transform: scale(22); opacity: 0; } }
   /* O recorte só existe enquanto a onda existe — recortar sempre cortaria o
-     contador na quina do ícone. */
-  .ripple { overflow: hidden; }
+     contador na quina do ícone. "clip" e não só "hidden": hidden zera o
+     min-width automático de item flex, e botão que pode encolher (submenu
+     que rola, segmentado) murchava no meio do toque — o dedo soltava no
+     vizinho. hidden fica de reserva pra navegador antigo. */
+  .ripple { overflow: hidden; overflow: clip; }
 
   /* ---------- ícones ---------- */
   .ph, [class^="ph-"], [class*=" ph-"] { line-height: 1; vertical-align: -.125em; flex: none; }
@@ -886,28 +889,20 @@
 
 
   /* ordem fixa da rota */
-  /* Pix do honorário: o QR fica do lado do valor, não embaixo, pra caber
-     na tela do celular sem rolar na hora de mostrar pro cliente. */
-  .pix-valor-linha { display: block; }
-  .pix-valor-linha > span { display: block; font-size: var(--t-sm); color: var(--ink-soft); margin-bottom: 4px; }
-  .pix-qr { display: flex; gap: var(--esp-4); align-items: center; margin-top: var(--esp-3); }
-  .pix-qr[hidden] { display: none; }
-  .pix-qr .pix-qr-alvo { flex: none; line-height: 0; background: #fff; padding: 8px; border: 1px solid var(--border); border-radius: var(--r-sm); }
-  .pix-qr .pix-qr-alvo img, .pix-qr .pix-qr-alvo canvas { display: block; }
-  .pix-qr-lado { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; min-width: 0; }
-  .pix-qr-sub { font-size: var(--t-sm); color: var(--ink-soft); }
-
-  .rotafixa-zona-secao { margin-bottom: var(--esp-5); }
-  /* Cabeçalho de seção estilo "barra de tabela" (GitHub): fundo levemente
-     destacado, ocupando a largura da lista, em vez de um rótulo solto. */
+  /* Cada região é UMA caixa (Box do GitHub): cabeçalho cinza com a
+     contagem, as linhas, e o campo "Adicionar cliente…" como rodapé DENTRO
+     dela — antes o campo boiava fora, e 3 regiões pareciam 6 blocos. Sem
+     overflow:hidden na caixa: a lista de sugestões (absoluta) sai por
+     baixo dela. */
+  .rotafixa-zona-secao { margin-bottom: var(--esp-4); border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface); }
   .rotafixa-zona-titulo {
-    display: flex; align-items: baseline; gap: 6px; font-size: var(--t-sm); font-weight: 600;
-    color: var(--ink-soft); margin: 0; padding: var(--esp-2) var(--esp-3);
-    background: var(--surface-2); border: 1px solid var(--border); border-bottom: none;
+    display: flex; align-items: center; gap: 6px; min-height: 40px; font-size: var(--t-base); font-weight: 600;
+    color: var(--ink); margin: 0; padding: var(--esp-1) var(--esp-3);
+    background: var(--surface-2); border-bottom: 1px solid var(--border);
     border-radius: var(--r-md) var(--r-md) 0 0;
   }
-  .rotafixa-zona-titulo .contagem { font-weight: 400; color: var(--ink-faint); }
-  .rotafixa-lista { border: 1px solid var(--border); border-radius: 0 0 var(--r-md) var(--r-md); overflow: hidden; background: var(--surface); }
+  .rotafixa-zona-titulo .contagem { font-weight: 400; color: var(--ink-faint); font-size: var(--t-sm); }
+  .rotafixa-lista { overflow: hidden; }
   .rotafixa-item { display: flex; align-items: center; gap: 2px; border-bottom: 1px solid var(--border); position: relative; }
   .rotafixa-item:last-child { border-bottom: 0; }
   .rotafixa-item:hover { background: var(--surface-2); }
@@ -918,6 +913,13 @@
   .rotafixa-pos { flex: none; min-width: 30px; text-align: right; margin-right: 4px; font-variant-numeric: tabular-nums; font-size: var(--t-sm); color: var(--ink-faint); }
   .rotafixa-pos::before { content: '#'; }
   .rotafixa-item-nome { flex: 1; min-width: 0; padding: 9px 4px; font-size: var(--t-base); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* Celular: alça + "#1" + botão de tirar deixavam ~200px pro nome e todo
+     cliente comum virava "PADARIA PÃO DOURA…". Lá o nome quebra em até duas
+     linhas (a linha cresce) e o "#" encolhe pro tamanho do número. */
+  @media (max-width: 480px) {
+    .rotafixa-pos { min-width: 20px; margin-right: 2px; }
+    .rotafixa-item-nome { white-space: normal; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
+  }
   /* Ação da linha: botão de verdade (borda + fundo), não mais um ícone fantasma
      — precisa ficar visível de cara, sem depender de hover pra ser notado. */
   .rotafixa-remover {
@@ -928,7 +930,14 @@
   }
   .rotafixa-remover:hover { color: var(--danger-forte); border-color: var(--danger); background: var(--danger-soft); }
   .rotafixa-vazia { padding: var(--esp-3); color: var(--ink-faint); font-size: var(--t-sm); text-align: center; }
-  .rotafixa-adicionar { position: relative; margin-top: var(--esp-2); }
+  .rotafixa-adicionar { position: relative; margin: 0; padding: var(--esp-1) var(--esp-2); border-top: 1px solid var(--border); }
+  /* o campo é rodapé discreto da caixa, mas com contorno tracejado desde o
+     início: sem borda, no celular (que não tem hover) ele lia como texto
+     cinza solto, não como lugar de tocar */
+  .rotafixa-adicionar .input { min-height: 36px; padding: 6px 8px; font-size: var(--t-base); background: transparent; border: 1px dashed var(--border-forte); }
+  .rotafixa-adicionar .input:hover:not(:focus) { border-style: solid; }
+  .rotafixa-adicionar .input:focus { background: var(--surface); border-style: solid; }
+  @media (max-width: 899px) { .rotafixa-adicionar .input { min-height: var(--alvo); } }
   .rotafixa-sugestoes { position: absolute; top: calc(100% + 2px); left: 0; right: 0; z-index: var(--z-suspenso); background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); box-shadow: var(--shadow); max-height: 220px; overflow: auto; }
   .rotafixa-sugestoes[hidden] { display: none; }
   .rotafixa-sugestao { display: block; width: 100%; text-align: left; padding: var(--esp-2) var(--esp-3); border: none; background: none; cursor: pointer; font-size: var(--t-base); color: var(--ink); }
@@ -978,7 +987,6 @@
   .ocorrencia-texto { font-size: var(--t-base); line-height: 1.45; }
   .ocorrencia-sub { font-size: var(--t-xs); color: var(--ink-faint); margin-top: 2px; }
   .emprestimo-atrasado { color: var(--danger-forte); font-weight: 600; }
-  .lembrete-edit { display: grid; grid-template-columns: 1fr 88px auto; gap: 6px; align-items: center; margin-bottom: 6px; }
 
   /* agenda de obrigações e montagem do dia */
   .obrig-linha { display: flex; align-items: center; justify-content: space-between; gap: var(--esp-3); padding: var(--esp-2) 0; border-bottom: 1px solid var(--border); }
@@ -988,7 +996,6 @@
   .obrig-prazo { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .obrig-prazo.perto { color: var(--warning-forte); }
   .obrig-prazo.hoje { color: var(--danger-forte); }
-  .obrig-edit { display: grid; grid-template-columns: 1fr 88px auto; gap: 6px; align-items: center; margin-bottom: 6px; }
 
   .montagem-linha { display: flex; align-items: center; gap: var(--esp-3); padding: var(--esp-2) 0; border-bottom: 1px solid var(--border); }
   .montagem-linha:last-child { border-bottom: 0; }
@@ -1130,6 +1137,12 @@
   .card.caixa > #fechamentoDetalhe, .card.caixa > #montagemList, .card.caixa > #fechamentoMesList { padding: 0 var(--esp-3); }
   .card.caixa > #graficoDiario, .card.caixa > #rankingEquipe, .card.caixa > #metaResumo,
   .card.caixa > .map-wrap, .card.caixa > .numeros-do-mes { padding: var(--esp-2) var(--esp-3); }
+  /* Caixa só com o cabeçalho (lista escondida ou vazia, ex.: Auditoria
+     fechada): a linha de baixo do cabeçalho encostava na borda da caixa e
+     o fundo ficava com filete dobrado. */
+  .card.caixa > .card-head-row:last-child,
+  .card.caixa > .card-head-row:has(+ [hidden]:last-child),
+  .card.caixa > .card-head-row:has(+ :empty:last-child) { border-bottom: none; border-radius: var(--r-md); }
   .card.caixa .contagem, .card-head-row h2 .contagem { font-weight: 400; color: var(--ink-faint); font-variant-numeric: tabular-nums; font-size: var(--t-sm); margin-left: 4px; }
   .card-ferramentas { display: flex; flex-wrap: wrap; gap: 6px; }
   /* "#1": posição na fila, mono e discreta, como a numeração da Ordem fixa */
@@ -1150,12 +1163,9 @@
   .card.caixa .client-row:hover { background: var(--surface-2); }
   .card.caixa > .field { padding: var(--esp-2) var(--esp-3); margin: 0; }
   .card.caixa > .saude-grid, .card.caixa > #emprestimosList, .card.caixa > #auditoriaList,
-  .card.caixa > .caixa-form-linha, .card.caixa > #competenciasFechadasLista, .card.caixa > #lembretesEdit,
-  .card.caixa > #obrigacoesEdit, .card.caixa > #saudeSistemaCorpo, .card.caixa > #enderecosResumo,
+  .card.caixa > .caixa-form-linha, .card.caixa > #enderecosResumo,
   .card.caixa > #carteiraMapaCaixa { padding: var(--esp-2) var(--esp-3); }
   .caixa-form-linha { display: flex; gap: var(--esp-2); flex-wrap: wrap; align-items: flex-end; }
-  .convite-linha { display: flex; align-items: center; gap: var(--esp-3); flex-wrap: wrap; margin: var(--esp-4) 0 var(--esp-2); padding-top: var(--esp-3); border-top: 1px solid var(--border); }
-  .convite-rotulo { font-size: var(--t-sm); color: var(--ink-soft); }
   .aviso-linha { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0 0 10px; font-size: var(--t-sm); color: var(--warning-forte); font-weight: 600; }
   .aviso-linha .aviso-dica { color: var(--ink-faint); font-weight: 400; }
   .field-info:empty { display: none; }
@@ -1810,7 +1820,11 @@
   }
   .clientes-subnav { margin: 0 0 var(--esp-4); overflow-x: auto; scrollbar-width: none; }
   .clientes-subnav::-webkit-scrollbar { display: none; }
-  .clientes-subnav .mode-btn { flex: 1; white-space: nowrap; font-family: inherit; }
+  /* flex-shrink 0: a onda do toque (.ripple) põe overflow:hidden no botão,
+     e aí o min-width automático do flex vira 0 — o botão apertado encolhia
+     no meio do toque, os vizinhos deslizavam e o dedo soltava na categoria
+     ao lado (tocar Sistema abria Integrações no celular). */
+  .clientes-subnav .mode-btn { flex: 1 0 auto; white-space: nowrap; font-family: inherit; }
   /* ---------- fim do submenu ---------- */
 
   .edit-form { display: flex; flex-direction: column; gap: var(--esp-2); width: 100%; }
@@ -1834,9 +1848,13 @@
      o nome ocupa a linha de cima e o selo a de baixo, do tamanho do
      conteúdo — em flex ele esticaria de ponta a ponta e deixaria de parecer
      selo. Acima de 600px, o selo encosta à direita como antes. */
-  .equipe-abrir { display: grid; grid-template-columns: minmax(0, 1fr); justify-items: start; gap: 3px; }
-  .equipe-abrir .equipe-info { min-width: 0; width: 100%; }
-  .equipe-abrir .status-pill { white-space: normal; text-align: left; max-width: 100%; }
+  .equipe-abrir { display: grid; grid-template-columns: 34px minmax(0, 1fr); justify-items: start; column-gap: var(--esp-3); row-gap: 3px; }
+  /* O avatar sozinho numa linha de cima deixava cada pessoa com 4 linhas
+     (~119px). Agora ele fica à esquerda ocupando as duas linhas, e o selo
+     desce embaixo do nome: ~56px por pessoa. */
+  .equipe-abrir .equipe-avatar { grid-row: 1 / span 2; align-self: center; }
+  .equipe-abrir .equipe-info { grid-column: 2; min-width: 0; width: 100%; }
+  .equipe-abrir .status-pill { grid-column: 2; white-space: normal; text-align: left; max-width: 100%; }
   @media (min-width: 600px) {
     .equipe-abrir { display: flex; align-items: center; gap: 5px var(--esp-3); }
     .equipe-abrir .equipe-info { flex: 1 1 auto; width: auto; }
@@ -1849,47 +1867,262 @@
     display: grid; place-items: center; background: var(--accent-soft); color: var(--accent-forte);
     font-size: var(--t-sm); font-weight: 600; background-size: cover; background-position: center;
   }
-  .pessoa-cabecalho { display: flex; align-items: center; gap: var(--esp-4); margin: 4px 0 var(--esp-5); }
-  .pessoa-identidade { min-width: 0; }
-  .pessoa-avatar {
-    width: 56px; height: 56px; border-radius: var(--r-md); flex: none;
-    display: grid; place-items: center; background: var(--accent-soft); color: var(--accent-forte);
-    font-family: var(--font-display); font-size: var(--t-xl); font-weight: 600;
-    background-size: cover; background-position: center;
+  /* Ficha da pessoa: caixa com [Voltar] + avatar + nome no cabeçalho. O
+     nome encolhe com reticências; o e-mail desce pra baixo dele quando
+     não cabe ao lado (celular). */
+  .pessoa-cabeca { flex-wrap: nowrap; }
+  .pessoa-cabeca > .btn-chip { flex: none; }
+  .card.caixa > .pessoa-cabeca > h2.pessoa-titulo {
+    display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 6px; row-gap: 0; min-width: 0; flex: 1 1 auto;
   }
-  #perfilPessoa .field { margin-bottom: var(--esp-5); }
-  .pessoa-numeros { margin-top: 6px; }
-  .pessoa-numeros .dash-item { cursor: default; }
-  .pessoa-numeros .dash-item:hover { background: var(--surface); }
+  .pessoa-titulo > span { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pessoa-titulo > .contagem { margin-left: 0; }
+  .pessoa-numeros { font-size: var(--t-base); color: var(--ink); font-variant-numeric: tabular-nums; }
 
+  /* Função ativa: marcada, mas sem o vermelho cheio de botão principal —
+     é estado, não ação. */
   .papel-chip { transition: background-color var(--dur-rapido) var(--ease), border-color var(--dur-rapido) var(--ease), color var(--dur-rapido) var(--ease); }
-  .papel-chip.ativo { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
-  .papel-chip:disabled { opacity: .5; cursor: default; }
+  .papel-chip.ativo { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-forte); }
+  .papel-chip:disabled { opacity: .6; cursor: default; }
+  .papeis-linha { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
 
   /* Configurações em duas abas: sem elas o modal virava uma rolagem longa
      misturando aparência com dados da conta. */
   .config-abas { margin-bottom: var(--esp-5); }
   .config-abas .mode-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
   .config-painel { animation: viewEnter var(--dur) var(--ease); }
+  /* No PC a janela fica presa no alto, não centrada: Personalização e Conta
+     têm alturas diferentes, e centrada ela pulava ~70px a cada troca de aba
+     (título e abas mudavam de lugar debaixo do mouse). */
+  @media (min-width: 640px) {
+    .modal-overlay > .modal-config { align-self: flex-start; margin-top: 8vh; max-height: 84vh; }
+  }
 
-  .foto-perfil-row { display: flex; align-items: center; gap: var(--esp-3); }
+  /* Foto: avatar e os dois botões na mesma linha, lado a lado. */
+  .cfg-linha.foto-perfil-row { justify-content: flex-start; gap: var(--esp-3); border-bottom: none; }
   .foto-perfil-preview {
-    width: 56px; height: 56px; border-radius: var(--r-md); flex: none;
+    width: 40px; height: 40px; border-radius: var(--r-md); flex: none;
     display: grid; place-items: center; background: var(--accent-soft); color: var(--accent-forte);
-    font-family: var(--font-display); font-size: var(--t-lg); font-weight: 600;
+    font-size: var(--t-base); font-weight: 600;
     background-size: cover; background-position: center; border: 1px solid var(--border);
   }
-  .foto-perfil-acoes { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
-  .foto-perfil-acoes .foto-label { margin: 0; }
-  .foto-perfil-acoes .link-btn { padding: 2px 4px; color: var(--danger-forte); }
+  .foto-perfil-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .foto-perfil-acoes .foto-label { margin: 0; padding: 0 12px; min-height: var(--alvo); width: auto; }
 
-  .paleta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(62px, 1fr)); gap: var(--esp-3); }
-  .paleta-btn { display: flex; flex-direction: column; align-items: center; gap: 6px; border: none; background: none; cursor: pointer; padding: 4px; }
-  .paleta-swatch { width: 30px; height: 30px; border-radius: var(--r-sm); border: 2px solid transparent; box-shadow: inset 0 0 0 1px var(--border); }
-  .paleta-btn.active .paleta-swatch { border-color: var(--ink); }
-  .paleta-btn span:last-child { font-size: var(--t-xs); color: var(--ink-soft); font-weight: 400; }
-  .paleta-btn.active span:last-child { color: var(--ink); font-weight: 600; }
-  .pref-toggle { display: block; }
+  /* Cor: amostras de 24px numa fileira só, sem nome embaixo (o nome da
+     escolhida fica ao lado do rótulo "Cor"). Cada botão tem 36px de alvo
+     no PC, 40px no tablet e 44px de altura no celular (ver .cfg-linha). */
+  .paleta-grid { display: flex; flex-wrap: wrap; gap: 0; }
+  .paleta-btn { display: grid; place-items: center; width: 36px; height: 36px; border: none; background: none; cursor: pointer; padding: 0; border-radius: var(--r-sm); }
+  .paleta-btn:hover { background: var(--surface-2); }
+  .paleta-swatch { width: 24px; height: 24px; border-radius: var(--r-xs); border: 2px solid transparent; box-shadow: inset 0 0 0 1px var(--border); }
+  .paleta-btn.active .paleta-swatch { border-color: var(--ink); box-shadow: inset 0 0 0 2px var(--surface); }
+  @media (max-width: 899px) { .paleta-btn { width: 40px; height: 40px; } }
+
+  /* ---------- Ajustes do app e Configurações: peças comuns ----------
+     Regra única pras duas telas de ajuste:
+     - LISTA = caixa (.card.caixa), com o contador no título;
+     - FORMULÁRIO = título com fio de 1px embaixo e a ação principal
+       (Salvar) à direita, sem caixa em volta (.form-ajuste no Ajustes,
+       .subhead na janela de Configurações);
+     - cada preferência = UMA linha "rótulo ........ controle" (.cfg-linha);
+     - o que é raro e perigoso fica recolhido no fim (.dobra-perigo).
+     Antes metade das categorias era seção plana com h2 de 16px e metade
+     caixa, sem regra — e a janela de Configurações empilhava rótulo em
+     cima e controle embaixo, rolando até num monitor de 800px. */
+
+  /* Sem a faixa lateral (Competências e Auditoria foram pra "Sistema"),
+     o Ajustes ganharia a largura toda; formulário de 1.100px não se lê. */
+  #clientesDestino-ajustes { max-width: 880px; }
+  /* Celular: as 5 categorias do Ajustes não cabem numa fileira; a barra
+     rola de lado. Sem os ícones cabe quase tudo em 375px, e a borda que
+     esmaece (data-mais, posto por marcarRolagemSubnav_) mostra que tem
+     mais categoria pra lá — antes "Integrações" virava "Inte" sem pista. */
+  @media (max-width: 480px) {
+    #clientesDestino-ajustes > .clientes-subnav .ph { display: none; }
+    #clientesDestino-ajustes > .clientes-subnav .mode-btn { padding: 8px; }
+  }
+  .clientes-subnav[data-mais="dir"] { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent); }
+  .clientes-subnav[data-mais="esq"] { -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 36px), transparent); mask-image: linear-gradient(to left, #000 calc(100% - 36px), transparent); }
+  .clientes-subnav[data-mais="esq dir"] { -webkit-mask-image: linear-gradient(to right, transparent, #000 36px, #000 calc(100% - 36px), transparent); mask-image: linear-gradient(to right, transparent, #000 36px, #000 calc(100% - 36px), transparent); }
+
+  .card.form-ajuste { border-top: none; padding: 0 0 var(--esp-5); }
+  .card.form-ajuste > .card-head-row {
+    flex-wrap: nowrap; margin: 0 0 var(--esp-3); padding: 0 0 var(--esp-2);
+    border-bottom: 1px solid var(--border);
+  }
+  .card.form-ajuste > .card-head-row > h2 { font-size: var(--t-md); min-width: 0; flex: 0 1 auto; }
+  .card.form-ajuste > .card-head-row > :not(h2) { flex: none; }
+  .card.form-ajuste > .field:last-child { margin-bottom: 0; }
+  .aviso-pix { color: var(--warning-forte); margin-top: var(--esp-2); }
+
+  /* Duas ou mais ações no cabeçalho da caixa andam juntas: se não couberem
+     ao lado do título (320px, texto maior), descem as duas, alinhadas à
+     direita — nunca "Incluir" numa linha e "Salvar" na outra. Só se nem
+     sozinhas numa linha elas couberem (320px com texto maior) é que uma
+     desce embaixo da outra, em vez de vazar pra fora da caixa. */
+  .card-head-acoes { display: flex; gap: 6px; flex: 0 1 auto; min-width: 0; margin-left: auto; flex-wrap: wrap; justify-content: flex-end; }
+  .card.caixa > .card-head-row > h2 { min-width: 0; }
+  /* Parte do rótulo que só serve no PC: no celular "Convite por link" +
+     "Criar acesso" empurravam as ações pra segunda linha em 375px (o
+     título "Novo acesso" já diz o resto). */
+  @media (max-width: 480px) { .rotulo-extra { display: none; } }
+  /* .btn-chip é inline-flex: o <span> vira item flex próprio e o espaço do
+     começo dele some ("Convitepor link"). A margem faz o papel do espaço. */
+  .btn-chip .rotulo-extra { margin-left: .3em; }
+
+  /* Corpo de formulário dentro de caixa (Novo acesso) */
+  .card.caixa > .caixa-corpo { padding: var(--esp-3) var(--esp-3) 0; }
+  .caixa-corpo > .linha-busca-cnpj { margin-bottom: var(--esp-3); }
+  .equipe-campos { display: grid; grid-template-columns: minmax(0, 1fr); column-gap: var(--esp-4); }
+  @media (min-width: 600px) { .equipe-campos { grid-template-columns: 1fr 1fr; } }
+  /* cargos numa fileira que quebra, em vez de 5 caixinhas empilhadas */
+  .cargos-linha { display: flex; flex-wrap: wrap; gap: 0 var(--esp-4); }
+  .cargos-linha .avulso-toggle { margin: 0; min-height: var(--alvo); font-size: var(--t-base); color: var(--ink); }
+
+  /* Linha de caixa "rótulo  conteúdo" (ficha da pessoa) */
+  .caixa-linha {
+    display: flex; align-items: center; flex-wrap: wrap; gap: 6px var(--esp-4);
+    min-height: var(--linha); padding: 6px var(--esp-3); border-bottom: 1px solid var(--border);
+  }
+  .caixa-linha-rotulo { flex: 0 0 8.5em; font-size: var(--t-base); font-weight: 600; color: var(--ink); }
+  .caixa-linha-secao { min-height: 0; padding-top: var(--esp-2); padding-bottom: var(--esp-2); }
+  .caixa-linha-secao .caixa-linha-rotulo { flex: 1 1 auto; font-size: var(--t-sm); color: var(--ink-soft); }
+
+  /* Dobra do que é raro e perigoso: uma linha de 44px com seta; aberta,
+     mostra as ações. Continua valendo a confirmação dupla de cada uma. */
+  .dobra-perigo { border-top: 1px solid var(--border); }
+  .dobra-perigo > summary {
+    display: flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 var(--esp-3);
+    font-size: var(--t-base); font-weight: 600; color: var(--ink); cursor: pointer; list-style: none;
+  }
+  .dobra-perigo > summary::-webkit-details-marker { display: none; }
+  .dobra-perigo > summary:hover { background: var(--surface-2); }
+  .dobra-perigo > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .card.caixa > .dobra-perigo:last-child:not([open]) > summary { border-radius: 0 0 var(--r-md) var(--r-md); }
+  .dobra-seta { color: var(--ink-faint); transition: transform var(--dur-rapido) var(--ease); }
+  .dobra-perigo[open] .dobra-seta { transform: rotate(90deg); }
+  .dobra-corpo { display: flex; flex-direction: column; gap: var(--esp-2); padding: 0 var(--esp-3) var(--esp-3); }
+  .dobra-acoes { justify-content: flex-start; }
+
+  /* Lembretes e Obrigações: um item por linha no PC, com cabeçalho de
+     coluna; no celular, duas linhas (texto + lixeira / para quem + dia). */
+  .card.caixa > #lembretesEdit, .card.caixa > #obrigacoesEdit,
+  .card.caixa > #saudeSistemaCorpo, .card.caixa > #competenciasFechadasLista { padding: 0; }
+  .lembrete-edit, .obrig-edit {
+    display: grid; gap: 6px; align-items: center; margin: 0;
+    padding: 6px var(--esp-3); border-bottom: 1px solid var(--border);
+    /* celular: o "Dia" (com o prefixo) ocupa a coluna estreita + a da
+       lixeira (80px) e "Para quem" fica com o resto — com 72px fixos o
+       select cortava "Todo mundo" a 320px */
+    grid-template-columns: minmax(0, 1fr) 30px var(--alvo);
+  }
+  .lembrete-edit:last-child, .obrig-edit:last-child { border-bottom: none; }
+  .lembrete-edit { grid-template-areas: "texto texto lixo" "quem dia dia"; }
+  .obrig-edit { grid-template-areas: "nome nome lixo" "casa dia dia"; }
+  .lembrete-edit [data-l="texto"] { grid-area: texto; }
+  .obrig-edit [data-o="nome"] { grid-area: nome; }
+  .lembrete-edit > .campo-quem { grid-area: quem; }
+  .obrig-edit > .campo-casa { grid-area: casa; }
+  .lembrete-edit > .campo-dia, .obrig-edit > .campo-dia { grid-area: dia; }
+  .edit-campo { display: flex; align-items: center; gap: 6px; min-width: 0; margin: 0; }
+  .edit-campo > .input { flex: 1 1 0; width: 100%; min-width: 0; }
+  .edit-prefixo { flex: none; font-size: var(--t-sm); color: var(--ink-soft); white-space: nowrap; }
+  .edit-campo.campo-dia > .input { padding-left: 6px; padding-right: 6px; }
+  .lembrete-edit > .btn-chip, .obrig-edit > .btn-chip { grid-area: lixo; }
+  .lembrete-edit .input, .obrig-edit .input { min-height: var(--alvo); padding: 4px 10px; font-size: var(--t-base); min-width: 0; }
+  .edit-cabecalho { display: none; }
+  @media (min-width: 600px) {
+    .lembrete-edit, .edit-cabecalho.lembrete-cols {
+      grid-template-columns: minmax(0, 1fr) 150px 72px var(--alvo); grid-template-areas: "texto quem dia lixo";
+    }
+    .obrig-edit, .edit-cabecalho.obrig-cols {
+      grid-template-columns: minmax(0, 1fr) minmax(0, .8fr) 72px var(--alvo); grid-template-areas: "nome casa dia lixo";
+    }
+    /* no PC o cabeçalho de coluna já diz o que é cada campo */
+    .edit-prefixo { display: none; }
+    .edit-cabecalho {
+      display: grid; gap: 6px; padding: 6px var(--esp-3); border-bottom: 1px solid var(--border);
+      font-size: var(--t-sm); font-weight: 600; color: var(--ink-soft);
+    }
+  }
+
+  /* Sistema: a leitura do banco é mais uma linha, no desenho das linhas do
+     robô, com uma barra fina no lugar do bloco com barra de 8px. */
+  .saude-linha { cursor: default; }
+  .saude-barra { flex: none; width: 96px; height: 4px; border-radius: var(--r-pill); background: var(--border); overflow: hidden; }
+  .saude-barra > span { display: block; height: 100%; border-radius: var(--r-pill); }
+  .saude-msg { padding: var(--esp-3); color: var(--ink-faint); font-size: var(--t-base); }
+  @media (max-width: 599px) { .saude-barra { width: 56px; } }
+
+  /* Competências: [mês][Fechar] numa linha só, lista de linhas simples */
+  .card.caixa > .caixa-form-linha { padding: var(--esp-2) var(--esp-3); border-bottom: 1px solid var(--border); align-items: center; }
+  #competenciaFecharInput { width: auto; flex: 1 1 140px; max-width: 200px; min-width: 0; min-height: var(--alvo); padding: 4px 10px; font-size: var(--t-base); }
+  .card.caixa .competencia-nome { font-weight: 400; font-size: var(--t-base); font-variant-numeric: tabular-nums; }
+
+  /* ---------- janela de Configurações ---------- */
+  .subhead {
+    display: flex; align-items: center; gap: var(--esp-2); flex-wrap: wrap;
+    margin: var(--esp-5) 0 0; padding: 0 0 var(--esp-2); border-bottom: 1px solid var(--border);
+  }
+  .config-painel > .subhead:first-child { margin-top: 0; }
+  .subhead > h3 { margin: 0 auto 0 0; min-width: 0; font-size: var(--t-md); font-weight: 600; color: var(--ink); }
+  .subhead > .btn-chip { flex: none; }
+  .cfg-linha {
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
+    gap: var(--esp-2) var(--esp-4); min-height: 44px; padding: 6px 0; border-bottom: 1px solid var(--border);
+  }
+  .cfg-linha[hidden] { display: none; }
+  .cfg-rotulo { display: inline-flex; align-items: baseline; gap: 6px; margin: 0; font-size: var(--t-base); font-weight: 600; color: var(--ink); }
+  .cfg-rotulo .contagem { font-weight: 400; color: var(--ink-faint); font-size: var(--t-sm); }
+  .cfg-estado { color: var(--ink-faint); font-size: var(--t-base); }
+  .cfg-estado:empty { display: none; }
+  /* segmentado compacto, do tamanho do rótulo (o global estica cada botão) */
+  .cfg-linha .mode-toggle { margin: 0; width: auto; max-width: 100%; flex-wrap: wrap; }
+  .cfg-linha .mode-btn { flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; min-height: 32px; }
+  .cfg-linha select.input { width: auto; min-width: 180px; max-width: 100%; min-height: 36px; padding: 6px 10px; font-size: var(--t-base); }
+  @media (max-width: 899px) {
+    .cfg-linha .mode-btn { min-height: 38px; }
+    .cfg-linha select.input { min-height: 44px; }
+  }
+  /* Celular: TODA linha empilha (rótulo em cima, controle embaixo, na
+     largura toda). Lado a lado, Cor e Tamanho do texto não cabiam e
+     quebravam sozinhos, e a lista virava um zigue-zague — metade com o
+     controle à direita, metade embaixo. Empilhado, o segmentado ocupa a
+     largura e cada botão ganha os 44px de alvo de toque. */
+  @media (max-width: 480px) {
+    .cfg-linha:not(.foto-perfil-row) { flex-direction: column; align-items: stretch; justify-content: flex-start; gap: var(--esp-2); padding: var(--esp-2) 0 var(--esp-3); }
+    .cfg-linha:not(.foto-perfil-row) > .btn-chip { align-self: flex-start; }
+    .cfg-linha .mode-toggle { width: 100%; flex-wrap: nowrap; }
+    .cfg-linha .mode-btn { flex: 1 1 0; min-width: 0; justify-content: center; min-height: var(--alvo); padding: 6px 8px; }
+    .cfg-linha select.input { width: 100%; min-width: 0; }
+    /* sete amostras de 44px pedem 308px; em 320 a grade estreita a coluna
+       (a altura de toque fica) em vez de jogar uma amostra pra baixo */
+    .paleta-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 44px)); }
+    .paleta-btn { width: auto; height: 44px; }
+  }
+  /* 320px com texto "Maior": o segmentado de Tema com ícones pedia ~315px
+     e quebrava "Automático". Sem os ícones (a palavra já diz), os três
+     cabem. */
+  @media (max-width: 420px) {
+    #temaToggle .ph { display: none; }
+  }
+  /* Terços iguais não bastavam em 320px com texto maior: "Automático"
+     passava da borda do botão. Cada botão parte da largura da própria
+     palavra e divide o que sobra — "Claro" cede espaço pro "Automático". */
+  @media (max-width: 480px) {
+    .cfg-linha .mode-btn { flex: 1 1 auto; white-space: nowrap; }
+    .cfg-linha .mode-toggle { gap: 2px; }
+  }
+  /* Abas Personalização/Conta e o X: 44px de toque no celular (no PC
+     --alvo volta a 34px, o tamanho de sempre). */
+  .config-abas .mode-btn { min-height: var(--alvo); }
+  .modal-config .modal-close { width: var(--alvo); height: var(--alvo); }
+  .senha-grade { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--esp-3) var(--esp-4); margin-top: var(--esp-3); }
+  @media (min-width: 600px) { .senha-grade { grid-template-columns: 1fr 1fr; } }
+  .senha-grade label { display: block; min-width: 0; }
+  /* o handler só escreve o texto do erro; com texto, ele aparece */
+  #err-senha:not(:empty) { max-height: 8em; margin-top: var(--esp-2); opacity: 1; visibility: visible; transition-delay: 0s; }
   .notas-btn { position: relative; }
   .sig-fullscreen-btn { flex: none; }
 
@@ -2052,21 +2285,21 @@
     /* Formulários em grade: no monitor, campo curto ocupando a linha inteira
        é desperdício. */
     #form-nova { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0 var(--esp-5); align-items: start; }
-    #form-solicitacao, #form-equipe { display: grid; grid-template-columns: 1fr 1fr; gap: 0 var(--esp-5); align-items: start; }
+    /* #form-equipe saiu daqui: virou caixa (Novo acesso) com grade própria
+       só pros campos (.equipe-campos) — a grade no form inteiro punha o
+       cabeçalho numa coluna e "Nome" na outra, na mesma linha. */
+    #form-solicitacao { display: grid; grid-template-columns: 1fr 1fr; gap: 0 var(--esp-5); align-items: start; }
     #form-nova > h2, #form-nova > .card-hint, #form-nova > .mode-toggle,
     #falhaToggleWrap, #falhaMotivoField, #itensField, #valoresField,
     #assinaturaField, #submitBtn,
     #form-solicitacao > h2, #form-solicitacao > .card-hint,
-    #form-equipe > h2, #form-equipe > .card-hint,
-    #form-equipe > .field:last-of-type, #form-equipe > button,
     #form-solicitacao > .avulso-toggle { grid-column: 1 / -1; }
     #clienteField { grid-column: span 2; }
     #honorarioPixField { grid-column: 1 / -1; }
-    #honorarioPixCaixa { grid-column: 1 / -1; }
     #solDescricaoField { grid-column: 1 / -1; }
     #form-nova .mode-toggle { width: max-content; margin-bottom: var(--esp-5); }
     #form-nova .mode-btn { flex: none; padding: 8px 20px; white-space: nowrap; }
-    #form-equipe > button, #form-cliente button[type="submit"] {
+    #form-cliente button[type="submit"] {
       width: max-content; min-width: 220px; justify-self: start;
     }
     #form-cliente .row2 { display: grid; grid-template-columns: 1fr 1fr; }
@@ -2103,8 +2336,12 @@
     .view > .col-lado > .card:first-child { border-top: none; padding-top: var(--esp-2); }
     /* Sem nada visível dentro (seções só de admin, por exemplo), a faixa sai
        de cena e a coluna de trabalho ocupa tudo. */
-    .view:not(:has(> .col-lado > *:not([hidden]))) { grid-template-columns: minmax(0, 1fr); }
-    .view:not(:has(> .col-lado > *:not([hidden]))) > .col-lado { display: none; }
+    /* A faixa escondida inteira (hidden no próprio .col-lado, caso da faixa
+       de Carteira quando Ajustes está aberto) também não conta: sem o
+       :not([hidden]) no .col-lado, os filhos visíveis dela seguravam a
+       coluna de 360px vazia ao lado do Ajustes. */
+    .view:not(:has(> .col-lado:not([hidden]) > *:not([hidden]))) { grid-template-columns: minmax(0, 1fr); }
+    .view:not(:has(> .col-lado:not([hidden]) > *:not([hidden]))) > .col-lado { display: none; }
 
     /* O mapa é a única seção de contexto que não cabe em 336px — fica na
        coluna de trabalho, embaixo da lista. */
@@ -2369,22 +2606,8 @@
       <p class="field-info" id="honorarioInfoHint" hidden></p>
 
       <label class="field" id="honorarioPixField" hidden>
-        <span class="avulso-toggle"><input type="checkbox" id="honorarioPixToggle"> Pagamento via Pix</span>
+        <span class="avulso-toggle"><input type="checkbox" id="honorarioPixToggle"> Recebido via Pix</span>
       </label>
-      <div class="field" id="honorarioPixCaixa" hidden>
-        <label class="pix-valor-linha"><span>Valor do honorário</span>
-          <input class="input" id="honorarioPixValor" type="text" inputmode="decimal" placeholder="0,00" autocomplete="off">
-        </label>
-        <div class="pix-qr" id="honorarioPixQrWrap" hidden>
-          <div class="pix-qr-alvo" id="honorarioPixQr"></div>
-          <div class="pix-qr-lado">
-            <b id="honorarioPixTitulo">Pix do escritório</b>
-            <span class="pix-qr-sub" id="honorarioPixSub"></span>
-            <button type="button" class="btn-chip" id="honorarioPixCopiarBtn"><i class="ph ph-copy" aria-hidden="true"></i> Copiar código</button>
-          </div>
-        </div>
-        <p class="field-info" id="honorarioPixAviso" hidden></p>
-      </div>
 
       <label class="field" id="outroField">
         <span>Outro documento (opcional)</span>
@@ -2459,7 +2682,6 @@
         <button type="button" class="btn-chip" id="rotaLerGuiaBtn" hidden><i class="ph ph-barcode" aria-hidden="true"></i> Ler guia</button>
         <button type="button" class="btn-chip" id="rotaMapsBtn"><i class="ph ph-map-trifold" aria-hidden="true"></i> Abrir no Maps</button>
         <button type="button" class="btn-chip" id="rotaEnviarLinkBtn"><i class="ph ph-share-network" aria-hidden="true"></i> Enviar rota pro cliente</button>
-        <button type="button" class="btn-chip" id="rotaProtocoloBtn"><i class="ph ph-printer" aria-hidden="true"></i> Protocolo</button>
       </div>
       <div class="filters">
         <div class="filtro">
@@ -2676,38 +2898,47 @@
       </div>
       <div id="equipeList"><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
     </div>
-    <div class="card" id="perfilPessoa" hidden></div>
-    <form id="form-equipe" class="card" hidden novalidate>
+    <div class="card caixa" id="perfilPessoa" hidden></div>
+    <!-- Novo acesso é uma caixa como a lista de cima: as duas ações (convite
+         por link e criar) moram no cabeçalho, e o corpo é só o que se
+         preenche. O botão de criar continua type=submit dentro do form —
+         Enter num campo cria o acesso, como sempre. -->
+    <form id="form-equipe" class="card caixa" hidden novalidate>
       <div class="card-head-row">
         <h2><i class="ph ph-user-plus" aria-hidden="true"></i> Novo acesso</h2>
-        <button type="submit" class="btn btn-primary btn-cabeca" id="equipeSubmitBtn">Criar acesso</button>
+        <div class="card-head-acoes">
+          <button type="button" class="btn-chip" id="gerarConviteBtn"><i class="ph ph-link" aria-hidden="true"></i> Convite<span class="rotulo-extra"> por link</span></button>
+          <button type="submit" class="btn-chip accent" id="equipeSubmitBtn">Criar<span class="rotulo-extra"> acesso</span></button>
+        </div>
       </div>
-      <label class="field">
-        <span>Nome</span>
-        <input class="input" id="novoUsuarioNome" type="text" placeholder="Nome de quem vai usar o app" required>
-      </label>
-      <label class="field">
-        <span>Senha</span>
-        <input class="input" id="novoUsuarioSenha" type="password" placeholder="Mínimo 6 caracteres" required>
-      </label>
-      <!-- Cada cargo é um <label> próprio: clicar no nome marca a caixinha
-           dele. Envolver todos num único <label> fazia qualquer clique aqui
-           dentro cair no primeiro checkbox da lista (Admin). -->
-      <div class="field">
-        <span>Cargos</span>
-        <label class="avulso-toggle"><input type="checkbox" id="novoUsuarioAdmin"> Admin</label>
-        <label class="avulso-toggle"><input type="checkbox" id="novoUsuarioOfficeBoy"> Office boy</label>
-        <label class="avulso-toggle"><input type="checkbox" id="novoUsuarioContabil"> Contábil</label>
-        <label class="avulso-toggle"><input type="checkbox" id="novoUsuarioFiscal"> Fiscal</label>
-        <label class="avulso-toggle"><input type="checkbox" id="novoUsuarioEquipeGeral"> Equipe geral</label>
-      </div>
-      <div class="convite-linha">
-        <span class="convite-rotulo">Ou mande um convite</span>
-        <button type="button" class="btn-chip" id="gerarConviteBtn"><i class="ph ph-link" aria-hidden="true"></i> Gerar link</button>
-      </div>
-      <div class="linha-busca-cnpj" id="conviteResultado" hidden>
-        <input class="input" id="conviteLink" type="text" readonly>
-        <button type="button" class="btn-chip accent" id="copiarConviteBtn"><i class="ph ph-copy" aria-hidden="true"></i> Copiar link</button>
+      <div class="caixa-corpo">
+        <div class="equipe-campos">
+          <label class="field">
+            <span>Nome</span>
+            <input class="input" id="novoUsuarioNome" type="text" required>
+          </label>
+          <label class="field">
+            <span>Senha</span>
+            <input class="input" id="novoUsuarioSenha" type="password" placeholder="Mínimo 6 caracteres" required>
+          </label>
+        </div>
+        <!-- Cada cargo é um <label> próprio: clicar no nome marca a caixinha
+             dele. Envolver todos num único <label> fazia qualquer clique aqui
+             dentro cair no primeiro checkbox da lista (Admin). -->
+        <div class="field" role="group" aria-labelledby="cargosNovoRotulo">
+          <span id="cargosNovoRotulo">Cargos</span>
+          <div class="cargos-linha">
+            <label class="avulso-toggle"><input type="checkbox" id="novoUsuarioAdmin"> Admin</label>
+            <label class="avulso-toggle"><input type="checkbox" id="novoUsuarioOfficeBoy"> Office boy</label>
+            <label class="avulso-toggle"><input type="checkbox" id="novoUsuarioContabil"> Contábil</label>
+            <label class="avulso-toggle"><input type="checkbox" id="novoUsuarioFiscal"> Fiscal</label>
+            <label class="avulso-toggle"><input type="checkbox" id="novoUsuarioEquipeGeral"> Equipe geral</label>
+          </div>
+        </div>
+        <div class="linha-busca-cnpj" id="conviteResultado" hidden>
+          <input class="input" id="conviteLink" type="text" readonly aria-label="Link do convite">
+          <button type="button" class="btn-chip accent" id="copiarConviteBtn"><i class="ph ph-copy" aria-hidden="true"></i> Copiar link</button>
+        </div>
       </div>
     </form>
     <div class="card caixa" id="saudeSistemaCard" hidden>
@@ -2717,79 +2948,87 @@
       </div>
       <div id="saudeSistemaCorpo"></div>
     </div>
-    <div class="card" id="rotaFixaCard" hidden>
+    <!-- Formulário de ajuste (.form-ajuste) = título com fio embaixo e o
+         Salvar à direita, sem caixa em volta; lista = caixa (.card.caixa).
+         Regra única pra todo o Ajustes do app. -->
+    <div class="card form-ajuste" id="rotaFixaCard" hidden>
       <div class="card-head-row">
         <h2><i class="ph ph-path" aria-hidden="true"></i> Ordem fixa da rota</h2>
         <button type="button" class="btn-chip accent" id="rotaFixaSalvarBtn"><i class="ph ph-floppy-disk" aria-hidden="true"></i> Salvar</button>
       </div>
       <div id="rotaFixaZonas"></div>
     </div>
-    <div class="card" id="escritorioCard" hidden>
+    <div class="card form-ajuste" id="escritorioCard" hidden>
       <div class="card-head-row">
         <h2><i class="ph ph-buildings" aria-hidden="true"></i> Dados do escritório</h2>
         <button type="button" class="btn-chip accent" id="escSalvarBtn"><i class="ph ph-floppy-disk" aria-hidden="true"></i> Salvar</button>
       </div>
+      <!-- Ordem pensada pra grade de 2 colunas do PC: Chave PIX | WhatsApp,
+           Nome no PIX | Cidade, e o recado na linha inteira. -->
       <div class="cadastro-grade">
-        <label class="inteira"><span class="sub-rotulo">Chave PIX</span>
-          <input class="input" id="escPixChave" type="text" maxlength="77" placeholder="CNPJ, telefone, e-mail ou chave aleatória"></label>
-        <label><span class="sub-rotulo">Nome que aparece no PIX</span>
+        <label><span class="sub-rotulo">Chave PIX</span>
+          <input class="input" id="escPixChave" type="text" maxlength="77" placeholder="CNPJ, telefone, e-mail ou aleatória"></label>
+        <label><span class="sub-rotulo">WhatsApp</span>
+          <input class="input" id="escWhatsapp" type="tel" inputmode="tel" maxlength="20" placeholder="(38) 99999-0000"></label>
+        <label><span class="sub-rotulo">Nome no PIX</span>
           <input class="input" id="escPixNome" type="text" maxlength="25" placeholder="NILMA CONTABILIDADE"></label>
         <label><span class="sub-rotulo">Cidade</span>
           <input class="input" id="escPixCidade" type="text" maxlength="15" placeholder="TAIOBEIRAS"></label>
-        <label><span class="sub-rotulo">WhatsApp do escritório</span>
-          <input class="input" id="escWhatsapp" type="tel" inputmode="tel" maxlength="20" placeholder="(38) 99999-0000"></label>
-        <label class="inteira"><span class="sub-rotulo">Recado sobre o honorário (opcional)</span>
+        <label class="inteira"><span class="sub-rotulo">Recado do honorário</span>
           <input class="input" id="escHonorarioTexto" type="text" maxlength="120" placeholder="Ex.: o boleto vence todo dia 10"></label>
       </div>
-      <p class="field-info" id="escPixPreview"></p>
+      <p class="field-info aviso-pix" id="escPixPreview"></p>
     </div>
     <div class="card caixa" id="lembretesCard" hidden>
       <div class="card-head-row">
-        <h2><i class="ph ph-bell-simple-ringing" aria-hidden="true"></i> Lembretes do escritório</h2>
-        <button type="button" class="btn-chip" id="lembreteAddBtn"><i class="ph ph-plus" aria-hidden="true"></i> Incluir</button>
-        <button type="button" class="btn-chip accent" id="lembretesSalvarBtn"><i class="ph ph-floppy-disk" aria-hidden="true"></i> Salvar</button>
+        <h2><i class="ph ph-bell-simple-ringing" aria-hidden="true"></i> Lembretes <span class="contagem" id="lembretesContador"></span></h2>
+        <div class="card-head-acoes">
+          <button type="button" class="btn-chip" id="lembreteAddBtn"><i class="ph ph-plus" aria-hidden="true"></i> Incluir</button>
+          <button type="button" class="btn-chip accent" id="lembretesSalvarBtn"><i class="ph ph-floppy-disk" aria-hidden="true"></i> Salvar</button>
+        </div>
       </div>
       <div id="lembretesEdit"></div>
     </div>
     <div class="card caixa" id="obrigacoesConfigCard" hidden>
       <div class="card-head-row">
-        <h2><i class="ph ph-calendar-dots" aria-hidden="true"></i> Obrigações do mês</h2>
-        <button type="button" class="btn-chip" id="obrigacoesAddBtn"><i class="ph ph-plus" aria-hidden="true"></i> Incluir</button>
-        <button type="button" class="btn-chip accent" id="obrigacoesSalvarBtn"><i class="ph ph-floppy-disk" aria-hidden="true"></i> Salvar</button>
+        <h2><i class="ph ph-calendar-dots" aria-hidden="true"></i> Obrigações do mês <span class="contagem" id="obrigacoesContador"></span></h2>
+        <div class="card-head-acoes">
+          <button type="button" class="btn-chip" id="obrigacoesAddBtn"><i class="ph ph-plus" aria-hidden="true"></i> Incluir</button>
+          <button type="button" class="btn-chip accent" id="obrigacoesSalvarBtn"><i class="ph ph-floppy-disk" aria-hidden="true"></i> Salvar</button>
+        </div>
       </div>
       <div id="obrigacoesEdit"></div>
     </div>
-    <div class="card" id="integracaoCard" hidden>
+    <div class="card form-ajuste" id="integracaoCard" hidden>
       <div class="card-head-row">
-        <h2><i class="ph ph-buildings" aria-hidden="true"></i> Endereço do serviço de contas</h2>
+        <h2><i class="ph ph-link" aria-hidden="true"></i> Serviço de contas</h2>
         <button type="button" class="btn-chip accent" id="salvarContasUrlBtn"><i class="ph ph-floppy-disk" aria-hidden="true"></i> Salvar</button>
       </div>
       <label class="field">
-        <span>URL do aplicativo web</span>
+        <span>Endereço (URL)</span>
         <input class="input" id="contasUrlInput" type="url" placeholder="https://script.google.com/macros/s/.../exec">
       </label>
     </div>
-    <div class="card" id="iaCard" hidden>
+    <div class="card form-ajuste" id="iaCard" hidden>
+      <!-- O estado (No ar / Sem chave / PC desligado) é um selo no próprio
+           cabeçalho; a explicação longa fica no title do selo. -->
       <div class="card-head-row">
-        <h2><i class="ph ph-sparkle" aria-hidden="true"></i> Reforço de IA da Consulta</h2>
+        <h2><i class="ph ph-sparkle" aria-hidden="true"></i> IA da Consulta</h2>
+        <span id="iaEstado"></span>
         <button type="button" class="btn-chip accent" id="salvarIaModeloBtn"><i class="ph ph-floppy-disk" aria-hidden="true"></i> Salvar</button>
       </div>
       <label class="field">
-        <span>Modelo do Gemini</span>
+        <span>Modelo</span>
         <input class="input" id="iaModeloInput" type="text" placeholder="gemini-flash-latest" autocomplete="off">
       </label>
-      <div id="iaEstado"></div>
     </div>
     <div class="card caixa" id="competenciasCard" hidden>
       <div class="card-head-row">
-        <h2><i class="ph ph-lock-simple" aria-hidden="true"></i> Competências fechadas</h2>
+        <h2><i class="ph ph-lock-simple" aria-hidden="true"></i> Competências fechadas <span class="contagem" id="competenciasContador"></span></h2>
       </div>
       <div class="caixa-form-linha">
-        <label class="field" style="flex:1;min-width:160px;margin-bottom:0;">
-          <span>Competência</span>
-          <input class="input" id="competenciaFecharInput" type="month">
-        </label>
-        <button type="button" class="btn-chip accent" id="fecharCompetenciaBtn">Fechar competência</button>
+        <input class="input" id="competenciaFecharInput" type="month" aria-label="Competência a fechar">
+        <button type="button" class="btn-chip accent" id="fecharCompetenciaBtn">Fechar</button>
       </div>
       <div id="competenciasFechadasLista"></div>
     </div>
@@ -3880,7 +4119,10 @@
     // longe da vista. Os dois cartões curtos e de ação vêm primeiro.
     // Rota, Painel e Solicitações saíram daqui: agora têm submenu próprio
     // (SUBMENUS_DAS_ABAS_), no mesmo desenho de Clientes › Ajustes.
-    'tab-perfil': ['competenciasCard', 'auditoriaCard'],
+    // Ajustes do app (tab-perfil) também saiu: Competências e Auditoria
+    // apareciam ao lado de TODAS as categorias (e embaixo delas no
+    // celular), sem relação com Equipe ou Rota — agora moram na categoria
+    // "Sistema" (DESTINOS_CLIENTES_) e o Ajustes usa a largura toda.
     'tab-clientes': ['importCard', 'enderecosCard', 'qualidadeRotaCard']
   };
   Object.keys(contextoPorAba_).forEach(function (idAba) {
@@ -4020,22 +4262,44 @@
     if (card.hidden) return;
     var el = $('lembretesEdit');
     el.innerHTML = '';
+    // Um lembrete = uma linha no PC (texto | para quem | dia | lixeira),
+    // com cabeçalho de coluna em cima: depois de preenchido, "5" e "Admin"
+    // soltos não diziam o que eram. No celular vira duas linhas (CSS).
+    if (lembretes_.length) el.innerHTML = '<div class="edit-cabecalho lembrete-cols" aria-hidden="true"><span>Lembrete</span><span>Para quem</span><span>Dia</span><span></span></div>';
     lembretes_.forEach(function (l) {
       var linha = document.createElement('div');
       linha.className = 'lembrete-edit';
       linha.innerHTML =
-        '<input class="input" data-l="texto" type="text" maxlength="120" placeholder="Ex.: mandar a GFIP">' +
-        '<input class="input" data-l="dia" type="number" min="1" max="28" placeholder="Dia">' +
-        '<button type="button" class="btn-chip danger" title="Tirar"><i class="ph ph-trash" aria-hidden="true"></i></button>' +
-        '<select class="input" data-l="quem" style="grid-column:1 / -1">' + PAPEIS_DO_LEMBRETE_.map(function (p) {
+        '<input class="input" data-l="texto" type="text" maxlength="120" placeholder="Ex.: mandar a GFIP" aria-label="Lembrete">' +
+        // prefixo "Dia" só aparece no celular, onde o cabeçalho de coluna
+        // some e o "5" preenchido não dizia o que era (o papel no select já
+        // se explica, e em 320px o prefixo cortaria "Todo mundo")
+        '<label class="edit-campo campo-quem">' +
+        '<select class="input" data-l="quem" aria-label="Para quem">' + PAPEIS_DO_LEMBRETE_.map(function (p) {
           return '<option value="' + p[0] + '">' + p[1] + '</option>';
-        }).join('') + '</select>';
+        }).join('') + '</select></label>' +
+        '<label class="edit-campo campo-dia"><span class="edit-prefixo" aria-hidden="true">Dia</span>' +
+        '<input class="input" data-l="dia" type="number" min="1" max="28" placeholder="Dia" aria-label="Dia"></label>' +
+        '<button type="button" class="btn-chip danger so-icone" title="Tirar" aria-label="Tirar lembrete"><i class="ph ph-trash" aria-hidden="true"></i></button>';
       linha.querySelector('[data-l="texto"]').value = l.texto || '';
       linha.querySelector('[data-l="dia"]').value = l.dia || '';
       linha.querySelector('[data-l="quem"]').value = l.quem || '';
-      linha.querySelector('.btn-chip').addEventListener('click', function () { linha.remove(); });
+      linha.querySelector('.btn-chip').addEventListener('click', function () {
+        linha.remove();
+        contarLinhasEditaveis_('lembretesEdit', '.lembrete-edit', 'lembretesContador', 'Nenhum lembrete.');
+      });
       el.appendChild(linha);
     });
+    contarLinhasEditaveis_('lembretesEdit', '.lembrete-edit', 'lembretesContador', 'Nenhum lembrete.');
+  }
+  // Contador do cabeçalho da caixa (Lembretes 3, Obrigações 5) e a frase de
+  // vazio, recontados a cada lixeira — a lista só volta do banco no Salvar.
+  function contarLinhasEditaveis_(idLista, seletorLinha, idContador, textoVazio) {
+    var lista = $(idLista);
+    if (!lista) return;
+    var n = lista.querySelectorAll(seletorLinha).length;
+    if ($(idContador)) $(idContador).textContent = n ? String(n) : '';
+    if (!n) lista.innerHTML = '<div class="empty-state">' + escapeHtml_(textoVazio) + '</div>';
   }
   function lerLembretesDoForm_() {
     return Array.from(document.querySelectorAll('#lembretesEdit .lembrete-edit')).map(function (linha) {
@@ -4102,10 +4366,10 @@
     var caixa = $('rotaFixaZonas');
     caixa.innerHTML = ZONAS_DA_ROTA_.map(function (z) {
       return '<div class="rotafixa-zona-secao" data-zona="' + z.id + '">' +
-        '<div class="rotafixa-zona-titulo">' + escapeHtml_(z.rotulo) + ' <span class="contagem">· ' + rotaFixaEstado_[z.id].length + '</span></div>' +
+        '<div class="rotafixa-zona-titulo">' + escapeHtml_(z.rotulo) + ' <span class="contagem">' + rotaFixaEstado_[z.id].length + '</span></div>' +
         '<div class="rotafixa-lista" id="rotafixaLista-' + z.id + '"></div>' +
         '<div class="rotafixa-adicionar">' +
-          '<input type="text" class="input" placeholder="Adicionar cliente nesta região..." aria-label="Adicionar cliente em ' + escapeHtml_(z.rotulo) + '" data-zona-busca="' + z.id + '">' +
+          '<input type="text" class="input" placeholder="Adicionar cliente…" aria-label="Adicionar cliente em ' + escapeHtml_(z.rotulo) + '" data-zona-busca="' + z.id + '">' +
           '<div class="rotafixa-sugestoes" hidden></div>' +
         '</div>' +
       '</div>';
@@ -4118,7 +4382,7 @@
     if (!listEl) return;
     listEl.innerHTML = '';
     var ids = rotaFixaEstado_[zona];
-    if (!ids.length) { listEl.innerHTML = '<div class="rotafixa-vazia">Nenhum cliente nesta região ainda.</div>'; return; }
+    if (!ids.length) { listEl.innerHTML = '<div class="rotafixa-vazia">Nenhum cliente.</div>'; return; }
     ids.forEach(function (id, i) {
       var c = clientesCache.get(id);
       var row = document.createElement('div');
@@ -4253,7 +4517,7 @@
         renderRota();
       });
     }).catch(function (err) { showToast(errMsg(err, 'Não foi possível salvar a ordem.'), 'error'); })
-      .then(function () { botaoLivre_(btn, 'Salvar ordem da rota'); });
+      .then(function () { botaoLivre_(btn); });
   }
 
   // ---------- mapa da carteira ----------
@@ -4605,36 +4869,8 @@
   var escritorio_ = { pixChave: '', pixNome: '', pixCidade: '', honorarioTexto: '' };
 
   // BR Code estático do PIX, montado aqui (o app já tem o CRC16 que confere
-  // código de guia). Sem valor, o cliente digita quanto vai pagar; com
-  // valor (campo 54), o app do banco já abre com o total do honorário
-  // preenchido — ninguém digita, ninguém erra o centavo.
-  // A chave vai no código do jeito que o Banco Central pede, não do jeito
-  // que foi digitada: CPF e CNPJ só com dígito (o banco recusa o código
-  // colado quando a chave vem com ponto, barra ou traço — era exatamente
-  // isso que dava erro), telefone com +55 na frente, e-mail em minúscula, e
-  // chave aleatória como veio. Quem cadastra continua podendo digitar com
-  // máscara; a conversão acontece aqui.
-  function normalizarChavePix_(chave) {
-    var t = String(chave || '').trim();
-    if (!t) return '';
-    if (t.indexOf('@') !== -1) return t.toLowerCase();
-    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(t)) return t.toLowerCase();
-    var digitos = t.replace(/\D/g, '');
-    if (!digitos) return t;
-    // Telefone: quem digita com + ou com parênteses de DDD está dizendo que
-    // é telefone. 11 dígitos também é o tamanho de um CPF, então só esses
-    // sinais desempatam — CPF nu (11 dígitos, sem sinal nenhum) continua CPF.
-    var pareceTelefone = t.charAt(0) === '+' || /\(\s*\d{2}\s*\)/.test(t);
-    if (pareceTelefone) {
-      var semPais = digitos.replace(/^55/, '');
-      return '+55' + semPais;
-    }
-    if (digitos.length === 11 || digitos.length === 14) return digitos;  // CPF ou CNPJ
-    return t;
-  }
-
-  function pixCopiaECola_(chave, nome, cidade, valor) {
-    chave = normalizarChavePix_(chave);
+  // código de guia). Sem valor: o cliente digita quanto vai pagar.
+  function pixCopiaECola_(chave, nome, cidade) {
     if (!chave) return '';
     var limpa = function (t, n) {
       return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -4642,12 +4878,8 @@
     };
     var campo = function (id, valor) { return id + String(valor.length).padStart(2, '0') + valor; };
     var conta = campo('00', 'BR.GOV.BCB.PIX') + campo('01', String(chave).trim());
-    // O campo 54 vai com ponto decimal e dois dígitos, do jeito que a
-    // especificação do Banco Central pede (150.00, nunca 150,00).
-    var comValor = (typeof valor === 'number' && isFinite(valor) && valor > 0)
-      ? campo('54', valor.toFixed(2)) : '';
     var payload = campo('00', '01') + campo('26', conta) + campo('52', '0000') + campo('53', '986') +
-      comValor + campo('58', 'BR') + campo('59', limpa(nome, 25)) + campo('60', limpa(cidade, 15)) +
+      campo('58', 'BR') + campo('59', limpa(nome, 25)) + campo('60', limpa(cidade, 15)) +
       campo('62', campo('05', '***')) + '6304';
     return payload + crc16Pix_(payload);
   }
@@ -4657,12 +4889,9 @@
   function atualizarPreviaDoPix_() {
     if (!$('escPixPreview')) return;
     var codigo = pixCopiaECola_($('escPixChave').value.trim(), $('escPixNome').value.trim(), $('escPixCidade').value.trim());
-    var chaveNoCodigo = normalizarChavePix_($('escPixChave').value.trim());
-    var digitada = $('escPixChave').value.trim();
-    $('escPixPreview').textContent = codigo
-      ? 'No código Pix a chave vai como ' + chaveNoCodigo +
-        (chaveNoCodigo !== digitada ? ' (sem a pontuação — é assim que o banco reconhece).' : '.')
-      : 'Sem chave, a página do cliente não mostra o bloco do honorário.';
+    // Com código, nada a dizer (o botão do cliente simplesmente funciona);
+    // sem chave, um aviso curto, porque aí o honorário some do link.
+    $('escPixPreview').textContent = codigo ? '' : 'Sem chave PIX, o cliente não vê o honorário.';
   }
   function renderEscritorio_(preencher) {
     var card = $('escritorioCard');
@@ -4926,7 +5155,9 @@
     // continuam sempre visíveis, do jeito de sempre — e precisam ser filhas
     // diretas de #tab-clientes (a seção com classe .view) pra regra de CSS
     // ".view > .col-lado" valer; o hidden delas acompanha o destino ativo
-    // (Carteira x Ajustes), não a categoria dentro dele.
+    // (Carteira x Ajustes), não a categoria dentro dele. Hoje só a de
+    // tab-clientes existe (Ajustes perdeu a sua, ver contextoPorAba_);
+    // faixaAjustes fica nulo e o código abaixo segue tolerando isso.
     var faixaCarteira = abaClientes.querySelector(':scope > .col-lado');
     var faixaAjustes = abaPerfil.querySelector(':scope > .col-lado');
     if (faixaCarteira) faixaCarteira.dataset.faixa = 'carteira';
@@ -4940,9 +5171,9 @@
 
     // Cada destino de nível 1 tem seu próprio submenu de nível 2. Categoria
     // com um cartão só (Rota, Lista, Novo cliente) não ganha barra de
-    // categoria — não tem escolha nenhuma pra fazer ali. "sistema" fica com
-    // um cartão só: Competências/Auditoria moram na faixa lateral de
-    // Ajustes, não em grupo — ver faixaAjustes acima.
+    // categoria — não tem escolha nenhuma pra fazer ali. Competências e
+    // Auditoria entram em "sistema" (antes moravam na faixa lateral e
+    // ficavam à vista em todas as categorias).
     var DESTINOS_CLIENTES_ = [
       { id: 'carteira', rotulo: 'Carteira', icone: 'ph-users', grupos: [
           { id: 'lista', rotulo: 'Lista de clientes', icone: 'ph-list-bullets', els: ['clientesListaCard'] },
@@ -4966,7 +5197,7 @@
           { id: 'equipe', rotulo: 'Equipe', icone: 'ph-users-three', els: ['perfilLista', 'perfilPessoa', 'form-equipe'] },
           { id: 'escritorio', rotulo: 'Escritório', icone: 'ph-buildings', els: ['escritorioCard', 'lembretesCard', 'obrigacoesConfigCard'] },
           { id: 'rota', rotulo: 'Rota', icone: 'ph-path', els: ['rotaFixaCard'] },
-          { id: 'sistema', rotulo: 'Sistema', icone: 'ph-heartbeat', els: ['saudeSistemaCard'] },
+          { id: 'sistema', rotulo: 'Sistema', icone: 'ph-heartbeat', els: ['saudeSistemaCard', 'competenciasCard', 'auditoriaCard'] },
           { id: 'integracoes', rotulo: 'Integrações', icone: 'ph-plugs-connected', els: ['integracaoCard', 'iaCard'] }
         ] }
     ];
@@ -5009,6 +5240,7 @@
         subnav.querySelectorAll('.mode-btn').forEach(function (b) {
           b.addEventListener('click', function () { mostrarGrupo_(d.id, b.dataset.grupo); });
         });
+        subnav.addEventListener('scroll', function () { marcarRolagemSubnav_(subnav); }, { passive: true });
       }
 
       d.grupos.forEach(function (g, gi) {
@@ -5034,6 +5266,22 @@
     // "Carteira" é o destino padrão, então a faixa de Ajustes começa escondida.
     if (faixaCarteira) abaClientes.appendChild(faixaCarteira);
     if (faixaAjustes) { faixaAjustes.hidden = true; abaClientes.appendChild(faixaAjustes); }
+    window.addEventListener('resize', function () {
+      document.querySelectorAll('[data-subnav-de]').forEach(marcarRolagemSubnav_);
+    });
+  }
+
+  // Diz ao CSS de que lado a barra de categorias ainda tem conteúdo
+  // escondido ("esq", "dir" ou os dois), pra esmaecer só aquela borda.
+  // Escondida (largura 0) ou cabendo inteira, fica sem marca nenhuma.
+  function marcarRolagemSubnav_(subnav) {
+    if (!subnav) return;
+    var sobra = subnav.scrollWidth - subnav.clientWidth;
+    var lados = [];
+    if (sobra > 2 && subnav.scrollLeft > 2) lados.push('esq');
+    if (sobra > 2 && subnav.scrollLeft < sobra - 2) lados.push('dir');
+    if (lados.length) subnav.dataset.mais = lados.join(' ');
+    else delete subnav.dataset.mais;
   }
 
   // Categoria de nível 2, dentro de um destino de nível 1. Só recarrega
@@ -5047,8 +5295,23 @@
     // categorias no alto do conteúdo (não na barra lateral).
     var subnav = container.querySelector('[data-subnav-de]');
     if (subnav) subnav.querySelectorAll('.mode-btn').forEach(function (b) { b.classList.toggle('active', b.dataset.grupo === grupo); });
+    // Categoria escolhida sempre inteira à vista na barra que rola (no
+    // celular, tocar a última cortada deixava ela ainda cortada). Conta à
+    // mão em vez de scrollIntoView pra não mexer na rolagem da página.
+    var ativo = subnav && subnav.querySelector('.mode-btn.active');
+    if (ativo && subnav.scrollWidth > subnav.clientWidth) {
+      var ini = ativo.getBoundingClientRect().left - subnav.getBoundingClientRect().left + subnav.scrollLeft;
+      var fim = ini + ativo.offsetWidth;
+      if (ini < subnav.scrollLeft + 24) subnav.scrollLeft = Math.max(0, ini - 24);
+      else if (fim > subnav.scrollLeft + subnav.clientWidth - 24) subnav.scrollLeft = fim - subnav.clientWidth + 24;
+    }
+    marcarRolagemSubnav_(subnav);
     container.querySelectorAll(':scope > .card-grupo').forEach(function (g) { g.hidden = g.dataset.grupo !== grupo; });
     if (destino === 'ajustes' && grupo === 'sistema') renderSaudeDoSistema_();
+    // O selo da IA (No ar / Sem chave / PC desligado) vem do mesmo
+    // robo/estado da Consulta rápida, que só escuta quando ela abre; sem
+    // isto o cabeçalho de "IA da Consulta" ficava sem selo.
+    if (destino === 'ajustes' && grupo === 'integracoes' && db) cqLerEstadoRoboUmaVez_();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -6102,60 +6365,9 @@
     return marcados.length === 1 && marcados[0] === 'notas' && !$('outroInput').value.trim() && duplicatasExtras.length === 0;
   }
 
-  // O Pix do escritório vira QR na hora, já com o valor digitado: o office
-  // boy mostra a tela, o cliente aponta a câmera e paga sem digitar chave
-  // nem valor. O mesmo código sai no botão de copiar, pra quando o cliente
-  // preferir colar no app do banco dele.
-  // O mesmo bloco de Pix serve em dois momentos: ao registrar a entrega e
-  // ao confirmá-la na rota, na porta do cliente — que é quando o dinheiro
-  // realmente troca de mãos. Os ids mudam, o resto é igual, então o
-  // desenho do QR mora numa função só.
-  function montarBlocoDoPix_(ids) {
-    var caixa = $(ids.caixa);
-    if (!caixa) return;
-    caixa.hidden = !ids.ligado();
-    if (caixa.hidden) { if ($(ids.valor)) $(ids.valor).value = ''; return; }
-
-    var wrap = $(ids.wrap);
-    var aviso = $(ids.aviso);
-    if (!escritorio_.pixChave) {
-      wrap.hidden = true;
-      if (aviso) {
-        aviso.hidden = false;
-        aviso.textContent = 'Sem chave Pix cadastrada em Escritório.';
-      }
-      return;
-    }
-    if (aviso) aviso.hidden = true;
-
-    var valor = parseValor($(ids.valor).value);
-    var codigo = pixCopiaECola_(escritorio_.pixChave, escritorio_.pixNome, escritorio_.pixCidade, valor);
-    if (!codigo || typeof QRCode === 'undefined') { wrap.hidden = true; return; }
-
-    var alvo = $(ids.qr);
-    alvo.innerHTML = '';
-    try {
-      new QRCode(alvo, { text: codigo, width: 132, height: 132, correctLevel: QRCode.CorrectLevel.M });
-    } catch (e) { wrap.hidden = true; return; }
-    wrap.hidden = false;
-    $(ids.sub).textContent = valor
-      ? fmtMoney(valor) + ' · ' + (escritorio_.pixNome || 'Nilma Contabilidade')
-      : 'sem valor — o cliente digita quanto vai pagar';
-    $(ids.botao).dataset.codigo = codigo;
-  }
-
-  function atualizarQrDoPix_() {
-    montarBlocoDoPix_({
-      ligado: function () { return !$('honorarioPixField').hidden && $('honorarioPixToggle').checked; },
-      caixa: 'honorarioPixCaixa', valor: 'honorarioPixValor', wrap: 'honorarioPixQrWrap',
-      qr: 'honorarioPixQr', sub: 'honorarioPixSub', botao: 'honorarioPixCopiarBtn', aviso: 'honorarioPixAviso'
-    });
-  }
-
   function atualizarCampoHonorarioPix_() {
     $('honorarioPixField').hidden = !isApenasHonorario_();
     if ($('honorarioPixField').hidden) $('honorarioPixToggle').checked = false;
-    atualizarQrDoPix_();
 
     // Como esse cliente costuma pagar o honorário (vem da planilha do
     // escritório) — ajuda a saber se é normal não ter Pix (Boleto/Paga
@@ -6176,13 +6388,6 @@
   $('competenciaInput').addEventListener('input', atualizarVencimentoAutomatico_);
   $('competenciaInput').addEventListener('change', atualizarVencimentoAutomatico_);
   $('outroInput').addEventListener('input', atualizarCampoHonorarioPix_);
-  $('honorarioPixToggle').addEventListener('change', atualizarQrDoPix_);
-  $('honorarioPixValor').addEventListener('input', atualizarQrDoPix_);
-  $('honorarioPixCopiarBtn').addEventListener('click', function () {
-    var codigo = $('honorarioPixCopiarBtn').dataset.codigo || '';
-    if (!codigo) return;
-    copiarTexto_(codigo, 'Código Pix copiado.');
-  });
   $('outroInput').addEventListener('input', renderValores);
 
   function getSelectedItens() {
@@ -6639,8 +6844,6 @@
       $('honorarioPixToggle').checked = false;
       $('honorarioPixField').hidden = true;
       $('honorarioInfoHint').hidden = true;
-      $('honorarioPixCaixa').hidden = true;
-      $('honorarioPixValor').value = '';
     }
     $('recebedorInput').value = '';
     sugerirRecebedores_(null, $('recebedorInput'));
@@ -6996,14 +7199,6 @@
     this.hidden = true;
     $('rotaFiltroZonaBtn').setAttribute('aria-expanded', 'false');
     $('rotaFiltroZonaBtn').focus();
-  });
-
-  // O papel do dia: o que ainda falta entregar e o que já foi entregue hoje,
-  // na mesma folha — serve tanto pra levar na mão quanto pra arquivar
-  // depois, já com as assinaturas colhidas na tela.
-  $('rotaProtocoloBtn').addEventListener('click', function () {
-    var doDia = pendentesCache.concat(confirmadasHoje_().filter(function (e) { return e.status === 'confirmada'; }));
-    abrirProtocoloDeEntregas_('Rota de ' + new Date().toLocaleDateString('pt-BR'), doDia);
   });
 
   $('rotaAddBtn').addEventListener('click', function () {
@@ -7569,20 +7764,31 @@
     if (card.hidden) return;
     var el = $('obrigacoesEdit');
     el.innerHTML = '';
+    // Mesmo desenho dos lembretes: uma linha por obrigação no PC
+    // (nome | casa com | dia | lixeira) com cabeçalho de coluna.
+    if (obrigacoes_.length) el.innerHTML = '<div class="edit-cabecalho obrig-cols" aria-hidden="true"><span>Obrigação</span><span>Casa com</span><span>Dia</span><span></span></div>';
     obrigacoes_.forEach(function (o, i) {
       var linha = document.createElement('div');
       linha.className = 'obrig-edit';
       linha.innerHTML =
-        '<input class="input" data-o="nome" type="text" maxlength="40" placeholder="Nome (ex.: DAS do Simples)">' +
-        '<input class="input" data-o="dia" type="number" min="1" max="28" placeholder="Dia">' +
-        '<button type="button" class="btn-chip danger" title="Tirar"><i class="ph ph-trash" aria-hidden="true"></i></button>' +
-        '<input class="input" data-o="casa" type="text" maxlength="60" placeholder="Casa com (ex.: DAS ou DARF|INSS)" style="grid-column:1 / -1">';
+        '<input class="input" data-o="nome" type="text" maxlength="40" placeholder="Ex.: DAS do Simples" aria-label="Obrigação">' +
+        // mesmo prefixo de celular dos lembretes: "DAS" sozinho embaixo de
+        // "DAS do Simples" não dizia que é a chave "Casa com"
+        '<label class="edit-campo campo-casa"><span class="edit-prefixo" aria-hidden="true">Casa com</span>' +
+        '<input class="input" data-o="casa" type="text" maxlength="60" placeholder="Ex.: DAS" aria-label="Casa com (ex.: DAS ou DARF|INSS)"></label>' +
+        '<label class="edit-campo campo-dia"><span class="edit-prefixo" aria-hidden="true">Dia</span>' +
+        '<input class="input" data-o="dia" type="number" min="1" max="28" placeholder="Dia" aria-label="Dia"></label>' +
+        '<button type="button" class="btn-chip danger so-icone" title="Tirar" aria-label="Tirar obrigação"><i class="ph ph-trash" aria-hidden="true"></i></button>';
       linha.querySelector('[data-o="nome"]').value = o.nome || '';
       linha.querySelector('[data-o="dia"]').value = o.dia || '';
       linha.querySelector('[data-o="casa"]').value = o.casa || '';
-      linha.querySelector('.btn-chip').addEventListener('click', function () { linha.remove(); });
+      linha.querySelector('.btn-chip').addEventListener('click', function () {
+        linha.remove();
+        contarLinhasEditaveis_('obrigacoesEdit', '.obrig-edit', 'obrigacoesContador', 'Nenhuma obrigação.');
+      });
       el.appendChild(linha);
     });
+    contarLinhasEditaveis_('obrigacoesEdit', '.obrig-edit', 'obrigacoesContador', 'Nenhuma obrigação.');
   }
   function lerObrigacoesDoForm_() {
     return Array.from(document.querySelectorAll('#obrigacoesEdit .obrig-edit')).map(function (linha, i) {
@@ -10582,13 +10788,8 @@
         '<dt>Localização</dt><dd>' + geoLink + '</dd>' +
       '</dl>' +
       '<button type="button" class="btn-chip accent" id="compartilharComprovanteBtn"><i class="ph ph-whatsapp-logo" aria-hidden="true"></i> Enviar comprovante</button> ' +
-      '<button type="button" class="btn-chip" id="imprimirComprovanteBtn"><i class="ph ph-printer" aria-hidden="true"></i> Imprimir</button> ' +
       (podeExcluir(entrega) ? '<button type="button" class="btn-chip danger" id="excluirEntregaBtn"><i class="ph ph-trash" aria-hidden="true"></i> Excluir entrega</button>' : '');
     $('modalClose').addEventListener('click', function () { renderHistoricoList(cliente, historico); });
-
-    $('imprimirComprovanteBtn').addEventListener('click', function () {
-      abrirProtocoloDeEntregas_(clienteLabel(cliente), [entrega]);
-    });
 
     $('compartilharComprovanteBtn').addEventListener('click', function () {
       var itensTxt = entrega.itens.map(function (i) {
@@ -11040,20 +11241,9 @@
             '<i class="ph ph-warning" aria-hidden="true"></i> Cliente ausente / entrega não realizada' +
           '</label>' +
           '<label class="field" id="pendingHonorarioPixField" hidden>' +
-            '<span class="avulso-toggle"><input type="checkbox" id="pendingHonorarioPixToggle"> Pagamento via Pix</span>' +
+            '<span class="avulso-toggle"><input type="checkbox" id="pendingHonorarioPixToggle"> Recebido via Pix</span>' +
+            '<span class="card-hint" style="margin-top:4px;display:block;">Em dinheiro o próprio dinheiro é o comprovante — não precisa de foto nem assinatura. Via Pix, marque aqui e anexe o comprovante.</span>' +
           '</label>' +
-          '<div class="field" id="pendingPixCaixa" hidden>' +
-            '<label class="pix-valor-linha"><span>Valor do honorário</span>' +
-              '<input class="input" id="pendingPixValor" type="text" inputmode="decimal" placeholder="0,00" autocomplete="off"></label>' +
-            '<div class="pix-qr" id="pendingPixQrWrap" hidden>' +
-              '<div class="pix-qr-alvo" id="pendingPixQr"></div>' +
-              '<div class="pix-qr-lado"><b>Pix do escritório</b>' +
-                '<span class="pix-qr-sub" id="pendingPixSub"></span>' +
-                '<button type="button" class="btn-chip" id="pendingPixCopiarBtn"><i class="ph ph-copy" aria-hidden="true"></i> Copiar código</button>' +
-              '</div>' +
-            '</div>' +
-            '<p class="field-info" id="pendingPixAviso" hidden></p>' +
-          '</div>' +
           '<label class="field" id="pendingFalhaMotivoField" hidden>' +
             '<span>O que aconteceu</span>' +
             '<textarea class="input" id="pendingFalhaMotivo" rows="2" placeholder="Ex.: Estabelecimento fechado, ninguém atendeu..."></textarea>' +
@@ -11212,22 +11402,6 @@
     var soNotas = soDoTipo_('Notas');
     if (soHonorario) $('pendingHonorarioPixField').hidden = false;
 
-    // O QR aparece aqui também: é na porta do cliente, confirmando a
-    // entrega, que ele pergunta "qual a chave?" — e aí é só virar a tela.
-    function atualizarQrDoPixPendente_() {
-      montarBlocoDoPix_({
-        ligado: function () { return !$('pendingHonorarioPixField').hidden && $('pendingHonorarioPixToggle').checked; },
-        caixa: 'pendingPixCaixa', valor: 'pendingPixValor', wrap: 'pendingPixQrWrap',
-        qr: 'pendingPixQr', sub: 'pendingPixSub', botao: 'pendingPixCopiarBtn', aviso: 'pendingPixAviso'
-      });
-    }
-    $('pendingHonorarioPixToggle').addEventListener('change', atualizarQrDoPixPendente_);
-    $('pendingPixValor').addEventListener('input', atualizarQrDoPixPendente_);
-    $('pendingPixCopiarBtn').addEventListener('click', function () {
-      var codigo = $('pendingPixCopiarBtn').dataset.codigo || '';
-      if (codigo) copiarOuMostrar_('Pix do escritório', codigo, 'Código Pix copiado.');
-    });
-
     motivosEmUmToque_($('pendingFalhaMotivo'));
     function atualizarModoFalhaPendente() {
       var isFalha = $('pendingFalhaToggle').checked;
@@ -11238,8 +11412,6 @@
       $('pendingSemComprovanteWrap').hidden = isFalha;
       $('pendingSemComprovanteField').hidden = isFalha || !semComprovante;
       $('pendingHonorarioPixField').hidden = isFalha || !soHonorario;
-      if ($('pendingHonorarioPixField').hidden) $('pendingHonorarioPixToggle').checked = false;
-      atualizarQrDoPixPendente_();
       $('pendingFotoLabel').textContent = isFalha ? 'Foto (obrigatória)' : 'Foto (opcional se colher assinatura)';
       $('pendingConfirmBtn').textContent = isFalha ? 'Registrar entrega não realizada' : 'Confirmar entrega';
     }
@@ -12219,7 +12391,7 @@
         showToast('Dados salvos. Os links dos clientes recebem na próxima atualização.');
       })
       .catch(function (err) { showToast(errMsg(err, 'Não foi possível salvar.'), 'error'); })
-      .then(function () { botaoLivre_(btn, 'Salvar dados do escritório'); });
+      .then(function () { botaoLivre_(btn); });
   });
   $('lembreteAddBtn').addEventListener('click', function () {
     lembretes_ = lerLembretesDoForm_().concat([{ texto: '', dia: 5, quem: '' }]);
@@ -12239,7 +12411,7 @@
         showToast('Lembretes salvos. O robô passa a avisar.');
       })
       .catch(function (err) { showToast(errMsg(err, 'Não foi possível salvar.'), 'error'); })
-      .then(function () { botaoLivre_(btn, 'Salvar lembretes'); });
+      .then(function () { botaoLivre_(btn); });
   });
   $('obrigacoesAddBtn').addEventListener('click', function () {
     obrigacoes_ = lerObrigacoesDoForm_().concat([{ id: 'novo', nome: '', dia: 20, casa: '' }]);
@@ -12260,7 +12432,7 @@
         showToast('Obrigações salvas.');
       })
       .catch(function (err) { showToast(errMsg(err, 'Não foi possível salvar.'), 'error'); })
-      .then(function () { botaoLivre_(btn, 'Salvar obrigações'); });
+      .then(function () { botaoLivre_(btn); });
   });
 
   // ---------- perfil: quem tem acesso (só admin) ----------
@@ -12400,47 +12572,42 @@
     var falhas = entregas.filter(function (e) { return e.status === 'falha'; }).length;
     var naRota = entregas.filter(function (e) { return e.status === 'pendente'; }).length;
 
+    // A ficha é uma caixa como a lista que ela substitui: Voltar, avatar e
+    // nome no cabeçalho; funções, números do mês e últimas entregas como
+    // linhas; e o que é raro e perigoso (nova senha, excluir) recolhido no
+    // fim, em vez de "Excluir acesso" sempre à vista.
+    var competenciaTexto = fmtCompetencia($('painelCompetencia').value);
     box.innerHTML =
-      '<div class="card-head-row">' +
+      '<div class="card-head-row pessoa-cabeca">' +
         '<button type="button" class="btn-chip" id="perfilVoltar"><i class="ph ph-arrow-left" aria-hidden="true"></i> Voltar</button>' +
-        (euMesmo ? '<span class="status-pill neutro">você</span>' : '') +
+        '<span class="equipe-avatar" id="pessoaAvatar"></span>' +
+        '<h2 class="pessoa-titulo"><span id="pessoaNome"></span><span class="contagem" id="pessoaLogin"></span></h2>' +
       '</div>' +
-      '<div class="pessoa-cabecalho">' +
-        '<span class="pessoa-avatar" id="pessoaAvatar"></span>' +
-        '<div class="pessoa-identidade">' +
-          '<h2 id="pessoaNome"></h2>' +
-          '<div class="card-hint" id="pessoaLogin" style="margin:0"></div>' +
-        '</div>' +
-      '</div>' +
-      '<div class="field"><span>Funções</span><div class="cr-actions" id="pessoaPapeis"></div>' +
-        (euMesmo ? '<div class="field-info">Só outro admin muda as suas funções.</div>' : '') +
-      '</div>' +
-      '<div class="field"><span>Entregas em ' + escapeHtml_(fmtCompetencia($('painelCompetencia').value)) + '</span>' +
-        '<div class="dash-strip pessoa-numeros">' +
-          '<div class="dash-item ok"><span class="dash-num">' + confirmadas + '</span><span class="dash-label">entregues</span></div>' +
-          '<div class="dash-item rota"><span class="dash-num">' + naRota + '</span><span class="dash-label">na rota</span></div>' +
-          '<div class="dash-item neutro"><span class="dash-num">' + falhas + '</span><span class="dash-label">não entregues</span></div>' +
-        '</div>' +
-      '</div>' +
-      '<div class="field"><span>Últimas entregas</span><div id="pessoaEntregas"></div></div>' +
+      '<div class="caixa-linha"><span class="caixa-linha-rotulo">Funções</span><div class="papeis-linha" id="pessoaPapeis"></div></div>' +
+      '<div class="caixa-linha"><span class="caixa-linha-rotulo">' + escapeHtml_(competenciaTexto ? competenciaTexto.charAt(0).toUpperCase() + competenciaTexto.slice(1) : 'Este mês') + '</span>' +
+        '<span class="pessoa-numeros">' + confirmadas + ' entregues · ' + naRota + ' na rota · ' + falhas + ' não entregues</span></div>' +
+      '<div class="caixa-linha caixa-linha-secao"><span class="caixa-linha-rotulo">Últimas entregas</span></div>' +
+      '<div id="pessoaEntregas"></div>' +
       (euMesmo ? '' :
-        '<div class="field" style="margin-bottom:0;border-top:1px solid var(--border);padding-top:14px;">' +
-          '<span>Acesso</span>' +
-          '<div class="cr-actions" style="flex-wrap:wrap;">' +
-            '<button type="button" class="btn-chip" id="pessoaResetBtn"><i class="ph ph-key" aria-hidden="true"></i> Gerar link de nova senha</button>' +
-            '<button type="button" class="btn-chip danger" id="pessoaExcluirBtn"><i class="ph ph-trash" aria-hidden="true"></i> Excluir acesso</button>' +
+        '<details class="dobra-perigo">' +
+          '<summary><i class="ph ph-caret-right dobra-seta" aria-hidden="true"></i> Acesso</summary>' +
+          '<div class="dobra-corpo">' +
+            '<div class="linha-acoes dobra-acoes">' +
+              '<button type="button" class="btn-chip" id="pessoaResetBtn"><i class="ph ph-key" aria-hidden="true"></i> Gerar link de nova senha</button>' +
+              '<button type="button" class="btn-chip danger" id="pessoaExcluirBtn"><i class="ph ph-trash" aria-hidden="true"></i> Excluir acesso</button>' +
+            '</div>' +
+            '<div class="linha-busca-cnpj" id="pessoaResetResultado" hidden>' +
+              '<input class="input" id="pessoaResetLink" type="text" readonly aria-label="Link de nova senha">' +
+              '<button type="button" class="btn-chip accent" id="pessoaResetCopiarBtn"><i class="ph ph-copy" aria-hidden="true"></i> Copiar link</button>' +
+            '</div>' +
           '</div>' +
-          '<div id="pessoaResetResultado" hidden style="margin-top:10px;">' +
-            '<input class="input" id="pessoaResetLink" type="text" readonly>' +
-            '<button type="button" class="btn-chip accent" id="pessoaResetCopiarBtn" style="margin-top:8px;"><i class="ph ph-copy" aria-hidden="true"></i> Copiar link</button>' +
-          '</div>' +
-        '</div>');
+        '</details>');
 
     var av = $('pessoaAvatar');
     if (u.fotoPerfil) av.style.backgroundImage = 'url("' + u.fotoPerfil + '")';
     else av.textContent = iniciaisDe_(nome);
     $('pessoaNome').textContent = nome;
-    $('pessoaLogin').textContent = u.email || 'sem login registrado';
+    $('pessoaLogin').textContent = (u.email || 'sem login') + (euMesmo ? ' · você' : '');
     $('perfilVoltar').addEventListener('click', voltarParaEquipe);
 
     if ($('pessoaResetBtn')) {
@@ -12508,7 +12675,10 @@
       btn.type = 'button';
       btn.className = 'btn-chip papel-chip' + (ativo ? ' ativo' : '');
       btn.textContent = p.label;
-      if (euMesmo) btn.disabled = true;
+      btn.setAttribute('aria-pressed', ativo ? 'true' : 'false');
+      // as próprias funções só outro admin muda: fica dito no title, não
+      // numa frase embaixo
+      if (euMesmo) { btn.disabled = true; btn.title = 'Só outro admin muda'; }
       else btn.addEventListener('click', function () { alterarPapel(u.id, p.key, !ativo); });
       papeisEl.appendChild(btn);
     });
@@ -12518,7 +12688,7 @@
       return String(b.confirmadoEm || b.criadoEm || '').localeCompare(String(a.confirmadoEm || a.criadoEm || ''));
     }).slice(0, 5);
     if (!recentes.length) {
-      listaEl.innerHTML = '<div class="empty-state">Nenhuma entrega registrada nesta competência.</div>';
+      listaEl.innerHTML = '<div class="empty-state">Nenhuma entrega neste mês.</div>';
       return;
     }
     listaEl.innerHTML = '';
@@ -12950,7 +13120,6 @@
     },
     {
       campo: 'densidade', atributo: 'densidade', padrao: 'confortavel', rotulo: 'Espaçamento',
-      dica: 'Compacto mostra mais linhas por tela.',
       opcoes: [
         { valor: 'confortavel', rotulo: 'Confortável' },
         { valor: 'compacto', rotulo: 'Compacto' }
@@ -13013,46 +13182,53 @@
     var root = $('modalRoot');
     var temaAtual = document.documentElement.dataset.theme === 'light' ? 'claro' : (document.documentElement.dataset.theme === 'dark' ? 'escuro' : 'auto');
     var paletaAtual = document.documentElement.dataset.paleta || 'padrao';
+    var paletaNomeAtual = (PALETAS.filter(function (p) { return p.key === paletaAtual; })[0] || PALETAS[0]).label;
+    // Cada ajuste é UMA linha "rótulo ........ controle" (.cfg-linha), em
+    // dois grupos com título (Aparência, Aplicativo). Empilhado "rótulo em
+    // cima, controle embaixo", eram 7 blocos que rolavam até no PC.
     root.innerHTML =
       '<div class="modal-overlay" id="overlay">' +
-        '<div class="modal" id="modalInner">' +
+        '<div class="modal modal-config" id="modalInner" role="dialog" aria-modal="true" aria-labelledby="configTitulo">' +
           '<div class="modal-head">' +
-            '<div><h2>Configurações</h2><div class="card-hint modal-head-sub">' + escapeHtml_(currentUserNome) + '</div></div>' +
-            '<button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button>' +
+            '<div><h2 id="configTitulo">Configurações</h2></div>' +
+            '<button class="modal-close" id="modalClose" aria-label="Fechar"><i class="ph ph-x" aria-hidden="true"></i></button>' +
           '</div>' +
           '<div class="mode-toggle config-abas" id="configAbas">' +
             '<button type="button" class="mode-btn active" data-painel="personalizacao"><i class="ph ph-paint-brush" aria-hidden="true"></i> Personalização</button>' +
             '<button type="button" class="mode-btn" data-painel="conta"><i class="ph ph-user-circle" aria-hidden="true"></i> Conta</button>' +
           '</div>' +
           '<div class="config-painel" id="painel-personalizacao">' +
-          '<div class="field"><span>Tema</span>' +
-            '<div class="mode-toggle" id="temaToggle" style="flex-wrap:wrap;">' +
+          '<div class="subhead"><h3>Aparência</h3></div>' +
+          '<div class="cfg-linha"><span class="cfg-rotulo" id="temaRotulo">Tema</span>' +
+            '<div class="mode-toggle" id="temaToggle" role="group" aria-labelledby="temaRotulo">' +
               '<button type="button" class="mode-btn" data-tema="claro"><i class="ph ph-sun" aria-hidden="true"></i> Claro</button>' +
               '<button type="button" class="mode-btn" data-tema="escuro"><i class="ph ph-moon" aria-hidden="true"></i> Escuro</button>' +
               '<button type="button" class="mode-btn" data-tema="auto"><i class="ph ph-desktop" aria-hidden="true"></i> Automático</button>' +
             '</div>' +
           '</div>' +
-          '<div class="field"><span>Cor</span>' +
-            '<div class="paleta-grid" id="paletaGrid">' +
+          // Cor: só as amostras; o nome da escolhida aparece ao lado do
+          // rótulo (e cada amostra diz o próprio nome no title/aria-label).
+          '<div class="cfg-linha"><span class="cfg-rotulo" id="paletaRotulo">Cor <span class="contagem" id="paletaNome">' + escapeHtml_(paletaNomeAtual) + '</span></span>' +
+            '<div class="paleta-grid" id="paletaGrid" role="group" aria-labelledby="paletaRotulo">' +
               PALETAS.map(function (p) {
-                return '<button type="button" class="paleta-btn" data-paleta="' + p.key + '">' +
-                  '<span class="paleta-swatch" style="background:' + p.cor + '"></span><span>' + p.label + '</span></button>';
+                return '<button type="button" class="paleta-btn" data-paleta="' + p.key + '" data-nome="' + escapeHtml_(p.label) + '" title="' + escapeHtml_(p.label) + '" aria-label="' + escapeHtml_(p.label) + '">' +
+                  '<span class="paleta-swatch" style="background:' + p.cor + '"></span></button>';
               }).join('') +
             '</div>' +
           '</div>' +
           PREFERENCIAS.map(function (pref) {
             var atual = document.documentElement.dataset[pref.atributo] || pref.padrao;
-            return '<div class="field"><span>' + pref.rotulo + '</span>' +
-              '<div class="mode-toggle pref-toggle" data-campo="' + pref.campo + '" style="flex-wrap:wrap;">' +
+            return '<div class="cfg-linha"><span class="cfg-rotulo" id="prefRotulo-' + pref.campo + '">' + pref.rotulo + '</span>' +
+              '<div class="mode-toggle pref-toggle" data-campo="' + pref.campo + '" role="group" aria-labelledby="prefRotulo-' + pref.campo + '">' +
                 pref.opcoes.map(function (o) {
                   return '<button type="button" class="mode-btn' + (o.valor === atual ? ' active' : '') +
                     '" data-valor="' + o.valor + '">' + o.rotulo + '</button>';
                 }).join('') +
               '</div>' +
-              (pref.dica ? '<div class="card-hint" style="margin:6px 0 0">' + pref.dica + '</div>' : '') +
             '</div>';
           }).join('') +
-          '<div class="field"><label class="campo-rotulo" for="abaInicialSelect">Abrir o app em</label>' +
+          '<div class="subhead"><h3>Aplicativo</h3></div>' +
+          '<div class="cfg-linha"><label class="cfg-rotulo" for="abaInicialSelect">Abrir o app em</label>' +
             '<select class="input" id="abaInicialSelect">' +
               [['nova', 'Nova entrega'], ['rota', 'Rota'], ['painel', 'Painel'],
                ['solicitacoes', 'Solicitações'], ['clientes', 'Clientes e ajustes']]
@@ -13060,31 +13236,34 @@
                 .map(function (o) { return '<option value="' + o[0] + '">' + o[1] + '</option>'; }).join('') +
             '</select>' +
           '</div>' +
-
-          '<div class="field"><span>Aplicativo</span>' +
-            '<button type="button" class="btn btn-secondary" id="instalarAppBtn" hidden><i class="ph ph-device-mobile" aria-hidden="true"></i> Instalar na tela inicial</button>' +
-            '<div class="card-hint" style="margin:6px 0 0" id="instalarAppDica"></div>' +
+          // Instalar só aparece quando dá pra instalar (ou já está instalado);
+          // sem isso, a linha inteira some — nada de parágrafo de instrução.
+          '<div class="cfg-linha" id="instalarAppLinha" hidden><span class="cfg-rotulo">Instalar na tela inicial</span>' +
+            '<button type="button" class="btn-chip" id="instalarAppBtn" hidden><i class="ph ph-device-mobile" aria-hidden="true"></i> Instalar</button>' +
+            '<span class="cfg-estado" id="instalarAppDica"></span>' +
           '</div>' +
           '</div>' +
           '<div class="config-painel" id="painel-conta" hidden>' +
-          '<div class="field"><span>Foto de perfil</span>' +
-            '<div class="foto-perfil-row">' +
-              '<span class="foto-perfil-preview" id="fotoPerfilPreview"></span>' +
-              '<div class="foto-perfil-acoes">' +
-                '<input type="file" accept="image/*" id="fotoPerfilInput" class="foto-file-input">' +
-                '<label class="btn btn-secondary foto-label" for="fotoPerfilInput"><i class="ph ph-camera" aria-hidden="true"></i> Escolher foto</label>' +
-                '<button type="button" class="link-btn" id="fotoPerfilRemover" hidden>Remover</button>' +
-              '</div>' +
+          '<div class="subhead"><h3>Foto de perfil</h3></div>' +
+          '<div class="cfg-linha foto-perfil-row">' +
+            '<span class="foto-perfil-preview" id="fotoPerfilPreview"></span>' +
+            '<div class="foto-perfil-acoes">' +
+              '<input type="file" accept="image/*" id="fotoPerfilInput" class="foto-file-input">' +
+              '<label class="btn-chip foto-label" for="fotoPerfilInput"><i class="ph ph-camera" aria-hidden="true"></i> Escolher foto</label>' +
+              '<button type="button" class="btn-chip danger" id="fotoPerfilRemover" hidden>Remover</button>' +
             '</div>' +
           '</div>' +
-          '<form id="form-senha" class="field" novalidate>' +
-            '<span>Trocar senha</span>' +
-            '<label class="sub-rotulo" for="senhaAtual">Senha atual</label>' +
-            '<input class="input" id="senhaAtual" type="password" autocomplete="current-password" required style="margin-bottom:12px;">' +
-            '<label class="sub-rotulo" for="senhaNova">Nova senha</label>' +
-            '<input class="input" id="senhaNova" type="password" autocomplete="new-password" placeholder="Mínimo 6 caracteres" required>' +
-            '<div class="field-error" id="err-senha" style="display:block;"></div>' +
-            '<button type="submit" class="btn btn-primary" style="margin-top:10px;">Salvar nova senha</button>' +
+          // O Salvar é o próprio submit do form, no título da seção (o
+          // handler acha o botão por type=submit dentro do form).
+          '<form id="form-senha" novalidate>' +
+            '<div class="subhead"><h3>Senha</h3><button type="submit" class="btn-chip accent">Salvar</button></div>' +
+            '<div class="senha-grade">' +
+              '<label><span class="sub-rotulo">Senha atual</span>' +
+                '<input class="input" id="senhaAtual" type="password" autocomplete="current-password" required></label>' +
+              '<label><span class="sub-rotulo">Nova senha</span>' +
+                '<input class="input" id="senhaNova" type="password" autocomplete="new-password" placeholder="Mínimo 6 caracteres" required></label>' +
+            '</div>' +
+            '<div class="field-error" id="err-senha" role="alert"></div>' +
           '</form>' +
           '</div>' +
         '</div>' +
@@ -13093,26 +13272,28 @@
     $('modalClose').addEventListener('click', closeModal);
 
     // Instalar na tela inicial: o Chrome só libera depois de guardar o evento
-    // beforeinstallprompt. Quando o app já está instalado o evento não vem,
-    // então em vez do botão aparece a explicação do porquê.
+    // beforeinstallprompt. Instalado, a linha diz "Instalado"; sem o evento
+    // (iPhone, Windows sem suporte) a linha inteira fica escondida — o
+    // parágrafo de instrução que aparecia no lugar era texto sem ação.
     (function () {
+      var linha = $('instalarAppLinha');
       var btn = $('instalarAppBtn');
       var dica = $('instalarAppDica');
       var standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
       if (standalone) {
-        dica.textContent = 'O app já está instalado neste aparelho.';
+        linha.hidden = false;
+        dica.textContent = 'Instalado';
         return;
       }
-      if (!promptInstalar) {
-        dica.textContent = 'No iPhone: botão de compartilhar do Safari e depois "Adicionar à Tela de Início".';
-        return;
-      }
-      btn.hidden = false;
-      dica.textContent = 'Abre sem barra de endereço e continua funcionando sem sinal.';
+      linha.hidden = !promptInstalar;
+      btn.hidden = !promptInstalar;
+      // o evento pode chegar com a janela já aberta (ver beforeinstallprompt
+      // lá embaixo), então o clique confere promptInstalar na hora
       btn.addEventListener('click', function () {
+        if (!promptInstalar) return;
         promptInstalar.prompt();
         promptInstalar.userChoice.then(function (escolha) {
-          if (escolha.outcome === 'accepted') { promptInstalar = null; btn.hidden = true; dica.textContent = 'Pronto. Procure o ícone na tela inicial.'; }
+          if (escolha.outcome === 'accepted') { promptInstalar = null; btn.hidden = true; dica.textContent = 'Instalado'; }
         });
       });
     })();
@@ -13186,9 +13367,12 @@
 
     $('paletaGrid').querySelectorAll('.paleta-btn').forEach(function (btn) {
       btn.classList.toggle('active', btn.dataset.paleta === paletaAtual);
+      btn.setAttribute('aria-pressed', btn.dataset.paleta === paletaAtual ? 'true' : 'false');
       btn.addEventListener('click', function () {
-        $('paletaGrid').querySelectorAll('.paleta-btn').forEach(function (b) { b.classList.remove('active'); });
+        $('paletaGrid').querySelectorAll('.paleta-btn').forEach(function (b) { b.classList.remove('active'); b.setAttribute('aria-pressed', 'false'); });
         btn.classList.add('active');
+        btn.setAttribute('aria-pressed', 'true');
+        $('paletaNome').textContent = btn.dataset.nome;
         salvarPaleta(btn.dataset.paleta);
       });
     });
@@ -13532,18 +13716,18 @@
     });
   }
 
-  // Diz, em uma linha, se o reforço está de fato respondendo. É a diferença
-  // entre "configurei e não funciona" e "o PC está desligado".
+  // Diz, num selo do cabeçalho, se o reforço está de fato respondendo. É a
+  // diferença entre "configurei e não funciona" e "o PC está desligado". A
+  // explicação comprida vai no title do selo, não na tela.
   function renderIaEstado_() {
     var el = $('iaEstado');
     if (!el) return;
-    if (cqIaDisponivel_()) {
-      el.innerHTML = '<span class="card-hint" style="color:var(--success)">No ar: o PC do escritório está ligado e com chave configurada.</span>';
-    } else if (cqVigiaLigado) {
-      el.innerHTML = '<span class="card-hint">O PC do escritório está ligado, mas sem chave do Gemini — veja INSTALACAO.md, seção "O reforço de IA". A Consulta rápida funciona do mesmo jeito.</span>';
-    } else {
-      el.innerHTML = '<span class="card-hint">O PC do escritório está desligado. A Consulta rápida funciona do mesmo jeito; só o "Tentar com a IA" fica fora do ar.</span>';
-    }
+    var estado = cqIaDisponivel_()
+      ? ['entregue', 'No ar', 'O PC do escritório está ligado e com chave configurada.']
+      : (cqVigiaLigado
+        ? ['neutro', 'Sem chave', 'O PC do escritório está ligado, mas sem chave da IA — veja INSTALACAO.md, seção "O reforço de IA". A Consulta rápida funciona do mesmo jeito.']
+        : ['neutro', 'PC desligado', 'O PC do escritório está desligado. A Consulta rápida funciona do mesmo jeito; só o "Tentar com a IA" fica fora do ar.']);
+    el.innerHTML = '<span class="status-pill ' + estado[0] + '" title="' + escapeHtml_(estado[2]) + '">' + estado[1] + '</span>';
   }
 
   $('salvarContasUrlBtn').addEventListener('click', function () {
@@ -13559,25 +13743,32 @@
   function renderCompetenciasFechadas_() {
     var el = $('competenciasFechadasLista');
     if (!el) return;
+    if ($('competenciasContador')) $('competenciasContador').textContent = competenciasFechadas.length ? String(competenciasFechadas.length) : '';
+    // sem botão no vazio: o campo e o [Fechar] estão logo acima
     if (!competenciasFechadas.length) {
-      el.innerHTML = vazioCom_('Nenhuma competência fechada ainda. Fechar guarda os números do mês e impede alteração depois.', 'Fechar uma competência', 'fecharCompetenciaBtn');
+      el.innerHTML = vazioCom_('Nenhuma competência fechada.', '', '');
       return;
     }
     el.innerHTML = '';
     competenciasFechadas.slice().sort().reverse().forEach(function (comp) {
       var row = document.createElement('div');
       row.className = 'client-row';
-      row.innerHTML = '<div><div class="cr-name"></div></div>' +
-        (temPapel('admin') ? '<div class="cr-actions"><button class="btn-chip">Reabrir</button></div>' : '');
+      row.innerHTML = '<div><div class="cr-name competencia-nome"></div></div>' +
+        (temPapel('admin') ? '<div class="cr-actions"><button type="button" class="btn-chip">Reabrir</button></div>' : '');
       row.querySelector('.cr-name').textContent = fmtCompetencia(comp);
       if (temPapel('admin')) {
+        // Reabrir libera a edição do mês pra todo mundo na hora: pede o
+        // segundo toque, como as outras ações de risco da tela Sistema.
         row.querySelector('.btn-chip').addEventListener('click', function () {
-          db.doc('config/competencias').set({
-            fechadas: competenciasFechadas.filter(function (c) { return c !== comp; })
-          }, { merge: true }).then(function () {
-            registrarAuditoria_('competencia_reaberta', fmtCompetencia(comp));
-            showToast('Competência reaberta.');
-          }).catch(function (err) { showToast(errMsg(err, 'Não foi possível reabrir.'), 'error'); });
+          // "Confirmar?" curto: a linha é estreita e no PC não se "toca"
+          confirmarDuplo(this, function () {
+            db.doc('config/competencias').set({
+              fechadas: competenciasFechadas.filter(function (c) { return c !== comp; })
+            }, { merge: true }).then(function () {
+              registrarAuditoria_('competencia_reaberta', fmtCompetencia(comp));
+              showToast('Competência reaberta.');
+            }).catch(function (err) { showToast(errMsg(err, 'Não foi possível reabrir.'), 'error'); });
+          }, 'Confirmar?');
         });
       }
       el.appendChild(row);
@@ -13643,7 +13834,9 @@
   // Confirmação dupla direto no botão (em vez do confirm() do navegador):
   // primeiro toque avisa e arma um temporizador; só apaga de verdade se
   // tocar de novo dentro de alguns segundos.
-  function confirmarDuplo(btn, acao) {
+  // rotulo (opcional) troca o aviso longo por um curto onde a linha é
+  // estreita — ex.: "Confirmar?" no Reabrir de Competências fechadas.
+  function confirmarDuplo(btn, acao, rotulo) {
     if (btn.dataset.confirmando === '1') {
       clearTimeout(btn._confirmTimer);
       delete btn.dataset.confirmando;
@@ -13655,7 +13848,7 @@
     btn.dataset.textoOriginal = btn.textContent;
     btn.dataset.confirmando = '1';
     btn.classList.add('confirmando');
-    btn.innerHTML = '<i class="ph ph-warning" aria-hidden="true"></i> Toque de novo pra confirmar';
+    btn.innerHTML = '<i class="ph ph-warning" aria-hidden="true"></i> ' + (rotulo || 'Toque de novo pra confirmar');
     btn._confirmTimer = setTimeout(function () {
       delete btn.dataset.confirmando;
       btn.classList.remove('confirmando');
@@ -14053,6 +14246,9 @@
     promptInstalar = ev;
     var btn = document.getElementById('instalarAppBtn');
     if (btn) btn.hidden = false;
+    // a linha de Configurações só existe (e só aparece) com a janela aberta
+    var linha = document.getElementById('instalarAppLinha');
+    if (linha) linha.hidden = false;
     if (window.NilmaShell) NilmaShell.mostrarInstalar(true);
   });
 
@@ -14060,6 +14256,8 @@
     promptInstalar = null;
     var btn = document.getElementById('instalarAppBtn');
     if (btn) btn.hidden = true;
+    var dica = document.getElementById('instalarAppDica');
+    if (dica) dica.textContent = 'Instalado';
     if (window.NilmaShell) NilmaShell.mostrarInstalar(false);
   });
 
@@ -14210,9 +14408,10 @@
   }
 
   // ---------- saúde do sistema ----------
+  // Barra fina dentro da linha "Leituras hoje" (mesmo desenho das linhas
+  // do robô logo abaixo, em vez de um bloco à parte).
   function barraDeUso_(pct, cor) {
-    return '<div style="height:8px;border-radius:99px;background:var(--surface-2);overflow:hidden;margin:6px 0 4px">' +
-      '<div style="height:100%;width:' + Math.min(100, Math.max(2, pct)) + '%;background:' + cor + ';border-radius:99px"></div></div>';
+    return '<span class="saude-barra" aria-hidden="true"><span style="width:' + Math.min(100, Math.max(2, pct)) + '%;background:' + cor + '"></span></span>';
   }
   function renderSaudeDoSistema_() {
     var card = $('saudeSistemaCard');
@@ -14224,11 +14423,12 @@
     var cor = pct >= 80 ? 'var(--danger)' : (pct >= 50 ? 'var(--warning)' : 'var(--success)');
     var corpo = $('saudeSistemaCorpo');
     corpo.innerHTML =
-      '<div class="field" style="margin-bottom:var(--esp-4)"><span>Leituras do banco hoje, neste aparelho</span>' +
+      '<div class="entrega-row saude-linha" title="Leituras do banco hoje, neste aparelho, no plano gratuito">' +
+        '<div><div class="er-nome">Leituras hoje</div>' +
+        '<div class="er-sub">' + lidas.toLocaleString('pt-BR') + ' de ' + LIMITE_LEITURAS_DIA_.toLocaleString('pt-BR') + ' (' + pct + '%)</div></div>' +
         barraDeUso_(pct, cor) +
-        '<p class="card-hint" style="margin:0">' + lidas.toLocaleString('pt-BR') + ' de ' + LIMITE_LEITURAS_DIA_.toLocaleString('pt-BR') +
-        ' do plano gratuito (' + pct + '%)</p></div>' +
-      '<div id="saudeRoboLinhas"><p class="card-hint" style="margin:0">Consultando o PC do robô…</p></div>';
+        '<span class="status-pill ' + (pct >= 80 ? 'falha' : 'entregue') + '">' + (pct >= 80 ? 'ver' : 'ok') + '</span></div>' +
+      '<div id="saudeRoboLinhas"><div class="saude-msg">Consultando o PC do robô…</div></div>';
     if (!db) return;
     db.doc('robo/estado').get().then(function (snap) {
       var e = snap.exists ? snap.data() : {};
@@ -14258,12 +14458,12 @@
         linhas.push({ ok: false, titulo: 'Último erro do robô', sub: String(e.ultimoErro).slice(0, 200) });
       }
       $('saudeRoboLinhas').innerHTML = linhas.map(function (l) {
-        return '<div class="entrega-row" style="cursor:default"><div><div class="er-nome">' + escapeHtml_(l.titulo) + '</div>' +
+        return '<div class="entrega-row saude-linha"><div><div class="er-nome">' + escapeHtml_(l.titulo) + '</div>' +
           '<div class="er-sub">' + escapeHtml_(l.sub) + '</div></div>' +
           '<span class="status-pill ' + (l.ok ? 'entregue' : 'falha') + '">' + (l.ok ? 'ok' : 'ver') + '</span></div>';
       }).join('');
     }).catch(function () {
-      $('saudeRoboLinhas').innerHTML = '<p class="card-hint" style="margin:0">Não consegui ler o estado do robô (só admin e contábil podem).</p>';
+      $('saudeRoboLinhas').innerHTML = '<div class="saude-msg">Não consegui ler o estado do robô.</div>';
     });
   }
 
@@ -14863,100 +15063,6 @@
         '</body></html>';
       aba.document.open(); aba.document.write(html); aba.document.close();
       registrarAuditoria_('protocolo_emitido', clienteLabel(cliente) + ' · ' + fmtCompetencia(comp));
-    }).catch(function (err) {
-      aba.close();
-      showToast(errMsg(err, 'Não foi possível montar o protocolo.'), 'error');
-    });
-  }
-
-  // ---------- protocolo de um punhado de entregas (pra imprimir) ----------
-  // O protocolo do mês é de um cliente só, e só se chega nele pela ficha.
-  // Este aqui é o papel de QUALQUER conjunto: uma entrega, uma parada com
-  // várias empresas assinadas juntas, ou o dia inteiro. Sai sem QR e sem
-  // código de conferência de propósito: é o papel que vai pro arquivo
-  // físico do escritório, e tem que imprimir sem depender de internet.
-  function abrirProtocoloDeEntregas_(titulo, entregas) {
-    var lista = (entregas || []).filter(Boolean);
-    if (!lista.length) { showToast('Não há entregas para imprimir.', 'error'); return; }
-    var aba = window.open('', '_blank');
-    if (!aba) { showToast('O navegador bloqueou a nova aba. Permita pop-ups para este site.', 'error'); return; }
-    aba.document.write('<!doctype html><meta charset="utf-8"><title>Protocolo</title><body style="font:14px system-ui;padding:24px">Preparando o protocolo...</body>');
-    var ordenadas = lista.slice().sort(function (a, b) {
-      return String(a.confirmadoEm || a.criadoEm).localeCompare(String(b.confirmadoEm || b.criadoEm));
-    });
-    Promise.all(ordenadas.map(function (e) {
-      if (!e.temAssinatura) return Promise.resolve(null);
-      return getAnexos(e.id).then(function (a) { return (a && a.assinatura) || null; }).catch(function () { return null; });
-    })).then(function (assinaturas) {
-      var h = function (t) { return escapeHtml_(t == null ? '' : String(t)); };
-      // Parada assinada de uma vez: a MESMA assinatura vale por várias linhas.
-      // Repetir a imagem em cada linha daria a entender que foram várias
-      // assinaturas diferentes, então ela sai uma vez só, no pé, dizendo
-      // por quantas empresas responde.
-      var colhidas = assinaturas.filter(Boolean);
-      var assinaturaUnica = (colhidas.length > 1 && colhidas.every(function (a) { return a === colhidas[0]; })) ? colhidas[0] : null;
-      var total = 0;
-      var linhas = ordenadas.map(function (e, i) {
-        var itens = (e.itens || []).map(function (it) {
-          var tipo = typeof it === 'string' ? it : it.tipo;
-          var valor = (it && it.valor != null) ? it.valor : null;
-          if (valor) total += valor;
-          return h(tipo) + (valor != null ? ' <span class="v">' + h(fmtMoney(valor)) + '</span>' : '');
-        }).join('<br>') || 'documentos';
-        var entregue = e.status === 'confirmada';
-        var situacao = entregue ? (e.recebidoPeloLink ? 'Recebido pelo link' : 'Entregue')
-          : (e.status === 'falha' ? 'Não entregue' : (e.status === 'link' ? 'No link, aguardando' : 'Na rota'));
-        var assinaturaDaLinha = assinaturaUnica ? '' :
-          (assinaturas[i] ? '<img src="' + h(assinaturas[i]) + '" alt="assinatura">'
-            : (e.recebidoPeloLink ? '<span class="m">confirmado pelo link</span>'
-              : (e.temFoto ? '<span class="m">comprovado por foto</span>'
-                : (entregue ? '' : '<span class="linha"></span>'))));
-        return '<tr><td class="n">' + (i + 1) + '</td>' +
-          '<td><b>' + h(e.clienteNome || 'sem nome') + '</b>' +
-            (e.competencia ? '<div class="m">competência ' + h(fmtCompetencia(e.competencia)) + '</div>' : '') + '</td>' +
-          '<td>' + itens + (e.vencimento ? '<div class="m">vence ' + h(e.vencimento.split('-').reverse().join('/')) + '</div>' : '') + '</td>' +
-          '<td><b>' + situacao + '</b><div class="m">' + h(fmtDateTime(e.confirmadoEm || e.criadoEm)) + '</div>' +
-            (entregue && e.recebedor ? '<div class="m">recebido por ' + h(e.recebedor) + '</div>' : '') + '</td>' +
-          '<td class="a">' + assinaturaDaLinha + '</td></tr>';
-      }).join('');
-      var entregues = ordenadas.filter(function (e) { return e.status === 'confirmada'; }).length;
-      var quemRecebeu = ordenadas.map(function (e) { return e.recebedor; }).filter(Boolean)[0] || '';
-      var quemEntregou = ordenadas.map(function (e) { return e.entregadoPorNome; }).filter(Boolean)[0] || currentUserNome || '';
-      var quando = ordenadas.map(function (e) { return e.confirmadoEm; }).filter(Boolean)[0] || '';
-      var html = '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Protocolo - ' + h(titulo) + '</title><style>' +
-        '@page{size:A4;margin:16mm}*{box-sizing:border-box}body{font:12px/1.45 -apple-system,"Segoe UI",Inter,Arial,sans-serif;color:#111;margin:0 auto;padding:24px;max-width:900px}' +
-        'h1{font-size:18px;margin:0 0 2px}header{display:flex;justify-content:space-between;gap:24px;border-bottom:2px solid #111;padding-bottom:10px;margin-bottom:14px}' +
-        '.m{color:#555;font-size:11px}.v{color:#555}table{width:100%;border-collapse:collapse}' +
-        'th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#555;border-bottom:1px solid #999;padding:6px 8px}' +
-        'td{vertical-align:top;padding:8px;border-bottom:1px solid #ddd}tr{break-inside:avoid}' +
-        'td.n{color:#777;width:24px}td.a{width:160px}td.a img{width:150px;border:1px solid #ccc;display:block}' +
-        '.linha{display:block;border-bottom:1px solid #111;height:24px}' +
-        '.assina{margin-top:20px;border:1px solid #bbb;padding:14px;display:flex;gap:20px;align-items:flex-start;break-inside:avoid}' +
-        '.assina img{width:260px;border:1px solid #ccc;display:block}.assina .quem{flex:1}' +
-        'footer{margin-top:16px;display:flex;justify-content:space-between;gap:24px;font-size:11px;color:#555;border-top:1px solid #ddd;padding-top:10px}' +
-        '.barra{margin:0 0 14px}.barra button{font:inherit;padding:8px 14px;cursor:pointer}' +
-        '@media print{.barra{display:none}body{padding:0}}</style></head><body>' +
-        '<div class="barra"><button onclick="window.print()">Imprimir ou salvar em PDF</button></div>' +
-        '<header><div><h1>Protocolo de entrega de documentos</h1><div class="m">Nilma Contabilidade</div></div>' +
-        '<div style="text-align:right"><b>' + h(titulo) + '</b>' +
-          (quemEntregou ? '<div class="m">Entregue por: ' + h(quemEntregou) + '</div>' : '') +
-          '<div class="m">' + h(fmtDateTime(quando || new Date().toISOString())) + '</div></div></header>' +
-        '<table><thead><tr><th></th><th>Empresa</th><th>Documentos</th><th>Situação</th><th>' +
-          (assinaturaUnica ? '' : 'Assinatura') + '</th></tr></thead><tbody>' + linhas + '</tbody></table>' +
-        (assinaturaUnica
-          ? '<div class="assina"><img src="' + h(assinaturaUnica) + '" alt="Assinatura de recebimento">' +
-            '<div class="quem"><b>Recebimento</b><div class="m">As ' + ordenadas.length +
-            ' entregas acima foram entregues juntas e assinadas de uma vez' + (quando ? ', em ' + h(fmtDateTime(quando)) : '') + '.</div>' +
-            (quemRecebeu ? '<div style="margin-top:12px">Recebido por: <b>' + h(quemRecebeu) + '</b></div>'
-              : '<div class="m" style="margin-top:10px">Nome de quem recebeu</div><span class="linha"></span>') +
-            '</div></div>'
-          : '') +
-        '<footer><div>' + ordenadas.length + ' registro(s), ' + entregues + ' entregue(s)' +
-          (total ? ' · total das guias ' + h(fmtMoney(total)) : '') + '</div>' +
-        '<div>Emitido em ' + h(fmtDateTime(new Date().toISOString())) + ' por ' + h(currentUserNome || '') + '</div></footer>' +
-        '</body></html>';
-      aba.document.open(); aba.document.write(html); aba.document.close();
-      registrarAuditoria_('protocolo_emitido', titulo + ' · ' + ordenadas.length + ' entrega(s)');
     }).catch(function (err) {
       aba.close();
       showToast(errMsg(err, 'Não foi possível montar o protocolo.'), 'error');
@@ -16156,16 +16262,24 @@
     // Firestore restringe a leitura a admin/contábil). Quem não tem esses
     // papéis simplesmente não vê a oferta de "Tentar com a IA" — a Consulta
     // rápida sem IA continua igual pra todo mundo.
-    unsubCqRobo = db.doc('robo/estado').onSnapshot(function (snap) {
-      var d = snap.exists ? snap.data() : {};
-      var em = d.vigia && d.vigia.em ? Date.parse(d.vigia.em) : 0;
-      // 3 minutos: o vigia bate ponto a cada 1, então duas batidas perdidas
-      // já é desligado de verdade, não lentidão de rede.
-      cqVigiaLigado = !!em && (Date.now() - em) < 3 * 60 * 1000;
-      cqIaLigada = !!(d.ia && d.ia.ligado);
-      renderIaEstado_();
-      cqRenderModo_();
-    }, function () {});
+    unsubCqRobo = db.doc('robo/estado').onSnapshot(cqAplicarEstadoRobo_, function () {});
+  }
+  function cqAplicarEstadoRobo_(snap) {
+    var d = snap.exists ? snap.data() : {};
+    var em = d.vigia && d.vigia.em ? Date.parse(d.vigia.em) : 0;
+    // 3 minutos: o vigia bate ponto a cada 1, então duas batidas perdidas
+    // já é desligado de verdade, não lentidão de rede.
+    cqVigiaLigado = !!em && (Date.now() - em) < 3 * 60 * 1000;
+    cqIaLigada = !!(d.ia && d.ia.ligado);
+    renderIaEstado_();
+    cqRenderModo_();
+  }
+  // Ajustes › Integrações só precisa do selo na hora em que abre: uma
+  // leitura avulsa. O listener fica pra Consulta rápida — ligado aqui, ele
+  // seguia lendo a cada batida do vigia (~1 por minuto) a sessão inteira.
+  function cqLerEstadoRoboUmaVez_() {
+    if (unsubCqRobo) return;   // a Consulta já escuta; o selo já está em dia
+    db.doc('robo/estado').get().then(cqAplicarEstadoRobo_).catch(function () {});
   }
 
   // Sobe a cada "Limpar" ou saída do login. Resposta que chega atrasada
