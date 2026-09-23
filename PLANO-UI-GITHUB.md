@@ -270,3 +270,15 @@ node scripts/teste-pendencias.js && node scripts/teste-robo.js   # (teste-robo p
   - Solicitações: Nova solicitação · Pendentes. "Enviar solicitação" só aparece em Nova solicitação.
 - Categoria sem nada visível some do submenu; com uma só, o submenu inteiro some. Rota, Painel e Solicitações saíram da
   faixa lateral de tela larga (os cartões agora se dividem pelo submenu).
+
+### Etapa 3 — feita (aguardando a Nilma revisar no ar)
+- Mantida a barrinha de categorias de Ajustes (Equipe · Escritório · Rota · Sistema · Integrações), aprovada pela Nilma.
+  Submenu com uma escolha só some (ex.: Carteira pra quem não é admin, que só tem "Lista de clientes").
+- O título da tela diz onde a pessoa está (Carteira, Painéis, Ajustes do app), não o nome do módulo.
+- Listas em caixa: Clientes, Quem tem acesso, Painéis (base, vencendo, recados, link parado, Receita, empréstimos, mapa),
+  Saúde do sistema, Lembretes, Obrigações, Competências, Auditoria. Contagens ao lado do título.
+- Cada cliente tem "Abrir" com borda na linha (e "Desativar"/"Reativar" pra admin). Qualidade da rota: "Corrigir" na linha.
+- "Salvar" foi pro cabeçalho de cada cartão de ajuste (ordem da rota, escritório, lembretes, obrigações, integrações, IA).
+  "Adicionar cliente" e "Criar acesso" no cabeçalho do formulário. Convite: "Gerar link" e "Copiar link" na mesma linha.
+- Rótulos sem parênteses explicativos (cargos, CNPJ, nome). Ficha do cliente: "Protocolo" e "Extrato" viraram botões com
+  borda; aviso de localização em uma frase curta. Saíram as explicações longas de Aglutinar e do limite de leituras.

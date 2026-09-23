@@ -1086,6 +1086,23 @@
   /* informação curta de campo (não é dica: é dado que o app escreve) */
   .field-info { font-size: var(--t-sm); color: var(--ink-soft); margin: 4px 0 0; }
   .avulso-toggle.avulso-embaixo { margin: var(--esp-2) 0 0; }
+  /* Etapa 3 — Clientes e ajustes */
+  .btn-cabeca { width: auto; min-height: var(--alvo); padding: 0 var(--esp-4); }
+  .btn-chip.mini { min-height: 28px; padding: 2px 8px; font-size: var(--t-sm); }
+  .clientes-busca { margin: 0; padding: var(--esp-2) var(--esp-3); }
+  .card.caixa > .clientes-filtros { margin: 0; padding: 0 var(--esp-3) var(--esp-2); border-bottom: 1px solid var(--border); }
+  .card.caixa .client-row { padding-left: var(--esp-3); padding-right: var(--esp-3); }
+  .card.caixa .client-row:hover { background: var(--surface-2); }
+  .card.caixa > .field { padding: var(--esp-2) var(--esp-3); margin: 0; }
+  .card.caixa > .saude-grid, .card.caixa > #emprestimosList, .card.caixa > #auditoriaList,
+  .card.caixa > .caixa-form-linha, .card.caixa > #competenciasFechadasLista, .card.caixa > #lembretesEdit,
+  .card.caixa > #obrigacoesEdit, .card.caixa > #saudeSistemaCorpo, .card.caixa > #enderecosResumo,
+  .card.caixa > #carteiraMapaCaixa { padding: var(--esp-2) var(--esp-3); }
+  .caixa-form-linha { display: flex; gap: var(--esp-2); flex-wrap: wrap; align-items: flex-end; }
+  .convite-linha { display: flex; align-items: center; gap: var(--esp-3); flex-wrap: wrap; margin: var(--esp-4) 0 var(--esp-2); padding-top: var(--esp-3); border-top: 1px solid var(--border); }
+  .convite-rotulo { font-size: var(--t-sm); color: var(--ink-soft); }
+  .aviso-linha { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0 0 10px; font-size: var(--t-sm); color: var(--warning-forte); font-weight: 600; }
+  .aviso-linha .aviso-dica { color: var(--ink-faint); font-weight: 400; }
   .field-info:empty { display: none; }
   /* menu ⋯ de uma linha (Honorários): <details> ancorado, mesmo vocabulário do .menu-acoes */
   .menu-linha { position: relative; }
@@ -2545,16 +2562,18 @@
   </section>
 
   <section id="tab-perfil" class="view" role="tabpanel" tabindex="-1" aria-labelledby="tabPerfil" hidden>
-    <div class="card" id="perfilLista">
+    <div class="card caixa" id="perfilLista">
       <div class="card-head-row">
-        <h2><i class="ph ph-users-three" aria-hidden="true"></i> Quem tem acesso</h2>
-        <span class="btn-chip" id="equipeContador">–</span>
+        <h2><i class="ph ph-users-three" aria-hidden="true"></i> Quem tem acesso <span class="contagem" id="equipeContador"></span></h2>
       </div>
       <div id="equipeList"><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
     </div>
     <div class="card" id="perfilPessoa" hidden></div>
     <form id="form-equipe" class="card" hidden novalidate>
-      <h2><i class="ph ph-user-plus" aria-hidden="true"></i> Novo acesso</h2>
+      <div class="card-head-row">
+        <h2><i class="ph ph-user-plus" aria-hidden="true"></i> Novo acesso</h2>
+        <button type="submit" class="btn btn-primary btn-cabeca" id="equipeSubmitBtn">Criar acesso</button>
+      </div>
       <label class="field">
         <span>Nome</span>
         <input class="input" id="novoUsuarioNome" type="text" placeholder="Nome de quem vai usar o app" required>
@@ -2567,24 +2586,23 @@
            dele. Envolver todos num único <label> fazia qualquer clique aqui
            dentro cair no primeiro checkbox da lista (Admin). -->
       <div class="field">
-        <span>Cargos (além de Equipe)</span>
+        <span>Cargos</span>
         <label class="avulso-toggle"><input type="checkbox" id="novoUsuarioAdmin"> Admin</label>
-        <label class="avulso-toggle"><input type="checkbox" id="novoUsuarioOfficeBoy"> Office boy (fica com a página de Solicitações)</label>
-        <label class="avulso-toggle"><input type="checkbox" id="novoUsuarioContabil"> Contábil (Conciliadorzinho e Cheque especial)</label>
-        <label class="avulso-toggle"><input type="checkbox" id="novoUsuarioFiscal"> Fiscal (Importador LCDPR)</label>
+        <label class="avulso-toggle"><input type="checkbox" id="novoUsuarioOfficeBoy"> Office boy</label>
+        <label class="avulso-toggle"><input type="checkbox" id="novoUsuarioContabil"> Contábil</label>
+        <label class="avulso-toggle"><input type="checkbox" id="novoUsuarioFiscal"> Fiscal</label>
         <label class="avulso-toggle"><input type="checkbox" id="novoUsuarioEquipeGeral"> Equipe geral</label>
       </div>
-      <button type="submit" class="btn btn-primary">Criar acesso</button>
-      <div class="field" style="margin:16px 0 0;border-top:1px solid var(--border);padding-top:14px;">
-        <span>Ou mande um convite</span>
-        <button type="button" class="btn btn-secondary" id="gerarConviteBtn"><i class="ph ph-link" aria-hidden="true"></i> Gerar link de convite</button>
-        <div id="conviteResultado" hidden style="margin-top:10px;">
-          <input class="input" id="conviteLink" type="text" readonly>
-          <button type="button" class="btn-chip accent" id="copiarConviteBtn" style="margin-top:8px;"><i class="ph ph-copy" aria-hidden="true"></i> Copiar link</button>
-        </div>
+      <div class="convite-linha">
+        <span class="convite-rotulo">Ou mande um convite</span>
+        <button type="button" class="btn-chip" id="gerarConviteBtn"><i class="ph ph-link" aria-hidden="true"></i> Gerar link</button>
+      </div>
+      <div class="linha-busca-cnpj" id="conviteResultado" hidden>
+        <input class="input" id="conviteLink" type="text" readonly>
+        <button type="button" class="btn-chip accent" id="copiarConviteBtn"><i class="ph ph-copy" aria-hidden="true"></i> Copiar link</button>
       </div>
     </form>
-    <div class="card" id="saudeSistemaCard" hidden>
+    <div class="card caixa" id="saudeSistemaCard" hidden>
       <div class="card-head-row">
         <h2><i class="ph ph-heartbeat" aria-hidden="true"></i> Saúde do sistema</h2>
         <button type="button" class="btn-chip" id="saudeSistemaAtualizarBtn"><i class="ph ph-arrows-clockwise" aria-hidden="true"></i> Atualizar</button>
@@ -2594,13 +2612,14 @@
     <div class="card" id="rotaFixaCard" hidden>
       <div class="card-head-row">
         <h2><i class="ph ph-path" aria-hidden="true"></i> Ordem fixa da rota</h2>
+        <button type="button" class="btn-chip accent" id="rotaFixaSalvarBtn"><i class="ph ph-floppy-disk" aria-hidden="true"></i> Salvar</button>
       </div>
       <div id="rotaFixaZonas"></div>
-      <button type="button" class="btn btn-primary" id="rotaFixaSalvarBtn" style="margin-top:var(--esp-4)">Salvar ordem da rota</button>
     </div>
     <div class="card" id="escritorioCard" hidden>
       <div class="card-head-row">
         <h2><i class="ph ph-buildings" aria-hidden="true"></i> Dados do escritório</h2>
+        <button type="button" class="btn-chip accent" id="escSalvarBtn"><i class="ph ph-floppy-disk" aria-hidden="true"></i> Salvar</button>
       </div>
       <div class="cadastro-grade">
         <label class="inteira"><span class="sub-rotulo">Chave PIX</span>
@@ -2614,60 +2633,59 @@
         <label class="inteira"><span class="sub-rotulo">Recado sobre o honorário (opcional)</span>
           <input class="input" id="escHonorarioTexto" type="text" maxlength="120" placeholder="Ex.: o boleto vence todo dia 10"></label>
       </div>
-      <p class="card-hint" id="escPixPreview" style="margin:6px 0 var(--esp-3)"></p>
-      <button type="button" class="btn btn-primary" id="escSalvarBtn">Salvar dados do escritório</button>
+      <p class="field-info" id="escPixPreview"></p>
     </div>
-    <div class="card" id="lembretesCard" hidden>
+    <div class="card caixa" id="lembretesCard" hidden>
       <div class="card-head-row">
         <h2><i class="ph ph-bell-simple-ringing" aria-hidden="true"></i> Lembretes do escritório</h2>
-        <button type="button" class="btn-chip accent" id="lembreteAddBtn"><i class="ph ph-plus" aria-hidden="true"></i> Incluir</button>
+        <button type="button" class="btn-chip" id="lembreteAddBtn"><i class="ph ph-plus" aria-hidden="true"></i> Incluir</button>
+        <button type="button" class="btn-chip accent" id="lembretesSalvarBtn"><i class="ph ph-floppy-disk" aria-hidden="true"></i> Salvar</button>
       </div>
       <div id="lembretesEdit"></div>
-      <button type="button" class="btn btn-primary" id="lembretesSalvarBtn">Salvar lembretes</button>
     </div>
-    <div class="card" id="obrigacoesConfigCard" hidden>
+    <div class="card caixa" id="obrigacoesConfigCard" hidden>
       <div class="card-head-row">
         <h2><i class="ph ph-calendar-dots" aria-hidden="true"></i> Obrigações do mês</h2>
-        <button type="button" class="btn-chip accent" id="obrigacoesAddBtn"><i class="ph ph-plus" aria-hidden="true"></i> Incluir</button>
+        <button type="button" class="btn-chip" id="obrigacoesAddBtn"><i class="ph ph-plus" aria-hidden="true"></i> Incluir</button>
+        <button type="button" class="btn-chip accent" id="obrigacoesSalvarBtn"><i class="ph ph-floppy-disk" aria-hidden="true"></i> Salvar</button>
       </div>
       <div id="obrigacoesEdit"></div>
-      <button type="button" class="btn btn-primary" id="obrigacoesSalvarBtn">Salvar obrigações</button>
     </div>
     <div class="card" id="integracaoCard" hidden>
       <div class="card-head-row">
         <h2><i class="ph ph-buildings" aria-hidden="true"></i> Endereço do serviço de contas</h2>
+        <button type="button" class="btn-chip accent" id="salvarContasUrlBtn"><i class="ph ph-floppy-disk" aria-hidden="true"></i> Salvar</button>
       </div>
       <label class="field">
         <span>URL do aplicativo web</span>
         <input class="input" id="contasUrlInput" type="url" placeholder="https://script.google.com/macros/s/.../exec">
       </label>
-      <button type="button" class="btn-chip accent" id="salvarContasUrlBtn">Salvar endereço</button>
     </div>
     <div class="card" id="iaCard" hidden>
       <div class="card-head-row">
         <h2><i class="ph ph-sparkle" aria-hidden="true"></i> Reforço de IA da Consulta</h2>
+        <button type="button" class="btn-chip accent" id="salvarIaModeloBtn"><i class="ph ph-floppy-disk" aria-hidden="true"></i> Salvar</button>
       </div>
       <label class="field">
         <span>Modelo do Gemini</span>
         <input class="input" id="iaModeloInput" type="text" placeholder="gemini-flash-latest" autocomplete="off">
       </label>
       <div id="iaEstado"></div>
-      <button type="button" class="btn-chip accent" id="salvarIaModeloBtn">Salvar modelo</button>
     </div>
-    <div class="card" id="competenciasCard" hidden>
+    <div class="card caixa" id="competenciasCard" hidden>
       <div class="card-head-row">
         <h2><i class="ph ph-lock-simple" aria-hidden="true"></i> Competências fechadas</h2>
       </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
+      <div class="caixa-form-linha">
         <label class="field" style="flex:1;min-width:160px;margin-bottom:0;">
           <span>Competência</span>
           <input class="input" id="competenciaFecharInput" type="month">
         </label>
         <button type="button" class="btn-chip accent" id="fecharCompetenciaBtn">Fechar competência</button>
       </div>
-      <div id="competenciasFechadasLista" style="margin-top:12px;"></div>
+      <div id="competenciasFechadasLista"></div>
     </div>
-    <div class="card" id="auditoriaCard" hidden>
+    <div class="card caixa" id="auditoriaCard" hidden>
       <div class="card-head-row">
         <h2><i class="ph ph-list-magnifying-glass" aria-hidden="true"></i> Auditoria</h2>
         <button type="button" class="btn-chip" id="auditoriaAbrirBtn">Ver histórico</button>
@@ -2728,40 +2746,39 @@
   </section>
 
   <section id="tab-clientes" class="view" role="tabpanel" tabindex="-1" aria-labelledby="tabbtn-clientes" hidden>
-    <div class="card" id="importCard" hidden>
+    <div class="card caixa" id="importCard" hidden>
       <div class="card-head-row">
         <h2><i class="ph ph-database" aria-hidden="true"></i> Base inicial</h2>
         <button type="button" class="btn-chip accent" id="importClientesBtn"><i class="ph ph-upload-simple" aria-hidden="true"></i> Importar de arquivo</button>
       </div>
     </div>
-    <div class="card" id="enderecosCard" hidden>
+    <div class="card caixa" id="enderecosCard" hidden>
       <div class="card-head-row">
         <h2><i class="ph ph-map-pin" aria-hidden="true"></i> Endereços e localização</h2>
         <button type="button" class="btn-chip accent" id="importEnderecosBtn"><i class="ph ph-upload-simple" aria-hidden="true"></i> Preencher de arquivo</button>
       </div>
       <div id="enderecosResumo" hidden></div>
     </div>
-    <div class="card" id="qualidadeRotaCard" hidden>
+    <div class="card caixa" id="qualidadeRotaCard" hidden>
       <div class="card-head-row">
         <h2><i class="ph ph-map-trifold" aria-hidden="true"></i> Qualidade da rota</h2>
       </div>
       <div class="field" style="margin-bottom:var(--esp-5);">
-        <span>Sem região <span id="qualidadeSemZonaContador" class="card-hint"></span></span>
+        <span>Sem região <span id="qualidadeSemZonaContador" class="contagem"></span></span>
         <div id="qualidadeSemZonaList"></div>
       </div>
       <div class="field" style="margin-bottom:0;">
-        <span>Endereço impreciso <span id="qualidadeEnderecoContador" class="card-hint"></span></span>
+        <span>Endereço impreciso <span id="qualidadeEnderecoContador" class="contagem"></span></span>
         <div id="qualidadeEnderecoList"></div>
       </div>
     </div>
-    <div class="card" id="saudeBaseCard">
+    <div class="card caixa" id="saudeBaseCard">
       <div class="card-head-row">
-        <h2><i class="ph ph-clipboard-text" aria-hidden="true"></i> Como está a base</h2>
-        <span class="card-hint" id="saudeResumo"></span>
+        <h2><i class="ph ph-clipboard-text" aria-hidden="true"></i> Como está a base <span class="contagem" id="saudeResumo"></span></h2>
       </div>
       <div class="saude-grid" id="saudeGrid"></div>
     </div>
-    <div class="card" id="carteiraMapaCard" hidden>
+    <div class="card caixa" id="carteiraMapaCard" hidden>
       <div class="card-head-row">
         <h2><i class="ph ph-map-trifold" aria-hidden="true"></i> Mapa da carteira</h2>
         <button type="button" class="btn-chip" id="carteiraMapaBtn">Mostrar</button>
@@ -2771,54 +2788,53 @@
         <div class="carteira-legenda" id="carteiraLegenda"></div>
       </div>
     </div>
-    <div class="card" id="papeisVencendoCard" hidden>
+    <div class="card caixa" id="papeisVencendoCard" hidden>
       <div class="card-head-row">
-        <h2><i class="ph ph-certificate" aria-hidden="true"></i> Vencendo nos clientes</h2>
-        <span class="card-hint" id="papeisVencendoContador"></span>
+        <h2><i class="ph ph-certificate" aria-hidden="true"></i> Vencendo nos clientes <span class="contagem" id="papeisVencendoContador"></span></h2>
       </div>
       <div id="papeisVencendoList"></div>
     </div>
-    <div class="card" id="emprestimosCard">
+    <div class="card caixa" id="emprestimosCard">
       <div class="card-head-row">
         <h2><i class="ph ph-hand-arrow-down" aria-hidden="true"></i> Documentos com o escritório</h2>
         <button type="button" class="btn-chip accent" id="emprestimoNovoBtn"><i class="ph ph-plus" aria-hidden="true"></i> Pegamos um documento</button>
       </div>
       <div id="emprestimosList"><div class="empty-state">Nada emprestado no momento.</div></div>
     </div>
-    <div class="card" id="recadosClienteCard" hidden>
+    <div class="card caixa" id="recadosClienteCard" hidden>
       <div class="card-head-row">
-        <h2><i class="ph ph-chat-teardrop-text" aria-hidden="true"></i> Recados dos clientes</h2>
-        <span class="card-hint" id="recadosClienteContador"></span>
+        <h2><i class="ph ph-chat-teardrop-text" aria-hidden="true"></i> Recados dos clientes <span class="contagem" id="recadosClienteContador"></span></h2>
       </div>
       <div id="recadosClienteList"></div>
     </div>
-    <div class="card" id="linkParadoCard" hidden>
+    <div class="card caixa" id="linkParadoCard" hidden>
       <div class="card-head-row">
-        <h2><i class="ph ph-link-break" aria-hidden="true"></i> Link que ninguém abriu</h2>
-        <span class="card-hint" id="linkParadoContador"></span>
+        <h2><i class="ph ph-link-break" aria-hidden="true"></i> Link que ninguém abriu <span class="contagem" id="linkParadoContador"></span></h2>
       </div>
       <div id="linkParadoList"></div>
     </div>
-    <div class="card" id="receitaAvisosCard" hidden>
+    <div class="card caixa" id="receitaAvisosCard" hidden>
       <div class="card-head-row">
-        <h2><i class="ph ph-bank" aria-hidden="true"></i> Mudou na Receita</h2>
-        <span class="card-hint" id="receitaAvisosContador"></span>
+        <h2><i class="ph ph-bank" aria-hidden="true"></i> Mudou na Receita <span class="contagem" id="receitaAvisosContador"></span></h2>
       </div>
       <div id="receitaAvisosList"></div>
     </div>
     <form id="form-cliente" class="card" hidden novalidate>
-      <h2><i class="ph ph-user-circle-plus" aria-hidden="true"></i> Novo cliente</h2>
+      <div class="card-head-row">
+        <h2><i class="ph ph-user-circle-plus" aria-hidden="true"></i> Novo cliente</h2>
+        <button type="submit" class="btn btn-primary btn-cabeca" id="clienteSubmitBtn">Adicionar cliente</button>
+      </div>
       <div class="field">
-        <span>CNPJ (opcional — preenche o resto sozinho)</span>
+        <span>CNPJ (opcional)</span>
         <div class="linha-busca-cnpj">
           <input class="input" id="novoClienteDoc" type="text" inputmode="numeric" placeholder="00.000.000/0000-00">
           <button type="button" class="btn btn-secondary" id="buscarCnpjBtn"><i class="ph ph-magnifying-glass" aria-hidden="true"></i> Buscar</button>
         </div>
-        <p class="card-hint" id="cnpjStatus" style="margin:6px 0 0"></p>
+        <p class="field-info" id="cnpjStatus"></p>
       </div>
       <label class="field">
         <span>Nome</span>
-        <input class="input" id="novoClienteNome" type="text" placeholder="Razão social ou nome (sem o código na frente)" required>
+        <input class="input" id="novoClienteNome" type="text" placeholder="Razão social ou nome" required>
       </label>
       <div class="edit-form" style="margin-bottom:16px;">
         <div class="row2">
@@ -2844,14 +2860,13 @@
         <span>Endereço (opcional)</span>
         <input class="input" id="novoClienteEndereco" type="text" placeholder="Rua, número, bairro, cidade">
       </label>
-      <button type="submit" class="btn btn-primary">Adicionar cliente</button>
     </form>
-    <div class="card" id="clientesListaCard">
+    <div class="card caixa" id="clientesListaCard">
       <div class="card-head-row">
-        <h2><i class="ph ph-users" aria-hidden="true"></i> Clientes</h2>
+        <h2><i class="ph ph-users" aria-hidden="true"></i> Clientes <span class="contagem" id="clientesContador"></span></h2>
         <button type="button" class="btn-chip accent" id="exportClientesBtn"><i class="ph ph-download-simple" aria-hidden="true"></i> Exportar planilha</button>
       </div>
-      <div class="filtro" style="margin:var(--esp-3) 0;">
+      <div class="filtro clientes-busca">
         <label for="clientesBusca">Buscar cliente</label>
         <input class="input" id="clientesBusca" enterkeyhint="search" type="text" placeholder="Nome, código, CNPJ ou etiqueta">
       </div>
@@ -2863,7 +2878,6 @@
           <option value="recentes">Cadastrados por último</option>
         </select>
       </div>
-      <p class="card-hint" id="clientesContador" style="margin:0 0 var(--esp-2)"></p>
       <div id="clientesList"><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
     </div>
   </section>
@@ -4913,6 +4927,11 @@
     $('tabbtn-clientes').classList.remove('active');
     document.querySelectorAll('#tabsNav .tab-nivel1').forEach(function (b) {
       b.classList.toggle('active', b.dataset.parte === parteReal);
+      // o título da tela diz onde a pessoa está (Carteira, Painéis…), não o módulo
+      if (b.dataset.parte === parteReal && $('pageTitle')) {
+        var rot = b.querySelector('.tab-label');
+        if (rot) $('pageTitle').textContent = rot.textContent;
+      }
     });
     // nível 2 (na tela principal, dentro do destino que acabou de aparecer):
     // volta pra categoria que já estava marcada, ou pra primeira, na entrada
@@ -4946,6 +4965,11 @@
     if (!admin && ativo && ativo.dataset.parte === 'ajustes') {
       mostrarParteDeClientes_('carteira');
     }
+    // submenu com uma escolha só não é escolha: some
+    document.querySelectorAll('#tab-clientes [data-subnav-de]').forEach(function (sub) {
+      var visiveis = sub.querySelectorAll('.mode-btn:not([hidden])').length;
+      sub.hidden = visiveis < 2;
+    });
   }
 
   montarAjustesNaAbaClientes_();
@@ -9900,7 +9924,6 @@
         '<div class="modal-head"><div><h2>Aglutinar com outra empresa</h2>' +
           '<div class="card-hint modal-head-sub">' + escapeHtml_(clienteLabel(cliente)) + '</div>' +
         '</div><button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button></div>' +
-        '<p class="card-hint">Use quando duas empresas cadastradas separadamente ficam no mesmo endereço físico — por exemplo, dois CNPJs no mesmo terreno. Elas passam a valer como UMA parada só na rota, sem deixar de ser cadastros distintos pra tudo o mais (documentos, competências, histórico).</p>' +
         statusHtml +
         '<div class="field"><span>' + (ancoraAtual ? 'Trocar para outra empresa' : 'Buscar a outra empresa') + '</span>' +
           '<input class="input" id="aglutinarBusca" type="text" placeholder="Nome, código ou CNPJ" autocomplete="off">' +
@@ -10015,8 +10038,8 @@
           var cabecalho = '<div class="historico-mes mes">' +
             '<span>' + escapeHtml_(grupo.comp === 'sem competência' ? grupo.comp : fmtCompetencia(grupo.comp)) +
               (grupo.comp !== 'sem competência'
-                ? ' <button type="button" class="link-btn protocolo-btn" data-protocolo="' + escapeHtml_(grupo.comp) + '" title="Documento do mês pra imprimir ou salvar em PDF">Protocolo</button>' +
-                  ' <button type="button" class="link-btn extrato-btn" data-extrato="' + escapeHtml_(grupo.comp) + '" title="O que entregamos e o que o cliente mandou no mês">Extrato</button>'
+                ? ' <button type="button" class="btn-chip mini protocolo-btn" data-protocolo="' + escapeHtml_(grupo.comp) + '" title="Documento do mês pra imprimir ou salvar em PDF"><i class="ph ph-printer" aria-hidden="true"></i> Protocolo</button>' +
+                  ' <button type="button" class="btn-chip mini extrato-btn" data-extrato="' + escapeHtml_(grupo.comp) + '" title="O que entregamos e o que o cliente mandou no mês"><i class="ph ph-list-checks" aria-hidden="true"></i> Extrato</button>'
                 : '') + '</span>' +
             '<span class="historico-mes-total">' + grupo.entregas.length + ' entrega(s)' + (totalMes > 0 ? ' · ' + fmtMoney(totalMes) : '') + '</span>' +
           '</div>';
@@ -10039,9 +10062,9 @@
 
     var precisaoAtual = cliente.geo && cliente.geo.precisao;
     var avisoLocal = (!cliente.geo || precisaoAtual === 'cidade')
-      ? '<p class="card-hint" style="margin:0 0 10px">' +
-          (cliente.geo ? 'A localização deste cliente é só o centro da cidade — o endereço não foi encontrado no mapa.' : 'Este cliente ainda não tem localização.') +
-          ' Isso atrapalha a ordem da rota.</p>'
+      ? '<p class="aviso-linha"><i class="ph ph-map-pin-line" aria-hidden="true"></i> ' +
+          (cliente.geo ? 'No mapa: só o centro da cidade' : 'Sem localização no mapa') +
+          ' · <span class="aviso-dica">Mais ações › Corrigir localização</span></p>'
       : '';
 
     var acoesHtml = '<div class="modal-acoes">' +
@@ -10080,7 +10103,7 @@
     // referência ajuda achar o lugar quando o endereço é vago ou não tem
     // número; forma + dia dizem se dá pra ir cobrar essa semana.
     var infoHonorario = (cliente.pontoReferencia || cliente.honorarioForma)
-      ? '<p class="card-hint" style="margin:0 0 10px">' +
+      ? '<p class="field-info" style="margin:0 0 10px">' +
           (cliente.pontoReferencia ? '📍 ' + escapeHtml_(cliente.pontoReferencia) : '') +
           (cliente.pontoReferencia && cliente.honorarioForma ? ' · ' : '') +
           (cliente.honorarioForma ? 'Honorário: ' + escapeHtml_(cliente.honorarioForma) + (cliente.honorarioDia ? ' · dia ' + escapeHtml_(cliente.honorarioDia) : '') : '') +
@@ -12074,7 +12097,7 @@
         '</div>' +
       '</div>' +
       '<div class="field"><span>Funções</span><div class="cr-actions" id="pessoaPapeis"></div>' +
-        (euMesmo ? '<div class="card-hint" style="margin:8px 0 0">Você não pode mudar as próprias funções. Peça a outro admin.</div>' : '') +
+        (euMesmo ? '<div class="field-info">Só outro admin muda as suas funções.</div>' : '') +
       '</div>' +
       '<div class="field"><span>Entregas em ' + escapeHtml_(fmtCompetencia($('painelCompetencia').value)) + '</span>' +
         '<div class="dash-strip pessoa-numeros">' +
@@ -12373,12 +12396,16 @@
         '</div>' +
         (c.observacao ? '<i class="ph ph-note cr-recado" title="' + escapeHtml_(c.observacao) + '" aria-hidden="true"></i>' : '') +
         (naRota ? '<span class="status-pill rota">Na rota</span>' : '') + '</div>' +
-        (temPapel('admin') ? '<div class="cr-actions"><button class="btn-chip">' + (c.ativo === false ? 'Reativar' : 'Desativar') + '</button></div>' : '');
+        '<div class="cr-actions">' +
+          '<button type="button" class="btn-chip cr-abrir"><i class="ph ph-folder-open" aria-hidden="true"></i> Abrir</button>' +
+          (temPapel('admin') ? '<button type="button" class="btn-chip cr-ativar">' + (c.ativo === false ? 'Reativar' : 'Desativar') + '</button>' : '') +
+        '</div>';
       row.querySelector('.cr-name').textContent = clienteLabel(c);
       row.querySelector('.cr-sub').textContent = sub;
       row.querySelector('.cr-clickable').addEventListener('click', function () { openClienteHistorico(c); });
+      row.querySelector('.cr-abrir').addEventListener('click', function (ev) { ev.stopPropagation(); openClienteHistorico(c); });
       if (temPapel('admin')) {
-        row.querySelector('.btn-chip').addEventListener('click', function (ev) {
+        row.querySelector('.cr-ativar').addEventListener('click', function (ev) {
           ev.stopPropagation();
           var vaiAtivar = c.ativo === false;
           db.doc('clientes/' + c.id).update({ ativo: vaiAtivar })
@@ -12401,13 +12428,12 @@
   var mostrarTodosEnderecoImpreciso_ = false;
 
   function linhaQualidade_(c, emRotaSet) {
-    var row = document.createElement('button');
-    row.type = 'button';
-    row.className = 'client-row';
-    row.style.width = '100%';
+    var row = document.createElement('div');
+    row.className = 'client-row cr-clickable';
     var naRota = emRotaSet.has(c.id);
     row.innerHTML = '<div><div class="cr-name"></div><div class="cr-sub"></div></div>' +
-      (naRota ? '<span class="status-pill rota">Na rota</span>' : '');
+      (naRota ? '<span class="status-pill rota">Na rota</span>' : '') +
+      '<button type="button" class="btn-chip"><i class="ph ph-map-pin" aria-hidden="true"></i> Corrigir</button>';
     row.querySelector('.cr-name').textContent = clienteLabel(c);
     row.querySelector('.cr-sub').textContent = c.endereco || 'sem endereço cadastrado';
     // vai direto pro corretor — é exatamente o que essas duas listas pedem,
@@ -12420,18 +12446,17 @@
     var emRotaSet = new Set(pendentesCache.map(function (e) { return e.clienteId; }));
     container.innerHTML = '';
     if (!lista.length) {
-      container.innerHTML = '<p class="card-hint" style="margin:0">' + rotuloVazio + '</p>';
+      container.innerHTML = '<div class="empty-state">' + rotuloVazio + '</div>';
       contadorEl.textContent = '';
       return;
     }
-    contadorEl.textContent = '(' + lista.length + ')';
+    contadorEl.textContent = lista.length;
     var visiveis = mostrarTodos ? lista : lista.slice(0, LIMITE_QUALIDADE_VISIVEL_);
     visiveis.forEach(function (c) { container.appendChild(linhaQualidade_(c, emRotaSet)); });
     if (lista.length > LIMITE_QUALIDADE_VISIVEL_) {
       var btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = 'btn-chip';
-      btn.style.width = '100%';
+      btn.className = 'btn-chip lista-mais';
       btn.textContent = mostrarTodos ? 'Mostrar menos' : ('Mostrar mais ' + (lista.length - visiveis.length));
       btn.addEventListener('click', aoAlternar);
       container.appendChild(btn);
@@ -13884,8 +13909,7 @@
       '<div class="field" style="margin-bottom:var(--esp-4)"><span>Leituras do banco hoje, neste aparelho</span>' +
         barraDeUso_(pct, cor) +
         '<p class="card-hint" style="margin:0">' + lidas.toLocaleString('pt-BR') + ' de ' + LIMITE_LEITURAS_DIA_.toLocaleString('pt-BR') +
-        ' do plano gratuito (' + pct + '%). O limite é do escritório inteiro: some o que os outros aparelhos e o robô leem. ' +
-        'Passar do teto para o app pra todo mundo até o dia virar.</p></div>' +
+        ' do plano gratuito (' + pct + '%)</p></div>' +
       '<div id="saudeRoboLinhas"><p class="card-hint" style="margin:0">Consultando o PC do robô…</p></div>';
     if (!db) return;
     db.doc('robo/estado').get().then(function (snap) {

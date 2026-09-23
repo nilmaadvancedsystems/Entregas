@@ -508,7 +508,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  botão
- (entregas.html, linhas 1014-1112)
+ (entregas.html, linhas 1014-1129)
  --------------------------------------------------------------- */
    Botões — uma forma só, três pesos
    ========================================================================== */
@@ -585,6 +585,23 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 /* informação curta de campo (não é dica: é dado que o app escreve) */
 .field-info { font-size: var(--t-sm); color: var(--ink-soft); margin: 4px 0 0; }
 .avulso-toggle.avulso-embaixo { margin: var(--esp-2) 0 0; }
+/* Etapa 3 — Clientes e ajustes */
+.btn-cabeca { width: auto; min-height: var(--alvo); padding: 0 var(--esp-4); }
+.btn-chip.mini { min-height: 28px; padding: 2px 8px; font-size: var(--t-sm); }
+.clientes-busca { margin: 0; padding: var(--esp-2) var(--esp-3); }
+.card.caixa > .clientes-filtros { margin: 0; padding: 0 var(--esp-3) var(--esp-2); border-bottom: 1px solid var(--border); }
+.card.caixa .client-row { padding-left: var(--esp-3); padding-right: var(--esp-3); }
+.card.caixa .client-row:hover { background: var(--surface-2); }
+.card.caixa > .field { padding: var(--esp-2) var(--esp-3); margin: 0; }
+.card.caixa > .saude-grid, .card.caixa > #emprestimosList, .card.caixa > #auditoriaList,
+.card.caixa > .caixa-form-linha, .card.caixa > #competenciasFechadasLista, .card.caixa > #lembretesEdit,
+.card.caixa > #obrigacoesEdit, .card.caixa > #saudeSistemaCorpo, .card.caixa > #enderecosResumo,
+.card.caixa > #carteiraMapaCaixa { padding: var(--esp-2) var(--esp-3); }
+.caixa-form-linha { display: flex; gap: var(--esp-2); flex-wrap: wrap; align-items: flex-end; }
+.convite-linha { display: flex; align-items: center; gap: var(--esp-3); flex-wrap: wrap; margin: var(--esp-4) 0 var(--esp-2); padding-top: var(--esp-3); border-top: 1px solid var(--border); }
+.convite-rotulo { font-size: var(--t-sm); color: var(--ink-soft); }
+.aviso-linha { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0 0 10px; font-size: var(--t-sm); color: var(--warning-forte); font-weight: 600; }
+.aviso-linha .aviso-dica { color: var(--ink-faint); font-weight: 400; }
 .field-info:empty { display: none; }
 /* menu ⋯ de uma linha (Honorários): <details> ancorado, mesmo vocabulário do .menu-acoes */
 .menu-linha { position: relative; }
@@ -612,7 +629,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  aviso flutuante
- (entregas.html, linhas 1346-1354)
+ (entregas.html, linhas 1363-1371)
  --------------------------------------------------------------- */
 .toast {
   position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 10px); z-index: var(--z-aviso);
@@ -626,7 +643,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  janela (modal)
- (entregas.html, linhas 1359-1404)
+ (entregas.html, linhas 1376-1421)
  --------------------------------------------------------------- */
 .modal-overlay {
   position: fixed; inset: 0; background: var(--scrim); z-index: var(--z-veu);
@@ -677,7 +694,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  selo de situação
- (entregas.html, linhas 1209-1219)
+ (entregas.html, linhas 1226-1236)
  --------------------------------------------------------------- */
 /* ---------- selo de situação ---------- */
 .status-pill {
@@ -693,7 +710,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  tela vazia e janela
- (entregas.html, linhas 1220-1262)
+ (entregas.html, linhas 1237-1279)
  --------------------------------------------------------------- */
 .empty-state { color: var(--ink-faint); font-size: var(--t-base); text-align: center; padding: var(--esp-5) var(--esp-3); line-height: 1.5; }
 
