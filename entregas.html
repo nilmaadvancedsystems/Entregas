@@ -1854,7 +1854,7 @@
     }
     body { padding: 0 !important; background: #fff; }
     .topbar, #topo, #tabsNav, .gaveta, .gaveta-veu, .aviso-faixa, .toast, .auth-gate,
-    .busca-global, .cq-painel,
+    .busca-global, .cq-painel, .cq-botao,
     .filters, .modal-close, .btn, .btn-chip, .link-btn, .icon-btn,
     .mode-toggle, .dash-strip, .offline-banner, .tela-acoes, .card-ferramentas, .linha-acoes, .menu-linha { display: none !important; }
     main { padding: 0 !important; max-width: none !important; }
@@ -2026,6 +2026,21 @@
      É das poucas peças que de fato flutuam, então ganha --shadow. Fica em
      --z-modal: acima do menu e das listas suspensas, abaixo do aviso e da
      tela de assinatura, que continuam tendo que passar por cima de tudo. */
+  .cq-botao {
+    position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: var(--z-fixo);
+    width: 48px; height: 48px; border-radius: var(--r-pill);
+    border: 1px solid var(--border); background: var(--surface);
+    color: var(--accent-forte); font-size: 1.3rem; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; box-shadow: var(--shadow);
+    transition: transform var(--dur-rapido) var(--ease), border-color var(--dur) var(--ease);
+  }
+  .cq-botao:hover { border-color: var(--border-forte); transform: translateY(-1px); }
+  .cq-botao:active { transform: translateY(0); }
+  /* no celular, com o botão principal preso no rodapé, o chat sobe acima dele */
+  @media (max-width: 899px) {
+    body.tem-acao-fixa .cq-botao { bottom: calc(46px + var(--esp-2) * 2 + 16px + env(safe-area-inset-bottom, 0px)); }
+  }
 
   .cq-painel {
     position: fixed; z-index: var(--z-modal); background: var(--surface);
@@ -2127,7 +2142,7 @@
      rápida · anotações · avatar) e as duas gavetas. Nasce aqui, antes do
      resto, porque os scripts do app procuram #notasBtn, #topo etc. -->
 <script src="nilma-shell.js"></script>
-<script>NilmaShell.montar({ modulo: 'Entregas', moduloId: 'entregas' });</script>
+<script>NilmaShell.montar({ modulo: 'Entregas', moduloId: 'entregas', buscaRotulo: 'Buscar cliente, entrega…' });</script>
 <!-- Abas do módulo, sublinhadas, logo abaixo da barra. -->
 <nav class="tabs" id="tabsNav" role="tablist">
   <button class="tab active" data-tab="nova" role="tab" id="tabbtn-nova" aria-controls="tab-nova" aria-selected="true"><span class="tab-ico"><i class="ph ph-pen-nib" aria-hidden="true"></i></span><span class="tab-label">Nova entrega</span></button>
@@ -2886,8 +2901,12 @@
 <div class="sr-only" id="avisoLeitor" role="status" aria-live="polite"></div>
 <div id="modalRoot"></div>
 
-<!-- Consulta rápida. Abre pela caixa de busca da barra de cima (ou pela
-     tecla /); fica na moldura, fora das .view, pra servir em qualquer aba. -->
+<!-- Consulta rápida (chat com a IA). Botão redondo no canto de baixo, na
+     moldura, fora das .view, pra servir em qualquer aba. Nasce escondido:
+     só aparece depois do login. -->
+<button type="button" class="cq-botao" id="cqBotao" hidden title="Consulta rápida" aria-label="Consulta rápida">
+  <i class="ph ph-chats-circle" aria-hidden="true"></i>
+</button>
 
 <div class="cq-painel" id="cqPainel" hidden role="dialog" aria-modal="false" aria-labelledby="cqTitulo">
   <div class="cq-cabeca">
@@ -13557,6 +13576,10 @@
     appStarted = true;
     setupCanvas();
     captureGeo();
+    // A consulta rápida vale pra todo mundo que entra: ela só lê o que a
+    // pessoa já podia ver nas abas, e as regras do Firestore continuam
+    // valendo em cada consulta que ela faz.
+    $('cqBotao').hidden = false;
     $('form-equipe').hidden = !temPapel('admin');
     $('auditoriaCard').hidden = !temPapel('admin');
     $('competenciasCard').hidden = !temPapel('admin');
@@ -14625,9 +14648,12 @@
     if (id === 'contabil' && podeContabil_()) { sairDeAbaSecundaria_(); entrarModoSecundario_('contabil'); return true; }
     return false;   // Fiscal e Pendências são outras páginas: segue o link
   });
+  // A caixa da barra de cima (e a tecla /) é a busca geral, a mesma do
+  // Ctrl K. O chat da consulta com IA voltou a ser o botão redondo no canto
+  // de baixo, como a Nilma pediu.
   NilmaShell.ao('busca', function () {
-    if (!auth.currentUser || !appStarted) return false;
-    abrirConsultaRapida_();
+    if (!auth.currentUser) return false;
+    abrirBuscaGlobal_();
     return true;
   });
   NilmaShell.ao('buscaGlobal', function () { abrirBuscaGlobal_(); });
@@ -14660,6 +14686,7 @@
       NilmaShell.mostrarInstalar(!!promptInstalar);
       // Sai a consulta rápida junto com o resto: fora do login não há o que
       // consultar, e o histórico da conversa anterior não fica na tela.
+      $('cqBotao').hidden = true;
       $('cqPainel').hidden = true;
       cqHistorico = [];
       cqSoltarConversaIa_();
@@ -16006,11 +16033,10 @@
 
   function cqFechar_() {
     $('cqPainel').hidden = true;
-    var busca = $('topoBusca');
-    if (busca && !matchMedia('(hover: none)').matches) busca.focus();
+    $('cqBotao').hidden = false;
   }
 
-  // Abre pela caixa "Consulta rápida" da barra de cima (ou pela tecla /).
+  // Abre pelo botão redondo do canto de baixo.
   function abrirConsultaRapida_() {
     garantirTodosOsClientes_();   // a consulta rápida responde sobre qualquer cliente
     // Só agora: quem nunca abre o painel não fica com um listener aberto no
@@ -16018,10 +16044,12 @@
     // os iframes, que só carregam na primeira vez que são abertas.
     cqEscutarRobo_();
     $('cqPainel').hidden = false;
+    $('cqBotao').hidden = true;
     cqRenderModo_();
     cqRender_();
     if (!matchMedia('(hover: none)').matches) $('cqCampo').focus();
   }
+  $('cqBotao').addEventListener('click', abrirConsultaRapida_);
   $('cqFechar').addEventListener('click', cqFechar_);
   $('cqLimpar').addEventListener('click', function () {
     cqHistorico = [];

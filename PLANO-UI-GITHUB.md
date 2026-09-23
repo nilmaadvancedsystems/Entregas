@@ -26,7 +26,9 @@ linha, botão de ação **com borda e fundo na mesma linha**.
    sublinhadas logo abaixo da barra de cima (roláveis) e o ☰ é o mesmo painel. Sai a pílula flutuante.
 2. A tela hub (cartões) SOME. O app abre no último módulo usado (`localStorage nilma_ultima_funcao`,
    padrão Entregas). Trocar de módulo é só pelo ☰.
-3. Consulta rápida vira a busca da barra superior (caixa no centro, atalho `/`).
+3. **Revisado em 2026-09-23 (pedido da Nilma):** a Consulta rápida (chat com IA) continua como botão redondo
+   flutuante no canto de baixo, como sempre foi. A caixa da barra de cima é a busca geral do app (a mesma do Ctrl K,
+   atalho `/`).
 4. Entrega em ETAPAS, publicando cada uma e esperando a crítica dela antes da próxima.
 5. Remover TODOS os textos explicativos — inclusive Ajuda (?), tour do primeiro dia e "O que mudou".
 6. Já feito antes (não refazer): Painéis sem submenu, "Cadastro" dentro de Carteira, "Minha conta" fora de

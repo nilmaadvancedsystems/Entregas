@@ -508,7 +508,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  botão
- (entregas.html, linhas 1014-1111)
+ (entregas.html, linhas 1014-1112)
  --------------------------------------------------------------- */
    Botões — uma forma só, três pesos
    ========================================================================== */
@@ -584,6 +584,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 .lista-mais { display: flex; margin: var(--esp-2) var(--esp-3) var(--esp-2) auto; }
 /* informação curta de campo (não é dica: é dado que o app escreve) */
 .field-info { font-size: var(--t-sm); color: var(--ink-soft); margin: 4px 0 0; }
+.avulso-toggle.avulso-embaixo { margin: var(--esp-2) 0 0; }
 .field-info:empty { display: none; }
 /* menu ⋯ de uma linha (Honorários): <details> ancorado, mesmo vocabulário do .menu-acoes */
 .menu-linha { position: relative; }
@@ -611,7 +612,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  aviso flutuante
- (entregas.html, linhas 1345-1353)
+ (entregas.html, linhas 1346-1354)
  --------------------------------------------------------------- */
 .toast {
   position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 10px); z-index: var(--z-aviso);
@@ -625,7 +626,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  janela (modal)
- (entregas.html, linhas 1358-1403)
+ (entregas.html, linhas 1359-1404)
  --------------------------------------------------------------- */
 .modal-overlay {
   position: fixed; inset: 0; background: var(--scrim); z-index: var(--z-veu);
@@ -676,7 +677,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  selo de situação
- (entregas.html, linhas 1208-1218)
+ (entregas.html, linhas 1209-1219)
  --------------------------------------------------------------- */
 /* ---------- selo de situação ---------- */
 .status-pill {
@@ -692,7 +693,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  tela vazia e janela
- (entregas.html, linhas 1219-1261)
+ (entregas.html, linhas 1220-1262)
  --------------------------------------------------------------- */
 .empty-state { color: var(--ink-faint); font-size: var(--t-base); text-align: center; padding: var(--esp-5) var(--esp-3); line-height: 1.5; }
 

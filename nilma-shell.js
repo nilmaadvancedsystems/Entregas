@@ -80,8 +80,8 @@
         '<span class="topo-sep" aria-hidden="true">/</span>' +
         '<span class="topo-modulo" id="topoModulo">' + escapar(o.modulo || '') + '</span>' +
         (o.busca === false ? '<span class="topo-vao"></span>' :
-        '<button type="button" class="topo-busca" id="topoBusca" title="Consulta rápida (/)" aria-label="Consulta rápida">' +
-          '<i class="ph ph-magnifying-glass" aria-hidden="true"></i>' +
+        '<button type="button" class="topo-busca" id="topoBusca" title="' + escapar(o.buscaRotulo || 'Consulta rápida') + ' (/)" aria-label="' + escapar(o.buscaRotulo || 'Consulta rápida') + '">' +
+          '<i class="ph ' + escapar(o.buscaIcone || 'ph-magnifying-glass') + '" aria-hidden="true"></i>' +
           '<span class="topo-busca-texto">' + escapar(o.buscaRotulo || 'Consulta rápida') + '</span>' +
           '<kbd class="topo-busca-tecla" aria-hidden="true">/</kbd></button>') +
         '<div class="topo-fim">' +
