@@ -1195,6 +1195,73 @@
   @media (min-width: 1100px) { .hoje-grade { grid-template-columns: minmax(0, 1fr) 340px; } }
   @media (max-width: 560px) { .caixa-p .tab-simples tr { padding-left: var(--esp-3); padding-right: var(--esp-3); } }
 
+  /* Visão anual como o gráfico de contribuições do GitHub. */
+  .anual-caixa .caixa-cab .busca-wrap { flex: 0 1 320px; }
+  .anual-caixa .caixa-cab .busca-wrap .input { height: 32px; background: var(--surface); }
+  .anual-caixa .aviso { padding: var(--esp-5) var(--esp-3); }
+  .grade-meses.anual { border-collapse: separate; border-spacing: 0; }
+  .grade-meses.anual th { position: sticky; top: 0; background: var(--surface); z-index: 1; }
+  .grade-meses.anual th, .grade-meses.anual td { padding: 4px 3px; }
+  .grade-meses.anual th:first-child, .grade-meses.anual td:first-child { padding-left: var(--esp-3); background: var(--surface); z-index: 2; }
+  .grade-meses.anual th:last-child, .grade-meses.anual td:last-child { padding-right: var(--esp-3); }
+  .grade-meses.anual tbody tr:last-child td { border-bottom: 0; }
+  .grade-meses.anual tbody tr:hover td { background: var(--surface-3); }
+  .grade-meses.anual .cel, .anual-legenda .q {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 34px; height: 22px; min-width: 0; padding: 0; border-radius: 4px;
+    font-size: 10px; font-weight: 600; box-shadow: none;
+    background: var(--surface-2); color: var(--ink-faint);
+    outline: 1px solid color-mix(in srgb, var(--ink) 6%, transparent); outline-offset: -1px;
+  }
+  .grade-meses.anual .cel.ok, .anual-legenda .q.ok { background: color-mix(in srgb, var(--success-forte) 70%, var(--surface)); color: #fff; }
+  .grade-meses.anual .cel.pend, .anual-legenda .q.pend { background: color-mix(in srgb, var(--success-forte) 22%, var(--surface)); color: var(--success-forte); font-weight: 600; }
+  .grade-meses.anual .cel.alerta, .anual-legenda .q.alerta { background: var(--danger-soft); color: var(--danger-forte); }
+  .grade-meses.anual .cel.futuro.vindo { background: none; outline-style: dashed; }
+  .anual-legenda {
+    display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 4px var(--esp-3);
+    padding: var(--esp-2) var(--esp-3); border-top: 1px solid var(--border);
+    font-size: var(--t-xs); color: var(--ink-faint);
+  }
+  .anual-legenda span { display: inline-flex; align-items: center; gap: 6px; }
+  .anual-legenda .q { width: 12px; height: 12px; border-radius: 3px; }
+
+  /* Configurações como as Settings do GitHub. */
+  .cfg-layout { margin-top: var(--esp-4); }
+  .cfg-layout .cfg-grid { margin-top: var(--esp-4); gap: var(--esp-5); }
+  .cfg-layout .cfg-painel { gap: var(--esp-5); }
+  .cfg-layout .cfg-modelo { border: 0; border-radius: 0; padding: 0; }
+  .cfg-layout .cfg-modelo-topo { align-items: center; padding-bottom: var(--esp-2); margin-bottom: var(--esp-3); border-bottom: 1px solid var(--border); }
+  .cfg-layout .cfg-modelo-titulo { font-size: var(--t-lg); font-weight: 500; }
+  .cfg-layout .cfg-preview-topo .cfg-modelo-titulo { font-size: var(--t-base); font-weight: 600; }
+  .cfg-layout .cfg-liga-linha .cfg-modelo-titulo { font-size: var(--t-base); font-weight: 600; }
+  .cfg-layout [data-cfg-painel="auto"] .cfg-modelo { padding-bottom: var(--esp-4); border-bottom: 1px solid var(--border); }
+  .cfg-layout .cfg-preview { padding: 0; gap: 0; background: var(--surface); overflow: hidden; }
+  .cfg-layout .cfg-preview > * { margin: var(--esp-3) var(--esp-3) 0; }
+  .cfg-layout .cfg-preview > :last-child { margin-bottom: var(--esp-3); }
+  .cfg-layout .cfg-preview-topo { margin: 0; padding: 6px var(--esp-3); min-height: 44px; background: var(--surface-2); border-bottom: 1px solid var(--border); }
+  @media (min-width: 1000px) {
+    .cfg-layout { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: var(--esp-5); align-items: start; }
+    .cfg-layout .cfg-grid { margin-top: 0; }
+    #cfgAbas {
+      flex-direction: column; gap: 2px; overflow: visible; border-bottom: 0;
+      position: sticky; top: calc(var(--topo-total, 56px) + var(--esp-4));
+    }
+    #cfgAbas .secao-btn {
+      position: relative; height: 36px; margin: 0; padding: 0 10px; border: 0; border-radius: var(--r-sm);
+      font-size: var(--t-base); font-weight: 400;
+    }
+    #cfgAbas .secao-btn:hover { background: var(--surface-2); color: var(--ink); }
+    #cfgAbas .secao-btn[aria-selected="true"] { background: var(--surface-2); color: var(--ink); font-weight: 600; }
+    #cfgAbas .secao-btn[aria-selected="true"]::before {
+      content: ""; position: absolute; left: -8px; top: 6px; bottom: 6px; width: 4px; border-radius: 4px; background: var(--accent);
+    }
+  }
+  @media (min-width: 1000px) and (max-width: 1439px) {
+    .cfg-layout .cfg-grid { grid-template-columns: minmax(0, 1fr); }
+    .cfg-layout .cfg-preview { position: static; }
+  }
+  #viewConfig .pagina-sub:empty { display: none; }
+
   /* Clientes no formato das Issues do GitHub: filtros colados na busca e a
      lista numa caixa com as situações no cabeçalho. */
   #viewLista .pagina-topo { margin-bottom: 0; border-bottom: 0; }
@@ -1453,12 +1520,22 @@
           <button type="button" id="anualProximo" aria-label="Próximo ano"><i class="ph ph-caret-right" aria-hidden="true"></i></button>
         </div>
       </div>
-      <div class="toolbar-grupo" style="margin-bottom:12px">
-        <div class="busca-wrap" style="max-width:320px"><i class="ph ph-magnifying-glass" aria-hidden="true"></i><input class="input" id="anualBusca" type="search" placeholder="Filtrar cliente" aria-label="Filtrar cliente"></div>
-        <span class="resultado" id="anualResumo"></span>
-      </div>
-      <div class="anual-wrap"><table class="grade-meses anual" id="tabAnual"></table></div>
-      <div id="anualAviso" class="aviso" hidden></div>
+      <!-- Como o gráfico de contribuições do GitHub: um quadrado por mês,
+           a cor diz se o mês fechou. -->
+      <section class="caixa-p anual-caixa">
+        <div class="caixa-cab">
+          <div class="busca-wrap"><i class="ph ph-magnifying-glass" aria-hidden="true"></i><input class="input" id="anualBusca" type="search" placeholder="Filtrar cliente" aria-label="Filtrar cliente"></div>
+          <span class="cont caixa-acao" id="anualResumo"></span>
+        </div>
+        <div class="anual-wrap"><table class="grade-meses anual" id="tabAnual"></table></div>
+        <div id="anualAviso" class="aviso" hidden></div>
+        <div class="anual-legenda" aria-hidden="true">
+          <span><i class="q futuro"></i>Sem registro</span>
+          <span><i class="q alerta"></i>Nada</span>
+          <span><i class="q pend"></i>Faltando</span>
+          <span><i class="q ok"></i>Completo</span>
+        </div>
+      </section>
     </div>
 
     <!-- ================= PÁGINA: COBRANÇAS DO MÊS ================= -->
@@ -1528,7 +1605,7 @@
     <div id="viewConfig" hidden>
       <div class="pagina-topo">
         <div>
-          <h1>Configurações da cobrança</h1>
+          <h1>Configurações</h1>
           <div class="pagina-sub" id="configSub"></div>
         </div>
         <div class="cliente-acoes">
@@ -1538,12 +1615,15 @@
         </div>
       </div>
 
+      <!-- Como as Settings do GitHub: seções num menu à esquerda, cada
+           bloco com o título sublinhado. -->
+      <div class="cfg-layout">
       <nav class="cliente-menu" role="tablist" aria-label="Seções das configurações" id="cfgAbas">
         <button type="button" class="secao-btn" role="tab" data-cfg="geral" aria-selected="true"><i class="ph ph-calendar" aria-hidden="true"></i><span>Prazo e assinatura</span></button>
-        <button type="button" class="secao-btn" role="tab" data-cfg="email" aria-selected="false"><i class="ph ph-envelope-simple" aria-hidden="true"></i><span>E-mail: régua de cobrança</span></button>
+        <button type="button" class="secao-btn" role="tab" data-cfg="email" aria-selected="false"><i class="ph ph-envelope-simple" aria-hidden="true"></i><span>E-mail</span></button>
         <button type="button" class="secao-btn" role="tab" data-cfg="whats" aria-selected="false"><i class="ph ph-whatsapp-logo" aria-hidden="true"></i><span>WhatsApp</span></button>
-        <button type="button" class="secao-btn" role="tab" data-cfg="meus" aria-selected="false"><i class="ph ph-bookmarks-simple" aria-hidden="true"></i> Modelos seus</button>
-              <button type="button" class="secao-btn" role="tab" data-cfg="lote" aria-selected="false"><i class="ph ph-users-three" aria-hidden="true"></i><span>Cobrança em lote</span></button>
+        <button type="button" class="secao-btn" role="tab" data-cfg="meus" aria-selected="false"><i class="ph ph-bookmarks-simple" aria-hidden="true"></i><span>Modelos seus</span></button>
+        <button type="button" class="secao-btn" role="tab" data-cfg="lote" aria-selected="false"><i class="ph ph-users-three" aria-hidden="true"></i><span>Cobrança em lote</span></button>
         <button type="button" class="secao-btn" role="tab" data-cfg="auto" aria-selected="false"><i class="ph ph-robot" aria-hidden="true"></i><span>Automático</span></button>
       </nav>
 
@@ -1645,7 +1725,7 @@
                 <span><span class="cfg-modelo-titulo">Comprovante de entrega por e-mail</span></span>
               </label>
             </div>
-            <div class="cfg-meta" id="cfgAutoMeta">Só vale com o PC do robô ligado, e só para e-mail que está no cadastro do cliente.</div>
+            <div class="cfg-meta" id="cfgAutoMeta">Precisa do PC do robô ligado.</div>
           </div>
 
         </div>
@@ -1665,11 +1745,11 @@
           <details class="dobra leve cfg-vars">
             <summary>Variáveis disponíveis</summary>
             <div class="dobra-corpo">
-              <div class="cfg-vars-titulo"><span>Clique para inserir no campo em edição.</span></div>
-              <div class="lista-tipos" id="cfgVariaveis"></div>
+                            <div class="lista-tipos" id="cfgVariaveis"></div>
             </div>
           </details>
         </aside>
+      </div>
       </div>
     </div>
 
@@ -4674,8 +4754,9 @@
       comps.forEach(function (comp) {
         var td = el('td'); var dado = docs[comp];
         var cel = el('span', 'cel');
-        if (comp > agora) { cel.className += ' futuro'; cel.textContent = '·'; }
-        else if (!compsComRegistro[comp]) { cel.className += ' futuro'; cel.textContent = '–'; cel.title = 'Nenhum registro de nenhum cliente neste mês'; }
+        var nomeMes = ABREV_MES[Number(comp.slice(5)) - 1] + '/' + comp.slice(0, 4);
+        if (comp > agora) { cel.className += ' futuro vindo'; cel.title = nomeMes; }
+        else if (!compsComRegistro[comp]) { cel.className += ' futuro'; cel.title = nomeMes + ': sem registro'; }
         else {
           passados++;
           if (dado && dado.semMovimento) { cel.className += ' ok'; cel.textContent = 'SM'; fechados++; }
@@ -4686,7 +4767,7 @@
             cel.className += completo ? ' ok' : nRec === 0 ? ' alerta' : ' pend';
             cel.textContent = nRec + '/' + exig.length;
           }
-          if (dado && dado.observacao) cel.title = dado.observacao;
+          cel.title = nomeMes + ': ' + (dado && dado.semMovimento ? 'sem movimento' : cel.textContent) + (dado && dado.observacao ? ' · ' + dado.observacao : '');
         }
         td.appendChild(cel); tr.appendChild(td);
       });
@@ -6208,7 +6289,7 @@
     });
     var edita = souAdmin;
     document.querySelectorAll('#viewConfig .input, #viewConfig .textarea').forEach(function (i) { i.readOnly = !edita; });
-    $('configSub').textContent = edita ? 'Prazo do mês e textos das cobranças. Vale para todo mundo que usa esta tela.' : 'Só admin altera. Você pode ler os textos em uso.';
+    $('configSub').textContent = edita ? '' : 'Só admin altera.';
     $('cfgMeta').textContent = configCobranca.atualizadoEm ? 'Última alteração por ' + (configCobranca.atualizadoPor || 'alguém') + ' em ' + dataHora(configCobranca.atualizadoEm) + '.' : 'Nunca alterado: valem os textos padrão.';
     var vars = $('cfgVariaveis');
     vars.innerHTML = '';
