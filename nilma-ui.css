@@ -379,7 +379,7 @@ select:focus-visible, textarea:focus-visible, a:focus-visible, .chip:focus-visib
 
 /* ---------------------------------------------------------------
  cartão
- (entregas.html, linhas 666-709)
+ (entregas.html, linhas 667-710)
  --------------------------------------------------------------- */
 .card {
   background: none; border: none; border-radius: 0;
@@ -428,7 +428,7 @@ select:focus-visible, textarea:focus-visible, a:focus-visible, .chip:focus-visib
 
 /* ---------------------------------------------------------------
  campo, entrada e erro de campo
- (entregas.html, linhas 710-759)
+ (entregas.html, linhas 711-760)
  --------------------------------------------------------------- */
 .field { display: block; margin-bottom: var(--esp-4); }
 .field > span:first-child:not([class]),
@@ -483,7 +483,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  chip
- (entregas.html, linhas 979-998)
+ (entregas.html, linhas 980-999)
  --------------------------------------------------------------- */
 .chip { position: relative; }
 .chip input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
@@ -508,7 +508,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  botão
- (entregas.html, linhas 1014-1129)
+ (entregas.html, linhas 1015-1130)
  --------------------------------------------------------------- */
    Botões — uma forma só, três pesos
    ========================================================================== */
@@ -629,7 +629,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  aviso flutuante
- (entregas.html, linhas 1363-1371)
+ (entregas.html, linhas 1364-1372)
  --------------------------------------------------------------- */
 .toast {
   position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 10px); z-index: var(--z-aviso);
@@ -643,7 +643,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  janela (modal)
- (entregas.html, linhas 1376-1421)
+ (entregas.html, linhas 1377-1422)
  --------------------------------------------------------------- */
 .modal-overlay {
   position: fixed; inset: 0; background: var(--scrim); z-index: var(--z-veu);
@@ -694,7 +694,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  selo de situação
- (entregas.html, linhas 1226-1236)
+ (entregas.html, linhas 1227-1237)
  --------------------------------------------------------------- */
 /* ---------- selo de situação ---------- */
 .status-pill {
@@ -710,7 +710,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  tela vazia e janela
- (entregas.html, linhas 1237-1279)
+ (entregas.html, linhas 1238-1280)
  --------------------------------------------------------------- */
 .empty-state { color: var(--ink-faint); font-size: var(--t-base); text-align: center; padding: var(--esp-5) var(--esp-3); line-height: 1.5; }
 
@@ -758,7 +758,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  casca GitHub: barra de cima, abas do módulo e gavetas (nilma-shell.js)
- (entregas.html, linhas 472-648)
+ (entregas.html, linhas 472-649)
  --------------------------------------------------------------- */
 /* ---------- casca GitHub: barra, abas e gavetas ---------- */
 /* A marcação nasce em nilma-shell.js; este bloco sai inteiro pra
@@ -858,6 +858,7 @@ html.com-casca body { padding-top: var(--topo-total); }
   border-radius: var(--r-pill); background: var(--surface-2); color: var(--ink-soft); font-size: var(--t-xs); font-weight: 500;
 }
 .tab.active .tab-badge { background: var(--surface-2); color: var(--ink); }
+.tab-badge:empty { display: none; }
 
 /* --- gavetas (o painel do ☰ e o da conta) --- */
 .gaveta-veu { position: fixed; inset: 0; z-index: calc(var(--z-gaveta) - 1); background: var(--scrim); animation: overlayEnter var(--dur) var(--ease); }

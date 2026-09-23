@@ -567,6 +567,7 @@
     border-radius: var(--r-pill); background: var(--surface-2); color: var(--ink-soft); font-size: var(--t-xs); font-weight: 500;
   }
   .tab.active .tab-badge { background: var(--surface-2); color: var(--ink); }
+  .tab-badge:empty { display: none; }
 
   /* --- gavetas (o painel do ☰ e o da conta) --- */
   .gaveta-veu { position: fixed; inset: 0; z-index: calc(var(--z-gaveta) - 1); background: var(--scrim); animation: overlayEnter var(--dur) var(--ease); }

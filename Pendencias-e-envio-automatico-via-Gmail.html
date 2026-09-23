@@ -109,48 +109,8 @@
      Moldura. Uma coluna que cresce até 1600px: quem abre isto num monitor
      quer ver a lista inteira, não uma faixa no meio da tela.
      ========================================================================== */
-  /* Moldura de aplicativo: menu fixo à esquerda, conteúdo à direita. Abaixo
-     de 1000px o menu vira uma barra horizontal no topo — só por largura de
-     tela, igual dentro ou fora do iframe do app principal (decisão
-     explícita: esta tela roda no hub exatamente como roda sozinha). */
-  .app { display: grid; grid-template-columns: minmax(0, 1fr); min-height: 100vh; }
-  .menu {
-    display: flex; flex-direction: row; align-items: center; gap: 2px; overflow-x: auto; scrollbar-width: none;
-    padding: 6px 12px; border-bottom: 1px solid var(--border); background: var(--surface-3);
-  }
-  .menu::-webkit-scrollbar { display: none; }
-  .menu-marca { display: none; }
-  .menu-grupo { display: flex; flex-direction: row; gap: 2px; }
-  .menu-item {
-    display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 12px; border-radius: var(--r-sm);
-    border: none; background: none; color: var(--ink-soft); font: 500 var(--t-base)/1 var(--font-body);
-    cursor: pointer; white-space: nowrap; text-align: left;
-    transition: background-color var(--dur-rapido) ease, color var(--dur-rapido) ease;
-  }
-  .menu-item i { font-size: 18px; flex: none; color: var(--ink-faint); }
-  .menu-item .rot { flex: 1; }
-  .menu-item .menu-cont { font-size: var(--t-xs); color: var(--ink-faint); font-variant-numeric: tabular-nums; min-width: 18px; text-align: right; }
-  .menu-item[aria-current="page"] { background: var(--surface-2); color: var(--ink); font-weight: 600; box-shadow: inset 0 0 0 1px var(--border-forte); }
-  .menu-item[aria-current="page"] i { color: var(--accent-forte); }
-  .menu-item:focus-visible { outline: 2px solid var(--foco); outline-offset: 2px; }
-  .menu-sep { display: none; }
-  .menu-pe { display: flex; align-items: center; gap: 8px; margin-left: auto; padding-left: 8px; font-size: var(--t-sm); color: var(--ink-soft); }
-  .menu-pe .usuario-atual { display: none; }
-  a.menu-funcoes { text-decoration: none; }
-  /* barra do celular: só o ícone, pra caber ao lado do tema e do Sair */
-  .menu-pe .menu-funcoes { width: auto; padding: 6px 8px; }
-  .menu-pe .menu-funcoes .rot { display: none; }
-  .menu-pe-linha { display: flex; align-items: center; gap: 8px; justify-content: space-between; min-width: 0; }
-  /* Foto da conta, a mesma do Entregas (usuarios.fotoPerfil); sem foto,
-     as iniciais — igual ao avatar de lá. */
-  .usuario-foto {
-    width: 28px; height: 28px; flex: none; border-radius: var(--r-sm);
-    display: inline-grid; place-items: center;
-    background: var(--accent-soft) center / cover no-repeat; color: var(--accent-forte);
-    font-size: var(--t-xs); font-weight: 600; letter-spacing: .02em;
-  }
-  .usuario-foto.com-foto { background-color: var(--surface-2); }
-  .menu-pe-linha .usuario-atual { flex: 1 1 auto; min-width: 0; }
+  /* A moldura (barra de cima + menu lateral) é a casca comum, em nilma-ui.css. */
+  .app { display: block; min-height: 100vh; }
   .tema-seg { display: flex; width: fit-content; gap: 2px; padding: 3px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface-2); }
   .tema-seg button {
     width: 30px; height: 26px; border: none; border-radius: var(--r-sm); background: none; color: var(--ink-faint); cursor: pointer;
@@ -164,30 +124,8 @@
   html.tema-troca, html.tema-troca *, html.tema-troca *::before, html.tema-troca *::after {
     transition: background-color 220ms ease, color 220ms ease, border-color 220ms ease, box-shadow 220ms ease !important;
   }
-  .conteudo { min-width: 0; padding: 0 16px 64px; }
-
-  @media (min-width: 1000px) {
-    .app { grid-template-columns: 236px minmax(0, 1fr); }
-    .menu {
-      flex-direction: column; align-items: stretch; gap: 2px; overflow: visible;
-      position: sticky; top: 0; height: 100vh; padding: 14px 12px;
-      border-bottom: none; border-right: 1px solid var(--border);
-    }
-    .menu-marca { display: flex; align-items: center; gap: 10px; padding: 4px 8px 16px; }
-    .menu-grupo { flex-direction: column; }
-    .menu-item { height: 38px; }
-    .menu-sep { display: block; height: 1px; background: var(--border); margin: 10px 8px; }
-    .menu-rotulo { display: block; font-size: var(--t-xs); color: var(--ink-faint); font-weight: 600; padding: 6px 12px 4px; letter-spacing: .01em; }
-    .menu-pe { margin: auto 0 0; padding: 12px 8px 0; border-top: 1px solid var(--border); flex-direction: column; align-items: stretch; gap: 10px; }
-    .menu-pe .usuario-atual { display: inline; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .menu-pe .menu-funcoes { width: 100%; padding: 0 12px; margin: -2px 0 0; }
-    .menu-pe .menu-funcoes .rot { display: inline; }
-    .conteudo { padding: 0 28px 64px; }
-  }
-  .menu-rotulo { display: none !important; }
-  .menu-sep { display: none !important; }
-  .menu-titulo { font-size: var(--t-base); font-weight: 600; letter-spacing: -.01em; line-height: 1.2; }
-  .menu-sub { font-size: var(--t-xs); color: var(--ink-faint); margin-top: 1px; }
+  .conteudo { min-width: 0; padding: var(--esp-4) 16px 64px; }
+  @media (min-width: 900px) { .conteudo { padding: var(--esp-5) 28px 64px; } }
 
   /* Dobra: conteúdo secundário fica fechado até alguém pedir. */
   details.dobra { border-top: 1px solid var(--border); }
@@ -623,9 +561,14 @@
   .lc-sub { font-size: var(--t-sm); color: var(--ink-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   /* Colunas que só existem no PC. */
-  .lc-atualizado, .lc-acoes { display: none; }
+  .lc-atualizado { display: none; }
   .lc-atualizado { flex: 0 0 92px; font-size: var(--t-sm); color: var(--ink-faint); font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .lc-acoes { flex: 0 0 auto; gap: 2px; justify-content: flex-end; }
+  /* Ações da linha: sempre à vista, com borda, no celular e no PC — nada de
+     aviãozinho que só aparece com o mouse em cima (pedido da Nilma). */
+  .lc-acoes { display: flex; flex: 0 0 auto; gap: 6px; justify-content: flex-end; margin-left: auto; }
+  .lc-acoes .btn { height: auto; min-height: var(--alvo); width: auto; padding: 0 10px; gap: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--ink-soft); font-size: var(--t-sm); }
+  .lc-acoes .btn:hover { border-color: var(--border-forte); background: var(--surface-2); color: var(--ink); }
+  .lc-acoes .btn.lc-cobrar { color: var(--accent-forte); }
   .lc-acoes .btn:disabled { visibility: hidden; }
   .col-docs { flex: 0 0 102px; }
 
@@ -636,13 +579,6 @@
     .lc-sub { flex: 0 1 auto; max-width: 40%; }
     .lc-atualizado { display: block; }
     .cliente-corpo { gap: var(--esp-5); }
-    .lc-acoes { display: flex; }
-    .linha-cliente .lc-acoes .btn-icone { opacity: .55; transition: opacity var(--dur-rapido) ease; }
-    .linha-cliente:hover .lc-acoes .btn-icone, .linha-cliente:focus-within .lc-acoes .btn-icone { opacity: 1; }
-  }
-  /* Com mouse, o aviãozinho só aparece na linha em que o ponteiro está. */
-  @media (min-width: 900px) and (hover: hover) {
-    .linha-cliente .lc-acoes .btn-icone { opacity: 0; }
   }
 
   @media (max-width: 560px) {
@@ -1204,7 +1140,7 @@
 
   /* Impressão: só o conteúdo. Ctrl+P na lista imprime a lista filtrada. */
   @media print {
-    .menu, .toolbar, .filtros-doc, .lc-acoes, .cliente-acoes, .visao, dialog, .toast, #skeleton, .btn, .tab-simples .link i { display: none !important; }
+    #topo, #tabsNav, .gaveta, .gaveta-veu, .toolbar, .filtros-doc, .lc-acoes, .cliente-acoes, .visao, dialog, .toast, #skeleton, .btn, .tab-simples .link i { display: none !important; }
     .app { grid-template-columns: 1fr !important; }
     .conteudo { padding: 0 !important; }
     .linha-cliente, .tab-entregas tr, .timeline li { break-inside: avoid; }
@@ -1225,9 +1161,42 @@
     .toast { transform: translateX(-50%); transition: opacity 200ms ease; }
     .toast.show { transform: translateX(-50%); }
   }
+  /* ---------- casca comum (Etapa 4) ----------
+     A barra de cima e o menu lateral vêm de nilma-ui.css / nilma-shell.js.
+     Aqui só o que é desta tela: o mês no alto do menu, o tema na janela
+     de Aparência e o conteúdo começando abaixo da barra. */
+  .tabs-mes { display: none; }
+  @media (min-width: 900px) {
+    .tabs-mes { display: block; padding: 4px var(--esp-3) var(--esp-2); font-size: var(--t-xs); font-weight: 600; color: var(--ink-faint); }
+    .tabs-mes::first-letter { text-transform: uppercase; }
+  }
+  .ap-tema { display: flex; align-items: center; gap: var(--esp-3); margin-bottom: var(--esp-4); }
+  .ap-tema .ap-rotulo { font-weight: 600; }
+  html.com-casca #authGate { z-index: 200; }
 </style>
 </head>
 <body>
+<!-- Casca comum (barra de cima, menu ☰ e menu da conta): nilma-shell.js -->
+<script src="nilma-shell.js"></script>
+<script>
+  NilmaShell.montar({ modulo: 'Pendências', moduloId: 'pendencias', busca: false, notas: false, buscaGlobal: false });
+  // antes do login só a tela de entrada; a barra aparece junto com o app
+  document.getElementById('topo').hidden = true;
+  // Esta tela não tem "Conta" nem "Meu perfil" próprios: ficam no Entregas.
+  document.getElementById('menuContaBtn').hidden = true;
+</script>
+<!-- Menu da Pendências = barra lateral da casca (fixa no PC, sublinhada no
+     celular). Os itens continuam .menu-item[data-pagina]: é assim que o JS
+     desta tela troca de página. O mês aparece em cima, na própria barra. -->
+<nav class="tabs" id="tabsNav" aria-label="Menu da Pendências" hidden>
+  <div class="tabs-mes" id="menuMes"></div>
+  <button type="button" class="tab menu-item" id="menuHoje" data-pagina="hoje" aria-current="page"><span class="tab-ico"><i class="ph ph-sun-horizon" aria-hidden="true"></i></span><span class="tab-label rot">Hoje</span><span class="tab-badge menu-cont" id="menuNumHoje"></span></button>
+  <button type="button" class="tab menu-item" id="menuClientes" data-pagina="clientes" data-filtro="todos"><span class="tab-ico"><i class="ph ph-users" aria-hidden="true"></i></span><span class="tab-label rot">Clientes</span><span class="tab-badge menu-cont" id="menuNumTodos" hidden></span></button>
+  <button type="button" class="tab menu-item" id="menuCobrancas" data-pagina="cobrancas"><span class="tab-ico"><i class="ph ph-paper-plane-tilt" aria-hidden="true"></i></span><span class="tab-label rot">Cobranças</span><span class="tab-badge menu-cont" id="menuNumCobrancas" hidden></span></button>
+  <button type="button" class="tab menu-item" id="menuRobo" data-pagina="robo"><span class="tab-ico"><i class="ph ph-robot" aria-hidden="true"></i></span><span class="tab-label rot">Robô do Gmail</span><span class="tab-badge menu-cont" id="menuNumRobo"></span></button>
+  <button type="button" class="tab menu-item" id="menuAnual" data-pagina="anual"><span class="tab-ico"><i class="ph ph-calendar-blank" aria-hidden="true"></i></span><span class="tab-label rot">Visão anual</span></button>
+  <button type="button" class="tab menu-item" id="menuConfig" data-pagina="config"><span class="tab-ico"><i class="ph ph-sliders-horizontal" aria-hidden="true"></i></span><span class="tab-label rot">Configurações</span></button>
+</nav>
 
 <div id="authGate">
   <form id="loginForm">
@@ -1247,45 +1216,6 @@
 
 <div id="app" hidden>
   <div class="app">
-  <nav class="menu" aria-label="Menu principal">
-    <div class="menu-marca">
-      <span class="topo-ico"><i class="ph ph-envelope-simple-open" aria-hidden="true"></i></span>
-      <div>
-        <div class="menu-titulo">Cobrança de documentos</div>
-        <div class="menu-sub" id="menuMes"></div>
-      </div>
-    </div>
-    <div class="menu-grupo">
-      <button type="button" class="menu-item" id="menuHoje" data-pagina="hoje" aria-current="page"><i class="ph ph-sun-horizon" aria-hidden="true"></i><span class="rot">Hoje</span><span class="menu-cont" id="menuNumHoje"></span></button>
-      <span class="menu-sep"></span>
-      <span class="menu-rotulo">Clientes</span>
-      <button type="button" class="menu-item" id="menuClientes" data-pagina="clientes" data-filtro="todos"><i class="ph ph-users" aria-hidden="true"></i><span class="rot">Clientes</span><span class="menu-cont" id="menuNumTodos" hidden></span></button>
-      <span class="menu-sep"></span>
-      <span class="menu-rotulo">Gmail</span>
-      <button type="button" class="menu-item" id="menuCobrancas" data-pagina="cobrancas"><i class="ph ph-paper-plane-tilt" aria-hidden="true"></i><span class="rot">Cobranças</span><span class="menu-cont" id="menuNumCobrancas" hidden></span></button>
-      <button type="button" class="menu-item" id="menuRobo" data-pagina="robo"><i class="ph ph-robot" aria-hidden="true"></i><span class="rot">Robô do Gmail</span><span class="menu-cont" id="menuNumRobo"></span></button>
-      <button type="button" class="menu-item" id="menuAnual" data-pagina="anual"><i class="ph ph-calendar-blank" aria-hidden="true"></i><span class="rot">Visão anual</span></button>
-      <span class="menu-sep"></span>
-      <button type="button" class="menu-item" id="menuConfig" data-pagina="config"><i class="ph ph-sliders-horizontal" aria-hidden="true"></i><span class="rot">Configurações</span></button>
-    </div>
-    <div class="menu-pe">
-      <!-- Esta tela abre como página própria: sem isto, o único jeito de ir
-           pra outra função era "Sair", que desloga. O login é o mesmo do
-           Entregas, então o link cai direto na tela de escolher função. -->
-      <a class="menu-item menu-funcoes" href="entregas.html" title="Voltar pra escolher outra função"><i class="ph ph-squares-four" aria-hidden="true"></i><span class="rot">Trocar de função</span></a>
-      <button type="button" class="menu-item" id="aparenciaBtn" title="Aparência: cor, texto, espaçamento"><i class="ph ph-paint-brush" aria-hidden="true"></i><span class="rot">Aparência</span></button>
-      <div class="tema-seg" role="group" aria-label="Tema">
-        <button type="button" data-tema="claro" title="Tema claro" aria-label="Tema claro" aria-pressed="false"><i class="ph ph-sun" aria-hidden="true"></i></button>
-        <button type="button" data-tema="escuro" title="Tema escuro" aria-label="Tema escuro" aria-pressed="false"><i class="ph ph-moon" aria-hidden="true"></i></button>
-        <button type="button" data-tema="auto" title="Seguir o sistema" aria-label="Seguir o sistema" aria-pressed="false"><i class="ph ph-circle-half" aria-hidden="true"></i></button>
-      </div>
-      <div class="menu-pe-linha">
-        <span class="usuario-foto" id="usuarioFoto" aria-hidden="true"></span>
-        <span class="usuario-atual" id="usuarioAtual"></span>
-        <button class="btn btn-ghost btn-sm" id="logoutBtn"><i class="ph ph-sign-out" aria-hidden="true"></i> Sair</button>
-      </div>
-    </div>
-  </nav>
   <main class="conteudo">
 
     <!-- ================= TELA 1: CLIENTES ================= -->
@@ -1477,7 +1407,6 @@
       <div class="pagina-topo">
         <div>
           <h1>Robô do Gmail</h1>
-          <div class="pagina-sub">Lê a caixa nilmacontabilidade@gmail.com e marca o que chegou.</div>
           <!-- Quem lê o Gmail é um programa no PC do escritório, não esta página:
                ela só pede, e mostra se esse PC está ligado pra atender. -->
           <div class="robo-vigia" id="roboVigia" aria-live="polite"></div>
@@ -1496,12 +1425,10 @@
       <div id="roboAviso"></div>
       <section id="roboCaixaSecao" hidden>
         <div class="painel-titulo"><h2>E-mails de clientes com anexo <span class="badge quieto" id="roboCaixaN"></span></h2></div>
-        <div class="pagina-sub" style="margin:-8px 0 8px">Salvar no Drive grava os anexos em Claudio Secretario, na pasta do mês e do cliente.</div>
         <div class="tab-rolagem"><table class="tab-simples" id="tabCaixa"></table></div>
       </section>
       <section id="roboNaoRecSecao" hidden>
         <div class="painel-titulo"><h2>Precisam de você: remetentes sem cliente <span class="badge quieto" id="roboNaoRecN"></span></h2></div>
-        <div class="pagina-sub" style="margin:-8px 0 8px">Escolha o cliente e o robô passa a reconhecer.</div>
         <div class="tab-rolagem"><table class="tab-simples" id="tabNaoRec"></table></div>
       </section>
       <details class="dobra" id="roboMarcadosDobra">
@@ -1549,7 +1476,7 @@
 
           <div class="cfg-painel" data-cfg-painel="geral">
             <div class="cfg-modelo">
-              <div class="cfg-modelo-topo"><div><div class="cfg-modelo-titulo">Dia limite</div><div class="cfg-modelo-dica">Até que dia do mês seguinte os documentos devem chegar.</div></div></div>
+              <div class="cfg-modelo-topo"><div><div class="cfg-modelo-titulo">Dia limite</div></div></div>
               <div class="campo" style="max-width:220px;margin-bottom:8px">
                 <label for="cfgDiaLimite">Dia (1 a 28)</label>
                 <input class="input" id="cfgDiaLimite" type="number" min="1" max="28" placeholder="vazio = sem prazo">
@@ -1557,7 +1484,7 @@
               <div class="campo-dica" id="cfgPrazoExemplo"></div>
             </div>
             <div class="cfg-modelo">
-              <div class="cfg-modelo-topo"><div><div class="cfg-modelo-titulo">Assinatura</div><div class="cfg-modelo-dica">Quem assina as mensagens.</div></div></div>
+              <div class="cfg-modelo-topo"><div><div class="cfg-modelo-titulo">Assinatura</div></div></div>
               <div class="campo" style="max-width:420px;margin-bottom:0">
                 <label for="cfgAssinatura">Nome que assina</label>
                 <input class="input" id="cfgAssinatura" type="text" maxlength="80">
@@ -1569,7 +1496,7 @@
           <div class="cfg-painel" data-cfg-painel="email" hidden>
             <div class="cfg-modelo" data-modelo="1">
               <div class="cfg-modelo-topo">
-                <div><div class="cfg-modelo-titulo">1ª cobrança</div><div class="cfg-modelo-dica">Primeiro pedido do mês. Tom cordial.</div></div>
+                <div><div class="cfg-modelo-titulo">1ª cobrança</div></div>
                 <button type="button" class="btn btn-ghost btn-sm cfg-restaurar" data-restaurar="1">Restaurar padrão</button>
               </div>
               <div class="campo"><label for="cfgAssunto1">Assunto</label><input class="input cfg-campo" id="cfgAssunto1" type="text"></div>
@@ -1577,7 +1504,7 @@
             </div>
             <div class="cfg-modelo" data-modelo="2">
               <div class="cfg-modelo-topo">
-                <div><div class="cfg-modelo-titulo">2ª cobrança</div><div class="cfg-modelo-dica">Lembrete. Cita o prazo.</div></div>
+                <div><div class="cfg-modelo-titulo">2ª cobrança</div></div>
                 <button type="button" class="btn btn-ghost btn-sm cfg-restaurar" data-restaurar="2">Restaurar padrão</button>
               </div>
               <div class="campo"><label for="cfgAssunto2">Assunto</label><input class="input cfg-campo" id="cfgAssunto2" type="text"></div>
@@ -1585,7 +1512,7 @@
             </div>
             <div class="cfg-modelo" data-modelo="3">
               <div class="cfg-modelo-topo">
-                <div><div class="cfg-modelo-titulo">3ª cobrança em diante</div><div class="cfg-modelo-dica">Tom firme. Usa {n} para dizer quantas vezes já pediu.</div></div>
+                <div><div class="cfg-modelo-titulo">3ª cobrança em diante</div></div>
                 <button type="button" class="btn btn-ghost btn-sm cfg-restaurar" data-restaurar="3">Restaurar padrão</button>
               </div>
               <div class="campo"><label for="cfgAssunto3">Assunto</label><input class="input cfg-campo" id="cfgAssunto3" type="text"></div>
@@ -1596,7 +1523,7 @@
           <div class="cfg-painel" data-cfg-painel="whats" hidden>
             <div class="cfg-modelo" data-modelo="whats">
               <div class="cfg-modelo-topo">
-                <div><div class="cfg-modelo-titulo">Mensagem do WhatsApp</div><div class="cfg-modelo-dica">Curta. Abre no WhatsApp com o texto pronto; você envia.</div></div>
+                <div><div class="cfg-modelo-titulo">Mensagem do WhatsApp</div></div>
                 <button type="button" class="btn btn-ghost btn-sm cfg-restaurar" data-restaurar="whats">Restaurar padrão</button>
               </div>
               <div class="campo" style="margin-bottom:0"><label for="cfgWhats">Texto</label><textarea class="textarea cfg-campo" id="cfgWhats" style="min-height:110px"></textarea><div class="cfg-contador" data-conta="cfgWhats"></div></div>
@@ -1606,7 +1533,7 @@
           <div class="cfg-painel" data-cfg-painel="meus" hidden>
             <div class="cfg-modelo">
               <div class="cfg-modelo-topo">
-                <div><div class="cfg-modelo-titulo">Modelos seus</div><div class="cfg-modelo-dica">Aparecem na hora de cobrar, junto dos três de cima. Use as mesmas variáveis.</div></div>
+                <div><div class="cfg-modelo-titulo">Modelos seus</div></div>
                 <button type="button" class="btn btn-secondary btn-sm" id="btnNovoModelo"><i class="ph ph-plus" aria-hidden="true"></i> Novo modelo</button>
               </div>
               <div id="meusModelosLista"></div>
@@ -1616,7 +1543,7 @@
           <div class="cfg-painel" data-cfg-painel="lote" hidden>
             <div class="cfg-modelo" data-modelo="lote">
               <div class="cfg-modelo-topo">
-                <div><div class="cfg-modelo-titulo">Cobrança em lote</div><div class="cfg-modelo-dica">Um e-mail para vários clientes em Cco. Texto genérico.</div></div>
+                <div><div class="cfg-modelo-titulo">Cobrança em lote</div></div>
                 <button type="button" class="btn btn-ghost btn-sm cfg-restaurar" data-restaurar="lote">Restaurar padrão</button>
               </div>
               <div class="campo"><label for="cfgLoteAssunto">Assunto</label><input class="input cfg-campo" id="cfgLoteAssunto" type="text"></div>
@@ -1629,8 +1556,7 @@
             <div class="cfg-modelo">
               <label class="cfg-liga-linha" for="cfgReguaLigada">
                 <input type="checkbox" class="cfg-liga" id="cfgReguaLigada">
-                <span><span class="cfg-modelo-titulo">Cobrar sozinho quem não mandou</span>
-                <span class="cfg-modelo-dica">Nos dias abaixo, o robô manda a cobrança do mês anterior para cada cliente com documento faltando, usando os textos da aba E-mail (1ª, 2ª, 3ª conforme já foi cobrado). Pula quem foi cobrado nos últimos 3 dias e quem está sem movimento. No máximo 40 por dia.</span></span>
+                <span><span class="cfg-modelo-titulo">Cobrar sozinho quem não mandou</span></span>
               </label>
               <div class="campo" style="max-width:260px;margin:12px 0 0 30px">
                 <label for="cfgReguaDias">Dias do mês</label>
@@ -1640,8 +1566,7 @@
             <div class="cfg-modelo">
               <label class="cfg-liga-linha" for="cfgComprovanteEmail">
                 <input type="checkbox" class="cfg-liga" id="cfgComprovanteEmail">
-                <span><span class="cfg-modelo-titulo">Comprovante de entrega por e-mail</span>
-                <span class="cfg-modelo-dica">Cada entrega confirmada na rua vira um e-mail para o cliente: o que foi entregue, quem recebeu e quando, e o link dele. Guias confirmadas juntas saem num e-mail só.</span></span>
+                <span><span class="cfg-modelo-titulo">Comprovante de entrega por e-mail</span></span>
               </label>
             </div>
             <div class="cfg-meta" id="cfgAutoMeta">Só vale com o PC do robô ligado, e só para e-mail que está no cadastro do cliente.</div>
@@ -1751,13 +1676,14 @@
             <div class="painel-titulo">
               <h2>Documentos de <span id="docsMesLabel"></span></h2>
               <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                <!-- as três ações do dia a dia ficam à vista, com borda; no ⋯ só
+                     o que é exceção (mês sem movimento, não se aplica) -->
+                <button type="button" class="btn btn-secondary btn-sm" id="btnCobrarDocs"><i class="ph ph-paper-plane-tilt" aria-hidden="true"></i> Cobrar os que faltam</button>
+                <button type="button" class="btn btn-secondary btn-sm" id="btnMarcarTodos"><i class="ph ph-checks" aria-hidden="true"></i> Marcar como recebidos</button>
+                <button type="button" class="btn btn-secondary btn-sm" id="btnPedirColeta"><i class="ph ph-motorcycle" aria-hidden="true"></i> Pedir coleta</button>
                 <details class="mais" id="maisDocs">
-                  <summary class="btn btn-secondary btn-sm" title="Ações sobre os documentos do mês"><i class="ph ph-dots-three-outline" aria-hidden="true"></i> Ações do mês</summary>
+                  <summary class="btn btn-secondary btn-sm btn-icone-sm" title="Mais ações do mês" aria-label="Mais ações do mês"><i class="ph ph-dots-three-outline" aria-hidden="true"></i></summary>
                   <div class="mais-lista">
-                    <button type="button" class="btn" id="btnCobrarDocs"><i class="ph ph-paper-plane-tilt" aria-hidden="true"></i> Cobrar os que faltam</button>
-                    <button type="button" class="btn" id="btnMarcarTodos"><i class="ph ph-checks" aria-hidden="true"></i> Marcar os que faltam como recebidos</button>
-                    <button type="button" class="btn" id="btnPedirColeta"><i class="ph ph-motorcycle" aria-hidden="true"></i> Pedir coleta ao office boy</button>
-                    <div class="mais-sep"></div>
                     <button type="button" class="btn" id="btnSemMovimento"><i class="ph ph-minus-circle" aria-hidden="true"></i> Mês sem movimento</button>
                     <div class="mais-sep"></div>
                     <div class="mais-rotulo">Não se aplica a este cliente</div>
@@ -1851,10 +1777,19 @@
      Entregas, pra quem passa o dia nesta tela não precisar ir lá mudar. -->
 <dialog class="modal" id="modalAparencia" aria-labelledby="aparenciaTitulo">
   <div class="modal-cab">
-    <div><h2 id="aparenciaTitulo">Aparência</h2><div class="dica">Vale para esta tela e para o Entregas, em qualquer aparelho seu.</div></div>
+    <div><h2 id="aparenciaTitulo">Aparência</h2></div>
     <button type="button" class="btn btn-icone" id="aparenciaFechar" aria-label="Fechar"><i class="ph ph-x" aria-hidden="true"></i></button>
   </div>
-  <div class="modal-corpo" id="aparenciaCorpo"></div>
+  <div class="modal-corpo">
+    <div class="ap-tema"><span class="ap-rotulo">Tema</span>
+      <div class="tema-seg" role="group" aria-label="Tema">
+        <button type="button" data-tema="claro" title="Tema claro" aria-label="Tema claro" aria-pressed="false"><i class="ph ph-sun" aria-hidden="true"></i></button>
+        <button type="button" data-tema="escuro" title="Tema escuro" aria-label="Tema escuro" aria-pressed="false"><i class="ph ph-moon" aria-hidden="true"></i></button>
+        <button type="button" data-tema="auto" title="Seguir o sistema" aria-label="Seguir o sistema" aria-pressed="false"><i class="ph ph-circle-half" aria-hidden="true"></i></button>
+      </div>
+    </div>
+    <div id="aparenciaCorpo"></div>
+  </div>
 </dialog>
 
 <dialog class="modal" id="modalCobrar" aria-labelledby="modalTitulo">
@@ -2523,25 +2458,27 @@
       });
     });
   }
-  $('aparenciaBtn').addEventListener('click', function () { renderAparencia(); $('modalAparencia').showModal(); });
+  // Aparência e Sair ficam no menu da conta (avatar, no alto à direita).
+  NilmaShell.ao('aparencia', function () { renderAparencia(); $('modalAparencia').showModal(); });
+  NilmaShell.ao('sair', function () { auth.signOut(); });
+  // Pendências é esta mesma página: tocar nela no menu ☰ só fecha o menu.
+  NilmaShell.ao('modulo', function (id) { return id === 'pendencias'; });
   $('aparenciaFechar').addEventListener('click', function () { $('modalAparencia').close(); });
   function iniciaisDe(nome) {
     var partes = String(nome || '').trim().split(/[\s.]+/).filter(Boolean);
     if (!partes.length) return '';
     return (partes[0][0] + (partes.length > 1 ? partes[partes.length - 1][0] : '')).toUpperCase();
   }
+  // Avatar e nome moram na barra de cima (casca comum); o menu ☰ mostra só
+  // os módulos que o cargo da pessoa libera, igual ao Entregas.
+  var rolesAtuais = [];
   function aplicarFoto(dataUrl, nome) {
-    var el = $('usuarioFoto');
-    if (!el) return;
-    if (dataUrl) {
-      el.style.backgroundImage = 'url("' + dataUrl + '")';
-      el.textContent = '';
-      el.classList.add('com-foto');
-    } else {
-      el.style.backgroundImage = '';
-      el.textContent = iniciaisDe(nome);
-      el.classList.remove('com-foto');
-    }
+    NilmaShell.definirUsuario({
+      nome: nome || '',
+      iniciais: iniciaisDe(nome),
+      foto: dataUrl || '',
+      podeVer: function (id, papel) { return !papel || rolesAtuais.indexOf('admin') !== -1 || rolesAtuais.indexOf(papel) !== -1; }
+    });
   }
 
   // O Entregas aberto em outra aba pode trocar tema, cor ou texto:
@@ -2570,6 +2507,7 @@
     document.querySelectorAll('.menu-item[data-pagina]').forEach(function (item) {
       var ativo = !telaCliente && item.dataset.pagina === paginaAtual && (paginaAtual !== 'clientes' || item.dataset.filtro === 'todos');
       if (ativo) item.setAttribute('aria-current', 'page'); else item.removeAttribute('aria-current');
+      item.classList.toggle('active', ativo);
     });
   }
   $('filtrosBtn').addEventListener('click', function () {
@@ -3193,15 +3131,17 @@
     row.appendChild(atual);
 
     var acoes = el('div', 'lc-acoes');
-    var bCobrar = el('button', 'btn btn-icone');
-    bCobrar.type = 'button'; bCobrar.title = 'Cobrar por e-mail'; bCobrar.setAttribute('aria-label', 'Cobrar por e-mail');
+    var bCobrar = el('button', 'btn lc-cobrar');
+    bCobrar.type = 'button'; bCobrar.title = 'Cobrar por e-mail';
     bCobrar.appendChild(ico('ph-paper-plane-tilt'));
+    bCobrar.appendChild(document.createTextNode(' Cobrar'));
     bCobrar.addEventListener('click', function () { abrirModalCobranca(cliente.id); });
     acoes.appendChild(bCobrar);
     // Sem e-mail, o caminho era: abrir cliente, Cobrar, WhatsApp. Aqui é um toque.
-    var bZap = el('button', 'btn btn-icone lc-zap');
+    var bZap = el('button', 'btn lc-zap');
     bZap.type = 'button'; bZap.title = 'Cobrar pelo WhatsApp'; bZap.setAttribute('aria-label', 'Cobrar pelo WhatsApp');
     bZap.appendChild(ico('ph-whatsapp-logo'));
+    bZap.appendChild(document.createTextNode(' WhatsApp'));
     bZap.hidden = true;
     bZap.addEventListener('click', function (ev) {
       ev.stopPropagation();
@@ -6132,7 +6072,7 @@
     var lista = configCobranca.meusModelos || [];
     caixa.innerHTML = '';
     if (!lista.length) {
-      caixa.appendChild(el('p', 'cfg-modelo-dica', 'Nenhum ainda. Um modelo seu é útil quando o pedido foge do mês normal: só o extrato de um banco, cliente que acabou de entrar, aviso antes do fechamento.'));
+      caixa.appendChild(el('p', 'cfg-modelo-dica', 'Nenhum ainda.'));
     }
     lista.forEach(function (m) {
       var bloco = el('div', 'meu-modelo');
@@ -6423,7 +6363,6 @@
         $('loginError').hidden = false;
       });
   });
-  $('logoutBtn').addEventListener('click', function () { auth.signOut(); });
 
   auth.onAuthStateChanged(function (user) {
     if (unsubClientes) { unsubClientes(); unsubClientes = null; }
@@ -6433,6 +6372,9 @@
     if (!user) {
       $('authGate').hidden = false;
       $('app').hidden = true;
+      $('topo').hidden = true;
+      $('tabsNav').hidden = true;
+      NilmaShell.fecharGaveta();
       return;
     }
     db.collection('usuarios').doc(user.uid).get().then(function (doc) {
@@ -6451,7 +6393,7 @@
         localStorage.setItem('nilma_paleta', dados.paleta || 'padrao');
         PREFERENCIAS.forEach(function (p) { localStorage.setItem('nilma_' + p.campo, dados[p.campo] || p.padrao); });
       } catch (e) {}
-      $('usuarioAtual').textContent = usuarioNome;
+      rolesAtuais = roles;
       aplicarFoto(dados.fotoPerfil, usuarioNome);
       // Antes só admin/contábil; a Nilma pediu acesso pra equipe inteira.
       var podeUsar = roles.length > 0;
@@ -6459,6 +6401,8 @@
       document.body.classList.toggle('admin', souAdmin);
       $('authGate').hidden = true;
       $('app').hidden = false;
+      $('topo').hidden = false;
+      $('tabsNav').hidden = !podeUsar;
       if (!podeUsar) {
         document.querySelector('.app').innerHTML = '<div id="negado"><i class="ph ph-lock" style="font-size:32px;"></i>' +
           '<p>Sua conta não tem acesso a este painel (precisa do papel admin ou contábil).</p></div>';

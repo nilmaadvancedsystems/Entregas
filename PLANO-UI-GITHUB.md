@@ -282,3 +282,16 @@ node scripts/teste-pendencias.js && node scripts/teste-robo.js   # (teste-robo p
   "Adicionar cliente" e "Criar acesso" no cabeçalho do formulário. Convite: "Gerar link" e "Copiar link" na mesma linha.
 - Rótulos sem parênteses explicativos (cargos, CNPJ, nome). Ficha do cliente: "Protocolo" e "Extrato" viraram botões com
   borda; aviso de localização em uma frase curta. Saíram as explicações longas de Aglutinar e do limite de leituras.
+
+### Etapa 4 — feita (aguardando a Nilma revisar no ar)
+- Pendências usa a casca comum (`nilma-shell.js`): barra de cima com "Nilma / Pendências", menu ☰ com os módulos (por
+  cargo) e menu da conta (Aparência, Sair). Saíram a moldura própria, o "Trocar de função" e o rodapé do menu.
+- O menu da Pendências (Hoje · Clientes · Cobranças · Robô do Gmail · Visão anual · Configurações) virou a barra lateral
+  da casca: fixa no PC, sublinhada no celular. Os itens continuam `.menu-item[data-pagina]` (o JS da tela não mudou).
+  O mês aparece no alto da barra. A barra só aparece depois do login.
+- A escolha de tema (claro/escuro/automático) foi pra dentro da janela de Aparência.
+- Linha de cliente: "Cobrar" e "WhatsApp" sempre à vista, com borda e rótulo (antes o aviãozinho só aparecia com o mouse).
+- Detalhe do cliente: "Cobrar os que faltam", "Marcar como recebidos" e "Pedir coleta" saíram do menu e viraram botões;
+  no ⋯ ficaram só as exceções (mês sem movimento, não se aplica).
+- Saíram as frases explicativas fixas (páginas do Robô e as explicações de cada modelo/opção em Configurações).
+- `scripts/teste-pendencias.js` (32) e `teste-robo.js` passam; nenhuma das 11 funções recortadas foi tocada.
