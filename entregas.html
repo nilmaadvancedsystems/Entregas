@@ -942,10 +942,6 @@
   .dias-semana { display: flex; flex-wrap: wrap; gap: 4px; }
   .dias-semana .btn-chip { min-width: 44px; padding: 0 8px; }
 
-  /* aba Clientes: seletor entre carteira e ajustes do app */
-  .clientes-subnav { margin: 0 0 var(--esp-4); }
-  .clientes-subnav .mode-btn { flex: 1; }
-
   /* aba Clientes: saúde da base, filtros, etiquetas e contatos */
   .saude-grid { display: flex; flex-wrap: wrap; gap: var(--esp-5) var(--esp-6); }
   .saude-item {
@@ -1737,6 +1733,11 @@
   /* ==========================================================================
      Perfil, equipe, configurações
      ========================================================================== */
+  /* ---------- submenu (menu de 2º nível) ---------- */
+  /* O submenu padrão de todos os apps: a barrinha de categorias no alto do
+     conteúdo (Clientes › Ajustes, Rota › Paradas…). Sai daqui pro
+     nilma-ui.css (scripts/monta-folha.js) e vale igual no Pendências e no
+     Fiscal. */
   .mode-toggle {
     display: flex; gap: 3px; background: var(--surface-2); border: 1px solid var(--border);
     border-radius: var(--r-sm); padding: 3px; margin-bottom: var(--esp-4);
@@ -1750,6 +1751,10 @@
     background: var(--surface); color: var(--accent-forte); font-weight: 600;
     box-shadow: inset 0 0 0 1px var(--border-forte);
   }
+  .clientes-subnav { margin: 0 0 var(--esp-4); overflow-x: auto; scrollbar-width: none; }
+  .clientes-subnav::-webkit-scrollbar { display: none; }
+  .clientes-subnav .mode-btn { flex: 1; white-space: nowrap; font-family: inherit; }
+  /* ---------- fim do submenu ---------- */
 
   .edit-form { display: flex; flex-direction: column; gap: var(--esp-2); width: 100%; }
   .edit-form .row2 { display: flex; gap: var(--esp-2); }
@@ -2166,6 +2171,7 @@
     transition: border-color var(--dur) var(--ease), color var(--dur) var(--ease);
   }
   .cq-exemplo:hover { border-color: var(--border-forte); color: var(--ink); }
+  /* ---------- fim da consulta (Perguntar à IA) ---------- */
 
 </style>
 </head>

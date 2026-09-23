@@ -152,6 +152,8 @@ tr.row-detail-hidden { display: none; }
 .tabs-grupo:first-child { padding-top: var(--esp-2); }
 .tabs-pe { margin-top: auto; padding: var(--esp-3) 12px; font-size: var(--t-xs); color: var(--ink-faint); border-top: 1px solid var(--border); }
 @media (max-width: 899px) { .tabs-grupo, .tabs-pe { display: none; } }
+/* com submenu, o título é o do menu; o de cada categoria some */
+.screen.com-submenu > section > .nilma-topo { display: none; }
 .lcdpr-conteudo { max-width: 1180px; margin: 0 auto; padding: var(--esp-5) var(--esp-4) var(--esp-6); }
 @media (min-width: 900px) { .lcdpr-conteudo { padding: var(--esp-5) var(--esp-6) var(--esp-6); } }
 </style>
@@ -169,10 +171,10 @@ tr.row-detail-hidden { display: none; }
      As telas do LCDPR são as abas (fixas à esquerda no PC, sublinhadas no
      celular); renderNav() monta os botões dentro de #navlist. -->
 <script src="nilma-shell.js"></script>
+<script src="nilma-extras.js"></script>
 <script>
-  NilmaShell.montar({ modulo: 'Fiscal', moduloId: 'fiscal', busca: false, notas: false, buscaGlobal: false });
+  NilmaShell.montar({ modulo: 'Fiscal', moduloId: 'fiscal', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false });
   document.getElementById('topo').hidden = true;
-  document.getElementById('menuContaBtn').hidden = true;
 </script>
 <nav class="tabs" id="tabsNav" aria-label="Telas do LCDPR" hidden>
   <div id="navlist" style="display:contents"></div>
@@ -530,9 +532,11 @@ function startAccessCheck(){
       const roles = snap.exists ? (snap.data().roles || []) : [];
       const nome = (snap.exists && snap.data().nome) || user.displayName || user.email || '';
       const partes = String(nome).trim().split(/[\s.@]+/).filter(Boolean);
+      const iniciais = partes.length ? (partes[0][0] + (partes.length > 1 ? partes[partes.length - 1][0] : '')).toUpperCase() : '';
+      contaAtual = { nome: nome, foto: (snap.exists && snap.data().fotoPerfil) || '', iniciais: iniciais };
       NilmaShell.definirUsuario({
         nome: nome,
-        iniciais: partes.length ? (partes[0][0] + (partes.length > 1 ? partes[partes.length - 1][0] : '')).toUpperCase() : '',
+        iniciais: iniciais,
         foto: (snap.exists && snap.data().fotoPerfil) || '',
         podeVer: function (id, papel) { return !papel || roles.indexOf('admin') !== -1 || roles.indexOf(papel) !== -1; }
       });
@@ -562,6 +566,18 @@ NilmaShell.ao('aparencia', function(){ if (window.NilmaUI) window.NilmaUI.abrirA
 NilmaShell.ao('sair', function(){ if (auth) auth.signOut().then(function(){ location.href = 'entregas.html'; }); else location.href = 'entregas.html'; });
 // Fiscal é esta mesma página: tocar nele no menu ☰ só fecha o menu.
 NilmaShell.ao('modulo', function(id){ return id === 'fiscal'; });
+// Conta (foto e senha) e "Perguntar à IA": os mesmos do Entregas (nilma-extras.js).
+var contaAtual = { nome: '', foto: '', iniciais: '' };
+NilmaExtras.ligar({
+  db: db, auth: auth, firebase: (typeof firebase !== 'undefined' ? firebase : null), origem: 'fiscal',
+  usuario: function(){ return contaAtual; },
+  aoMudarFoto: function(foto){
+    contaAtual.foto = foto;
+    NilmaShell.definirUsuario({ nome: contaAtual.nome, iniciais: contaAtual.iniciais, foto: foto });
+  },
+  toast: function(msg){ toast(msg); },
+  exemplosIA: ['Quais clientes têm mais pendências este mês?', 'Resuma as entregas do mês passado']
+});
 
 const SETTINGS_FIELDS = ['config','categorias','planoContas','ncmRules','imoveis','ieDest','tipoDoc','tipoLanc'];
 
@@ -925,26 +941,35 @@ function exportPlanilha(){
 }
 
 /* ============================== NAVEGAÇÃO / RENDER ============================== */
+// Menu (abas da casca) e submenu (a barrinha de categorias no alto do
+// conteúdo), no mesmo padrão do Entregas: "Classificação" junta as três
+// telas de regras, e cada uma vira uma categoria do submenu.
 const NAV = [
-  {group:true, label:'Trabalho do mês'},
   {id:'importar', label:'Importar e conferir', icone:'ph-tray-arrow-down'},
-  {group:true, label:'Regras de classificação'},
-  {id:'plano', label:'Plano de contas', icone:'ph-list-numbers'},
-  {id:'regras', label:'NCM e categorias', icone:'ph-tag'},
-  {id:'tabelas', label:'Tabelas de apoio', icone:'ph-table'},
-  {group:true, label:'Sistema'},
+  {id:'classificacao', label:'Classificação', icone:'ph-tag', sub:[
+    {id:'plano', label:'Plano de contas', icone:'ph-list-numbers'},
+    {id:'regras', label:'NCM e categorias', icone:'ph-tag'},
+    {id:'tabelas', label:'Tabelas de apoio', icone:'ph-table'}
+  ]},
   {id:'config', label:'Configuração geral', icone:'ph-gear'}
 ];
+function itemDoMenu(tela){
+  return NAV.find(item => item.id===tela || (item.sub && item.sub.some(s=>s.id===tela)));
+}
 function renderNav(){
   const el = document.getElementById('navlist');
   el.innerHTML = NAV.map(item=>{
-    if(item.group) return `<div class="tabs-grupo">${esc(item.label)}</div>`;
-    const ativo = state.currentScreen===item.id;
+    const ativo = itemDoMenu(state.currentScreen)===item;
     return `<button type="button" class="tab${ativo ? ' active' : ''}" data-nav="${item.id}"${ativo ? ' aria-current="page"' : ''}>` +
       `<span class="tab-ico"><i class="ph ${item.icone}" aria-hidden="true"></i></span><span class="tab-label">${esc(item.label)}</span></button>`;
   }).join('');
   el.querySelectorAll('[data-nav]').forEach(b=>b.addEventListener('click', ()=>{
-    state.currentScreen = b.dataset.nav; save(); render();
+    const item = NAV.find(x=>x.id===b.dataset.nav);
+    // tocar no menu de um grupo abre a categoria em que a pessoa estava
+    state.currentScreen = item && item.sub
+      ? (item.sub.some(s=>s.id===state.currentScreen) ? state.currentScreen : item.sub[0].id)
+      : b.dataset.nav;
+    save(); render();
   }));
 }
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -957,6 +982,18 @@ function render(){
   else if(state.currentScreen==='regras') el.innerHTML = screenRegras();
   else if(state.currentScreen==='tabelas') el.innerHTML = screenTabelas();
   else if(state.currentScreen==='config') el.innerHTML = screenConfig();
+  const grupo = itemDoMenu(state.currentScreen);
+  if(grupo && grupo.sub){
+    el.insertAdjacentHTML('afterbegin',
+      `<div class="nilma-topo"><div><h1>${esc(grupo.label)}</h1></div></div>` +
+      `<div class="mode-toggle clientes-subnav aba-subnav" role="group" aria-label="Categorias">` +
+      grupo.sub.map(s=>`<button type="button" class="mode-btn${s.id===state.currentScreen?' active':''}" data-sub="${s.id}"><i class="ph ${s.icone}" aria-hidden="true"></i> ${esc(s.label)}</button>`).join('') +
+      `</div>`);
+    el.classList.add('com-submenu');
+    el.querySelectorAll('[data-sub]').forEach(b=>b.addEventListener('click', ()=>{
+      state.currentScreen = b.dataset.sub; save(); render();
+    }));
+  } else el.classList.remove('com-submenu');
   wireScreen();
 }
 

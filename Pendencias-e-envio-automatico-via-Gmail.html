@@ -1251,27 +1251,27 @@
   .cfg-layout .cfg-preview > * { margin: var(--esp-3) var(--esp-3) 0; }
   .cfg-layout .cfg-preview > :last-child { margin-bottom: var(--esp-3); }
   .cfg-layout .cfg-preview-topo { margin: 0; padding: 6px var(--esp-3); min-height: 44px; background: var(--surface-2); border-bottom: 1px solid var(--border); }
-  @media (min-width: 1000px) {
-    .cfg-layout { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: var(--esp-5); align-items: start; }
-    .cfg-layout .cfg-grid { margin-top: 0; }
-    #cfgAbas {
-      flex-direction: column; gap: 2px; overflow: visible; border-bottom: 0;
-      position: sticky; top: calc(var(--topo-total, 56px) + var(--esp-4));
-    }
-    #cfgAbas .secao-btn {
-      position: relative; height: 36px; margin: 0; padding: 0 10px; border: 0; border-radius: var(--r-sm);
-      font-size: var(--t-base); font-weight: 400;
-    }
-    #cfgAbas .secao-btn:hover { background: var(--surface-2); color: var(--ink); }
-    #cfgAbas .secao-btn[aria-selected="true"] { background: var(--surface-2); color: var(--ink); font-weight: 600; }
-    #cfgAbas .secao-btn[aria-selected="true"]::before {
-      content: ""; position: absolute; left: -8px; top: 6px; bottom: 6px; width: 4px; border-radius: 4px; background: var(--accent);
-    }
+  /* Submenu padrão (o mesmo do Entregas e do Fiscal): as seções da ficha do
+     cliente, das Configurações e do Robô ficam na barrinha de categorias no
+     alto do conteúdo. */
+  .cliente-menu {
+    display: flex; gap: 3px; overflow-x: auto; scrollbar-width: none;
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: var(--r-sm); padding: 3px; margin-bottom: var(--esp-4);
   }
-  @media (min-width: 1000px) and (max-width: 1439px) {
-    .cfg-layout .cfg-grid { grid-template-columns: minmax(0, 1fr); }
-    .cfg-layout .cfg-preview { position: static; }
+  .cliente-menu .secao-btn {
+    flex: 1; justify-content: center; gap: 6px; height: auto; min-height: 34px; margin: 0;
+    padding: 8px 10px; border: 0; border-radius: var(--r-xs); background: transparent;
+    color: var(--ink-soft); font: 500 var(--t-base)/1.2 var(--font-body);
   }
+  .cliente-menu .secao-btn:hover { color: var(--ink); background: transparent; }
+  .cliente-menu .secao-btn[aria-selected="true"] {
+    background: var(--surface); color: var(--accent-forte); font-weight: 600;
+    box-shadow: inset 0 0 0 1px var(--border-forte);
+  }
+  .cliente-menu .secao-btn i { font-size: 1.05em; }
+  .cfg-layout > .cliente-menu { margin-bottom: 0; }
+  #viewRobo .card-grupo[hidden] { display: none; }
   #viewConfig .pagina-sub:empty { display: none; }
 
   /* Clientes no formato das Issues do GitHub: filtros colados na busca e a
@@ -1318,12 +1318,11 @@
 <body>
 <!-- Casca comum (barra de cima, menu ☰ e menu da conta): nilma-shell.js -->
 <script src="nilma-shell.js"></script>
+<script src="nilma-extras.js"></script>
 <script>
-  NilmaShell.montar({ modulo: 'Pendências', moduloId: 'pendencias', busca: false, notas: false, buscaGlobal: false });
+  NilmaShell.montar({ modulo: 'Pendências', moduloId: 'pendencias', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false });
   // antes do login só a tela de entrada; a barra aparece junto com o app
   document.getElementById('topo').hidden = true;
-  // Esta tela não tem "Conta" nem "Meu perfil" próprios: ficam no Entregas.
-  document.getElementById('menuContaBtn').hidden = true;
 </script>
 <!-- Menu da Pendências = barra lateral da casca (fixa no PC, sublinhada no
      celular). Os itens continuam .menu-item[data-pagina]: é assim que o JS
@@ -1582,9 +1581,17 @@
         </div>
       </div>
       <div id="roboAviso"></div>
-      <!-- Mesmo desenho do Hoje: à esquerda o que pede ação, à direita o resumo. -->
+      <!-- Submenu padrão: o que pede ação, o que o robô marcou e o histórico.
+           Categoria sem nada dentro some (atualizarSubmenuRobo). -->
+      <nav class="cliente-menu" role="tablist" aria-label="Seções do robô" id="roboAbas">
+        <button type="button" class="secao-btn" role="tab" data-grupo="entrada" aria-selected="true"><i class="ph ph-tray" aria-hidden="true"></i><span>Caixa de entrada</span></button>
+        <button type="button" class="secao-btn" role="tab" data-grupo="marcados" aria-selected="false"><i class="ph ph-check-square" aria-hidden="true"></i><span>Marcados</span></button>
+        <button type="button" class="secao-btn" role="tab" data-grupo="historico" aria-selected="false"><i class="ph ph-clock-counter-clockwise" aria-hidden="true"></i><span>Histórico</span></button>
+      </nav>
+      <!-- Mesmo desenho do Hoje: à esquerda a categoria aberta, à direita o resumo. -->
       <div class="hoje-grade">
         <div class="hoje-principal">
+          <div class="card-grupo" data-grupo="entrada">
           <section class="caixa-p" id="roboNaoRecSecao" hidden>
             <div class="caixa-cab"><h2><i class="ph ph-user-circle-plus" aria-hidden="true"></i> Remetentes sem cliente</h2><span class="cont" id="roboNaoRecN"></span></div>
             <div class="tab-rolagem"><table class="tab-simples" id="tabNaoRec"></table></div>
@@ -1593,11 +1600,15 @@
             <div class="caixa-cab"><h2><i class="ph ph-paperclip" aria-hidden="true"></i> E-mails com anexo</h2><span class="cont" id="roboCaixaN"></span></div>
             <div class="tab-rolagem"><table class="tab-simples" id="tabCaixa"></table></div>
           </section>
+          </div>
+          <div class="card-grupo" data-grupo="marcados" hidden>
           <section class="caixa-p" id="roboMarcadosDobra">
             <div class="caixa-cab"><h2><i class="ph ph-check-square" aria-hidden="true"></i> <span>Marcados em <span id="roboMesLabel2"></span></span></h2><span class="cont" id="roboMarcadosN"></span></div>
             <div class="tab-rolagem"><table class="tab-simples" id="tabRobo"></table></div>
             <div id="roboVazio" class="vazio" hidden></div>
           </section>
+          </div>
+          <div class="card-grupo" data-grupo="historico" hidden>
           <section class="caixa-p" id="roboExecSecao" hidden>
             <div class="caixa-cab"><h2><i class="ph ph-clock-counter-clockwise" aria-hidden="true"></i> Execuções recentes</h2><span class="cont" id="roboExecN"></span></div>
             <div class="tab-rolagem"><table class="tab-simples" id="tabExecRobo"></table></div>
@@ -1606,6 +1617,7 @@
             <div class="caixa-cab"><h2><i class="ph ph-flag" aria-hidden="true"></i> Marcações erradas</h2><span class="cont" id="roboErrosN"></span></div>
             <div class="tab-rolagem"><table class="tab-simples" id="tabErrosRobo"></table></div>
           </section>
+          </div>
         </div>
         <aside class="hoje-lado">
           <section class="caixa-p">
@@ -1635,8 +1647,8 @@
         </div>
       </div>
 
-      <!-- Como as Settings do GitHub: seções num menu à esquerda, cada
-           bloco com o título sublinhado. -->
+      <!-- Seções no submenu padrão (barrinha de categorias no alto do
+           conteúdo); cada bloco com o título sublinhado. -->
       <div class="cfg-layout">
       <nav class="cliente-menu" role="tablist" aria-label="Seções das configurações" id="cfgAbas">
         <button type="button" class="secao-btn" role="tab" data-cfg="geral" aria-selected="true"><i class="ph ph-calendar" aria-hidden="true"></i><span>Prazo e assinatura</span></button>
@@ -2639,6 +2651,84 @@
   NilmaShell.ao('sair', function () { auth.signOut(); });
   // Pendências é esta mesma página: tocar nela no menu ☰ só fecha o menu.
   NilmaShell.ao('modulo', function (id) { return id === 'pendencias'; });
+
+  // ---------- submenu do Robô ----------
+  // Categoria sem nenhuma caixa visível some do submenu; se a aberta sumir,
+  // abre a primeira que tem conteúdo. Quem liga/desliga as caixas é o
+  // render do robô (atributo hidden); o observador acompanha.
+  var grupoRobo = null;
+  function mostrarGrupoRobo(grupo) {
+    grupoRobo = grupo;
+    document.querySelectorAll('#roboAbas .secao-btn').forEach(function (b) { b.setAttribute('aria-selected', String(b.dataset.grupo === grupo)); });
+    document.querySelectorAll('#viewRobo .card-grupo').forEach(function (g) { g.hidden = g.dataset.grupo !== grupo; });
+  }
+  function atualizarSubmenuRobo() {
+    var visiveis = [];
+    document.querySelectorAll('#viewRobo .card-grupo').forEach(function (g) {
+      var tem = [].some.call(g.querySelectorAll(':scope > section'), function (sec) { return !sec.hidden; });
+      var b = document.querySelector('#roboAbas .secao-btn[data-grupo="' + g.dataset.grupo + '"]');
+      if (b) b.hidden = !tem;
+      if (tem) visiveis.push(g.dataset.grupo);
+    });
+    $('roboAbas').hidden = visiveis.length < 2;
+    if (visiveis.indexOf(grupoRobo) === -1) mostrarGrupoRobo(visiveis[0] || 'marcados');
+  }
+  document.querySelectorAll('#roboAbas .secao-btn').forEach(function (b) {
+    b.addEventListener('click', function () { mostrarGrupoRobo(b.dataset.grupo); });
+  });
+  (function () {
+    var obs = new MutationObserver(atualizarSubmenuRobo);
+    document.querySelectorAll('#viewRobo .card-grupo > section').forEach(function (sec) { obs.observe(sec, { attributes: true, attributeFilter: ['hidden'] }); });
+    atualizarSubmenuRobo();
+  })();
+
+  // Conta (foto e senha) e "Perguntar à IA": os mesmos do Entregas, pelo
+  // módulo comum nilma-extras.js. A resposta rápida é daqui: quem deve
+  // documento no mês aberto e a situação de um cliente.
+  function responderRapido(pergunta) {
+    var t = normalizarBusca(pergunta);
+    var comp = competenciaPorExtenso(competenciaStr(competenciaAtual));
+    function esc(x) { return String(x == null ? '' : x).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+    function linha(nome, meta) {
+      return '<div class="cq-linha"><span class="cq-linha-nome">' + esc(nome) + '</span><span class="cq-linha-meta">' + esc(meta || '') + '</span></div>';
+    }
+    if (!clientesCarregados) return '<div class="cq-nota" style="margin:0">Os clientes ainda estão carregando.</div>';
+    var achados = clientesCache.filter(function (c) {
+      var n = normalizarBusca(c.nome) + ' ' + normalizarBusca(c.nomeFantasia) + ' ' + normalizarBusca(c.codigoOrigem);
+      return t.split(/\s+/).filter(function (p) { return p.length >= 3; }).some(function (p) { return n.indexOf(p) !== -1 && !/^(quem|mandou|falta|faltando|pendencia|pendencias|documento|documentos|cliente|clientes|mes|esse|este|extrato|comprovante|aplicacao)$/.test(p); });
+    });
+    if (/pendenc|falta|nao mand|nao envi|devendo|atras|em aberto/.test(t) || !achados.length) {
+      var tipo = TIPOS.filter(function (x) { return t.indexOf(normalizarBusca(x.curto)) !== -1; })[0];
+      var devem = clientesCache.filter(function (c) {
+        var f = faltandoDe(c.id);
+        return tipo ? f.some(function (x) { return x.chave === tipo.chave; }) : f.length > 0;
+      });
+      if (!/pendenc|falta|nao mand|nao envi|devendo|atras|em aberto/.test(t)) {
+        return '<div class="cq-titulo">Não entendi essa</div><div>Sei responder sobre:</div>' +
+          linha('Pendências', 'quem não mandou documento') + linha('Um cliente', 'a situação dele no mês') +
+          '<div class="cq-nota">Ex.: "quem não mandou extrato?" ou o nome do cliente.</div>';
+      }
+      return '<div class="cq-titulo">' + devem.length + (devem.length === 1 ? ' cliente deve ' : ' clientes devem ') +
+        (tipo ? tipo.curto.toLowerCase() : 'documento') + ' em ' + esc(comp) + '</div>' +
+        devem.slice(0, 30).map(function (c) {
+          return linha(clienteLabel(c), faltandoDe(c.id).map(function (x) { return x.curto || x.label; }).join(', '));
+        }).join('') + (devem.length > 30 ? '<div class="cq-nota">e mais ' + (devem.length - 30) + '.</div>' : '');
+    }
+    return '<div class="cq-titulo">' + esc(comp) + '</div>' + achados.slice(0, 12).map(function (c) {
+      var f = faltandoDe(c.id);
+      return linha(clienteLabel(c), situacao(c.id).texto + (f.length ? ' · falta ' + f.map(function (x) { return x.curto || x.label; }).join(', ') : ''));
+    }).join('');
+  }
+  NilmaExtras.ligar({
+    db: db, auth: auth, firebase: firebase, origem: 'pendencias',
+    usuario: function () { return contaAtual; },
+    aoMudarFoto: function (foto) { aplicarFoto(foto, contaAtual.nome); },
+    toast: function (msg, tipo) { toast(msg, tipo === 'error' ? 'erro' : 'ok'); },
+    responder: responderRapido,
+    dica: 'Pergunte algo, ex.: quem não mandou extrato',
+    exemplos: ['Quem não mandou extrato esse mês?', 'Quem está com pendência?'],
+    exemplosIA: ['Quais clientes estão há mais meses sem mandar extrato?', 'Quem tem pendência e ainda não tem e-mail cadastrado?']
+  });
   $('aparenciaFechar').addEventListener('click', function () { $('modalAparencia').close(); });
   function iniciaisDe(nome) {
     var partes = String(nome || '').trim().split(/[\s.]+/).filter(Boolean);
@@ -2648,7 +2738,9 @@
   // Avatar e nome moram na barra de cima (casca comum); o menu ☰ mostra só
   // os módulos que o cargo da pessoa libera, igual ao Entregas.
   var rolesAtuais = [];
+  var contaAtual = { nome: '', foto: '' };
   function aplicarFoto(dataUrl, nome) {
+    contaAtual = { nome: nome || '', foto: dataUrl || '' };
     NilmaShell.definirUsuario({
       nome: nome || '',
       iniciais: iniciaisDe(nome),
@@ -6544,6 +6636,7 @@
       $('topo').hidden = true;
       $('tabsNav').hidden = true;
       NilmaShell.fecharGaveta();
+      NilmaExtras.sair();
       return;
     }
     db.collection('usuarios').doc(user.uid).get().then(function (doc) {

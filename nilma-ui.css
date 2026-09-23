@@ -483,7 +483,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  chip
- (entregas.html, linhas 980-999)
+ (entregas.html, linhas 976-995)
  --------------------------------------------------------------- */
 .chip { position: relative; }
 .chip input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
@@ -508,7 +508,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  botão
- (entregas.html, linhas 1015-1130)
+ (entregas.html, linhas 1011-1126)
  --------------------------------------------------------------- */
    Botões — uma forma só, três pesos
    ========================================================================== */
@@ -629,7 +629,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  aviso flutuante
- (entregas.html, linhas 1364-1372)
+ (entregas.html, linhas 1360-1368)
  --------------------------------------------------------------- */
 .toast {
   position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 10px); z-index: var(--z-aviso);
@@ -643,7 +643,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  janela (modal)
- (entregas.html, linhas 1377-1422)
+ (entregas.html, linhas 1373-1418)
  --------------------------------------------------------------- */
 .modal-overlay {
   position: fixed; inset: 0; background: var(--scrim); z-index: var(--z-veu);
@@ -694,7 +694,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  selo de situação
- (entregas.html, linhas 1227-1237)
+ (entregas.html, linhas 1223-1233)
  --------------------------------------------------------------- */
 /* ---------- selo de situação ---------- */
 .status-pill {
@@ -710,7 +710,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  tela vazia e janela
- (entregas.html, linhas 1238-1280)
+ (entregas.html, linhas 1234-1276)
  --------------------------------------------------------------- */
 .empty-state { color: var(--ink-faint); font-size: var(--t-base); text-align: center; padding: var(--esp-5) var(--esp-3); line-height: 1.5; }
 
@@ -938,6 +938,134 @@ body:has(.gaveta:not([hidden])) { overflow: hidden; }
   }
   body:has(> .tabs:not([hidden])) { padding-left: var(--lateral); }
 }
+
+/* ---------------------------------------------------------------
+ submenu padrão (menu de 2º nível)
+ (entregas.html, linhas 1736-1756)
+ --------------------------------------------------------------- */
+/* ---------- submenu (menu de 2º nível) ---------- */
+/* O submenu padrão de todos os apps: a barrinha de categorias no alto do
+   conteúdo (Clientes › Ajustes, Rota › Paradas…). Sai daqui pro
+   nilma-ui.css (scripts/monta-folha.js) e vale igual no Pendências e no
+   Fiscal. */
+.mode-toggle {
+  display: flex; gap: 3px; background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--r-sm); padding: 3px; margin-bottom: var(--esp-4);
+}
+.mode-btn {
+  flex: 1; border: none; background: transparent; padding: 8px 10px; border-radius: var(--r-xs);
+  font-weight: 500; font-size: var(--t-base); color: var(--ink-soft); cursor: pointer; min-height: 34px;
+}
+.mode-btn:hover { color: var(--ink); }
+.mode-btn.active {
+  background: var(--surface); color: var(--accent-forte); font-weight: 600;
+  box-shadow: inset 0 0 0 1px var(--border-forte);
+}
+.clientes-subnav { margin: 0 0 var(--esp-4); overflow-x: auto; scrollbar-width: none; }
+.clientes-subnav::-webkit-scrollbar { display: none; }
+.clientes-subnav .mode-btn { flex: 1; white-space: nowrap; font-family: inherit; }
+
+/* ---------------------------------------------------------------
+ painel "Perguntar à IA" (nilma-extras.js)
+ (entregas.html, linhas 2077-2173)
+ --------------------------------------------------------------- */
+/* A consulta abre como uma barra de pesquisa aberta (o "Ask" do GitHub):
+   no PC, uma caixa ancorada na barra de cima, cobrindo a caixa "Perguntar
+   à IA", com a pergunta em cima e a conversa embaixo; no celular, a tela
+   toda, também com a pergunta em cima. Posição no PC: posicionarConsulta_. */
+.cq-painel {
+  position: fixed; z-index: var(--z-modal); background: var(--surface);
+  display: flex; flex-direction: column; box-shadow: var(--shadow);
+}
+@media (max-width: 899px) { .cq-painel { inset: 0; padding-top: env(safe-area-inset-top, 0px); } }
+@media (min-width: 900px) {
+  .cq-painel {
+    top: 8px; right: 16px; width: 560px; max-height: min(640px, calc(100vh - 32px));
+    border: 1px solid var(--border-forte); border-radius: var(--r-md);
+    animation: cqAbre var(--dur) var(--ease);
+  }
+  .cq-painel .cq-conversa:empty { display: none; }
+}
+@keyframes cqAbre { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.cq-barra {
+  display: flex; align-items: flex-end; gap: var(--esp-2); flex: none;
+  padding: var(--esp-2) var(--esp-2) var(--esp-2) var(--esp-3);
+  border-bottom: 1px solid var(--border);
+}
+.cq-barra .cq-ico { color: var(--accent-forte); font-size: 1.15rem; line-height: 1; align-self: center; }
+.cq-campo {
+  flex: 1; resize: none; max-height: 120px; min-height: 36px; border: 0; background: none; outline: none;
+  padding: 8px 4px; color: var(--ink); font-family: inherit; font-size: var(--t-md); line-height: 1.4;
+}
+.cq-campo::placeholder { color: var(--ink-faint); }
+/* o foco é da barra inteira (traço embaixo), não do campo: sem moldura dupla */
+.cq-campo:focus, .cq-campo:focus-visible { outline: none; box-shadow: none; border: 0; background: none; }
+.cq-barra:focus-within { box-shadow: inset 0 -2px 0 var(--accent); }
+.cq-enviar { flex: none; width: 36px; min-height: 36px; height: 36px; padding: 0; }
+.cq-barra .icon-btn { margin-left: 0; width: 36px; height: 36px; }
+.cq-opcoes {
+  display: flex; align-items: center; gap: var(--esp-2); flex-wrap: wrap; flex: none;
+  padding: var(--esp-2) var(--esp-3); border-bottom: 1px solid var(--border); background: var(--surface-2);
+}
+.cq-opcoes .cq-limpar { margin-left: auto; }
+.cq-modo { flex: none; margin: 0; }
+.cq-modo .mode-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 30px; padding: 4px 10px; flex: none; }
+.cq-modelo-select {
+  width: auto; min-height: 30px; padding: 4px 22px 4px 8px;
+  font-size: var(--t-xs); flex: none;
+}
+.cq-conversa {
+  flex: 1; min-height: 0; overflow-y: auto; padding: var(--esp-4);
+  display: flex; flex-direction: column; gap: var(--esp-3);
+}
+
+.cq-msg { max-width: 92%; font-size: var(--t-md); line-height: 1.5; }
+/* A pergunta leva a cor cheia; a resposta fica no poço. É a mesma divisão do
+   resto do app: cor cheia preenche, e quem lê lista longa lê melhor em cinza
+   do que em cor de marca. */
+.cq-msg-eu {
+  align-self: flex-end; background: var(--accent); color: var(--accent-ink);
+  padding: var(--esp-2) var(--esp-3); border-radius: var(--r-lg);
+  border-bottom-right-radius: var(--r-xs);
+}
+.cq-msg-resp {
+  align-self: stretch; background: var(--surface-2); color: var(--ink);
+  padding: var(--esp-3); border-radius: var(--r-lg);
+  border-bottom-left-radius: var(--r-xs);
+}
+.cq-titulo { font-weight: 600; margin-bottom: var(--esp-2); }
+.cq-nota { font-size: var(--t-sm); color: var(--ink-faint); margin-top: var(--esp-2); }
+.cq-erro { color: var(--danger); }
+
+/* Uma linha de resultado: nome à esquerda, dado à direita, régua de 1px
+   entre elas — o mesmo vocabulário de .entrega-row e .client-row. */
+.cq-linha {
+  display: flex; align-items: baseline; gap: var(--esp-2);
+  padding: 6px 0; border-top: 1px solid var(--border);
+}
+.cq-linha:first-of-type { border-top: none; }
+.cq-linha-nome { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cq-linha-meta {
+  flex: none; font-size: var(--t-sm); color: var(--ink-soft);
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+}
+.cq-numeros { display: flex; flex-wrap: wrap; gap: var(--esp-4); margin-top: var(--esp-2); }
+.cq-numero-valor {
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  font-size: var(--t-xl); font-weight: 600; display: block; line-height: 1.1;
+}
+.cq-numero-rotulo { font-size: var(--t-xs); color: var(--ink-faint); }
+
+.cq-vazio { color: var(--ink-faint); font-size: var(--t-sm); margin: auto 0; text-align: center; }
+.cq-vazio h3 { font-size: var(--t-md); color: var(--ink-soft); margin: 0 0 var(--esp-2); }
+.cq-exemplos { display: flex; flex-direction: column; gap: var(--esp-2); margin-top: var(--esp-4); }
+.cq-exemplo {
+  border: 1px solid var(--border); background: transparent; color: var(--ink-soft);
+  border-radius: var(--r-md); padding: var(--esp-2) var(--esp-3);
+  font-size: var(--t-sm); text-align: left; cursor: pointer;
+  transition: border-color var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.cq-exemplo:hover { border-color: var(--border-forte); color: var(--ink); }
 /* ---------------------------------------------------------------
    Só destas telas: janela de Aparência (nilma-ui.js) e a moldura
    (menu lateral, cabeçalho de página). O entregas.html tem a

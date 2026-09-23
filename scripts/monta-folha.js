@@ -59,6 +59,14 @@ const pedacos = [
   ['casca GitHub: barra de cima, abas do módulo e gavetas (nilma-shell.js)',
    '  /* ---------- casca GitHub: barra, abas e gavetas ---------- */',
    '  /* ---------- fim da casca GitHub ---------- */'],
+  // O submenu padrão (a barrinha de categorias no alto do conteúdo) e o
+  // painel "Perguntar à IA" (usado por nilma-extras.js nas outras telas).
+  ['submenu padrão (menu de 2º nível)',
+   '  /* ---------- submenu (menu de 2º nível) ---------- */',
+   '  /* ---------- fim do submenu ---------- */'],
+  ['painel "Perguntar à IA" (nilma-extras.js)',
+   '  /* A consulta abre como uma barra de pesquisa aberta (o "Ask" do GitHub):',
+   '  /* ---------- fim da consulta (Perguntar à IA) ---------- */'],
 ];
 
 const cabeca = `/* ==========================================================================
