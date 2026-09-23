@@ -224,3 +224,18 @@ node scripts/teste-pendencias.js && node scripts/teste-robo.js   # (teste-robo p
 - Pendências: contrato do robô (coleções, ids `clienteId_AAAA-MM`) e as 11 funções recortadas por nome e
   indentação em `scripts/teste-pendencias.js`.
 - Modo público (`html.publico`) e impressão listam a casca por seletor: elemento novo entra nas duas.
+
+## 7. Diário de execução
+
+### Etapa 1 — feita (aguardando a Nilma revisar no ar)
+- Barra de cima fixa (`#topo`, `nilma-shell.js`): ☰ · logo + "Nilma / <módulo>" · caixa "Consulta rápida" (tecla `/`) ·
+  anotações · avatar. Gaveta ☰ com Módulos (filtrados por cargo) e Ferramentas; gaveta da conta com Aparência, Conta e Sair.
+- Abas sublinhadas logo abaixo da barra, no PC e no celular. Saíram a coluna de 224px, a pílula do pé, o botão flutuante da
+  consulta, a tela de cartões, a Ajuda, o tour, as Novidades e a preferência "Explicações dos cartões".
+- O app abre no último módulo usado (ou no endereço `entregas.html#clientes` / `#contabil`). Valores antigos gravados
+  (`hubClientes` etc.) continuam valendo. O aviso "robô parado" virou faixa no alto do conteúdo (`#roboAviso`).
+- Módulo Clientes: as abas são Carteira · Painéis · Ajustes do app (o botão genérico "Clientes e ajustes" sai da barra).
+- Configurações abre direto em Aparência ou Conta; "Sair" e "Ajustes do escritório" saíram do modal.
+- Cache do service worker subiu pra `nilma-app-v4`; `nilma-ui.css` regenerado com o bloco da casca.
+- Verificado: scripts compilam, `teste-consulta` / `teste-pendencias` / `teste-robo` passam, e um teste no Chromium com
+  Firebase falso percorreu login, troca de módulo, as duas gavetas, Aparência, Conta, `/`, `#clientes` e sair, sem erro de JS.

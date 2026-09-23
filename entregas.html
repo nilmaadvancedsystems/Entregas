@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <!-- Pinta a barra do navegador no celular com a cor da paleta. O valor real
      é ajustado pelo JS quando o tema ou a paleta muda. -->
 <meta name="theme-color" id="metaThemeColor" content="#235347">
@@ -39,8 +39,7 @@
     // demais preferências de aparência, aplicadas antes da primeira pintura
     [['nilma_texto', 'texto', 'normal'],
      ['nilma_densidade', 'densidade', 'confortavel'],
-     ['nilma_animacao', 'animacao', 'completa'],
-     ['nilma_explicacoes', 'explicacoes', 'mostrar']].forEach(function (item) {
+     ['nilma_animacao', 'animacao', 'completa']].forEach(function (item) {
       var v = localStorage.getItem(item[0]);
       if (v && v !== item[2]) document.documentElement.dataset[item[1]] = v;
     });
@@ -168,6 +167,8 @@
        calçada: 44px. No PC (media de 900px) cai, porque lá é mouse. */
     --alvo: 44px;
     --card-pad: 16px;
+    /* altura da barra de cima (casca GitHub) */
+    --topo: 56px;
 
     /* --- tipografia ---
        Uma família só, em pesos diferentes, mais a mono irmã pros números.
@@ -203,6 +204,9 @@
     --z-fixo: 20;
     --z-nav: 30;
     --z-suspenso: 40;
+    /* gaveta do ☰ e da conta: acima do menu e das listas suspensas, abaixo
+       do véu de modal — um modal aberto de dentro dela fica por cima */
+    --z-gaveta: 45;
     --z-veu: 50;
     --z-modal: 60;
     --z-aviso: 70;
@@ -317,9 +321,6 @@
   html[data-densidade="compacto"] .view { gap: var(--esp-3); }
   html[data-densidade="compacto"] .field { margin-bottom: var(--esp-3); }
 
-  /* Quem já conhece o app não precisa reler 24 parágrafos de ajuda. As
-     dicas que o próprio app escreve na hora (têm id) continuam. */
-  html[data-explicacoes="esconder"] .card-hint:not([id]):not(.modal-head-sub) { display: none; }
 
   html[data-animacao="reduzida"] *,
   html[data-animacao="reduzida"] *::before,
@@ -426,55 +427,33 @@
   /* ==========================================================================
      Moldura: barra de cima, marca, menu
      ========================================================================== */
-  /* ---------- a barra de cima saiu ----------
-     Ela carregava o título da tela (que o menu já destaca), a data e o crachá
-     de quem está logado. Nada disso pedia uma faixa própria de 56px: numa tela
-     de 1440px sobravam 950px de vazio no meio, e não existe espaçamento que
-     deixe bonito um recipiente sem conteúdo. Cada peça foi pra onde tem
-     função — título no alto do conteúdo, usuário no pé do menu.
-
-     O elemento fica no DOM porque a <img> do logo mora dentro dele e é a
-     fonte do ícone do PWA e do logo da tela de entrada. */
+  /* ---------- a .topbar antiga ----------
+     A barra de cima agora é a casca GitHub (#topo, montada por
+     nilma-shell.js). A .topbar fica no DOM, escondida, só porque a <img> do
+     logo mora dentro dela e é a fonte do ícone do PWA, da notificação e do
+     logo da tela de entrada. */
   .topbar { display: none; }
   .brand { display: flex; align-items: center; gap: var(--esp-2); min-width: 0; }
 
-  /* Cabeçalho da tela, no alto do conteúdo: é aqui que o título tem espaço
-     pra ser título, com a data do lado. */
+  /* Cabeçalho da tela, no alto do conteúdo: título à esquerda e, quando a
+     tela tem, a ação principal à direita (como "New issue" no GitHub). */
   .tela-cabecalho {
-    display: flex; align-items: baseline; gap: var(--esp-3); flex-wrap: wrap;
-    padding: 0 88px var(--esp-3) 0;
+    display: flex; align-items: center; justify-content: space-between; gap: var(--esp-3); flex-wrap: wrap;
+    padding: 0 0 var(--esp-3);
     margin-bottom: var(--esp-2);
     border-bottom: 1px solid var(--border);
   }
-  .tela-data { font-family: var(--font-mono); font-size: var(--t-sm); color: var(--ink-faint); white-space: nowrap; }
   /* Escondida, não removida: é dela que o JS tira o ícone do PWA, o ícone da
-     notificação e o logo da tela de entrada. Ver a nota em .sidebar-logo. */
+     notificação, o logo da tela de entrada e o da barra de cima. */
   .brand-mark { display: none; }
   .brand-text { display: flex; align-items: baseline; gap: var(--esp-2); min-width: 0; }
-  .brand-name {
-    font-family: var(--font-display); font-size: var(--t-lg); font-weight: 600;
-    color: var(--ink); letter-spacing: -.01em;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  }
   .brand-tag { font-size: var(--t-sm); color: var(--ink-faint); white-space: nowrap; }
   @media (max-width: 480px) { .brand-tag { display: none; } }
 
-  /* Só existem no PC (ver a media query no fim da folha). */
-  .sidebar-brand, .user-avatar { display: none; }
-  /* No celular o rótulo da aba ativa já diz onde a pessoa está, então o
-     título sai da barra — mas continua existindo pro leitor de tela, senão a
-     página fica sem <h1>. */
-  /* Agora é título de verdade, visível nos dois tamanhos de tela: antes ele
-     existia só pro leitor de tela porque não cabia na barra. */
   .page-title {
     font-family: var(--font-display); font-size: var(--t-lg); font-weight: 600;
     letter-spacing: -.02em; color: var(--ink); margin: 0;
   }
-  .user-label {
-    font-size: var(--t-sm); font-weight: 500; color: var(--ink-soft);
-    max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  }
-  @media (min-width: 520px) { .user-label { max-width: 180px; } }
 
   .icon-btn {
     margin-left: auto; border: 1px solid var(--border); background: var(--surface);
@@ -489,52 +468,164 @@
     position: absolute; top: -6px; right: -6px; margin-left: 0;
     font-size: var(--t-xs); min-width: 16px; height: 16px; line-height: 16px;
   }
-  /* No celular não há barra lateral: anotações e configurações moram no alto
-     à direita, junto da marca. */
-  .sidebar-footer { position: fixed; top: 10px; right: 14px; z-index: calc(var(--z-fixo) + 5); display: flex; align-items: center; gap: var(--esp-2); }
-  .sidebar-footer .icon-btn { margin-left: 0; }
-  /* No celular o canto de cima é só os dois botões: quem está logado aparece
-     em Perfil e em Configurações, e um terceiro item ali comeria o título. */
-  .sidebar-footer .user-avatar, .sidebar-footer .brand-name { display: none; }
-
-  /* ---------- barra de abas do celular ----------
-     Flutua no polegar. É a única peça da moldura que ganha sombra, porque é a
-     única que de fato passa por cima do conteúdo. */
-  .tabs {
-    position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%); z-index: var(--z-nav);
-    display: flex; gap: 2px; background: var(--surface); border: 1px solid var(--border);
-    border-radius: var(--r-pill); padding: 5px; box-shadow: var(--shadow);
-    max-width: calc(100% - 20px);
+  /* ---------- casca GitHub: barra, abas e gavetas ---------- */
+  /* A marcação nasce em nilma-shell.js; este bloco sai inteiro pra
+     nilma-ui.css (scripts/monta-folha.js), pra Pendências, LCDPR e o portal
+     usarem a MESMA barra. Referência: PLANO-UI-GITHUB.md, seção 3. */
+  /* Altura útil da barra mais o recorte do iPhone (viewport-fit=cover). */
+  :root { --topo-total: calc(var(--topo) + env(safe-area-inset-top, 0px)); }
+  html.com-casca body { padding-top: var(--topo-total); }
+  .gh-topo {
+    position: fixed; top: 0; left: 0; right: 0; z-index: var(--z-nav);
+    height: var(--topo); padding: env(safe-area-inset-top, 0px) var(--esp-3) 0;
+    box-sizing: content-box;
+    display: flex; align-items: center; gap: var(--esp-2);
+    background: var(--bg); border-bottom: 1px solid var(--border);
   }
-  .tab {
-    border: none; background: transparent; padding: 0 12px; min-height: var(--alvo); border-radius: var(--r-pill);
-    font-weight: 600; font-size: var(--t-base); color: var(--ink-faint); cursor: pointer;
-    display: flex; align-items: center; position: relative; flex: none;
+  .gh-topo.rolado { box-shadow: var(--shadow); }
+  .topo-btn {
+    flex: none; width: var(--alvo); height: var(--alvo); display: inline-grid; place-items: center;
+    border: 1px solid transparent; border-radius: var(--r-sm); background: none;
+    color: var(--ink-soft); font-size: 1.25rem; line-height: 1; cursor: pointer; position: relative; padding: 0;
   }
-  .tab:not(.active) .tab-ico { color: var(--ink-faint); }
-  .tab-ico { font-size: 1.05rem; line-height: 1; }
-  .tab-label { display: none; white-space: nowrap; }
-  .tab.active { background: var(--accent); color: var(--accent-ink); }
-  .tab.active .tab-ico { color: var(--accent-ink); }
-  .tab.active .tab-label { display: inline; margin-left: 6px; }
-  .tab-badge {
-    position: absolute; top: 1px; right: 1px; min-width: 16px; height: 16px; padding: 0 4px;
-    border-radius: var(--r-pill); background: var(--accent); color: var(--accent-ink);
-    font-size: var(--t-xs); font-weight: 600; line-height: 16px; text-align: center;
+  .topo-btn:hover { background: var(--surface-2); color: var(--ink); }
+  .topo-btn[aria-expanded="true"] { background: var(--surface-2); color: var(--ink); border-color: var(--border); }
+  .topo-btn .tab-badge {
+    position: absolute; top: 2px; right: 2px; margin: 0;
+    font-size: var(--t-xs); min-width: 16px; height: 16px; line-height: 16px; padding: 0 4px;
+    background: var(--accent); color: var(--accent-ink);
   }
-  .tab.active .tab-badge { background: var(--accent-ink); color: var(--accent); }
-  /* Com seis abas o conjunto passa da largura da tela; aperta o espaçamento
-     e limita o rótulo da ativa. */
+  .topo-marca {
+    display: inline-flex; align-items: center; gap: var(--esp-2); min-height: var(--alvo); padding: 0 var(--esp-1);
+    color: var(--ink); text-decoration: none; font-weight: 600; font-size: var(--t-md); border-radius: var(--r-sm); flex: none;
+  }
+  .topo-marca:hover { background: var(--surface-2); }
+  .topo-logo { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; flex: none; }
+  .topo-sep { color: var(--ink-faint); font-size: var(--t-md); flex: none; }
+  .topo-modulo {
+    font-weight: 600; font-size: var(--t-md); color: var(--ink); min-width: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .topo-vao { flex: 1; }
+  .topo-busca {
+    margin-left: auto; flex: 0 1 320px; min-width: 0; display: inline-flex; align-items: center; gap: var(--esp-2);
+    height: 34px; padding: 0 var(--esp-3); border: 1px solid var(--border); border-radius: var(--r-sm);
+    background: var(--surface-2); color: var(--ink-faint); font: inherit; font-size: var(--t-base); cursor: pointer;
+  }
+  .topo-busca:hover { border-color: var(--border-forte); color: var(--ink-soft); }
+  .topo-busca > .ph { font-size: 1rem; flex: none; }
+  .topo-busca-texto { flex: 1; min-width: 0; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .topo-busca-tecla {
+    flex: none; font-family: var(--font-mono); font-size: var(--t-xs); line-height: 18px; min-width: 18px; text-align: center;
+    padding: 0 4px; border: 1px solid var(--border); border-bottom-width: 2px; border-radius: var(--r-xs); background: var(--surface); color: var(--ink-soft);
+  }
+  .topo-fim { display: flex; align-items: center; gap: var(--esp-1); flex: none; margin-left: var(--esp-1); }
+  .topo-pessoa { font-size: var(--t-base); color: var(--ink-soft); max-width: 40vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .topo-avatar {
+    flex: none; width: 32px; height: 32px; padding: 0; border: 1px solid var(--border); border-radius: 50%;
+    background: var(--surface-2); cursor: pointer; display: inline-grid; place-items: center;
+  }
+  .topo-avatar:hover, .topo-avatar[aria-expanded="true"] { border-color: var(--border-forte); box-shadow: 0 0 0 2px var(--surface-2); }
+  .topo-avatar-ini {
+    width: 100%; height: 100%; border-radius: 50%; display: inline-grid; place-items: center;
+    background: var(--accent-soft) center/cover no-repeat; color: var(--accent-forte);
+    font-size: var(--t-sm); font-weight: 600; letter-spacing: .02em;
+  }
   @media (max-width: 899px) {
-    .tabs { gap: 0; padding: 4px; }
-    .tab { padding: 0 10px; }
-    .tab.active .tab-label { max-width: 92px; overflow: hidden; text-overflow: ellipsis; }
+    .topo-busca { flex: none; width: var(--alvo); height: var(--alvo); padding: 0; justify-content: center; border-color: transparent; background: none; color: var(--ink-soft); }
+    .topo-busca:hover { background: var(--surface-2); }
+    .topo-busca > .ph { font-size: 1.25rem; }
+    .topo-busca-texto, .topo-busca-tecla { display: none; }
   }
+  @media (max-width: 599px) {
+    .topo-nome, .topo-sep { display: none; }
+    .topo-marca { padding: 0; }
+  }
+
+  /* --- abas do módulo (Code · Issues · Pull requests) --- */
+  .tabs {
+    position: sticky; top: var(--topo-total); z-index: var(--z-fixo);
+    display: flex; align-items: stretch; gap: 0; min-height: 48px; margin: 0; padding: 0 var(--esp-2);
+    background: var(--bg); border-bottom: 1px solid var(--border);
+    overflow-x: auto; overflow-y: hidden; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    flex: none; display: inline-flex; align-items: center; gap: var(--esp-2);
+    padding: 0 var(--esp-3); margin-bottom: -1px; border: 0; border-bottom: 2px solid transparent;
+    background: none; color: var(--ink-soft); font: inherit; font-size: var(--t-md); white-space: nowrap; cursor: pointer;
+  }
+  .tab:hover { color: var(--ink); }
+  .tab:hover .tab-label { background: var(--surface-2); }
+  .tab-label { display: inline; padding: 4px var(--esp-2); margin: 0 calc(-1 * var(--esp-2)); border-radius: var(--r-sm); }
+  .tab.active { color: var(--ink); font-weight: 600; border-bottom-color: var(--accent); }
+  .tab-ico { display: inline-grid; place-items: center; color: var(--ink-faint); font-size: 1rem; }
+  .tab.active .tab-ico { color: var(--accent-forte); }
+  .tab-badge {
+    position: static; margin: 0; padding: 0 6px; min-width: 20px; height: 18px; line-height: 18px; text-align: center;
+    border-radius: var(--r-pill); background: var(--surface-2); color: var(--ink-soft); font-size: var(--t-xs); font-weight: 500;
+  }
+  .tab.active .tab-badge { background: var(--surface-2); color: var(--ink); }
+
+  /* --- gavetas (o painel do ☰ e o da conta) --- */
+  .gaveta-veu { position: fixed; inset: 0; z-index: calc(var(--z-gaveta) - 1); background: var(--scrim); animation: overlayEnter var(--dur) var(--ease); }
+  .gaveta {
+    position: fixed; top: 0; bottom: 0; left: 0; z-index: var(--z-gaveta); width: min(320px, 86vw);
+    display: flex; flex-direction: column; padding-top: env(safe-area-inset-top, 0px);
+    background: var(--surface); border-right: 1px solid var(--border); box-shadow: var(--shadow); outline: none;
+    animation: gavetaEntra var(--dur-lento) var(--ease);
+  }
+  .gaveta-direita { left: auto; right: 0; width: min(300px, 86vw); border-right: 0; border-left: 1px solid var(--border); animation-name: gavetaEntraDireita; }
+  .gaveta.gaveta-saindo { animation: gavetaSai var(--dur) var(--ease) forwards; }
+  .gaveta-direita.gaveta-saindo { animation-name: gavetaSaiDireita; }
+  .gaveta-veu.gaveta-saindo { animation: overlaySai var(--dur) var(--ease) forwards; }
+  @keyframes gavetaEntra { from { transform: translateX(-100%); } to { transform: none; } }
+  @keyframes gavetaEntraDireita { from { transform: translateX(100%); } to { transform: none; } }
+  @keyframes gavetaSai { to { transform: translateX(-100%); } }
+  @keyframes gavetaSaiDireita { to { transform: translateX(100%); } }
+  .gaveta-cabeca { display: flex; align-items: center; gap: var(--esp-3); min-height: var(--topo); padding: 0 var(--esp-2) 0 var(--esp-4); border-bottom: 1px solid var(--border); flex: none; }
+  .gaveta-titulo { flex: 1; font-weight: 600; font-size: var(--t-md); }
+  .gaveta-fechar { margin-left: auto; }
+  .gaveta-corpo { flex: 1; overflow-y: auto; padding: var(--esp-2); }
+  .gaveta-grupo + .gaveta-grupo { margin-top: var(--esp-2); padding-top: var(--esp-2); border-top: 1px solid var(--border); }
+  .gaveta-grupo-titulo { padding: var(--esp-2) var(--esp-3) var(--esp-1); font-size: var(--t-xs); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-faint); }
+  .gaveta-item {
+    position: relative; display: flex; align-items: center; gap: var(--esp-3); width: 100%; min-height: var(--alvo);
+    padding: 0 var(--esp-3); border: 0; border-radius: var(--r-sm); background: none;
+    color: var(--ink); font: inherit; font-size: var(--t-md); text-align: left; text-decoration: none; cursor: pointer;
+  }
+  .gaveta-item:hover { background: var(--surface-2); }
+  .gaveta-item > .ph { flex: none; width: 20px; text-align: center; color: var(--ink-faint); font-size: 1.1rem; }
+  .gaveta-item > span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .gaveta-item > kbd { margin-left: auto; }
+  .gaveta-item[aria-current="page"] { font-weight: 600; background: var(--surface-2); }
+  .gaveta-item[aria-current="page"]::before { content: ''; position: absolute; left: -2px; top: 8px; bottom: 8px; width: 3px; border-radius: var(--r-pill); background: var(--accent); }
+  .gaveta-item[aria-current="page"] > .ph { color: var(--accent-forte); }
+  .gaveta-item.perigo { color: var(--danger-forte); }
+  .gaveta-item.perigo > .ph { color: inherit; }
+  .gaveta-fio { border-top: 1px solid var(--border); margin: var(--esp-2) 0; }
+  .gaveta-pe { flex: none; padding: var(--esp-3) var(--esp-4); border-top: 1px solid var(--border); color: var(--ink-faint); font-size: var(--t-sm); }
+  .gaveta-pe:empty { display: none; }
+  .gaveta-perfil-cabeca { padding: var(--esp-3) var(--esp-2) var(--esp-3) var(--esp-4); min-height: 0; }
+  .gaveta-avatar { width: 40px; height: 40px; flex: none; font-size: var(--t-md); border: 1px solid var(--border); }
+  .gaveta-perfil-texto { flex: 1; min-width: 0; }
+  .gaveta-perfil-nome { display: block; font-size: var(--t-md); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .gaveta-sub { font-size: var(--t-sm); color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  body:has(.gaveta:not([hidden])) { overflow: hidden; }
+  @media (prefers-reduced-motion: reduce) { .gaveta, .gaveta-veu { animation: none !important; } }
+  /* faixa de aviso (robô parado), no alto do conteúdo — o "Flash" do GitHub */
+  .aviso-faixa {
+    display: flex; align-items: flex-start; gap: var(--esp-2); padding: var(--esp-3) var(--esp-4); margin-bottom: var(--esp-4);
+    border: 1px solid var(--warning); border-radius: var(--r-md); background: var(--warning-soft);
+    color: var(--ink); font-size: var(--t-base); line-height: 1.45;
+  }
+  .aviso-faixa > .ph { color: var(--warning-forte); font-size: 1.1rem; flex: none; margin-top: 1px; }
+  /* ---------- fim da casca GitHub ---------- */
 
   /* ==========================================================================
      Conteúdo
      ========================================================================== */
-  main { max-width: 780px; margin: 0 auto; padding: var(--esp-4) var(--esp-4) calc(88px + env(safe-area-inset-bottom)); }
+  main { max-width: 780px; margin: 0 auto; padding: var(--esp-4) var(--esp-4) calc(var(--esp-6) + env(safe-area-inset-bottom, 0px)); }
   .view { display: flex; flex-direction: column; }
   /* Troca de aba: um aparecer curto, e só. Nada de cada cartão entrar em
      sequência — quem abre a aba quer a informação, não a animação. */
@@ -719,26 +810,6 @@
   /* ---------- comprimidos de documento ---------- */
   .chip-grid { display: flex; flex-wrap: wrap; gap: 6px; }
 
-  /* ajuda */
-  .ajuda-busca { margin-bottom: var(--esp-3); }
-  .ajuda-grupo { font-size: var(--t-sm); color: var(--ink-faint); margin: var(--esp-4) 0 2px; }
-  .ajuda-grupo:first-of-type { margin-top: 0; }
-  .ajuda-item { border-bottom: 1px solid var(--border); }
-  .ajuda-item:last-child { border-bottom: 0; }
-  .ajuda-item > summary {
-    list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; justify-content: space-between;
-    min-height: 44px; padding: 6px 0; font-size: var(--t-md); font-weight: 500; color: var(--ink);
-  }
-  .ajuda-item > summary::-webkit-details-marker { display: none; }
-  .ajuda-item > summary::after {
-    content: ""; flex: none; width: 7px; height: 7px; border-right: 1.5px solid var(--ink-faint);
-    border-bottom: 1.5px solid var(--ink-faint); transform: rotate(45deg); margin-right: 4px;
-    transition: transform var(--dur-rapido) var(--ease);
-  }
-  .ajuda-item[open] > summary::after { transform: rotate(-135deg); }
-  .ajuda-item > div { font-size: var(--t-base); color: var(--ink-soft); line-height: 1.55; padding: 0 0 var(--esp-3); max-width: 72ch; }
-  .ajuda-item mark { background: var(--accent-soft); color: var(--accent-forte); border-radius: var(--r-xs); padding: 0 2px; }
-  .ajuda-vazio { color: var(--ink-faint); font-size: var(--t-base); padding: var(--esp-4) 0; }
 
   /* ordem fixa da rota */
   .rotafixa-zona-secao { margin-bottom: var(--esp-5); }
@@ -785,18 +856,10 @@
   .carteira-legenda span { display: inline-flex; align-items: center; gap: 6px; }
   .carteira-bola { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
 
-  /* tour do primeiro dia */
-  .tour-passo { display: flex; gap: 12px; align-items: flex-start; padding: var(--esp-3) 0; border-bottom: 1px solid var(--border); }
-  .tour-passo:last-of-type { border-bottom: 0; }
-  .tour-n { flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
-    background: var(--accent-soft); color: var(--accent-forte); font-weight: 700; font-size: var(--t-base); }
-  .tour-titulo { font-weight: 600; }
-  .tour-texto { font-size: var(--t-base); color: var(--ink-soft); line-height: 1.5; margin-top: 2px; }
-
   /* modo demonstração: faixa fixa, pra ninguém confundir com o de verdade */
   body.demo { border-top: 3px solid var(--warning); }
   .demo-faixa {
-    position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%); z-index: var(--z-toast, 90);
+    position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%); z-index: var(--z-aviso);
     background: var(--warning-soft); color: var(--warning-forte); border: 1px solid var(--warning);
     border-radius: var(--r-pill); padding: 6px 14px; font-size: var(--t-sm); font-weight: 600;
     display: flex; align-items: center; gap: 10px; box-shadow: var(--shadow);
@@ -1204,7 +1267,8 @@
     border-radius: var(--r-sm); padding: 11px 13px; font-size: var(--t-base); font-weight: 500;
   }
   .offline-banner { margin-bottom: var(--esp-4); line-height: 1.4; }
-  html.publico main, html.publico .tabs, html.publico .sidebar-brand, html.publico .sidebar-footer, html.publico .topbar { display: none !important; }
+  html.publico main, html.publico #tabsNav, html.publico #topo, html.publico .topbar, html.publico .gaveta, html.publico .gaveta-veu { display: none !important; }
+  html.publico body { padding-top: 0; }
   /* nas telas de tela cheia (login, assinar, rota) o aviso ficava ATRÁS delas:
      "link copiado" e os erros nunca apareciam */
   body:has(.auth-gate:not([hidden])) .toast { z-index: calc(var(--z-tela) + 5); }
@@ -1356,7 +1420,6 @@
     display: grid; place-items: center; padding: var(--esp-4); overflow-y: auto;
   }
   body:has(.auth-gate:not([hidden])) { overflow: hidden; }
-  body:has(.hub-screen:not([hidden])) { overflow: hidden; }
   .auth-shell {
     width: 100%; max-width: 880px; display: grid; grid-template-columns: 1fr;
     background: var(--surface); border: 1px solid var(--border);
@@ -1557,199 +1620,6 @@
   @keyframes rota-track-pulso { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
   html[data-animacao="reduzida"] .rota-track-live-dot { animation: none; }
 
-  /* ---------- escolher função ----------
-     Uma superfície só, como o resto do app: as funções são linhas de um menu
-     separadas por um fio, não cinco cartões iguais empilhados. A função que a
-     pessoa usou por último fica marcada NO LUGAR (a ordem nunca muda, pra mão
-     não errar) e recebe o foco: Enter entra direto. No PC, 1 a 5 também. */
-  .hub-screen {
-    position: fixed; inset: 0; background: var(--bg); z-index: calc(var(--z-tela) - 5);
-    display: grid; justify-items: center; align-content: safe center;
-    padding: var(--esp-6) var(--esp-4); overflow-y: auto;
-  }
-  .hub-inner { max-width: 560px; width: 100%; }
-  .hub-head { display: grid; grid-template-columns: auto 1fr; column-gap: var(--esp-4); align-items: center; margin: 0 var(--esp-2) var(--esp-6); }
-  .hub-avatar {
-    display: inline-grid; place-items: center; width: 48px; height: 48px; grid-row: span 2;
-    border-radius: var(--r-pill); background: var(--surface-2); color: var(--ink-soft);
-    border: 1px solid var(--border);
-    font-size: var(--t-base); font-weight: 600; letter-spacing: .02em;
-    background-size: cover; background-position: center;
-  }
-  .hub-avatar.com-foto { color: transparent; }
-  .hub-head h1 { font-family: var(--font-display); font-size: 1.5rem; margin: 0; font-weight: 600; letter-spacing: -.02em; line-height: 1.2; text-wrap: balance; }
-  .hub-data { grid-column: 2; font-size: var(--t-base); color: var(--ink-faint); margin: 3px 0 0; }
-  .hub-data::first-letter { text-transform: uppercase; }
-  /* Sair mora junto de quem está logado, não solto no canto. No celular é
-     só o ícone, à direita do nome; no PC, botão com texto logo abaixo da data. */
-  .hub-head { grid-template-columns: auto 1fr auto; }
-  .hub-sair { grid-column: 3; grid-row: 1 / span 2; align-self: center; width: 40px; min-height: 40px; padding: 0; color: var(--ink-soft); background: transparent; }
-  .hub-sair .ph { font-size: 1.125rem; }
-  .hub-sair span { display: none; }
-  .hub-sair:hover { color: var(--ink); }
-
-  /* Um painel só, sólido, com as linhas dentro: é um menu, não texto solto
-     no fundo. Os fios ficam entre as linhas, recuados até o texto. */
-  .hub-grid {
-    display: flex; flex-direction: column; overflow: hidden;
-    background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg);
-  }
-  .hub-card {
-    background: transparent; border: 0; border-radius: 0;
-    padding: var(--esp-4) var(--esp-5); margin: 0; text-align: left; width: 100%; min-height: 76px;
-    display: grid; grid-template-columns: 44px 1fr auto; column-gap: var(--esp-4); align-items: center;
-    cursor: pointer; font-family: inherit; text-decoration: none; color: inherit; position: relative;
-    transition: background-color var(--dur-rapido) var(--ease);
-  }
-  .hub-card + .hub-card::before {
-    content: ''; position: absolute; top: 0; right: 0; left: calc(var(--esp-5) + 44px + var(--esp-4));
-    border-top: 1px solid var(--border);
-  }
-  .hub-card:hover { background: var(--surface-2); }
-  .hub-card:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; border-radius: var(--r-lg); }
-  .hub-card:active { background: var(--surface-2); }
-  .hub-card-ico {
-    grid-row: span 2; width: 44px; height: 44px; display: grid; place-items: center;
-    border-radius: var(--r-lg); background: var(--surface-2); color: var(--ink-soft); font-size: 1.5rem;
-    transition: background-color var(--dur-rapido) var(--ease), color var(--dur-rapido) var(--ease);
-  }
-  .hub-card:hover .hub-card-ico { color: var(--ink); background: var(--border); }
-  .hub-card.ultima:hover .hub-card-ico { background: var(--accent-soft); color: var(--accent-forte); }
-  .hub-card-nome { grid-column: 2; font-family: var(--font-display); font-weight: 600; font-size: var(--t-lg); color: var(--ink); }
-  .hub-card-desc { grid-column: 2; font-size: var(--t-base); color: var(--ink-faint); line-height: 1.4; margin-top: 2px; }
-  .hub-card-fim {
-    grid-column: 3; grid-row: 1 / span 2; display: flex; align-items: center; gap: var(--esp-2);
-    color: var(--ink-faint); font-size: var(--t-base);
-  }
-  .hub-card-fim .ph { font-size: 1.125rem; transition: transform var(--dur-rapido) var(--ease); }
-  .hub-card:hover .hub-card-fim .ph { transform: translateX(2px); color: var(--ink-soft); }
-  .hub-card-info { font-variant-numeric: tabular-nums; color: var(--ink-soft); }
-  .hub-card kbd {
-    display: none; font-family: var(--font-mono); font-size: var(--t-xs); color: var(--ink-faint);
-    background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-xs);
-    min-width: 18px; padding: 1px 5px; text-align: center;
-  }
-  @media (hover: hover) and (min-width: 700px) { .hub-card kbd { display: inline-block; } }
-
-  /* última função usada: a única cor da tela */
-  .hub-card.ultima .hub-card-ico { background: var(--accent-soft); color: var(--accent-forte); }
-  .hub-card.ultima .hub-card-nome::after {
-    content: 'último usado'; margin-left: var(--esp-2); font-size: var(--t-xs); font-weight: 500;
-    color: var(--accent-forte); letter-spacing: 0;
-  }
-
-  .hub-pe { display: flex; align-items: center; gap: var(--esp-3); margin-top: var(--esp-4); padding: 0 var(--esp-2); }
-  /* PC: a tela é larga e o menu sozinho no meio deixava tudo vazio em volta.
-     Saudação e saída à esquerda, o menu grande à direita, o conjunto no centro. */
-  @media (min-width: 900px) {
-    .hub-inner {
-      max-width: 940px; display: grid; grid-template-columns: 260px 1fr;
-      column-gap: var(--esp-6); row-gap: var(--esp-5); align-items: start;
-    }
-    .hub-head { grid-column: 1; grid-row: 1; align-self: center; grid-template-columns: 1fr; row-gap: var(--esp-4); margin: 0; }
-    .hub-avatar { width: 64px; height: 64px; grid-row: auto; font-size: var(--t-lg); }
-    .hub-head h1 { font-size: 1.875rem; }
-    .hub-data { grid-column: 1; font-size: var(--t-md); margin-top: calc(var(--esp-2) - var(--esp-4)); }
-    .hub-grid { grid-column: 2; grid-row: 1; }
-    .hub-aviso { grid-column: 2; }
-    .hub-pe { grid-column: 2; margin: 0; padding: 0 var(--esp-2); }
-    .hub-novas { grid-column: 1; margin-top: 0; }
-    .hub-sair {
-      grid-column: 1; grid-row: auto; justify-self: start; align-self: start;
-      width: auto; padding: 0 12px; gap: 8px; margin-top: var(--esp-2);
-    }
-    .hub-sair span { display: inline; }
-    .hub-card { min-height: 88px; padding: var(--esp-5); }
-    .hub-card + .hub-card::before { left: calc(var(--esp-5) + 44px + var(--esp-4)); }
-  }
-  /* celular: o painel usa a largura toda e a linha continua folgada pro dedo */
-  @media (max-width: 520px) {
-    .hub-card { padding: var(--esp-4); column-gap: var(--esp-3); min-height: 72px; }
-    .hub-card + .hub-card::before { left: calc(var(--esp-4) + 44px + var(--esp-3)); }
-    .hub-head { margin-bottom: var(--esp-5); }
-    .hub-card-desc { font-size: var(--t-sm); }
-  }
-  /* novidades: um selo discreto junto do nome. A lista abre num quadro próprio;
-     dentro da tela de funções ela empurrava o menu e o aviso do robô. */
-  .hub-novas {
-    grid-column: 1 / -1; justify-self: start; margin-top: var(--esp-3);
-    display: inline-flex; align-items: center; gap: 8px; min-height: 32px; padding: 0 12px 0 10px;
-    border: 1px solid var(--border); border-radius: var(--r-pill); background: var(--surface);
-    font: inherit; font-size: var(--t-sm); font-weight: 500; color: var(--ink-soft); cursor: pointer;
-    transition: border-color var(--dur-rapido) var(--ease), color var(--dur-rapido) var(--ease);
-  }
-  .hub-novas:hover { border-color: var(--border-forte); color: var(--ink); }
-  .hub-novas .ph { font-size: .875rem; color: var(--ink-faint); transition: transform var(--dur-rapido) var(--ease); }
-  .hub-novas:hover .ph { transform: translateX(2px); }
-  .hub-novas-ponto { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex: none; }
-
-  /* modal aberto a partir da tela de funções precisa ficar por cima dela */
-  body:has(.hub-screen:not([hidden])) .modal-overlay { z-index: calc(var(--z-tela) + 2); }
-
-  .hub-versao { margin-left: auto; font-size: var(--t-xs); font-weight: 500; color: var(--ink-faint); padding: 4px; }
-  .hub-versao:hover { color: var(--ink); }
-
-  /* o quadro das novidades */
-  .novas-versoes { display: flex; gap: 6px; overflow-x: auto; padding: 2px 0 var(--esp-2); margin: 0 0 var(--esp-1); scrollbar-width: none; }
-  .novas-versoes::-webkit-scrollbar { display: none; }
-  .novas-versao {
-    flex: none; min-width: 44px; min-height: 32px; padding: 0 12px; border-radius: var(--r-pill); cursor: pointer;
-    border: 1px solid var(--border); background: var(--surface); color: var(--ink-soft);
-    font: inherit; font-size: var(--t-sm); font-weight: 600; font-variant-numeric: tabular-nums;
-    transition: background-color var(--dur-rapido) var(--ease), color var(--dur-rapido) var(--ease), border-color var(--dur-rapido) var(--ease);
-  }
-  .novas-versao:hover { border-color: var(--border-forte); color: var(--ink); }
-  .novas-versao.ativa { background: var(--accent-soft); color: var(--accent-forte); border-color: transparent; }
-  .novas-lista { max-height: min(52vh, 460px); overflow-y: auto; }
-  .novas-lista { display: grid; gap: 2px; margin: var(--esp-2) 0 var(--esp-4); }
-  .novas-item { display: grid; grid-template-columns: 36px 1fr; column-gap: var(--esp-3); align-items: start; padding: var(--esp-3) 0; border-bottom: 1px solid var(--border); }
-  .novas-item:last-child { border-bottom: 0; }
-  .novas-ico { width: 36px; height: 36px; display: grid; place-items: center; border-radius: var(--r-md); background: var(--surface-2); color: var(--ink-soft); font-size: 1.125rem; }
-  .novas-titulo { font-weight: 600; font-size: var(--t-md); color: var(--ink); line-height: 1.3; }
-  .novas-texto { font-size: var(--t-base); color: var(--ink-soft); line-height: 1.45; margin-top: 2px; }
-  @media (prefers-reduced-motion: no-preference) {
-    .novas-item { animation: hub-chega var(--dur-lento) var(--ease) backwards; }
-    .novas-item:nth-child(2) { animation-delay: 45ms; }
-    .novas-item:nth-child(3) { animation-delay: 90ms; }
-    .novas-item:nth-child(4) { animation-delay: 135ms; }
-  }
-  html[data-animacao="reduzida"] .novas-item { animation: none !important; }
-
-  /* só aparece quando tem problema: PC do robô parado ou backup atrasado */
-  .hub-aviso {
-    display: grid; grid-template-columns: 20px 1fr; column-gap: var(--esp-3); align-items: start;
-    margin-top: var(--esp-4); padding: var(--esp-3) var(--esp-4);
-    background: var(--warning-soft); border: 1px solid var(--border); border-radius: var(--r-md);
-    font-size: var(--t-sm); color: var(--ink); line-height: 1.45;
-  }
-  .hub-aviso > .ph { font-size: 1.125rem; color: var(--warning-forte); margin-top: 1px; }
-  .hub-aviso p { margin: 0; }
-  .hub-aviso p + p { margin-top: 4px; }
-  @media (min-width: 900px) { .hub-aviso { margin-top: 0; } }
-  .hub-dica { font-size: var(--t-xs); color: var(--ink-faint); display: none; }
-  @media (hover: hover) and (min-width: 700px) { .hub-dica { display: block; } }
-
-  /* as linhas chegam em sequência, uma vez, quando a tela aparece */
-  @media (prefers-reduced-motion: no-preference) {
-    .hub-screen:not([hidden]) .hub-head,
-    .hub-screen:not([hidden]) .hub-card,
-    .hub-screen:not([hidden]) .hub-pe { animation: hub-chega var(--dur-lento) var(--ease) backwards; }
-    .hub-screen:not([hidden]) .hub-card:nth-child(1) { animation-delay: 40ms; }
-    .hub-screen:not([hidden]) .hub-card:nth-child(2) { animation-delay: 75ms; }
-    .hub-screen:not([hidden]) .hub-card:nth-child(3) { animation-delay: 110ms; }
-    .hub-screen:not([hidden]) .hub-card:nth-child(4) { animation-delay: 145ms; }
-    .hub-screen:not([hidden]) .hub-card:nth-child(5) { animation-delay: 180ms; }
-    .hub-screen:not([hidden]) .hub-pe { animation-delay: 220ms; }
-  }
-  @keyframes hub-chega { from { opacity: 0; transform: translateY(6px); } }
-  html[data-animacao="reduzida"] .hub-head,
-  html[data-animacao="reduzida"] .hub-card,
-  html[data-animacao="reduzida"] .hub-pe { animation: none !important; }
-
-  .hub-card-em-breve { cursor: default; opacity: .5; }
-  .hub-card-em-breve:hover { background: transparent; }
-  .hub-card-em-breve .hub-card-ico { color: var(--ink-faint); }
-
   /* ==========================================================================
      Perfil, equipe, configurações
      ========================================================================== */
@@ -1895,7 +1765,7 @@
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { transition: none !important; animation: none !important; }
     .btn:active:not(:disabled), .btn-chip:active, .entrega-row:active, .chip input:active + span,
-    button:active, .tab:active, .hub-card:active { transform: none; }
+    button:active, .tab:active { transform: none; }
   }
   @media (hover: none) { .btn-primary:hover:not(:disabled) { background: var(--accent); } }
 
@@ -1912,8 +1782,8 @@
       --border: #BBBBBB; --border-forte: #999999; --shadow: none;
     }
     body { padding: 0 !important; background: #fff; }
-    .topbar, .tabs, .sidebar-brand, .sidebar-footer, .toast, .auth-gate,
-    .hub-screen, .busca-global,
+    .topbar, #topo, #tabsNav, .gaveta, .gaveta-veu, .aviso-faixa, .toast, .auth-gate,
+    .busca-global, .cq-painel,
     .filters, .modal-close, .btn, .btn-chip, .link-btn, .icon-btn,
     .mode-toggle, .dash-strip, .offline-banner { display: none !important; }
     main { padding: 0 !important; max-width: none !important; }
@@ -1930,8 +1800,9 @@
 
   /* ==========================================================================
      PC — a partir de 900px
-     A barra de abas vira menu lateral fixo, o conteúdo ocupa a largura toda e
-     a densidade aperta: a linha cai de 52px pra 40px e vira linha de tabela.
+     A barra de cima e as abas são as mesmas do celular (casca GitHub); o
+     conteúdo ocupa a largura toda e a densidade aperta: a linha cai de 52px
+     pra 40px e vira linha de tabela.
      ========================================================================== */
   @media (min-width: 900px) {
     /* 14px e não 13px: 13 é agressivo demais em tela 1x. A densidade vem de
@@ -1939,112 +1810,24 @@
     :root { --linha: 40px; --alvo: 34px; --card-pad: 20px; --t-md: .875rem; }
     html[data-densidade="compacto"] { --linha: 34px; --alvo: 30px; --card-pad: 16px; }
 
-    body { padding-left: 224px; font-size: var(--t-md); }
+    body { font-size: var(--t-md); }
+    .tabs { padding: 0 var(--esp-4); }
 
     /* ---------- modo ferramenta (Contábil) ----------
-       Essas ferramentas trazem o próprio menu, dentro do iframe. Com a
-       moldura do Entregas em volta, sobrava tudo: dois menus laterais, o
-       título da página repetindo o da ferramenta, o iframe espremido na
-       coluna centralizada e o rodapé da conta flutuando por cima do menu
-       dela. Aqui a moldura encolhe pra uma barra fina no topo — voltar à
-       esquerda e as abas da ferramenta ao lado (o Contábil tem duas, e é
-       por essa barra que se troca entre elas) — e o iframe ocupa todo o
-       resto da tela, de ponta a ponta. */
-    body.modo-secundario { padding-left: 0; }
-    body.modo-secundario .sidebar-brand,
+       A ferramenta (iframe) traz o próprio conteúdo: some o título da tela e
+       o iframe ocupa tudo abaixo da barra de cima e das abas (48px). */
     body.modo-secundario .tela-cabecalho { display: none; }
-    body.modo-secundario .tabs {
-      top: 0; left: 0; right: 0; bottom: auto; width: auto; height: 48px;
-      flex-direction: row; align-items: center; gap: 4px;
-      padding: 0 12px 0 60px;
-      border-right: none; border-bottom: 1px solid var(--border);
-    }
-    body.modo-secundario .tab { width: auto; min-height: 32px; padding: 6px 12px; }
-    body.modo-secundario .sidebar-footer {
-      top: 0; bottom: auto; left: 0; width: 52px; height: 48px;
-      padding: 0 0 0 10px; border: none; background: transparent;
-    }
-    body.modo-secundario .sidebar-footer .user-avatar,
-    body.modo-secundario .sidebar-footer .brand-name { display: none; }
     body.modo-secundario main { padding: 0; }
     /* !important só porque o tamanho do iframe está no style da própria
        tag (vale fora do modo ferramenta, e no celular). */
     body.modo-secundario #frameConciliador,
     body.modo-secundario #frameCheque {
-      /* altura explícita: iframe não estica com top+bottom como uma div —
-         com height:auto ele volta aos 150px padrão de iframe */
-      position: fixed; top: 48px; left: 0; right: 0;
-      width: 100% !important; height: calc(100vh - 48px) !important; border-radius: 0 !important;
+      /* altura explícita: iframe não estica com top+bottom como uma div */
+      position: fixed; top: calc(var(--topo-total) + 48px); left: 0; right: 0;
+      width: 100% !important; height: calc(100vh - var(--topo-total) - 48px) !important; border-radius: 0 !important;
     }
 
-    .user-avatar {
-      display: inline-grid; place-items: center; width: 28px; height: 28px; flex: none;
-      border-radius: var(--r-sm); background: var(--accent-soft); color: var(--accent-forte);
-      font-size: var(--t-xs); font-weight: 600; letter-spacing: .02em;
-      background-size: cover; background-position: center;
-    }
-    .user-avatar.com-foto { background-color: var(--surface-2); }
-
-    .sidebar-brand {
-      display: flex; align-items: center; gap: var(--esp-2);
-      position: fixed; left: 0; top: 0; width: 224px; height: 56px; z-index: calc(var(--z-nav) + 1);
-      /* 20px pro nome alinhar com o ícone dos itens do menu logo abaixo
-         (.tabs tem 10px de recuo e .tab outros 10px). */
-      padding: 0 20px; background: var(--bg);
-      /* Sem borda à direita: com ela, a faixa de cima aparecia cortada em
-         dois aos 224px, como se fossem duas barras coladas. O fio vertical
-         começa só abaixo, na borda do menu. */
-      border-bottom: 1px solid var(--border);
-    }
-    /* O logo sai da moldura do app. Motivo concreto: o arquivo é um JPEG de
-       fundo rgb(247,247,247) — JPEG não tem transparência, então recortado em
-       círculo sobre a moldura escura ele vira o objeto mais claro da tela,
-       bem no canto onde o olho cai primeiro. Não há CSS que conserte um
-       branco opaco. Dentro da ferramenta a marca é o nome; o desenho fica na
-       tela de entrada, onde mora sobre a faixa colorida e faz sentido.
-       A <img> continua no DOM (escondida): é dela que saem o ícone do PWA, o
-       ícone da notificação e o logo do login. */
-    .sidebar-logo { display: none; }
-    /* Uma linha só. Com o nome em cima e a data embaixo, o centro vertical do
-       bloco caía no meio das duas linhas e a marca subia 8px em relação ao
-       título da tela, do lado — dois textos na mesma faixa, desalinhados. */
-    .sidebar-brand-text { display: flex; min-width: 0; }
-    .sidebar-brand-name {
-      font-family: var(--font-display); font-size: var(--t-md); font-weight: 600;
-      color: var(--ink); letter-spacing: -.01em; line-height: 1.2;
-      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    }
-
-    /* Menu = lista de navegação, não barra de app. */
-    .tabs {
-      position: fixed; left: 0; top: 56px; bottom: 0; transform: none; z-index: var(--z-nav);
-      width: 224px; max-width: none; flex-direction: column; align-items: stretch;
-      justify-content: flex-start; gap: 1px; border: none; background: var(--bg);
-      border-right: 1px solid var(--border);
-      border-radius: 0; box-shadow: none; padding: var(--esp-3) 10px;
-    }
-    .tab {
-      justify-content: flex-start; width: 100%; padding: 8px 10px; min-height: 34px;
-      border-radius: var(--r-sm); font-size: var(--t-md); font-weight: 500;
-      color: var(--ink-soft);
-    }
-    .tab:hover { background: var(--surface); color: var(--ink); }
-    .tab.active { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
-    .tab-ico { font-size: 1rem; width: 18px; text-align: center; }
-    .tab-label { display: inline; margin-left: var(--esp-2); }
-    .tab-badge { position: static; margin-left: auto; background: var(--surface-2); color: var(--ink-soft); }
-    .tab.active .tab-badge { background: var(--accent-ink); color: var(--accent); }
-    /* Submenu da aba Clientes, dentro da própria barra lateral: recuo maior
-       a cada nível, pra ficar claro que é filho de "Clientes e ajustes" —
-       em vez de virar uma barra horizontal separada em cima do conteúdo. */
-    .tab-nivel1 { padding-left: 24px; }
-    .tab-nivel1 .tab-ico { font-size: .9rem; width: 16px; }
-
-    /* Barra de cima e conteúdo compartilham a mesma coluna centralizada no
-       espaço à direita da lateral. */
-    /* Sem barra de cima, o conteúdo começa no alto — 56px de tela de volta. */
     main { max-width: none; margin: 0; padding: var(--esp-5) var(--esp-5) var(--esp-6); }
-    .tela-cabecalho { padding-right: 0; }
     .page-title { font-size: var(--t-xl); }
     .view { max-width: 1160px; margin: 0 auto; width: 100%; }
 
@@ -2110,21 +1893,6 @@
     }
     #form-cliente .row2 { display: grid; grid-template-columns: 1fr 1fr; }
 
-    /* O pé do menu vira a linha de identidade: quem está logado, e ao lado os
-       dois botões que valem pro app inteiro. É o lugar natural — o mesmo
-       canto onde quase todo aplicativo de trabalho põe a conta. */
-    .sidebar-footer {
-      position: fixed; left: 0; right: auto; top: auto; bottom: 0; width: 224px; z-index: calc(var(--z-nav) + 1);
-      align-items: center; gap: 6px; padding: 10px;
-      border-top: 1px solid var(--border); border-right: 1px solid var(--border);
-      background: var(--bg);
-    }
-    .sidebar-footer .user-avatar { display: inline-grid; }
-    .sidebar-footer .brand-name {
-      display: block; flex: 1 1 auto; min-width: 0;
-      font-size: var(--t-base); font-weight: 500; color: var(--ink-soft);
-      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    }
   }
 
   /* ==========================================================================
@@ -2189,20 +1957,6 @@
      É das poucas peças que de fato flutuam, então ganha --shadow. Fica em
      --z-modal: acima do menu e das listas suspensas, abaixo do aviso e da
      tela de assinatura, que continuam tendo que passar por cima de tudo. */
-  .cq-botao {
-    position: fixed; right: 16px; bottom: 16px; z-index: var(--z-fixo);
-    width: 48px; height: 48px; border-radius: var(--r-pill);
-    border: 1px solid var(--border); background: var(--surface);
-    color: var(--accent-forte); font-size: 1.3rem; line-height: 1;
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer; box-shadow: var(--shadow);
-    transition: transform var(--dur-rapido) var(--ease), border-color var(--dur) var(--ease);
-  }
-  .cq-botao:hover { border-color: var(--border-forte); transform: translateY(-1px); }
-  .cq-botao:active { transform: translateY(0); }
-  /* No celular a barra de abas já flutua embaixo, no meio. O botão sobe pra
-     não dividir espaço com ela — e sai da zona do polegar que troca de aba. */
-  @media (max-width: 899px) { .cq-botao { bottom: 78px; } }
 
   .cq-painel {
     position: fixed; z-index: var(--z-modal); background: var(--surface);
@@ -2300,6 +2054,23 @@
 </style>
 </head>
 <body>
+<!-- Casca no estilo do GitHub: barra de cima (☰ · Nilma / módulo · consulta
+     rápida · anotações · avatar) e as duas gavetas. Nasce aqui, antes do
+     resto, porque os scripts do app procuram #notasBtn, #topo etc. -->
+<script src="nilma-shell.js"></script>
+<script>NilmaShell.montar({ modulo: 'Entregas', moduloId: 'entregas' });</script>
+<!-- Abas do módulo, sublinhadas, logo abaixo da barra. -->
+<nav class="tabs" id="tabsNav" role="tablist">
+  <button class="tab active" data-tab="nova" role="tab" id="tabbtn-nova" aria-controls="tab-nova" aria-selected="true"><span class="tab-ico"><i class="ph ph-pen-nib" aria-hidden="true"></i></span><span class="tab-label">Nova entrega</span></button>
+  <button class="tab" data-tab="rota" role="tab" id="tabbtn-rota" aria-controls="tab-rota" aria-selected="false" tabindex="-1"><span class="tab-ico"><i class="ph ph-truck" aria-hidden="true"></i></span><span class="tab-label">Rota</span><span class="tab-badge" id="rotaBadge" hidden>0</span></button>
+  <button class="tab" data-tab="painel" role="tab" id="tabbtn-painel" aria-controls="tab-painel" aria-selected="false" tabindex="-1"><span class="tab-ico"><i class="ph ph-chart-bar" aria-hidden="true"></i></span><span class="tab-label">Painel</span></button>
+  <button class="tab" data-tab="solicitacoes" role="tab" id="tabbtn-solicitacoes" aria-controls="tab-solicitacoes" aria-selected="false" tabindex="-1"><span class="tab-ico"><i class="ph ph-envelope-simple" aria-hidden="true"></i></span><span class="tab-label">Solicitações</span><span class="tab-badge" id="solicitacoesBadge" hidden>0</span></button>
+  <button class="tab" data-tab="honorarios" role="tab" id="tabHonorarios" aria-controls="tab-honorarios" aria-selected="false" tabindex="-1" hidden><span class="tab-ico"><i class="ph ph-hand-coins" aria-hidden="true"></i></span><span class="tab-label">Honorários</span><span class="tab-badge" id="honorariosBadge" hidden>0</span></button>
+  <button class="tab" data-tab="clientes" role="tab" id="tabbtn-clientes" aria-controls="tab-clientes" aria-selected="false" tabindex="-1"><span class="tab-ico"><i class="ph ph-users" aria-hidden="true"></i></span><span class="tab-label">Clientes e ajustes</span></button>
+  <button class="tab" data-tab="perfil" role="tab" id="tabPerfil" aria-controls="tab-perfil" aria-selected="false" tabindex="-1" hidden><span class="tab-ico"><i class="ph ph-identification-badge" aria-hidden="true"></i></span><span class="tab-label">Perfil</span></button>
+  <button class="tab" data-tab="conciliador" role="tab" id="tabbtn-conciliador" aria-controls="tab-conciliador" aria-selected="false" tabindex="-1" hidden><span class="tab-ico"><i class="ph ph-credit-card" aria-hidden="true"></i></span><span class="tab-label">Conciliadorzinho</span></button>
+  <button class="tab" data-tab="cheque" role="tab" id="tabbtn-cheque" aria-controls="tab-cheque" aria-selected="false" tabindex="-1" hidden><span class="tab-ico"><i class="ph ph-bank" aria-hidden="true"></i></span><span class="tab-label">Cheque especial</span></button>
+</nav>
 
 <div class="topbar">
   <div class="topbar-inner">
@@ -2319,7 +2090,6 @@
 <main>
   <div class="tela-cabecalho">
     <h1 class="page-title" id="pageTitle">Nova entrega</h1>
-    <span class="tela-data" id="sidebarData"></span>
   </div>
   <div id="no-db" class="no-db" hidden>
     Não foi possível conectar ao banco de dados. Verifique sua internet e recarregue a página.
@@ -2331,6 +2101,9 @@
   </div>
   <div id="offline-banner" class="no-db offline-banner" hidden>
     <i class="ph ph-wifi-slash" aria-hidden="true"></i> Sem conexão. O que você fizer agora fica guardado neste aparelho e sincroniza sozinho quando a internet voltar.
+  </div>
+  <div id="roboAviso" class="aviso-faixa" hidden role="status">
+    <i class="ph ph-warning" aria-hidden="true"></i><span id="roboAvisoTexto"></span>
   </div>
 
   <section id="tab-nova" class="view" role="tabpanel" tabindex="-1" aria-labelledby="tabbtn-nova">
@@ -3072,111 +2845,16 @@
   </section>
 </main>
 
-<div class="sidebar-brand" aria-hidden="true">
-  <img class="sidebar-logo" id="sidebarLogo" alt="">
-  <span class="sidebar-brand-text">
-    <span class="sidebar-brand-name">Nilma Contabilidade</span>
-  </span>
-</div>
 
-<nav class="tabs" id="tabsNav" role="tablist">
-  <button class="tab active" data-tab="nova" role="tab" id="tabbtn-nova" aria-controls="tab-nova" aria-selected="true"><span class="tab-ico"><i class="ph ph-pen-nib" aria-hidden="true"></i></span><span class="tab-label">Nova entrega</span></button>
-  <button class="tab" data-tab="rota" role="tab" id="tabbtn-rota" aria-controls="tab-rota" aria-selected="false" tabindex="-1"><span class="tab-ico"><i class="ph ph-truck" aria-hidden="true"></i></span><span class="tab-label">Rota</span><span class="tab-badge" id="rotaBadge" hidden>0</span></button>
-  <button class="tab" data-tab="painel" role="tab" id="tabbtn-painel" aria-controls="tab-painel" aria-selected="false" tabindex="-1"><span class="tab-ico"><i class="ph ph-chart-bar" aria-hidden="true"></i></span><span class="tab-label">Painel</span></button>
-  <button class="tab" data-tab="solicitacoes" role="tab" id="tabbtn-solicitacoes" aria-controls="tab-solicitacoes" aria-selected="false" tabindex="-1"><span class="tab-ico"><i class="ph ph-envelope-simple" aria-hidden="true"></i></span><span class="tab-label">Solicitações</span><span class="tab-badge" id="solicitacoesBadge" hidden>0</span></button>
-  <button class="tab" data-tab="honorarios" role="tab" id="tabHonorarios" aria-controls="tab-honorarios" aria-selected="false" tabindex="-1" hidden><span class="tab-ico"><i class="ph ph-hand-coins" aria-hidden="true"></i></span><span class="tab-label">Honorários</span><span class="tab-badge" id="honorariosBadge" hidden>0</span></button>
-  <button class="tab" data-tab="clientes" role="tab" id="tabbtn-clientes" aria-controls="tab-clientes" aria-selected="false" tabindex="-1"><span class="tab-ico"><i class="ph ph-users" aria-hidden="true"></i></span><span class="tab-label">Clientes e ajustes</span></button>
-  <button class="tab" data-tab="perfil" role="tab" id="tabPerfil" aria-controls="tab-perfil" aria-selected="false" tabindex="-1" hidden><span class="tab-ico"><i class="ph ph-identification-badge" aria-hidden="true"></i></span><span class="tab-label">Perfil</span></button>
-  <button class="tab" data-tab="conciliador" role="tab" id="tabbtn-conciliador" aria-controls="tab-conciliador" aria-selected="false" tabindex="-1" hidden><span class="tab-ico"><i class="ph ph-credit-card" aria-hidden="true"></i></span><span class="tab-label">Conciliadorzinho</span></button>
-  <button class="tab" data-tab="cheque" role="tab" id="tabbtn-cheque" aria-controls="tab-cheque" aria-selected="false" tabindex="-1" hidden><span class="tab-ico"><i class="ph ph-bank" aria-hidden="true"></i></span><span class="tab-label">Cheque especial</span></button>
-</nav>
 
-<div class="sidebar-footer">
-  <span class="user-avatar" id="userAvatar" aria-hidden="true"></span>
-  <span class="brand-name" id="brandName">Nilma</span>
-  <button type="button" class="icon-btn notas-btn" id="notasBtn" hidden title="Minhas anotações"><i class="ph ph-note" aria-hidden="true"></i><span class="tab-badge" id="notasBadge" hidden>0</span></button>
-  <button type="button" class="icon-btn" id="ajudaBtn" hidden title="Ajuda" aria-label="Ajuda"><i class="ph ph-question" aria-hidden="true"></i></button>
-  <button type="button" class="icon-btn" id="settingsBtn" hidden title="Configurações"><i class="ph ph-gear" aria-hidden="true"></i></button>
-  <button type="button" class="icon-btn" id="contabilVoltarBtn" hidden title="Trocar de função" aria-label="Trocar de função"><i class="ph ph-squares-four" aria-hidden="true"></i></button>
-</div>
-
-<div class="hub-screen" id="hubScreen" hidden>
-  <div class="hub-inner">
-    <div class="hub-head">
-      <span class="hub-avatar" id="hubAvatar" aria-hidden="true"></span>
-      <h1 id="hubSaudacao">Olá</h1>
-      <p class="hub-data" id="hubData"></p>
-      <button type="button" class="hub-novas" id="hubNovasBtn" hidden><span class="hub-novas-ponto" aria-hidden="true"></span><span id="hubNovasTexto"></span><i class="ph ph-caret-right" aria-hidden="true"></i></button>
-      <button type="button" class="btn-chip hub-sair" id="hubSairBtn" title="Sair da conta" aria-label="Sair da conta"><i class="ph ph-sign-out" aria-hidden="true"></i><span>Sair da conta</span></button>
-    </div>
-    <div class="hub-grid" id="hubGridPrincipal">
-      <button type="button" class="hub-card" id="hubEntregas">
-        <span class="hub-card-ico"><i class="ph ph-truck" aria-hidden="true"></i></span>
-        <span class="hub-card-nome">Entregas</span>
-        <span class="hub-card-desc">Registrar e acompanhar entregas</span>
-        <span class="hub-card-fim"><span class="hub-card-info" id="hubInfoEntregas" hidden></span><kbd aria-hidden="true"></kbd><i class="ph ph-caret-right" aria-hidden="true"></i></span>
-      </button>
-      <button type="button" class="hub-card" id="hubClientes">
-        <span class="hub-card-ico"><i class="ph ph-users" aria-hidden="true"></i></span>
-        <span class="hub-card-nome">Clientes e ajustes</span>
-        <span class="hub-card-desc">Cadastro, contatos, link do cliente e o que vale pro escritório</span>
-        <span class="hub-card-fim"><kbd aria-hidden="true"></kbd><i class="ph ph-caret-right" aria-hidden="true"></i></span>
-      </button>
-      <button type="button" class="hub-card" id="hubContabil" data-cargo="contabil" hidden>
-        <span class="hub-card-ico"><i class="ph ph-calculator" aria-hidden="true"></i></span>
-        <span class="hub-card-nome">Contábil</span>
-        <span class="hub-card-desc">Conciliador e cheque especial</span>
-        <span class="hub-card-fim"><kbd aria-hidden="true"></kbd><i class="ph ph-caret-right" aria-hidden="true"></i></span>
-      </button>
-      <button type="button" class="hub-card" id="hubFiscal" data-cargo="fiscal" hidden>
-        <span class="hub-card-ico"><i class="ph ph-file-text" aria-hidden="true"></i></span>
-        <span class="hub-card-nome">Fiscal</span>
-        <span class="hub-card-desc">Importador LCDPR</span>
-        <span class="hub-card-fim"><kbd aria-hidden="true"></kbd><i class="ph ph-caret-right" aria-hidden="true"></i></span>
-      </button>
-      <button type="button" class="hub-card" id="hubPendencias" data-cargo="contabil" hidden>
-        <span class="hub-card-ico"><i class="ph ph-envelope-simple-open" aria-hidden="true"></i></span>
-        <span class="hub-card-nome">Pendências</span>
-        <span class="hub-card-desc">Cobrança de documentos por e-mail</span>
-        <span class="hub-card-fim"><kbd aria-hidden="true"></kbd><i class="ph ph-caret-right" aria-hidden="true"></i></span>
-      </button>
-    </div>
-    <div class="hub-grid" id="hubGridFiscal" hidden>
-      <button type="button" class="hub-card" id="hubFiscalVoltar">
-        <span class="hub-card-ico"><i class="ph ph-arrow-left" aria-hidden="true"></i></span>
-        <span class="hub-card-nome">Voltar</span>
-        <span class="hub-card-desc">Escolher outra função</span>
-      </button>
-      <a href="lcdpr.html" class="hub-card">
-        <span class="hub-card-ico"><i class="ph ph-tractor" aria-hidden="true"></i></span>
-        <span class="hub-card-nome">Importador LCDPR</span>
-        <span class="hub-card-desc">Classifica lançamentos do SIEG e gera a planilha do Alterdata</span>
-        <span class="hub-card-fim"><kbd aria-hidden="true"></kbd><i class="ph ph-caret-right" aria-hidden="true"></i></span>
-      </a>
-    </div>
-    <div class="hub-aviso" id="hubAviso" hidden role="status">
-      <i class="ph ph-warning" aria-hidden="true"></i>
-      <div id="hubAvisoTexto"></div>
-    </div>
-    <div class="hub-pe">
-      <span class="hub-dica">Enter abre a última função · os números abrem as outras</span>
-      <button type="button" class="link-btn hub-versao" id="hubAjudaBtn" title="Perguntas frequentes">ajuda</button>
-      <button type="button" class="link-btn hub-versao" id="hubVersaoBtn" style="margin-left:10px" title="Ver o que mudou em cada versão"></button>
-    </div>
-  </div>
-</div>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <!-- recado curto pra leitor de tela, sem ocupar a tela de ninguém -->
 <div class="sr-only" id="avisoLeitor" role="status" aria-live="polite"></div>
 <div id="modalRoot"></div>
 
-<!-- Consulta rápida. Fica na moldura (fora das .view) pra aparecer em
-     qualquer aba, inclusive por cima das telas que entram em iframe. Nasce
-     escondida: só aparece depois do login. -->
-<button type="button" class="cq-botao" id="cqBotao" hidden title="Consulta rápida" aria-label="Consulta rápida">
-  <i class="ph ph-chats-circle" aria-hidden="true"></i>
-</button>
+<!-- Consulta rápida. Abre pela caixa de busca da barra de cima (ou pela
+     tecla /); fica na moldura, fora das .view, pra servir em qualquer aba. -->
 
 <div class="cq-painel" id="cqPainel" hidden role="dialog" aria-modal="false" aria-labelledby="cqTitulo">
   <div class="cq-cabeca">
@@ -3523,19 +3201,11 @@
     return MESES[parseInt(parts[1], 10) - 1] + '/' + parts[0];
   }
 
-  // A logo é um data-URI pesado; em vez de repetir o base64 no HTML da barra
-  // lateral, reaproveita a mesma imagem já carregada na barra de cima.
+  // A logo é um data-URI pesado; em vez de repetir o base64 na barra de
+  // cima, reaproveita a mesma imagem escondida (.brand-mark).
   (function () {
     var marca = document.querySelector('.brand-mark');
-    var alvo = $('sidebarLogo');
-    if (marca && alvo) alvo.src = marca.src;
-
-    var dataEl = $('sidebarData');
-    if (dataEl) {
-      dataEl.textContent = new Date().toLocaleDateString('pt-BR', {
-        day: '2-digit', month: 'long', year: 'numeric'
-      });
-    }
+    if (marca && window.NilmaShell) NilmaShell.definirLogo(marca.src);
   })();
 
   // Cargos que podem ser atribuídos. "Equipe" continua sendo o piso de quem
@@ -3566,25 +3236,20 @@
   // Foto de perfil: sem foto, o crachá mostra as iniciais; com foto, a
   // própria imagem preenche o círculo (as iniciais saem para não aparecerem
   // por cima).
+  // O avatar mora na barra de cima (casca GitHub, nilma-shell.js) e no
+  // painel da conta; os dois são pintados juntos, com os cargos e o filtro
+  // de módulos por papel.
   function aplicarFotoPerfil(dataUrl) {
-    [$('userAvatar'), $('hubAvatar')].forEach(function (el) {
-      if (!el) return;
-      if (dataUrl) {
-        el.style.backgroundImage = 'url("' + dataUrl + '")';
-        el.textContent = '';
-        el.classList.add('com-foto');
-      } else {
-        el.style.backgroundImage = '';
-        el.textContent = iniciaisDe_(currentUserNome);
-        el.classList.remove('com-foto');
-      }
+    if (!window.NilmaShell) return;
+    NilmaShell.definirUsuario({
+      nome: currentUserNome || '',
+      iniciais: iniciaisDe_(currentUserNome),
+      cargos: currentUserNome ? cargosLabel_(currentUserRoles) : '',
+      foto: dataUrl || '',
+      podeVer: function (id, papel) { return !papel || temPapel('admin') || temPapel(papel); }
     });
   }
 
-  var topbarEl = document.querySelector('.topbar');
-  function atualizarSombraTopbar() { topbarEl.classList.toggle('rolado', window.scrollY > 4); }
-  window.addEventListener('scroll', atualizarSombraTopbar, { passive: true });
-  atualizarSombraTopbar();
 
   // ---------- conexão ----------
   // Quantas gravações ainda não foram confirmadas pelo servidor. Declarado
@@ -3985,6 +3650,8 @@
       btn.classList.add('active');
       btn.setAttribute('aria-selected', 'true');
       btn.tabIndex = 0;
+      // no celular a barra de abas rola na horizontal: a ativa fica à vista
+      try { btn.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (e) {}
       marcarIconeAba_();
       var lbl = btn.querySelector('.tab-label');
       if (lbl && $('pageTitle')) $('pageTitle').textContent = lbl.textContent;
@@ -4462,73 +4129,6 @@
     if (bounds.length === 1) carteiraMap.setView(bounds[0], 15);
     else if (bounds.length) carteiraMap.fitBounds(bounds, { padding: [30, 30] });
     setTimeout(function () { if (carteiraMap) carteiraMap.invalidateSize(); }, 150);
-  }
-
-  // ---------- primeiro dia: tour de três passos ----------
-  // Aparece uma vez por pessoa, com o que o cargo dela faz de verdade. Quem
-  // pular não vê de novo (fica no aparelho); a Ajuda continua no mesmo lugar.
-  var CHAVE_TOUR_ = 'nilma_tour_visto_v1';
-  var TOUR_ = {
-    office_boy: [
-      ['Veja a rota do dia', 'A aba Rota traz as paradas na ordem. "Montagem do dia" diz o que separar antes de sair.'],
-      ['Entregue e colha a assinatura', 'Toque na parada, colha a assinatura na tela (ou tire foto do protocolo) e confirme. Sem internet também funciona: sobe depois.'],
-      ['Não achou o cliente?', 'Toque em "Não entreguei", escolha o motivo em um toque e o app oferece pôr de volta na rota.']
-    ],
-    contabil: [
-      ['Cobre os documentos', 'A função Pendências mostra quem mandou extrato, comprovante e aplicação em cada mês.'],
-      ['Deixe o robô cobrar', 'Em Pendências › Configurações › Automático dá pra ligar a cobrança nos dias que você escolher.'],
-      ['Feche o mês', 'No Painel, o cartão "Fechamento do mês" tem os passos que se repetem, com risco.']
-    ],
-    fiscal: [
-      ['Importe os relatórios', 'No Importador LCDPR, envie os arquivos do SIEG: ele reconhece o tipo e classifica cada lançamento.'],
-      ['Confira o que ficou em REVISAR', 'São os que o NCM não decidiu sozinho. Corrigir uma vez ensina o sistema.'],
-      ['Baixe a planilha', 'O botão "Baixar planilha" gera o arquivo pronto pro programa da contabilidade.']
-    ],
-    admin: [
-      ['Comece pelos clientes', 'A aba Clientes e ajustes mostra o que falta no cadastro e guarda tudo que é do escritório.'],
-      ['Dê acesso à equipe', 'Em Ajustes do app, "Novo acesso" ou o link de convite. O cargo define o que cada um vê.'],
-      ['Ligue o PC do robô', 'É ele que manda aviso, lê o Gmail, faz backup e cobra sozinho. Em "Saúde do sistema" você vê se está de pé.']
-    ],
-    staff: [
-      ['Registre a entrega', 'Em Nova entrega, escolha o cliente e o que está entregando. O PDF da guia preenche o resto sozinho.'],
-      ['Acompanhe na Rota', 'Tudo que foi registrado vira parada, com vencimento e ordem de caminho.'],
-      ['Precisa de ajuda?', 'O botão de interrogação, ao lado da engrenagem, tem as perguntas mais comuns, com busca.']
-    ]
-  };
-  function tourDoCargo_() {
-    if (temPapel('office_boy')) return TOUR_.office_boy;
-    if (temPapel('fiscal')) return TOUR_.fiscal;
-    if (temPapel('contabil')) return TOUR_.contabil;
-    if (temPapel('admin')) return TOUR_.admin;
-    return TOUR_.staff;
-  }
-  function abrirTour_() {
-    var passos = tourDoCargo_();
-    var root = $('modalRoot');
-    root.innerHTML =
-      '<div class="modal-overlay" id="overlay"><div class="modal" id="modalInner">' +
-        '<div class="modal-head"><div><h2>Bem-vindo</h2>' +
-          '<div class="card-hint modal-head-sub">Três coisas e você já consegue trabalhar.</div></div>' +
-          '<button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button></div>' +
-        passos.map(function (p, i) {
-          return '<div class="tour-passo"><span class="tour-n">' + (i + 1) + '</span>' +
-            '<div><div class="tour-titulo">' + escapeHtml_(p[0]) + '</div>' +
-            '<div class="tour-texto">' + escapeHtml_(p[1]) + '</div></div></div>';
-        }).join('') +
-        '<button type="button" class="btn btn-primary" id="tourOkBtn">Entendi, vamos lá</button>' +
-        '<button type="button" class="btn-chip" id="tourAjudaBtn" style="width:100%;margin-top:var(--esp-2)">Ver todas as perguntas</button>' +
-      '</div></div>';
-    function guardar() { try { localStorage.setItem(CHAVE_TOUR_, '1'); } catch (e) {} }
-    $('overlay').addEventListener('click', function (e) { if (e.target.id === 'overlay') { guardar(); closeModal(); } });
-    $('modalClose').addEventListener('click', function () { guardar(); closeModal(); });
-    $('tourOkBtn').addEventListener('click', function () { guardar(); closeModal(); });
-    $('tourAjudaBtn').addEventListener('click', function () { guardar(); closeModal(); setTimeout(abrirAjuda_, 220); });
-  }
-  function talvezAbrirTour_() {
-    var visto = '';
-    try { visto = localStorage.getItem(CHAVE_TOUR_) || ''; } catch (e) {}
-    if (visto) return;
-    setTimeout(abrirTour_, 1200);
   }
 
   // ---------- modo demonstração ----------
@@ -5128,8 +4728,8 @@
     if (faixaAjustes) faixaAjustes.dataset.faixa = 'ajustes';
 
     // "Aparência e conta" (tema, cor, senha, foto) NÃO entra como categoria
-    // aqui — já tem a engrenagem fixa no topo (settingsBtn), sempre à vista
-    // em qualquer aba de Entregas, abrindo a mesma tela. Uma categoria
+    // aqui — já está no menu da conta (avatar, no alto à direita), sempre à
+    // vista em qualquer módulo, abrindo a mesma tela. Uma categoria
     // inteira só pra um botão "Abrir" que duplicava a engrenagem era
     // exatamente o tipo de opção jogada que a Nilma reclamou.
 
@@ -7188,7 +6788,6 @@
 
   function abrirBuscaGlobal_() {
     if ($('authGate') && !$('authGate').hidden) return;
-    if (!$('hubScreen').hidden) return;
     garantirTodosOsClientes_();
     $('buscaGlobal').hidden = false;
     $('buscaGlobalInput').value = '';
@@ -12811,7 +12410,7 @@
   function sincronizarCorDaBarra() {
     var meta = document.getElementById('metaThemeColor');
     if (!meta) return;
-    var cor = corDoElemento_('.topbar');
+    var cor = corDoElemento_('#topo') || corDoElemento_('body');
     if (cor) meta.setAttribute('content', cor);
     // o manifesto guarda a mesma cor: o app instalado abre com ela
     if (typeof montarManifesto === 'function') montarManifesto();
@@ -12886,14 +12485,6 @@
       ]
     },
     {
-      campo: 'explicacoes', atributo: 'explicacoes', padrao: 'mostrar', rotulo: 'Explicações dos cartões',
-      dica: 'Na primeira semana ajudam. Depois são três linhas a menos por cartão.',
-      opcoes: [
-        { valor: 'mostrar', rotulo: 'Mostrar' },
-        { valor: 'esconder', rotulo: 'Esconder' }
-      ]
-    },
-    {
       campo: 'animacao', atributo: 'animacao', padrao: 'completa', rotulo: 'Animações',
       opcoes: [
         { valor: 'completa', rotulo: 'Normais' },
@@ -12926,7 +12517,7 @@
     if (!ev.key) return;
     if (ev.key === 'nilma_tema') aplicarTema(ev.newValue || 'auto');
     else if (ev.key === 'nilma_paleta') aplicarPaleta(ev.newValue || 'padrao');
-    else if (/^nilma_(texto|densidade|animacao|explicacoes)$/.test(ev.key)) {
+    else if (/^nilma_(texto|densidade|animacao)$/.test(ev.key)) {
       var campo = ev.key.slice('nilma_'.length);
       var pref = PREFERENCIAS.filter(function (p) { return p.campo === campo; })[0];
       aplicarPreferencia(campo, ev.newValue || (pref && pref.padrao));
@@ -12946,7 +12537,7 @@
     }
   }
 
-  function abrirConfiguracoes() {
+  function abrirConfiguracoes(abaInicial) {
     var root = $('modalRoot');
     var temaAtual = document.documentElement.dataset.theme === 'light' ? 'claro' : (document.documentElement.dataset.theme === 'dark' ? 'escuro' : 'auto');
     var paletaAtual = document.documentElement.dataset.paleta || 'padrao';
@@ -13023,18 +12614,11 @@
             '<div class="field-error" id="err-senha" style="display:block;"></div>' +
             '<button type="submit" class="btn btn-primary" style="margin-top:10px;">Salvar nova senha</button>' +
           '</form>' +
-          (temPapel('admin')
-            ? '<button type="button" class="btn btn-secondary" id="modalAjustesAppBtn" style="margin-top:var(--esp-5);"><i class="ph ph-sliders-horizontal" aria-hidden="true"></i> Ajustes do escritório</button>' +
-              '<p class="card-hint" style="margin:6px 0 0">Quem tem acesso, auditoria, competências fechadas e o resto ficam em Clientes › Ajustes do app.</p>'
-            : '') +
-          '<button type="button" class="btn btn-secondary btn-perigo" id="modalLogoutBtn" style="margin-top:var(--esp-5);"><i class="ph ph-sign-out" aria-hidden="true"></i> Sair da conta</button>' +
           '</div>' +
         '</div>' +
       '</div>';
     $('overlay').addEventListener('click', function (e) { if (e.target.id === 'overlay') closeModal(); });
     $('modalClose').addEventListener('click', closeModal);
-    if ($('modalAjustesAppBtn')) $('modalAjustesAppBtn').addEventListener('click', function () { closeModal(); irParaAjustesDoApp_(); });
-    $('modalLogoutBtn').addEventListener('click', function () { closeModal(); auth.signOut(); });
 
     // Instalar na tela inicial: o Chrome só libera depois de guardar o evento
     // beforeinstallprompt. Quando o app já está instalado o evento não vem,
@@ -13159,6 +12743,11 @@
           botaoLivre_(btn);
         });
     });
+    // O painel da conta (avatar) abre direto em Aparência ou em Conta.
+    if (abaInicial === 'conta') {
+      var abaConta = document.querySelector('#configAbas .mode-btn[data-painel="conta"]');
+      if (abaConta) abaConta.click();
+    }
   }
 
   // ---------- notas pessoais (acesso rápido, não fica dentro de Configurações) ----------
@@ -13656,7 +13245,6 @@
     entregasHojeCache = [];
     if (typeof cqMemoria_ !== 'undefined') cqMemoria_ = {};
     sugerirRecebedores_.memoria = {};
-    try { sessionStorage.removeItem('nilma_hub_rota'); } catch (e) {}
   }
 
   // ==========================================================================
@@ -13841,10 +13429,6 @@
     appStarted = true;
     setupCanvas();
     captureGeo();
-    // A consulta rápida vale pra todo mundo que entra: ela só lê o que a
-    // pessoa já podia ver nas abas, e as regras do Firestore continuam
-    // valendo em cada consulta que ela faz.
-    $('cqBotao').hidden = false;
     $('form-equipe').hidden = !temPapel('admin');
     $('auditoriaCard').hidden = !temPapel('admin');
     $('competenciasCard').hidden = !temPapel('admin');
@@ -13862,7 +13446,7 @@
     $('importHonorariosBtn').hidden = !temPapel('admin');
     // Perfil é a página de administração de acessos: só admin enxerga.
     $('tabPerfil').hidden = true;          // virou "Ajustes do app", dentro de Clientes
-    $('tabbtn-clientes').hidden = true;    // só se chega lá pelo card do hub agora, não por aqui
+    $('tabbtn-clientes').hidden = true;    // só se chega lá pelo menu ☰ (módulo Clientes e ajustes)
     ajustarSubnavDeClientes_();
     if (temPapel('admin')) subscribeUsuarios();
 
@@ -13873,9 +13457,7 @@
       travarEscritasDaDemonstracao_();
       semearDemonstracao_();
       atualizarBotaoNotificacoes();
-      var brandDemo = $('brandName');
-      brandDemo.textContent = currentUserNome;
-      talvezAbrirTour_();
+      aplicarFotoPerfil(fotoPerfilAtual);
       return;
     }
 
@@ -13893,9 +13475,6 @@
     subscribeNotas();
     subscribeCompetenciasFechadas_();
     atualizarBotaoNotificacoes();
-    var brandName = $('brandName');
-    brandName.textContent = currentUserNome;
-    brandName.title = currentUserNome + ' · ' + cargosLabel_(currentUserRoles);
     aplicarFotoPerfil(fotoPerfilAtual);
 
     // Abre direto na aba escolhida nas configurações (Perfil só se for admin).
@@ -13906,7 +13485,6 @@
       var alvo = document.querySelector('.tab[data-tab="' + abaInicial + '"]');
       if (alvo && !alvo.hidden) alvo.click();
     }
-    talvezAbrirTour_();
   }
 
   // ---------- instalar na tela inicial ----------
@@ -13981,17 +13559,33 @@
     }
   })();
 
+  // "Instalar app" também mora no menu ☰ (Ferramentas): aparece quando o
+  // navegador libera a instalação.
+  function instalarApp_() {
+    if (!promptInstalar) return;
+    promptInstalar.prompt();
+    promptInstalar.userChoice.then(function (escolha) {
+      if (escolha.outcome === 'accepted') {
+        promptInstalar = null;
+        if (window.NilmaShell) NilmaShell.mostrarInstalar(false);
+        showToast('Pronto. Procure o ícone na tela inicial.');
+      }
+    });
+  }
+
   window.addEventListener('beforeinstallprompt', function (ev) {
     ev.preventDefault();
     promptInstalar = ev;
     var btn = document.getElementById('instalarAppBtn');
     if (btn) btn.hidden = false;
+    if (window.NilmaShell) NilmaShell.mostrarInstalar(true);
   });
 
   window.addEventListener('appinstalled', function () {
     promptInstalar = null;
     var btn = document.getElementById('instalarAppBtn');
     if (btn) btn.hidden = true;
+    if (window.NilmaShell) NilmaShell.mostrarInstalar(false);
   });
 
   // ---------- tela de entrada ----------
@@ -14071,33 +13665,37 @@
   });
   mostrarPerdidas_();
 
-  $('settingsBtn').addEventListener('click', abrirConfiguracoes);
-  $('notasBtn').addEventListener('click', abrirNotas);
 
-  // ---------- tela intermediária (escolher função) ----------
+  // ---------- casca e módulo inicial ----------
+  // A tela de cartões ("escolher função") saiu: o app abre direto no último
+  // módulo usado, e trocar de módulo é pelo menu ☰ da barra de cima
+  // (nilma-shell.js). Estes são os três pedaços da moldura que somem antes
+  // do login e voltam ao entrar num módulo.
   var appShellEls = [
-    document.querySelector('.topbar'),
+    document.getElementById('topo'),
     document.querySelector('main'),
-    document.querySelector('.sidebar-brand'),
-    document.querySelector('.tabs'),
-    document.querySelector('.sidebar-footer')
+    document.getElementById('tabsNav')
   ];
-
-  function mostrarHub() {
+  var CHAVE_ULTIMA_FUNCAO = 'nilma_ultima_funcao';
+  function guardarUltimaFuncao_(valor) {
+    try { localStorage.setItem(CHAVE_ULTIMA_FUNCAO, valor); } catch (e) {}
+  }
+  function podeContabil_() { return temPapel('admin') || temPapel('contabil'); }
+  // Ordem: o endereço pedido (entregas.html#clientes / #contabil, vindo do
+  // menu de outra página), depois o último módulo usado, e Entregas por padrão.
+  function abrirModuloInicial_() {
     closeModal();
-    appShellEls.forEach(function (el) { if (el) el.hidden = true; });
-    sairDeAbaSecundaria_();
-    $('hubGridFiscal').hidden = true;
-    $('hubGridPrincipal').hidden = false;
-    $('hubContabil').hidden = !(temPapel('admin') || temPapel('contabil'));
-    $('hubFiscal').hidden = !(temPapel('admin') || temPapel('fiscal'));
-    $('hubPendencias').hidden = false;
-    prepararHub_();
-    $('hubScreen').hidden = false;
-    // foco na última função usada: Enter entra direto (no celular não, pra
-    // não rolar a tela nem acender contorno sem motivo)
-    var ultima = $('hubGridPrincipal').querySelector('.hub-card.ultima:not([hidden])');
-    if (ultima && !matchMedia('(hover: none)').matches) ultima.focus({ preventScroll: true });
+    var pedido = (location.hash || '').replace('#', '');
+    if (pedido) { try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {} }
+    var ultima = '';
+    try { ultima = localStorage.getItem(CHAVE_ULTIMA_FUNCAO) || ''; } catch (e) {}
+    // valores antigos (da tela de cartões) ainda gravados no aparelho
+    ultima = { hubEntregas: 'entregas', hubClientes: 'clientes', hubContabil: 'contabil' }[ultima] || ultima;
+    var alvo = pedido || ultima;
+    if (alvo === 'clientes') entrarModoClientes_();
+    else if (alvo === 'contabil' && podeContabil_()) entrarModoSecundario_('contabil');
+    else entrarNaFuncao('entregas');
+    avisarSeRoboParado_();
   }
 
   // Avisos no celular, link do cliente, vigia de CNPJ, leitura do Gmail e o
@@ -14111,7 +13709,8 @@
     return d;
   }
   function avisarSeRoboParado_() {
-    var caixa = $('hubAviso');
+    var caixa = $('roboAviso');
+    if (!caixa) return;
     caixa.hidden = true;
     if (!db || !(temPapel('admin') || temPapel('contabil'))) return;
     db.doc('robo/estado').get().then(function (snap) {
@@ -14130,7 +13729,7 @@
         else if (dias !== null && dias >= 4) frases.push('Último backup há ' + dias + ' dias.');
       }
       if (!frases.length) return;
-      $('hubAvisoTexto').innerHTML = frases.map(function (f) { return '<p>' + escapeHtml_(f) + '</p>'; }).join('');
+      $('roboAvisoTexto').textContent = frases.join(' ');
       caixa.hidden = false;
     }).catch(function () {});
   }
@@ -14194,319 +13793,16 @@
     });
   }
 
-  // ---------- ajuda ----------
-  // As perguntas que a equipe faz de verdade, na ordem em que aparecem no dia.
-  // "quem" vazio = todo mundo vê; senão, só quem tem o cargo (admin vê tudo).
-  var AJUDA_ = [
-    { grupo: 'No dia a dia', itens: [
-      { p: 'Como faço uma entrega?', quem: [], r: 'Em <b>Nova entrega</b>: escolha o cliente, diga o que está entregando (ou anexe o PDF da guia, que preenche sozinho tipo, competência, valor e vencimento) e salve. A entrega entra na <b>Rota</b>. Lá, quando chegar no cliente, toque na parada, colha a assinatura na tela ou tire foto do protocolo e confirme.' },
-      { p: 'O cliente não estava. O que eu faço?', quem: [], r: 'Na tela de confirmar, toque em <b>Não entreguei</b> e escolha o motivo com um toque (fechado, ausente, recusou, endereço errado) — dá pra completar por escrito. Depois o app oferece <b>pôr de volta na rota</b>, e o admin recebe aviso no celular.' },
-      { p: 'Dá pra assinar várias guias de uma vez?', quem: [], r: 'Dá. Quando a mesma parada tem mais de uma guia (inclusive de empresas aglutinadas), aparece o botão <b>Assinar as N juntas</b> abaixo das linhas. Uma assinatura vale pra todas, e cada entrega fica registrada separada.' },
-      { p: 'Como o cliente assina pelo celular dele?', quem: [], r: 'Na tela de confirmar, toque em <b>Assinar no celular do cliente</b>: aparece um QR. Ele aponta a câmera, assina no próprio aparelho e a assinatura cai na entrega. Serve quando o seu celular está sem bateria ou ele prefere o dele.' },
-      { p: 'O que é a Montagem do dia?', quem: [], r: 'Na Rota, é a lista do que separar antes de sair: um risco por cliente. A marcação fica só no seu aparelho e some amanhã. O botão <b>Etiquetas</b> imprime uma etiqueta por envelope, com o que vai dentro, o vencimento e o QR da página do cliente.' },
-      { p: 'O app funciona sem internet?', quem: [], r: 'Funciona. O que você registrar sem sinal fica guardado no aparelho e sobe sozinho quando a internet voltar — inclusive assinatura e foto. Evite trocar de aparelho antes de a barra dizer que está tudo enviado.' }
-    ] },
-    { grupo: 'Página do cliente', itens: [
-      { p: 'O que é o link do cliente?', quem: [], r: 'É uma página só dele, sem senha, com as guias do mês, o código pra pagar, os comprovantes de entrega e o que falta mandar pro escritório. Você cria na ficha do cliente, em <b>Link do cliente</b>, e manda pelo WhatsApp. O endereço é fixo: serve pra sempre.' },
-      { p: 'O cliente pode receber a guia sem eu ir até lá?', quem: [], r: 'Pode. Em Nova entrega escolha <b>Pelo link</b> e anexe o PDF. A guia aparece na página dele; quando ele toca em "confirmar que recebi", a entrega vira confirmada e entra no protocolo, com o nome de quem confirmou.' },
-      { p: 'O cliente consegue me mandar documento por ali?', quem: [], r: 'Consegue: na página dele tem <b>Enviar daqui do celular</b>, que aceita PDF ou foto até 700 KB. O PC do robô guarda no Drive, marca o mês como recebido e apaga o arquivo do banco.' },
-      { p: 'Mandei o link e o cliente não usa. E agora?', quem: ['admin'], r: 'Em <b>Clientes e ajustes</b> tem o cartão "Link que ninguém abriu", com quem nunca entrou na página e um botão pra mandar de novo no WhatsApp.' }
-    ] },
-    { grupo: 'Documentos e cobrança', itens: [
-      { p: 'Como cobro os documentos do mês?', quem: ['admin', 'contabil'], r: 'Na função <b>Pendências</b>. Ela mostra quem mandou extrato, comprovante e aplicação em cada mês. A cobrança sai por e-mail (com os bancos do cliente e o logo de cada um) ou WhatsApp, e fica registrada no histórico do cliente.' },
-      { p: 'Dá pra cobrar sozinho, sem eu clicar?', quem: ['admin', 'contabil'], r: 'Dá: em Pendências › Configurações › <b>Automático</b>, ligue a régua e escolha os dias do mês. O PC do robô manda a cobrança pra quem ainda deve, usando os mesmos textos, e pula quem já foi cobrado nos últimos 3 dias. Vem desligada.' },
-      { p: 'O robô lê meus e-mails?', quem: ['admin', 'contabil'], r: 'Só a caixa do escritório, e só pra reconhecer anexo de cliente (extrato, comprovante, aplicação) e marcar o mês. Quando o anexo é extrato em PDF, ele também descobre o banco e guarda no cadastro do cliente.' }
-    ] },
-    { grupo: 'Clientes', itens: [
-      { p: 'Pra que servem as etiquetas do cliente?', quem: [], r: 'Pra separar a carteira do seu jeito: MEI, Rural, Só WhatsApp, Paga atrasado. Elas aparecem na linha da lista, viram filtro e entram na busca.' },
-      { p: 'Onde anoto algo do cliente?', quem: [], r: 'Dois lugares: o <b>recado interno</b> (no cadastro) é o aviso curto que aparece sempre — "atende só de manhã". As <b>ocorrências</b> (na ficha) são o histórico: combinado, reclamação, elogio, com data e quem registrou.' },
-      { p: 'Pegamos um documento do cliente. Como não esquecer de devolver?', quem: [], r: 'Registre em <b>Documentos com o escritório</b>, na aba Clientes e ajustes, ou pelo botão na ficha do cliente. Dá pra pôr prazo; a lista mostra o que está atrasado e a baixa é um toque.' },
-      { p: 'O cliente pediu os dados dele (LGPD). O que faço?', quem: ['admin'], r: 'Na ficha, <b>Levar os dados</b> baixa um arquivo com cadastro, entregas, documentos dos últimos 12 meses e a página dele. Se ele pedir pra apagar, use <b>Apagar dados pessoais</b>: limpa contato e endereço, derruba a página e desativa o cliente. As entregas ficam, porque são prova do serviço prestado.' }
-    ] },
-    { grupo: 'Quando algo não funciona', itens: [
-      { p: 'Parou de chegar aviso no celular. Por quê?', quem: [], r: 'Os avisos saem do PC do escritório. Com ele desligado, não sai aviso, o Gmail não é lido e o backup não roda — mas o app continua funcionando normal. Em Clientes e ajustes, o cartão <b>Saúde do sistema</b> mostra se o PC está dando sinal.' },
-      { p: 'O app disse que o limite do banco acabou.', quem: ['admin', 'contabil'], r: 'O plano gratuito dá 50 mil leituras por dia pro escritório inteiro. Quando estoura, o app para pra todo mundo até a meia-noite. Em <b>Saúde do sistema</b> dá pra ver quanto este aparelho já gastou hoje. Evite deixar o app aberto em várias telas à toa.' },
-      { p: 'Mudei algo e não apareceu no celular da equipe.', quem: [], r: 'Peça pra fechar e abrir o app de novo. Ele confere a versão sozinho, mas uma aba aberta há horas pode estar na versão antiga. No PC, Ctrl+F5 resolve.' },
-      { p: 'Entrou uma entrega errada. Dá pra apagar?', quem: [], r: 'Enquanto ela está na rota (ou no link, esperando o cliente), quem criou pode apagar — toque na parada e use Excluir. Depois de confirmada ela é prova do que aconteceu: corrija pelo admin, que registra na auditoria.' }
-    ] },
-    { grupo: 'Ajustes e acessos', itens: [
-      { p: 'Como mudo cor, tema ou tamanho do texto?', quem: [], r: 'Na engrenagem, no canto da tela. O que você escolher vale nas outras telas da Nilma (Pendências, LCDPR, Conciliadorzinho, Cheque especial) e em qualquer aparelho onde você entrar com a sua conta.' },
-      { p: 'Como dou acesso a alguém?', quem: ['admin'], r: 'Em <b>Clientes e ajustes › Ajustes do app</b>: "Novo acesso" cria nome e senha na hora, ou "Gerar link de convite" manda um link pra pessoa escolher a própria senha. O cargo define o que ela vê.' },
-      { p: 'O que cada cargo vê?', quem: ['admin'], r: 'Equipe: entregas, rota e clientes. Office boy: o mesmo, mais honorários. Contábil: Pendências e as ferramentas contábeis. Fiscal: o importador LCDPR. Admin: tudo, mais os ajustes do escritório e a auditoria.' }
-    ] }
-  ];
-
-  function ajudaPraMim_() {
-    return AJUDA_.map(function (g) {
-      return { grupo: g.grupo, itens: g.itens.filter(function (i) { return !i.quem.length || temPapel('admin') || i.quem.some(temPapel); }) };
-    }).filter(function (g) { return g.itens.length; });
-  }
-  function escaparBusca_(t) {
-    // tira o que tem significado em expressão regular, pra buscar por "R$" ou "(" não quebrar
-    return String(t).replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-  }
-  function marcarBusca_(texto, termo) {
-    if (!termo) return texto;
-    // marca só o que está FORA das tags, pra não quebrar o <b> das respostas
-    return texto.replace(/>([^<]+)</g, function (tudo, dentro) {
-      return '>' + dentro.replace(new RegExp('(' + escaparBusca_(termo) + ')', 'ig'), '<mark>$1</mark>') + '<';
-    });
-  }
-  function abrirAjuda_() {
-    var root = $('modalRoot');
-    root.innerHTML =
-      '<div class="modal-overlay" id="overlay"><div class="modal" id="modalInner">' +
-        '<div class="modal-head"><div><h2>Ajuda</h2>' +
-          '<div class="card-hint modal-head-sub">As perguntas que mais aparecem por aqui.</div></div>' +
-          '<button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button></div>' +
-        '<label class="field ajuda-busca"><span class="sr-only">Buscar na ajuda</span>' +
-          '<input class="input" id="ajudaBusca" type="search" placeholder="Buscar: assinatura, link, cobrança, aviso..."></label>' +
-        '<div id="ajudaLista"></div>' +
-      '</div></div>';
-    function desenhar() {
-      var termo = $('ajudaBusca').value.trim().toLowerCase();
-      var grupos = ajudaPraMim_().map(function (g) {
-        return {
-          grupo: g.grupo,
-          itens: g.itens.filter(function (i) {
-            return !termo || (i.p + ' ' + i.r).toLowerCase().indexOf(termo) !== -1;
-          })
-        };
-      }).filter(function (g) { return g.itens.length; });
-      $('ajudaLista').innerHTML = grupos.length
-        ? grupos.map(function (g) {
-            return '<div class="ajuda-grupo">' + escapeHtml_(g.grupo) + '</div>' + g.itens.map(function (i) {
-              return '<details class="ajuda-item"' + (termo ? ' open' : '') + '><summary>' + marcarBusca_('<span>' + escapeHtml_(i.p) + '</span>', termo) + '</summary>' +
-                '<div>' + marcarBusca_('<span>' + i.r + '</span>', termo) + '</div></details>';
-            }).join('');
-          }).join('')
-        : '<p class="ajuda-vazio">Nada com essa palavra. Tente outra, ou fale com quem cuida do sistema.</p>';
-    }
-    desenhar();
-    $('ajudaBusca').addEventListener('input', desenhar);
-    $('overlay').addEventListener('click', function (e) { if (e.target.id === 'overlay') closeModal(); });
-    $('modalClose').addEventListener('click', closeModal);
-    $('ajudaBusca').focus();
-  }
-  $('ajudaBtn').addEventListener('click', abrirAjuda_);
-  $('hubAjudaBtn').addEventListener('click', abrirAjuda_);
-
-  // ---------- o que mudou, versão por versão ----------
-  // A história do sistema em linguagem de quem usa. A primeira da lista é a
-  // versão atual: quando ela muda, a tela de funções mostra o selo de novidades
-  // até a pessoa tocar em "Entendi". As anteriores ficam pra consulta.
-  // "quem" vazio = vale pra todo mundo; senão, só aparece pra quem tem o papel
-  // (admin vê tudo). PRA LANÇAR UMA VERSÃO: acrescentar um bloco no topo.
-  var VERSOES_ = [
-    { versao: '2.1', data: '2026-09-19', resumo: 'Página do cliente mais leve e atalhos pra quem está na rua', itens: [
-      { quem: ['office_boy'], icone: 'ph-hand-tap', titulo: 'Motivo de não entrega em um toque', texto: 'Fechado, ausente, recusou, endereço errado: botões acima do campo, que continua livre pra completar.' },
-      { quem: ['office_boy'], icone: 'ph-barcode', titulo: 'Ler a guia com a câmera', texto: 'Na Rota, "Ler guia" lê o código de barras ou o QR do PIX e abre a parada certa (Chrome no Android, guia montada com PDF).' },
-      { quem: ['office_boy'], icone: 'ph-lightbulb', titulo: 'O app aprende o horário do cliente', texto: 'Na tela de confirmar aparece a faixa em que ele costuma receber e a hora em que já se deu com a cara na porta.' },
-      { quem: ['admin'], icone: 'ph-chart-bar', titulo: 'Números do mês no Painel', texto: 'Entregas por pessoa, tipo de comprovante, ritmo por parada, por que falhou e quem mais falha.' },
-      { quem: [], icone: 'ph-device-mobile', titulo: 'Página do cliente leve', texto: 'O link do cliente agora abre uma página própria de 30 KB, com "Para pagar" no topo e letras grandes. O endereço antigo continua valendo.' },
-      { quem: [], icone: 'ph-seal-check', titulo: 'Protocolo com código de conferência', texto: 'O protocolo do mês sai com um QR e um código. Quem recebe o papel confere na página do cliente se ele saiu do escritório como está.' },
-      { quem: ['admin', 'contabil'], icone: 'ph-robot', titulo: 'Cobrança e comprovante automáticos', texto: 'Pendências › Configurações › Automático: o robô cobra sozinho quem não mandou os documentos nos dias escolhidos e manda o comprovante de cada entrega por e-mail. Vem desligado.' },
-      { quem: [], icone: 'ph-path', titulo: 'A rota sai na ordem que você entrega', texto: 'Em Clientes e ajustes, "Ordem fixa da rota": a lista do caminho por região (encima, centro, parte inferior), casada com o cadastro. A rota passa a sair nessa sequência — arrastar no dia continua mandando mais.' },
-      { quem: [], icone: 'ph-hand-waving', titulo: 'Primeiro dia com três passos', texto: 'Quem entra pela primeira vez vê um aviso curto com o que o cargo dele faz: office boy vê rota e assinatura, contábil vê cobrança e fechamento, admin vê cadastro e acessos.' },
-      { quem: ['admin'], icone: 'ph-flask', titulo: 'Modo demonstração', texto: 'Abrir o app com ?demo=1 no endereço liga uma base de mentira, com faixa amarela e nenhuma gravação — pra treinar gente nova ou mostrar o sistema sem tocar no que é de verdade.' },
-      { quem: [], icone: 'ph-map-trifold', titulo: 'Mapa da carteira', texto: 'Na aba Clientes e ajustes: todos os clientes ativos no mapa, com cor por região e ponto maior pra quem está na rota hoje. Tocar no ponto abre a ficha.' },
-      { quem: ['admin', 'contabil'], icone: 'ph-list-checks', titulo: 'Fechamento do mês no Painel', texto: 'Os sete passos que se repetem todo mês, com risco e barra de progresso. Fica guardado por competência e mostra quem marcou cada passo.' },
-      { quem: ['admin', 'contabil'], icone: 'ph-printer', titulo: 'Relatório do mês por pessoa', texto: 'No Painel, uma folha por office boy: entregues, não entregues com motivo, média por dia e total em guias. Dá pra imprimir ou salvar em PDF.' },
-      { quem: ['admin', 'contabil'], icone: 'ph-certificate', titulo: 'Certidão e certificado com validade', texto: 'No cadastro do cliente dá pra guardar CND, procuração e certificado digital com a data de vencimento. A aba mostra o que está vencendo e o robô avisa 30, 15 e 3 dias antes.' },
-      { quem: [], icone: 'ph-clock', titulo: 'Horário em que o cliente atende', texto: 'Além dos dias, agora tem a hora: fecha meio-dia, só de tarde. A rota avisa quando a parada cai fora do horário dele.' },
-      { quem: [], icone: 'ph-magnifying-glass', titulo: 'Busca acha a guia pelo valor', texto: 'No Ctrl+K (ou na busca), digitar "1.240,55", "DAS" ou a competência traz as guias que estão na rota, não só os clientes.' },
-      { quem: [], icone: 'ph-currency-circle-dollar', titulo: 'PIX do escritório na página do cliente', texto: 'Em Clientes e ajustes você guarda a chave PIX do escritório; a página do cliente passa a mostrar a situação do honorário do mês e um botão de copiar o PIX.' },
-      { quem: [], icone: 'ph-check-square', titulo: '"Já paguei" e recado do cliente', texto: 'O cliente marca a guia como paga na página dele (some da lista de cobrança) e pode pedir segunda via, buscar documento ou tirar dúvida — o recado vira solicitação na fila, pelo PC do robô.' },
-      { quem: [], icone: 'ph-question', titulo: 'Ajuda com busca', texto: 'O botão de interrogação, ao lado da engrenagem, abre as perguntas frequentes com busca: como assinar junto, o que fazer quando o cliente não está, como usar o link, o que é cada cartão. Mostra só o que vale pro seu cargo. A página do cliente também ganhou um "Dúvidas".' },
-      { quem: [], icone: 'ph-package', titulo: 'Montagem do dia e etiqueta de envelope', texto: 'Na Rota, a lista do que separar antes de sair, com risco por parada, e o botão Etiquetas: uma etiqueta por cliente pra imprimir, com o que vai dentro, o vencimento e o QR da página dele.' },
-      { quem: [], icone: 'ph-calendar-dots', titulo: 'Obrigações do mês na Rota', texto: 'FGTS, DAE, DARF, DAS e ICMS com a data já jogada pro dia útil anterior, e quantas guias daquele tipo ainda estão na rota. Admin muda a lista em Clientes e ajustes.' },
-      { quem: ['admin', 'contabil'], icone: 'ph-file-text', titulo: 'Extrato do mês do cliente', texto: 'Na ficha, ao lado de Protocolo: uma folha com o que entregamos e o que o cliente mandou ou deixou de mandar no mês. Boa pra mandar junto com o honorário.' },
-      { quem: [], icone: 'ph-hand-arrow-down', titulo: 'Documentos com o escritório e ocorrências', texto: 'Livro ou contrato que veio pro escritório fica registrado até alguém dar baixa. E a ficha do cliente passa a guardar combinado, reclamação e elogio.' },
-      { quem: ['admin'], icone: 'ph-heartbeat', titulo: 'Saúde do sistema e lembretes', texto: 'Em Clientes e ajustes: quanto do limite diário de leituras já foi gasto, se o PC do robô está ligado e quando foi o backup. E os lembretes que se repetem todo mês, que o robô avisa no celular.' },
-      { quem: ['admin'], icone: 'ph-sliders-horizontal', titulo: 'Ajustes do app dentro de Clientes', texto: 'A aba Perfil saiu da barra. Quem tem acesso, novo acesso, auditoria, competências fechadas e o reforço de IA agora ficam em Clientes › Ajustes do app. A engrenagem continua com o que é seu: tema, cor, foto e senha.' },
-      { quem: [], icone: 'ph-users', titulo: 'Clientes: o que falta na base, etiquetas e recados', texto: 'A aba mostra quem está sem e-mail, telefone, endereço, ponto no mapa ou link, e quem está repetido. Cada cliente pode ter etiquetas (MEI, Rural, Só WhatsApp), um recado interno e outros contatos, com WhatsApp na ficha.' },
-      { quem: ['admin', 'contabil'], icone: 'ph-bank', titulo: 'Cobrança com os bancos do cliente', texto: 'O e-mail de cobrança sai com visual próprio e o logo de cada banco do cliente. O robô aprende os bancos pelos extratos; no cadastro dá pra corrigir.' },
-      { quem: ['admin', 'contabil'], icone: 'ph-upload-simple', titulo: 'Cliente manda documento pelo link', texto: 'Na página dele, "Enviar daqui do celular": PDF ou foto do extrato. O PC do robô guarda no Drive e marca o mês como recebido.' },
-      { quem: ['admin'], icone: 'ph-download-simple', titulo: 'Página do cliente na tela inicial', texto: 'O cliente guarda a página dele como aplicativo e abre as guias direto pelo ícone.' },
-      { quem: ['admin', 'contabil'], icone: 'ph-paint-brush', titulo: 'Aparência igual nas duas telas', texto: 'Pendências ganhou "Aparência" no pé do menu, com as mesmas opções daqui: cor, tamanho do texto, espaçamento e animações. Mudou num lado, muda no outro.' },
-      { quem: [], icone: 'ph-arrows-clockwise', titulo: 'Versão nova sem Ctrl+F5', texto: 'O app confere com o servidor sozinho. E este quadro passou a guardar o que veio em cada versão.' },
-      { quem: ['admin'], icone: 'ph-shield-check', titulo: 'Revisão de segurança', texto: 'Entrega confirmada não pode mais ser desfeita por quem não é admin, e o robô ficou à prova de abuso pelo link do cliente.' }
-    ] },
-    { versao: '2.0', data: '2026-09-18', resumo: 'O cliente ganha a página dele', itens: [
-      { quem: ['admin'], icone: 'ph-link', titulo: 'Cada cliente pode ter a página dele', texto: 'Clientes › abrir um cliente › Link do cliente: guias, código pra pagar, comprovantes e o que falta enviar, sem senha.' },
-      { quem: ['admin'], icone: 'ph-paper-plane-tilt', titulo: 'Entregar pelo link, sem ir até lá', texto: 'Em Nova entrega, "Pelo link": anexe o PDF, o cliente confirma que recebeu e isso entra no protocolo.' },
-      { quem: [], icone: 'ph-users', titulo: 'Clientes virou uma função', texto: 'Com cadastro editável, linha do tempo de cada cliente e protocolo do mês pra imprimir ou salvar em PDF.' },
-      { quem: ['admin', 'contabil'], icone: 'ph-bank', titulo: 'Aviso quando algo muda na Receita', texto: 'Toda semana o robô confere os CNPJs: inapto, baixado, saiu do Simples, troca de sócio.' },
-      { quem: ['office_boy'], icone: 'ph-arrow-counter-clockwise', titulo: 'Cliente ausente volta pra rota num toque', texto: 'Inclusive várias guias de uma vez. E "quem costuma assinar" aparece embaixo do nome de quem recebeu.' },
-      { quem: [], icone: 'ph-bell-ringing', titulo: 'Avisos no celular', texto: 'Parada nova na rota avisa o office boy; entrega não realizada avisa o admin. Quem manda é o PC do robô.' },
-      { quem: [], icone: 'ph-squares-four', titulo: 'Tela de funções nova', texto: 'Menu com a última função em destaque, atalhos 1 a 5 no PC e "Trocar de função" ao lado da engrenagem.' },
-      { quem: ['admin', 'contabil'], icone: 'ph-chat-circle-dots', titulo: 'Consulta rápida', texto: 'Perguntas em português sobre entregas e pendências, com reforço opcional de IA.' },
-      { quem: ['admin'], icone: 'ph-envelope-simple', titulo: 'Resumo da semana e backup diário', texto: 'Toda sexta o robô manda o resumo do escritório por e-mail, e o backup roda sozinho uma vez por dia.' }
-    ] },
-    { versao: '1.6', data: '2026-09-17', resumo: 'Pendências e o robô do Gmail', itens: [
-      { quem: [], icone: 'ph-envelope-simple-open', titulo: 'Pendências: cobrança de documentos', texto: 'Quem mandou extrato, comprovante e aplicação em cada mês, com cobrança por e-mail e WhatsApp.' },
-      { quem: [], icone: 'ph-robot', titulo: 'O robô lê o Gmail', texto: 'Anexo que chega do cliente é reconhecido, marcado sozinho no mês certo e pode ir pro Drive com um toque.' },
-      { quem: ['admin'], icone: 'ph-hard-drives', titulo: 'Backup fora do Firebase', texto: 'O banco inteiro num arquivo, com as assinaturas guardadas como imagem, uma vez só.' },
-      { quem: [], icone: 'ph-hand-pointing', titulo: 'Confirmar entrega que outra pessoa montou', texto: 'Quem monta a rota nem sempre é quem entrega.' }
-    ] },
-    { versao: '1.5', data: '2026-09-15', resumo: 'Visual novo, honorários e rota pro cliente', itens: [
-      { quem: [], icone: 'ph-paint-brush', titulo: 'Visual refeito', texto: 'Mais denso no PC, mais largo no celular, com paletas e modo escuro de verdade.' },
-      { quem: ['admin', 'office_boy'], icone: 'ph-currency-circle-dollar', titulo: 'Honorários', texto: 'Aba própria em estilo de planilha: quem pagou, quem falta, forma e dia de cobrança.' },
-      { quem: [], icone: 'ph-share-network', titulo: 'Enviar rota pro cliente', texto: 'Link sem login com a posição dele na fila e a estimativa de chegada.' },
-      { quem: [], icone: 'ph-calendar-check', titulo: 'Vencimento automático', texto: 'Calculado pelo tipo de documento quando a guia não traz a data.' },
-      { quem: ['admin'], icone: 'ph-map-trifold', titulo: 'Qualidade da rota', texto: 'Clientes sem região ou com endereço impreciso, com quem está na rota primeiro.' },
-      { quem: ['admin', 'fiscal'], icone: 'ph-tractor', titulo: 'Função Fiscal', texto: 'O Importador LCDPR entrou no sistema, com o mesmo login.' }
-    ] },
-    { versao: '1.4', data: '2026-09-11', resumo: 'O cliente assina no celular dele', itens: [
-      { quem: [], icone: 'ph-qr-code', titulo: 'Assinatura no celular do cliente', texto: 'Ele aponta a câmera pro QR, assina no próprio aparelho e a assinatura cai na entrega.' },
-      { quem: [], icone: 'ph-map-pin', titulo: 'Rota inteira no Google Maps', texto: 'Na ordem que está na tela, e ordenar por proximidade a partir de onde você está.' },
-      { quem: [], icone: 'ph-clock', titulo: 'Previsão de quando a rota termina', texto: 'Medida no ritmo real das suas entregas.' },
-      { quem: [], icone: 'ph-warning', titulo: 'Aviso de guia vencendo', texto: 'Com a data lida da própria guia.' },
-      { quem: [], icone: 'ph-note', titulo: 'Mural de recados e reagendar', texto: 'Recados da equipe na aba Rota; entrega não realizada volta pra rota.' },
-      { quem: ['admin'], icone: 'ph-link-simple', titulo: 'Aglutinar empresas', texto: 'Empresas no mesmo endereço contam como uma parada só. E o CNPJ preenche o cadastro sozinho.' }
-    ] },
-    { versao: '1.3', data: '2026-09-09', resumo: 'PDF que se preenche e assinatura em lote', itens: [
-      { quem: [], icone: 'ph-file-pdf', titulo: 'Anexar o PDF da guia', texto: 'Cliente, tipo, competência, valor e vencimento saem do próprio documento.' },
-      { quem: [], icone: 'ph-signature', titulo: 'Assinatura em lote', texto: 'Várias entregas do mesmo cliente confirmadas de uma vez.' },
-      { quem: [], icone: 'ph-dots-six-vertical', titulo: 'Arrastar pra reordenar a rota', texto: 'E busca rápida com Ctrl+K.' },
-      { quem: [], icone: 'ph-flag-checkered', titulo: 'Fechamento do dia', texto: 'Resumo pra colar no WhatsApp, repetir o mês passado e aviso de competência fechada.' },
-      { quem: ['admin'], icone: 'ph-user-plus', titulo: 'Convite por link', texto: 'A própria pessoa escolhe nome e senha. Entrou também o registro de auditoria e o ranking da equipe.' }
-    ] },
-    { versao: '1.2', data: '2026-09-08', resumo: 'Várias funções num sistema só', itens: [
-      { quem: [], icone: 'ph-squares-four', titulo: 'Escolher a função ao entrar', texto: 'Entregas, Contábil e o que veio depois, cada um com o seu cargo.' },
-      { quem: ['admin', 'contabil'], icone: 'ph-calculator', titulo: 'Contábil', texto: 'Conciliadorzinho e ajuste de cheque especial dentro do sistema.' },
-      { quem: [], icone: 'ph-compass', titulo: 'Região da rota', texto: 'Parte superior, central e inferior, preenchida sozinha pelo cliente.' },
-      { quem: [], icone: 'ph-floppy-disk', titulo: 'Rascunho automático', texto: 'A entrega que você estava preenchendo não se perde se o app fechar.' },
-      { quem: [], icone: 'ph-device-mobile', titulo: 'Instalável e acessível', texto: 'Funciona como aplicativo no celular, inclusive sem sinal.' }
-    ] },
-    { versao: '1.1', data: '2026-09-03', resumo: 'Solicitações, mapa e entrega não realizada', itens: [
-      { quem: [], icone: 'ph-paper-plane-tilt', titulo: 'Solicitações', texto: 'Peça pra alguém entregar ou buscar um documento; vira tarefa do office boy, com notificação.' },
-      { quem: [], icone: 'ph-x-circle', titulo: 'Entrega não realizada', texto: 'Com motivo e foto, na hora ou na rota.' },
-      { quem: [], icone: 'ph-map-trifold', titulo: 'Mapa de entregas no Painel', texto: 'Onde cada entrega foi confirmada.' },
-      { quem: [], icone: 'ph-moon', titulo: 'Modo escuro e anotações', texto: 'Configurações pessoais, anotações com acesso rápido e entrega avulsa pra quem não é cliente.' }
-    ] },
-    { versao: '1.0', data: '2026-09-02', resumo: 'O começo: protocolo de entrega sem papel', itens: [
-      { quem: [], icone: 'ph-pen-nib', titulo: 'Protocolo digital', texto: 'Documentos, valores, assinatura no celular ou foto, com quem entregou e quando.' },
-      { quem: [], icone: 'ph-lock-key', titulo: 'Login da equipe', texto: 'Nome e senha, com papéis de admin e equipe.' },
-      { quem: [], icone: 'ph-download-simple', titulo: 'Exportar em planilha', texto: 'Entregas e lista de clientes.' }
-    ] }
-  ];
-  var VERSAO_ATUAL_ = VERSOES_[0].versao;
-  function itensDaVersao_(v) {
-    // admin vê tudo; os demais, o que é do papel deles e o que é de todo mundo
-    return v.itens.filter(function (i) { return !i.quem.length || temPapel('admin') || i.quem.some(temPapel); });
-  }
-  function mostrarNovidades_() {
-    var btn = $('hubNovasBtn');
-    var vista = '';
-    try { vista = localStorage.getItem('nilma_novidades_vista') || ''; } catch (e) {}
-    var n = vista === VERSAO_ATUAL_ ? 0 : itensDaVersao_(VERSOES_[0]).length;
-    btn.hidden = !n;
-    if (n) $('hubNovasTexto').textContent = 'Versão ' + VERSAO_ATUAL_ + ' · ' + n + (n === 1 ? ' novidade' : ' novidades');
-    $('hubVersaoBtn').textContent = 'versão ' + VERSAO_ATUAL_;
-  }
-  function abrirNovidades_() {
-    var root = $('modalRoot');
-    root.innerHTML =
-      '<div class="modal-overlay" id="overlay"><div class="modal" id="modalInner">' +
-        '<div class="modal-head"><div><h2>O que mudou</h2><div class="card-hint modal-head-sub" id="novasSub"></div></div>' +
-          '<button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button></div>' +
-        '<div class="novas-versoes" id="novasVersoes" role="tablist" aria-label="Versões">' + VERSOES_.map(function (v, i) {
-          return '<button type="button" role="tab" class="novas-versao" data-i="' + i + '">' + escapeHtml_(v.versao) + '</button>';
-        }).join('') + '</div>' +
-        '<div class="novas-lista" id="novasLista"></div>' +
-        '<button type="button" class="btn btn-primary" id="novasEntendiBtn">Entendi</button>' +
-      '</div></div>';
-    function mostrar(i) {
-      var v = VERSOES_[i];
-      root.querySelectorAll('.novas-versao').forEach(function (b) {
-        var ativa = Number(b.dataset.i) === i;
-        b.classList.toggle('ativa', ativa);
-        b.setAttribute('aria-selected', ativa ? 'true' : 'false');
-      });
-      var d = v.data.split('-');
-      $('novasSub').textContent = d[2] + '/' + d[1] + '/' + d[0] + ' · ' + v.resumo;
-      var itens = itensDaVersao_(v);
-      $('novasLista').innerHTML = itens.length ? itens.map(function (it) {
-        return '<div class="novas-item"><span class="novas-ico"><i class="ph ' + it.icone + '" aria-hidden="true"></i></span>' +
-          '<div><div class="novas-titulo">' + escapeHtml_(it.titulo) + '</div><div class="novas-texto">' + escapeHtml_(it.texto) + '</div></div></div>';
-      }).join('') : '<p class="card-hint">Nesta versão não entrou nada pra sua função.</p>';
-      $('novasLista').scrollTop = 0;
-    }
-    root.querySelectorAll('.novas-versao').forEach(function (b) { b.addEventListener('click', function () { mostrar(Number(b.dataset.i)); }); });
-    mostrar(0);
-    // fechar no X deixa o selo: a pessoa pode querer ler depois. "Entendi" é que dispensa.
-    $('overlay').addEventListener('click', function (e) { if (e.target.id === 'overlay') closeModal(); });
-    $('modalClose').addEventListener('click', closeModal);
-    $('novasEntendiBtn').addEventListener('click', function () {
-      try { localStorage.setItem('nilma_novidades_vista', VERSAO_ATUAL_); } catch (e) {}
-      $('hubNovasBtn').hidden = true;
-      closeModal();
-    });
-  }
-  $('hubNovasBtn').addEventListener('click', abrirNovidades_);
-  $('hubVersaoBtn').addEventListener('click', abrirNovidades_);
-
-  var CHAVE_ULTIMA_FUNCAO = 'nilma_ultima_funcao';
-  function linhasDoHub_() {
-    var grade = $('hubGridFiscal').hidden ? $('hubGridPrincipal') : $('hubGridFiscal');
-    return Array.from(grade.querySelectorAll('.hub-card')).filter(function (c) { return !c.hidden; });
-  }
-  function numerarHub_() {
-    linhasDoHub_().forEach(function (c, i) { var k = c.querySelector('kbd'); if (k) k.textContent = String(i + 1); });
-  }
-  function prepararHub_() {
-    var hora = new Date().getHours();
-    var primeiroNome = String(currentUserNome || '').split(/[\s@]/)[0];
-    if (primeiroNome) primeiroNome = primeiroNome.charAt(0).toUpperCase() + primeiroNome.slice(1);
-    $('hubSaudacao').textContent = (hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite') + (primeiroNome ? ', ' + primeiroNome : '');
-    $('hubData').textContent = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
-
-    var ultima = '';
-    try { ultima = localStorage.getItem(CHAVE_ULTIMA_FUNCAO) || ''; } catch (e) {}
-    $('hubGridPrincipal').querySelectorAll('.hub-card').forEach(function (c) { c.classList.toggle('ultima', c.id === ultima && !c.hidden); });
-    numerarHub_();
-
-    // Uma informação só, a que decide o dia de quem entrega: quantas paradas
-    // estão na rota. Com o app já aberto sai do que está na memória; senão,
-    // uma consulta curta.
-    avisarSeRoboParado_();
-    mostrarNovidades_();
-    var info = $('hubInfoEntregas');
-    var mostrar = function (n) { info.hidden = !n; info.textContent = n ? n + ' na rota' : ''; };
-    // fora do app, o número vale por 10 minutos: ler a rota inteira toda vez
-    // que esta tela aparece gastava leitura à toa
-    var naMemoria = null;
-    try { naMemoria = JSON.parse(sessionStorage.getItem('nilma_hub_rota') || 'null'); } catch (e) {}
-    if (appStarted) mostrar(pendentesCache.length);
-    else if (naMemoria && Date.now() - naMemoria.em < 10 * 60000) mostrar(naMemoria.n);
-    else if (db) db.collection('entregas').where('status', '==', 'pendente').limit(200).get().then(function (snap) {
-      try { sessionStorage.setItem('nilma_hub_rota', JSON.stringify({ em: Date.now(), n: snap.size })); } catch (e) {}
-      mostrar(snap.size);
-    }).catch(function () {});
-  }
-  $('hubGridPrincipal').addEventListener('click', function (ev) {
-    var c = ev.target.closest('.hub-card');
-    if (!c || !c.id || c.id === 'hubFiscalVoltar') return;
-    try { localStorage.setItem(CHAVE_ULTIMA_FUNCAO, c.id); } catch (e) {}
-  }, true);
-  document.addEventListener('keydown', function (ev) {
-    if ($('hubScreen').hidden || ev.ctrlKey || ev.metaKey || ev.altKey) return;
-    if (modalAberto() || /^(INPUT|TEXTAREA|SELECT)$/.test((ev.target && ev.target.tagName) || '')) return;
-    var n = parseInt(ev.key, 10);
-    if (!n) return;
-    var alvo = linhasDoHub_()[n - 1];
-    if (alvo) { ev.preventDefault(); alvo.click(); }
-  });
-  $('hubSairBtn').addEventListener('click', function () { auth.signOut(); });
-
+  var NOMES_DOS_MODULOS_ = { entregas: 'Entregas', clientes: 'Clientes e ajustes', contabil: 'Contábil' };
   function entrarNaFuncao(nomeFuncao) {
-    $('hubScreen').hidden = true;
     appShellEls.forEach(function (el) { if (el) el.hidden = false; });
-    // Trocar de função fica sempre à mão, ao lado da engrenagem. Antes, em
-    // Entregas, morava no fim das Configurações: três toques e uma rolagem.
-    $('contabilVoltarBtn').hidden = false;
-    if (nomeFuncao === 'entregas') startApp();
+    if (nomeFuncao === 'entregas') {
+      startApp();
+      // entrarModoClientes_ também passa por aqui e marca o próprio módulo
+      // logo depois; quem chega direto é o módulo Entregas.
+      NilmaShell.definirModulo('entregas', NOMES_DOS_MODULOS_.entregas);
+      guardarUltimaFuncao_('entregas');
+    }
   }
 
   // "Aba secundária": o Contábil não é mais sub-hub de cartões que leva
@@ -14543,14 +13839,11 @@
     entrarNaFuncao(nome);
     TABS_ENTREGAS_.forEach(function (id) { $(id).hidden = true; });
     cfg.botoes.forEach(function (id) { $(id).hidden = false; });
-    $('notasBtn').hidden = true;
-    $('settingsBtn').hidden = true;
-    $('ajudaBtn').hidden = true;
-    $('contabilVoltarBtn').hidden = false;
-    // A ferramenta embutida traz o próprio menu — dois menus lado a lado
-    // pareciam dois apps colados. Ver a regra "body.modo-secundario" na
-    // folha de estilo (bloco "PC — a partir de 900px").
+    // A ferramenta embutida ocupa a tela abaixo da barra e das abas. Ver a
+    // regra "body.modo-secundario" na folha de estilo.
     document.body.classList.add('modo-secundario');
+    NilmaShell.definirModulo(nome, NOMES_DOS_MODULOS_[nome] || nome);
+    guardarUltimaFuncao_('contabil');
     // carrega o <iframe> só na primeira vez que a aba é aberta de verdade
     cfg.frames.forEach(function (id) {
       var frame = $(id);
@@ -14567,7 +13860,6 @@
       // continuava na tela por cima de "Nova entrega" depois de voltar.
       cfg.secoes.forEach(function (id) { if ($(id)) $(id).hidden = true; });
     });
-    if ($('contabilVoltarBtn')) $('contabilVoltarBtn').hidden = true;
     document.body.classList.remove('modo-secundario');
     // saindo do módulo Clientes, a seção dele não pode ficar aberta por
     // cima de 'Nova entrega', que volta a ser a aba ativa logo abaixo — e o
@@ -14591,9 +13883,6 @@
     $('tabHonorarios').hidden = !(temPapel('admin') || temPapel('office_boy'));
     $('tabPerfil').hidden = true;          // virou "Ajustes do app", dentro de Clientes
     ajustarSubnavDeClientes_();
-    $('notasBtn').hidden = false;
-    $('settingsBtn').hidden = false;
-    $('ajudaBtn').hidden = false;
     // volta a aba ativa pra "Nova entrega" (sem disparar os efeitos de
     // troca de aba — captureGeo/setupCanvas —, que startApp() já cuida
     // de inicializar sozinho toda vez que entra em Entregas).
@@ -14622,14 +13911,19 @@
     // 2 fica por conta de mostrarParteDeClientes_ (só o do destino ativo).
     document.querySelectorAll('#tabsNav .tab-nivel1').forEach(function (b) { b.hidden = false; });
     TABS_ENTREGAS_.forEach(function (id) { $(id).hidden = true; });
-    $('contabilVoltarBtn').hidden = false;
     // O clique em tabbtn-clientes (o listener genérico de abas, lá embaixo)
     // limpa a classe "active" de TODO .tab da página — os botões novos de
     // Carteira/Painéis/etc. têm essa classe também. Por isso o clique vem
     // primeiro, e só depois é que o destino/categoria certos ganham "active".
     $('tabbtn-clientes').click();
+    // Dentro do módulo as abas são os destinos (Carteira · Painéis ·
+    // Ajustes do app); o botão genérico "Clientes e ajustes" só serviu pra
+    // abrir a seção e sai da barra.
+    $('tabbtn-clientes').hidden = true;
     ajustarSubnavDeClientes_();     // tira Cadastro/Ajustes de quem não é admin
     mostrarParteDeClientes_('carteira');
+    NilmaShell.definirModulo('clientes', NOMES_DOS_MODULOS_.clientes);
+    guardarUltimaFuncao_('clientes');
   }
 
   // Cadastro completo. Até aqui só dava pra criar, desativar e corrigir o
@@ -15194,57 +14488,56 @@
     });
   }
 
-  $('hubClientes').addEventListener('click', entrarModoClientes_);
-  $('hubEntregas').addEventListener('click', function () { entrarNaFuncao('entregas'); });
-  $('hubContabil').addEventListener('click', function () { entrarModoSecundario_('contabil'); });
-  $('hubPendencias').addEventListener('click', function () {
-    location.href = 'Pendencias-e-envio-automatico-via-Gmail.html';
+  // ---------- casca: menu ☰, busca, anotações e conta ----------
+  NilmaShell.ao('modulo', function (id) {
+    if (!auth.currentUser) return false;
+    if (id === 'entregas') { sairDeAbaSecundaria_(); entrarNaFuncao('entregas'); return true; }
+    if (id === 'clientes') { sairDeAbaSecundaria_(); entrarModoClientes_(); return true; }
+    if (id === 'contabil' && podeContabil_()) { sairDeAbaSecundaria_(); entrarModoSecundario_('contabil'); return true; }
+    return false;   // Fiscal e Pendências são outras páginas: segue o link
   });
-  $('contabilVoltarBtn').addEventListener('click', mostrarHub);
-  $('hubFiscal').addEventListener('click', function () {
-    $('hubGridPrincipal').hidden = true;
-    $('hubGridFiscal').hidden = false;
-    numerarHub_();
+  NilmaShell.ao('busca', function () {
+    if (!auth.currentUser || !appStarted) return false;
+    abrirConsultaRapida_();
+    return true;
   });
-  $('hubFiscalVoltar').addEventListener('click', function () {
-    $('hubGridFiscal').hidden = true;
-    $('hubGridPrincipal').hidden = false;
-    numerarHub_();
-  });
+  NilmaShell.ao('buscaGlobal', function () { abrirBuscaGlobal_(); });
+  NilmaShell.ao('notas', function () { abrirNotas(); });
+  NilmaShell.ao('aparencia', function () { abrirConfiguracoes('personalizacao'); });
+  NilmaShell.ao('conta', function () { abrirConfiguracoes('conta'); });
+  NilmaShell.ao('instalar', function () { instalarApp_(); });
+  NilmaShell.ao('sair', function () { auth.signOut(); });
+  NilmaShell.versao('2.1');
 
   auth.onAuthStateChanged(function (user) {
     if (user) {
       $('authGate').hidden = true;
-      $('settingsBtn').hidden = false;
-      $('ajudaBtn').hidden = false;
-      $('notasBtn').hidden = false;
+      NilmaShell.mostrarNotas(true);
       ensureUsuarioDoc(user).then(function () {
         aplicarFotoPerfil(fotoPerfilAtual);
-        mostrarHub();
+        abrirModuloInicial_();
       });
     } else {
       desligarSessao_();
-      $('hubScreen').hidden = true;
+      NilmaShell.fecharGaveta();
+      appShellEls.forEach(function (el) { if (el) el.hidden = true; });
+      sairDeAbaSecundaria_();
       var logo = document.querySelector('.brand-mark');
       if (logo) $('authLogo').src = logo.src;
       // com a tela de convite (ou a do cliente assinando) aberta, o login
       // não deve aparecer por cima
       $('authGate').hidden = !$('conviteGate').hidden || !$('assinaturaGate').hidden || !$('rotaGate').hidden;
-      $('settingsBtn').hidden = true;
-      $('ajudaBtn').hidden = true;
-      $('notasBtn').hidden = true;
-      $('contabilVoltarBtn').hidden = true;
+      NilmaShell.mostrarNotas(false);
+      NilmaShell.mostrarInstalar(!!promptInstalar);
       // Sai a consulta rápida junto com o resto: fora do login não há o que
       // consultar, e o histórico da conversa anterior não fica na tela.
-      $('cqBotao').hidden = true;
       $('cqPainel').hidden = true;
       cqHistorico = [];
       cqSoltarConversaIa_();
       if (unsubCqRobo) { unsubCqRobo(); unsubCqRobo = null; }
-      $('brandName').textContent = 'Nilma';
       fotoPerfilAtual = '';
       aplicarFotoPerfil('');
-      $('userAvatar').textContent = '';
+      NilmaShell.definirModulo('entregas', NOMES_DOS_MODULOS_.entregas);
       // se o nome já veio guardado, o cursor cai direto na senha
       var primeiro = $('loginEmail').value.trim() ? $('loginSenha') : $('loginEmail');
       if (!matchMedia('(hover: none)').matches) primeiro.focus();
@@ -16584,21 +15877,22 @@
 
   function cqFechar_() {
     $('cqPainel').hidden = true;
-    $('cqBotao').hidden = false;
+    var busca = $('topoBusca');
+    if (busca && !matchMedia('(hover: none)').matches) busca.focus();
   }
 
-  $('cqBotao').addEventListener('click', function () {
+  // Abre pela caixa "Consulta rápida" da barra de cima (ou pela tecla /).
+  function abrirConsultaRapida_() {
     garantirTodosOsClientes_();   // a consulta rápida responde sobre qualquer cliente
     // Só agora: quem nunca abre o painel não fica com um listener aberto no
     // Firestore o dia inteiro. É a mesma economia que as abas já fazem com
     // os iframes, que só carregam na primeira vez que são abertas.
     cqEscutarRobo_();
     $('cqPainel').hidden = false;
-    $('cqBotao').hidden = true;
     cqRenderModo_();
     cqRender_();
     if (!matchMedia('(hover: none)').matches) $('cqCampo').focus();
-  });
+  }
   $('cqFechar').addEventListener('click', cqFechar_);
   $('cqLimpar').addEventListener('click', function () {
     cqHistorico = [];
