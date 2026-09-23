@@ -1952,6 +1952,11 @@
      conteúdo ocupa a largura toda e a densidade aperta: a linha cai de 52px
      pra 40px e vira linha de tabela.
      ========================================================================== */
+  /* Contábil: a ferramenta embutida traz o próprio cabeçalho de tela
+     (título e ações), igual ao das outras abas — o do app sairia repetido. */
+  body.modo-secundario .tela-cabecalho { display: none; }
+  body.modo-secundario #frameConciliador, body.modo-secundario #frameCheque { background: transparent; border-radius: 0 !important; }
+
   @media (min-width: 900px) {
     /* 14px e não 13px: 13 é agressivo demais em tela 1x. A densidade vem de
        --linha (a altura da linha), não de espremer a letra. */
