@@ -507,6 +507,21 @@
     font-weight: 600; font-size: var(--t-md); color: var(--ink); min-width: 0;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
+  /* módulo com submódulos (Contábil, Fiscal): o nome abre a lista deles */
+  .topo-modulo[role="button"], .topo-sub[role="button"] { cursor: pointer; padding: 4px 6px; margin: 0 -4px; border-radius: var(--r-sm); }
+  .topo-modulo[role="button"] { flex: none; }
+  .topo-modulo[role="button"]::after, .topo-sub[role="button"]::after {
+    content: ""; display: inline-block; width: 5px; height: 5px; margin: 0 2px 3px 7px;
+    border-right: 1.5px solid var(--ink-faint); border-bottom: 1.5px solid var(--ink-faint); transform: rotate(45deg);
+  }
+  .topo-modulo[role="button"]:hover, .topo-sub[role="button"]:hover { background: var(--surface-2); }
+  .topo-modulo[role="button"]:focus-visible, .topo-sub[role="button"]:focus-visible { outline: 2px solid var(--foco, var(--accent)); outline-offset: 1px; }
+  /* no PC a seta fica só no módulo; o submódulo é o fim do caminho */
+  @media (min-width: 600px) { .topo-sub[role="button"]::after { display: none; } .topo-sub[role="button"] { cursor: default; } .topo-sub[role="button"]:hover { background: none; } }
+  .topo-sub {
+    font-weight: 500; font-size: var(--t-md); color: var(--ink-soft); min-width: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
   .topo-vao { flex: 1; }
   .topo-busca {
     margin-left: auto; flex: 0 1 320px; min-width: 0; display: inline-flex; align-items: center; gap: var(--esp-2);
@@ -541,6 +556,11 @@
   @media (max-width: 599px) {
     .topo-nome, .topo-sep { display: none; }
     .topo-marca { padding: 0; }
+    /* no celular o título alterna: com submódulo aberto, só ele aparece
+       (e abre a lista dos irmãos); sem submódulo, o nome do módulo */
+    #topo:has(.topo-sub:not([hidden])) .topo-modulo,
+    #topo:has(.topo-sub:not([hidden])) .topo-marca { display: none; }
+    .topo-sub { color: var(--ink); font-weight: 600; }
   }
 
   /* --- abas do módulo (Code · Issues · Pull requests) --- */
@@ -605,6 +625,15 @@
   .gaveta-item[aria-current="page"] > .ph { color: var(--accent-forte); }
   .gaveta-item.perigo { color: var(--danger-forte); }
   .gaveta-item.perigo > .ph { color: inherit; }
+  /* gaveta em dois níveis: módulo com submódulos leva a seta; no segundo
+     nível o título vira o do módulo e aparece o ← de voltar */
+  .gaveta-item > .ph.gaveta-seta { width: auto; margin-left: auto; font-size: .9rem; }
+  .gaveta-grupo.gaveta-sub { margin-top: 0; padding-top: var(--esp-2); border-top: 0; }
+  .gaveta-voltar { flex: none; margin-left: calc(var(--esp-2) * -1); }
+  .gaveta-cabeca:has(.gaveta-voltar:not([hidden])) { padding-left: var(--esp-3); }
+  .gaveta-sub:not([hidden]) { animation: gavetaDesce var(--dur) var(--ease); }
+  @keyframes gavetaDesce { from { opacity: 0; transform: translateX(12px); } to { opacity: 1; transform: none; } }
+  html[data-animacao="reduzida"] .gaveta-sub { animation: none; }
   .gaveta-fio { border-top: 1px solid var(--border); margin: var(--esp-2) 0; }
   .gaveta-pe { flex: none; padding: var(--esp-3) var(--esp-4); border-top: 1px solid var(--border); color: var(--ink-faint); font-size: var(--t-sm); }
   .gaveta-pe:empty { display: none; }
@@ -2188,7 +2217,7 @@
   <button class="tab" data-tab="painel" role="tab" id="tabbtn-painel" aria-controls="tab-painel" aria-selected="false" tabindex="-1"><span class="tab-ico"><i class="ph ph-chart-bar" aria-hidden="true"></i></span><span class="tab-label">Painel</span></button>
   <button class="tab" data-tab="solicitacoes" role="tab" id="tabbtn-solicitacoes" aria-controls="tab-solicitacoes" aria-selected="false" tabindex="-1"><span class="tab-ico"><i class="ph ph-envelope-simple" aria-hidden="true"></i></span><span class="tab-label">Solicitações</span><span class="tab-badge" id="solicitacoesBadge" hidden>0</span></button>
   <button class="tab" data-tab="honorarios" role="tab" id="tabHonorarios" aria-controls="tab-honorarios" aria-selected="false" tabindex="-1" hidden><span class="tab-ico"><i class="ph ph-hand-coins" aria-hidden="true"></i></span><span class="tab-label">Honorários</span><span class="tab-badge" id="honorariosBadge" hidden>0</span></button>
-  <button class="tab" data-tab="clientes" role="tab" id="tabbtn-clientes" aria-controls="tab-clientes" aria-selected="false" tabindex="-1"><span class="tab-ico"><i class="ph ph-users" aria-hidden="true"></i></span><span class="tab-label">Clientes e ajustes</span></button>
+  <button class="tab" data-tab="clientes" role="tab" id="tabbtn-clientes" aria-controls="tab-clientes" aria-selected="false" tabindex="-1" hidden><span class="tab-ico"><i class="ph ph-users" aria-hidden="true"></i></span><span class="tab-label">Clientes e ajustes</span></button>
   <button class="tab" data-tab="perfil" role="tab" id="tabPerfil" aria-controls="tab-perfil" aria-selected="false" tabindex="-1" hidden><span class="tab-ico"><i class="ph ph-identification-badge" aria-hidden="true"></i></span><span class="tab-label">Perfil</span></button>
   <button class="tab" data-tab="conciliador" role="tab" id="tabbtn-conciliador" aria-controls="tab-conciliador" aria-selected="false" tabindex="-1" hidden><span class="tab-ico"><i class="ph ph-credit-card" aria-hidden="true"></i></span><span class="tab-label">Conciliadorzinho</span></button>
   <button class="tab" data-tab="cheque" role="tab" id="tabbtn-cheque" aria-controls="tab-cheque" aria-selected="false" tabindex="-1" hidden><span class="tab-ico"><i class="ph ph-bank" aria-hidden="true"></i></span><span class="tab-label">Cheque especial</span></button>
@@ -3743,6 +3772,10 @@
       marcarIconeAba_();
       var lbl = btn.querySelector('.tab-label');
       if (lbl && $('pageTitle')) $('pageTitle').textContent = lbl.textContent;
+      // Contábil: a ferramenta aberta é o submódulo ("Nilma / Contábil / Cheque especial")
+      if (btn.dataset.tab === 'conciliador' || btn.dataset.tab === 'cheque') {
+        NilmaShell.definirSubmodulo('contabil/' + btn.dataset.tab, lbl ? lbl.textContent : '');
+      }
       mostrarAcaoDaTela_(btn.dataset.tab);
       ['nova', 'rota', 'painel', 'solicitacoes', 'clientes', 'honorarios', 'perfil', 'conciliador', 'cheque'].forEach(function (name) {
         var el = $('tab-' + name);
@@ -13951,7 +13984,7 @@
     ultima = { hubEntregas: 'entregas', hubClientes: 'clientes', hubContabil: 'contabil' }[ultima] || ultima;
     var alvo = pedido || ultima;
     if (alvo === 'clientes') entrarModoClientes_();
-    else if (alvo === 'contabil' && podeContabil_()) entrarModoSecundario_('contabil');
+    else if (/^contabil(\/|$)/.test(alvo) && podeContabil_()) entrarModoSecundario_('contabil', alvo.indexOf('/') !== -1 ? 'tabbtn-' + alvo.split('/')[1] : '');
     else entrarNaFuncao('entregas');
     avisarSeRoboParado_();
   }
@@ -14091,10 +14124,17 @@
   var ABAS_SECUNDARIAS_ = {
     contabil: { botoes: ['tabbtn-conciliador', 'tabbtn-cheque'], secoes: ['tab-conciliador', 'tab-cheque'], frames: ['frameConciliador', 'frameCheque'], abaInicial: 'tabbtn-conciliador' }
   };
-  function entrarModoSecundario_(nome) {
+  function entrarModoSecundario_(nome, abaEscolhida) {
     var cfg = ABAS_SECUNDARIAS_[nome];
     entrarNaFuncao(nome);
     TABS_ENTREGAS_.forEach(function (id) { $(id).hidden = true; });
+    // Abrindo direto no Contábil (último módulo usado, link #contabil) o
+    // startApp() não roda, e quem escondia "Clientes e ajustes" e o menu de
+    // Clientes era só ele: sobravam na barra do Contábil.
+    if ($('tabbtn-clientes')) $('tabbtn-clientes').hidden = true;
+    document.querySelectorAll('#tabsNav .clientes-subtab').forEach(function (b) { b.hidden = true; });
+    if ($('tab-clientes')) $('tab-clientes').hidden = true;
+    document.body.classList.remove('modo-clientes');
     cfg.botoes.forEach(function (id) { $(id).hidden = false; });
     // A ferramenta embutida ocupa a tela abaixo da barra e das abas. Ver a
     // regra "body.modo-secundario" na folha de estilo.
@@ -14106,7 +14146,7 @@
       var frame = $(id);
       if (frame.dataset.src && !frame.src) frame.src = frame.dataset.src;
     });
-    $(cfg.abaInicial).click();
+    $(cfg.botoes.indexOf(abaEscolhida) !== -1 ? abaEscolhida : cfg.abaInicial).click();
   }
   function sairDeAbaSecundaria_() {
     Object.keys(ABAS_SECUNDARIAS_).forEach(function (nome) {
@@ -14752,6 +14792,12 @@
     if (id === 'entregas') { sairDeAbaSecundaria_(); entrarNaFuncao('entregas'); return true; }
     if (id === 'clientes') { sairDeAbaSecundaria_(); entrarModoClientes_(); return true; }
     if (id === 'contabil' && podeContabil_()) { sairDeAbaSecundaria_(); entrarModoSecundario_('contabil'); return true; }
+    // submódulos do Contábil, escolhidos no segundo nível da gaveta
+    if (/^contabil\//.test(id) && podeContabil_()) {
+      var aba = 'tabbtn-' + id.split('/')[1];
+      if (document.body.classList.contains('modo-secundario') && $(aba) && !$(aba).hidden) { $(aba).click(); return true; }
+      sairDeAbaSecundaria_(); entrarModoSecundario_('contabil', aba); return true;
+    }
     return false;   // Fiscal e Pendências são outras páginas: segue o link
   });
   // A caixa da barra de cima (e a tecla /) abre o chat da consulta com IA,
