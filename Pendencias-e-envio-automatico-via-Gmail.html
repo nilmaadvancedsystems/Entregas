@@ -278,6 +278,16 @@
   .cfg-vars-titulo span { font-weight: 400; color: var(--ink-faint); }
   /* a descrição da variável quebra linha: na coluna de 400px "{link}" passava da borda */
   .cfg-vars .badge { cursor: pointer; white-space: normal; height: auto; text-align: left; }
+  .cfg-vars { padding: var(--esp-3); border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface-2); }
+  .cfg-vars .lista-tipos { display: flex; flex-wrap: wrap; gap: 6px; }
+  .cfg-vars .badge { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 4px 8px; color: var(--ink); font-weight: 600; box-shadow: none; }
+  .cfg-vars .badge:hover { border-color: var(--border-forte); }
+  .cfg-qual .mode-btn { white-space: nowrap; padding: 8px 6px; }
+  .cfg-qual { margin-bottom: 0; }
+  .cfg-qual .mode-btn { flex: 1; }
+  /* no editor de e-mail só a cobrança escolhida aparece */
+  [data-cfg-painel="email"] .cfg-modelo[data-modelo]:not(.visivel) { display: none; }
+  #cfgPreviewQual { display: none !important; }
   .cfg-vars .badge:hover { color: var(--ink); box-shadow: inset 0 0 0 1px var(--border-forte); }
   .cfg-vars .badge .desc { font-weight: 400; color: var(--ink-faint); margin-left: 4px; }
   @media (min-width: 1100px) { .config-grid { grid-template-columns: 300px minmax(0, 1fr) minmax(0, 1fr); } }
@@ -1723,6 +1733,12 @@
           </div>
 
           <div class="cfg-painel" data-cfg-painel="email" hidden>
+            <!-- uma mensagem por vez: as três empilhadas eram uma parede de texto -->
+            <div class="mode-toggle cfg-qual" role="group" aria-label="Qual cobrança" id="cfgQualEditor">
+              <button type="button" class="mode-btn active" data-qual="1">1ª cobrança</button>
+              <button type="button" class="mode-btn" data-qual="2">2ª cobrança</button>
+              <button type="button" class="mode-btn" data-qual="3">3ª em diante</button>
+            </div>
             <div class="cfg-modelo" data-modelo="1">
               <div class="cfg-modelo-topo">
                 <div><div class="cfg-modelo-titulo">1ª cobrança</div></div>
@@ -1780,6 +1796,12 @@
             </div>
           </div>
 
+          <!-- variáveis à vista, logo abaixo do texto (só nas seções com texto) -->
+          <div class="cfg-vars" id="cfgVarsBarra" hidden>
+            <div class="cfg-vars-titulo">Inserir no texto</div>
+            <div class="lista-tipos" id="cfgVariaveis"></div>
+          </div>
+
           <!-- O que o PC do robô faz sozinho. Tudo vem desligado. -->
           <div class="cfg-painel" data-cfg-painel="auto" hidden>
             <div class="cfg-modelo">
@@ -1815,12 +1837,6 @@
             <button type="button" class="chip" data-qual="3" aria-pressed="false">3ª</button>
           </div>
           <div class="cfg-preview-corpo" id="cfgPreviewCorpo"></div>
-          <details class="dobra leve cfg-vars">
-            <summary>Variáveis disponíveis</summary>
-            <div class="dobra-corpo">
-                            <div class="lista-tipos" id="cfgVariaveis"></div>
-            </div>
-          </details>
         </aside>
       </div>
       </div>
@@ -6632,6 +6648,7 @@
       cfgAba = b.dataset.cfg;
       document.querySelectorAll('#cfgAbas .secao-btn').forEach(function (x) { x.setAttribute('aria-selected', String(x === b)); });
       document.querySelectorAll('.cfg-painel').forEach(function (p) { p.hidden = p.dataset.cfgPainel !== cfgAba; });
+      mostrarVariaveisDaAba();
       renderPreviewConfig();
     });
   });
@@ -6640,6 +6657,17 @@
   });
   function marcarPreviewQual() {
     document.querySelectorAll('#cfgPreviewQual .chip').forEach(function (c) { c.setAttribute('aria-pressed', String(c.dataset.qual === cfgPreviewQual)); });
+    // o editor mostra a mesma cobrança que a prévia
+    document.querySelectorAll('#cfgQualEditor .mode-btn').forEach(function (b) { b.classList.toggle('active', b.dataset.qual === cfgPreviewQual); });
+    document.querySelectorAll('[data-cfg-painel="email"] .cfg-modelo[data-modelo]').forEach(function (m) { m.classList.toggle('visivel', m.dataset.modelo === cfgPreviewQual); });
+  }
+  document.querySelectorAll('#cfgQualEditor .mode-btn').forEach(function (b) {
+    b.addEventListener('click', function () { cfgPreviewQual = b.dataset.qual; marcarPreviewQual(); renderPreviewConfig(); });
+  });
+  marcarPreviewQual();
+  function mostrarVariaveisDaAba() {
+    var barra = $('cfgVarsBarra');
+    if (barra) barra.hidden = ['email', 'whats', 'lote', 'meus'].indexOf(cfgAba) === -1;
   }
 
   // cliente de exemplo: de preferência um pendente com e-mail e telefone
