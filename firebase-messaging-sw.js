@@ -35,7 +35,7 @@ messaging.onBackgroundMessage(function (payload) {
 // Trocar esse nome força o navegador a jogar fora qualquer página antiga
 // guardada em cache (ex.: uma cópia de conciliador.html/cheque-especial.html
 // de antes de uma correção) na próxima vez que o service worker atualizar.
-var CACHE = 'nilma-app-v8';
+var CACHE = 'nilma-app-v9';
 
 self.addEventListener('install', function (event) {
   // assume o controle já na primeira visita, sem esperar recarregar

@@ -507,7 +507,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  chip
- (entregas.html, linhas 1034-1053)
+ (entregas.html, linhas 1041-1060)
  --------------------------------------------------------------- */
 .chip { position: relative; }
 .chip input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
@@ -532,7 +532,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  botão
- (entregas.html, linhas 1069-1187)
+ (entregas.html, linhas 1076-1194)
  --------------------------------------------------------------- */
    Botões — uma forma só, três pesos
    ========================================================================== */
@@ -656,7 +656,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  aviso flutuante
- (entregas.html, linhas 1421-1429)
+ (entregas.html, linhas 1428-1436)
  --------------------------------------------------------------- */
 .toast {
   position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 10px); z-index: var(--z-aviso);
@@ -670,7 +670,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  janela (modal)
- (entregas.html, linhas 1434-1479)
+ (entregas.html, linhas 1441-1486)
  --------------------------------------------------------------- */
 .modal-overlay {
   position: fixed; inset: 0; background: var(--scrim); z-index: var(--z-veu);
@@ -721,7 +721,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  selo de situação
- (entregas.html, linhas 1284-1294)
+ (entregas.html, linhas 1291-1301)
  --------------------------------------------------------------- */
 /* ---------- selo de situação ---------- */
 .status-pill {
@@ -737,7 +737,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  tela vazia e janela
- (entregas.html, linhas 1295-1337)
+ (entregas.html, linhas 1302-1344)
  --------------------------------------------------------------- */
 .empty-state { color: var(--ink-faint); font-size: var(--t-base); text-align: center; padding: var(--esp-5) var(--esp-3); line-height: 1.5; }
 
@@ -997,7 +997,7 @@ body:has(.gaveta:not([hidden])) { overflow: hidden; }
 
 /* ---------------------------------------------------------------
  submenu padrão (menu de 2º nível)
- (entregas.html, linhas 1796-1820)
+ (entregas.html, linhas 1803-1827)
  --------------------------------------------------------------- */
 /* ---------- submenu (menu de 2º nível) ---------- */
 /* O submenu padrão de todos os apps: a barrinha de categorias no alto do
@@ -1027,7 +1027,7 @@ body:has(.gaveta:not([hidden])) { overflow: hidden; }
 
 /* ---------------------------------------------------------------
  painel "Perguntar à IA" (nilma-extras.js)
- (entregas.html, linhas 2343-2439)
+ (entregas.html, linhas 2375-2471)
  --------------------------------------------------------------- */
 /* A consulta abre como uma barra de pesquisa aberta (o "Ask" do GitHub):
    no PC, uma caixa ancorada na barra de cima, cobrindo a caixa "Perguntar
