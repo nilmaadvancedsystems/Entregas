@@ -314,7 +314,7 @@ html[data-animacao="reduzida"] *::after {
 
 /* ---------------------------------------------------------------
  base: corpo, tipografia, toque, ícones, foco
- (entregas.html, linhas 366-442)
+ (entregas.html, linhas 366-445)
  --------------------------------------------------------------- */
 /* ---------- base ---------- */
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -376,8 +376,11 @@ button:active, .tab:active, .chip:active, .btn-chip:active, .link-btn:active { t
 }
 @keyframes ripple { to { transform: scale(22); opacity: 0; } }
 /* O recorte só existe enquanto a onda existe — recortar sempre cortaria o
-   contador na quina do ícone. */
-.ripple { overflow: hidden; }
+   contador na quina do ícone. "clip" e não só "hidden": hidden zera o
+   min-width automático de item flex, e botão que pode encolher (submenu
+   que rola, segmentado) murchava no meio do toque — o dedo soltava no
+   vizinho. hidden fica de reserva pra navegador antigo. */
+.ripple { overflow: hidden; overflow: clip; }
 
 /* ---------- ícones ---------- */
 .ph, [class^="ph-"], [class*=" ph-"] { line-height: 1; vertical-align: -.125em; flex: none; }
@@ -396,7 +399,7 @@ select:focus-visible, textarea:focus-visible, a:focus-visible, .chip:focus-visib
 
 /* ---------------------------------------------------------------
  cartão
- (entregas.html, linhas 710-753)
+ (entregas.html, linhas 713-756)
  --------------------------------------------------------------- */
 .card {
   background: none; border: none; border-radius: 0;
@@ -445,7 +448,7 @@ select:focus-visible, textarea:focus-visible, a:focus-visible, .chip:focus-visib
 
 /* ---------------------------------------------------------------
  campo, entrada e erro de campo
- (entregas.html, linhas 754-807)
+ (entregas.html, linhas 757-810)
  --------------------------------------------------------------- */
 .field { display: block; margin-bottom: var(--esp-4); }
 /* rótulo de campo: 14px, 600, na cor do texto — a Nilma lê o rótulo
@@ -504,7 +507,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  chip
- (entregas.html, linhas 1023-1042)
+ (entregas.html, linhas 1034-1053)
  --------------------------------------------------------------- */
 .chip { position: relative; }
 .chip input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
@@ -529,7 +532,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  botão
- (entregas.html, linhas 1058-1173)
+ (entregas.html, linhas 1069-1187)
  --------------------------------------------------------------- */
    Botões — uma forma só, três pesos
    ========================================================================== */
@@ -595,6 +598,12 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 .card.caixa > #fechamentoDetalhe, .card.caixa > #montagemList, .card.caixa > #fechamentoMesList { padding: 0 var(--esp-3); }
 .card.caixa > #graficoDiario, .card.caixa > #rankingEquipe, .card.caixa > #metaResumo,
 .card.caixa > .map-wrap, .card.caixa > .numeros-do-mes { padding: var(--esp-2) var(--esp-3); }
+/* Caixa só com o cabeçalho (lista escondida ou vazia, ex.: Auditoria
+   fechada): a linha de baixo do cabeçalho encostava na borda da caixa e
+   o fundo ficava com filete dobrado. */
+.card.caixa > .card-head-row:last-child,
+.card.caixa > .card-head-row:has(+ [hidden]:last-child),
+.card.caixa > .card-head-row:has(+ :empty:last-child) { border-bottom: none; border-radius: var(--r-md); }
 .card.caixa .contagem, .card-head-row h2 .contagem { font-weight: 400; color: var(--ink-faint); font-variant-numeric: tabular-nums; font-size: var(--t-sm); margin-left: 4px; }
 .card-ferramentas { display: flex; flex-wrap: wrap; gap: 6px; }
 /* "#1": posição na fila, mono e discreta, como a numeração da Ordem fixa */
@@ -615,12 +624,9 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 .card.caixa .client-row:hover { background: var(--surface-2); }
 .card.caixa > .field { padding: var(--esp-2) var(--esp-3); margin: 0; }
 .card.caixa > .saude-grid, .card.caixa > #emprestimosList, .card.caixa > #auditoriaList,
-.card.caixa > .caixa-form-linha, .card.caixa > #competenciasFechadasLista, .card.caixa > #lembretesEdit,
-.card.caixa > #obrigacoesEdit, .card.caixa > #saudeSistemaCorpo, .card.caixa > #enderecosResumo,
+.card.caixa > .caixa-form-linha, .card.caixa > #enderecosResumo,
 .card.caixa > #carteiraMapaCaixa { padding: var(--esp-2) var(--esp-3); }
 .caixa-form-linha { display: flex; gap: var(--esp-2); flex-wrap: wrap; align-items: flex-end; }
-.convite-linha { display: flex; align-items: center; gap: var(--esp-3); flex-wrap: wrap; margin: var(--esp-4) 0 var(--esp-2); padding-top: var(--esp-3); border-top: 1px solid var(--border); }
-.convite-rotulo { font-size: var(--t-sm); color: var(--ink-soft); }
 .aviso-linha { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0 0 10px; font-size: var(--t-sm); color: var(--warning-forte); font-weight: 600; }
 .aviso-linha .aviso-dica { color: var(--ink-faint); font-weight: 400; }
 .field-info:empty { display: none; }
@@ -650,7 +656,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  aviso flutuante
- (entregas.html, linhas 1407-1415)
+ (entregas.html, linhas 1421-1429)
  --------------------------------------------------------------- */
 .toast {
   position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 10px); z-index: var(--z-aviso);
@@ -664,7 +670,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  janela (modal)
- (entregas.html, linhas 1420-1465)
+ (entregas.html, linhas 1434-1479)
  --------------------------------------------------------------- */
 .modal-overlay {
   position: fixed; inset: 0; background: var(--scrim); z-index: var(--z-veu);
@@ -715,7 +721,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  selo de situação
- (entregas.html, linhas 1270-1280)
+ (entregas.html, linhas 1284-1294)
  --------------------------------------------------------------- */
 /* ---------- selo de situação ---------- */
 .status-pill {
@@ -731,7 +737,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  tela vazia e janela
- (entregas.html, linhas 1281-1323)
+ (entregas.html, linhas 1295-1337)
  --------------------------------------------------------------- */
 .empty-state { color: var(--ink-faint); font-size: var(--t-base); text-align: center; padding: var(--esp-5) var(--esp-3); line-height: 1.5; }
 
@@ -779,7 +785,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  casca GitHub: barra de cima, abas do módulo e gavetas (nilma-shell.js)
- (entregas.html, linhas 486-692)
+ (entregas.html, linhas 489-695)
  --------------------------------------------------------------- */
 /* ---------- casca GitHub: barra, abas e gavetas ---------- */
 /* A marcação nasce em nilma-shell.js; este bloco sai inteiro pra
@@ -991,7 +997,7 @@ body:has(.gaveta:not([hidden])) { overflow: hidden; }
 
 /* ---------------------------------------------------------------
  submenu padrão (menu de 2º nível)
- (entregas.html, linhas 1782-1802)
+ (entregas.html, linhas 1796-1820)
  --------------------------------------------------------------- */
 /* ---------- submenu (menu de 2º nível) ---------- */
 /* O submenu padrão de todos os apps: a barrinha de categorias no alto do
@@ -1013,11 +1019,15 @@ body:has(.gaveta:not([hidden])) { overflow: hidden; }
 }
 .clientes-subnav { margin: 0 0 var(--esp-4); overflow-x: auto; scrollbar-width: none; }
 .clientes-subnav::-webkit-scrollbar { display: none; }
-.clientes-subnav .mode-btn { flex: 1; white-space: nowrap; font-family: inherit; }
+/* flex-shrink 0: a onda do toque (.ripple) põe overflow:hidden no botão,
+   e aí o min-width automático do flex vira 0 — o botão apertado encolhia
+   no meio do toque, os vizinhos deslizavam e o dedo soltava na categoria
+   ao lado (tocar Sistema abria Integrações no celular). */
+.clientes-subnav .mode-btn { flex: 1 0 auto; white-space: nowrap; font-family: inherit; }
 
 /* ---------------------------------------------------------------
  painel "Perguntar à IA" (nilma-extras.js)
- (entregas.html, linhas 2126-2222)
+ (entregas.html, linhas 2343-2439)
  --------------------------------------------------------------- */
 /* A consulta abre como uma barra de pesquisa aberta (o "Ask" do GitHub):
    no PC, uma caixa ancorada na barra de cima, cobrindo a caixa "Perguntar
