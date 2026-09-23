@@ -892,8 +892,8 @@
   .pix-valor-linha > span { display: block; font-size: var(--t-sm); color: var(--ink-soft); margin-bottom: 4px; }
   .pix-qr { display: flex; gap: var(--esp-4); align-items: center; margin-top: var(--esp-3); }
   .pix-qr[hidden] { display: none; }
-  .pix-qr #honorarioPixQr { flex: none; line-height: 0; background: #fff; padding: 8px; border: 1px solid var(--border); border-radius: var(--r-sm); }
-  .pix-qr #honorarioPixQr img, .pix-qr #honorarioPixQr canvas { display: block; }
+  .pix-qr .pix-qr-alvo { flex: none; line-height: 0; background: #fff; padding: 8px; border: 1px solid var(--border); border-radius: var(--r-sm); }
+  .pix-qr .pix-qr-alvo img, .pix-qr .pix-qr-alvo canvas { display: block; }
   .pix-qr-lado { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; min-width: 0; }
   .pix-qr-sub { font-size: var(--t-sm); color: var(--ink-soft); }
 
@@ -2376,7 +2376,7 @@
           <input class="input" id="honorarioPixValor" type="text" inputmode="decimal" placeholder="0,00" autocomplete="off">
         </label>
         <div class="pix-qr" id="honorarioPixQrWrap" hidden>
-          <div id="honorarioPixQr"></div>
+          <div class="pix-qr-alvo" id="honorarioPixQr"></div>
           <div class="pix-qr-lado">
             <b id="honorarioPixTitulo">Pix do escritório</b>
             <span class="pix-qr-sub" id="honorarioPixSub"></span>
@@ -6106,37 +6106,50 @@
   // boy mostra a tela, o cliente aponta a câmera e paga sem digitar chave
   // nem valor. O mesmo código sai no botão de copiar, pra quando o cliente
   // preferir colar no app do banco dele.
-  function atualizarQrDoPix_() {
-    var caixa = $('honorarioPixCaixa');
+  // O mesmo bloco de Pix serve em dois momentos: ao registrar a entrega e
+  // ao confirmá-la na rota, na porta do cliente — que é quando o dinheiro
+  // realmente troca de mãos. Os ids mudam, o resto é igual, então o
+  // desenho do QR mora numa função só.
+  function montarBlocoDoPix_(ids) {
+    var caixa = $(ids.caixa);
     if (!caixa) return;
-    var ligado = !$('honorarioPixField').hidden && $('honorarioPixToggle').checked;
-    caixa.hidden = !ligado;
-    if (!ligado) { $('honorarioPixValor').value = ''; return; }
+    caixa.hidden = !ids.ligado();
+    if (caixa.hidden) { if ($(ids.valor)) $(ids.valor).value = ''; return; }
 
-    var aviso = $('honorarioPixAviso');
-    var wrap = $('honorarioPixQrWrap');
+    var wrap = $(ids.wrap);
+    var aviso = $(ids.aviso);
     if (!escritorio_.pixChave) {
       wrap.hidden = true;
-      aviso.hidden = false;
-      aviso.textContent = 'Sem chave Pix cadastrada em Clientes e ajustes › Escritório — sem ela não dá pra gerar o QR.';
+      if (aviso) {
+        aviso.hidden = false;
+        aviso.textContent = 'Sem chave Pix cadastrada em Escritório.';
+      }
       return;
     }
-    aviso.hidden = true;
+    if (aviso) aviso.hidden = true;
 
-    var valor = parseValor($('honorarioPixValor').value);
+    var valor = parseValor($(ids.valor).value);
     var codigo = pixCopiaECola_(escritorio_.pixChave, escritorio_.pixNome, escritorio_.pixCidade, valor);
     if (!codigo || typeof QRCode === 'undefined') { wrap.hidden = true; return; }
 
-    var alvo = $('honorarioPixQr');
+    var alvo = $(ids.qr);
     alvo.innerHTML = '';
     try {
       new QRCode(alvo, { text: codigo, width: 132, height: 132, correctLevel: QRCode.CorrectLevel.M });
     } catch (e) { wrap.hidden = true; return; }
     wrap.hidden = false;
-    $('honorarioPixSub').textContent = valor
+    $(ids.sub).textContent = valor
       ? fmtMoney(valor) + ' · ' + (escritorio_.pixNome || 'Nilma Contabilidade')
       : 'sem valor — o cliente digita quanto vai pagar';
-    $('honorarioPixCopiarBtn').dataset.codigo = codigo;
+    $(ids.botao).dataset.codigo = codigo;
+  }
+
+  function atualizarQrDoPix_() {
+    montarBlocoDoPix_({
+      ligado: function () { return !$('honorarioPixField').hidden && $('honorarioPixToggle').checked; },
+      caixa: 'honorarioPixCaixa', valor: 'honorarioPixValor', wrap: 'honorarioPixQrWrap',
+      qr: 'honorarioPixQr', sub: 'honorarioPixSub', botao: 'honorarioPixCopiarBtn', aviso: 'honorarioPixAviso'
+    });
   }
 
   function atualizarCampoHonorarioPix_() {
@@ -11027,9 +11040,20 @@
             '<i class="ph ph-warning" aria-hidden="true"></i> Cliente ausente / entrega não realizada' +
           '</label>' +
           '<label class="field" id="pendingHonorarioPixField" hidden>' +
-            '<span class="avulso-toggle"><input type="checkbox" id="pendingHonorarioPixToggle"> Recebido via Pix</span>' +
-            '<span class="card-hint" style="margin-top:4px;display:block;">Em dinheiro o próprio dinheiro é o comprovante — não precisa de foto nem assinatura. Via Pix, marque aqui e anexe o comprovante.</span>' +
+            '<span class="avulso-toggle"><input type="checkbox" id="pendingHonorarioPixToggle"> Pagamento via Pix</span>' +
           '</label>' +
+          '<div class="field" id="pendingPixCaixa" hidden>' +
+            '<label class="pix-valor-linha"><span>Valor do honorário</span>' +
+              '<input class="input" id="pendingPixValor" type="text" inputmode="decimal" placeholder="0,00" autocomplete="off"></label>' +
+            '<div class="pix-qr" id="pendingPixQrWrap" hidden>' +
+              '<div class="pix-qr-alvo" id="pendingPixQr"></div>' +
+              '<div class="pix-qr-lado"><b>Pix do escritório</b>' +
+                '<span class="pix-qr-sub" id="pendingPixSub"></span>' +
+                '<button type="button" class="btn-chip" id="pendingPixCopiarBtn"><i class="ph ph-copy" aria-hidden="true"></i> Copiar código</button>' +
+              '</div>' +
+            '</div>' +
+            '<p class="field-info" id="pendingPixAviso" hidden></p>' +
+          '</div>' +
           '<label class="field" id="pendingFalhaMotivoField" hidden>' +
             '<span>O que aconteceu</span>' +
             '<textarea class="input" id="pendingFalhaMotivo" rows="2" placeholder="Ex.: Estabelecimento fechado, ninguém atendeu..."></textarea>' +
@@ -11188,6 +11212,22 @@
     var soNotas = soDoTipo_('Notas');
     if (soHonorario) $('pendingHonorarioPixField').hidden = false;
 
+    // O QR aparece aqui também: é na porta do cliente, confirmando a
+    // entrega, que ele pergunta "qual a chave?" — e aí é só virar a tela.
+    function atualizarQrDoPixPendente_() {
+      montarBlocoDoPix_({
+        ligado: function () { return !$('pendingHonorarioPixField').hidden && $('pendingHonorarioPixToggle').checked; },
+        caixa: 'pendingPixCaixa', valor: 'pendingPixValor', wrap: 'pendingPixQrWrap',
+        qr: 'pendingPixQr', sub: 'pendingPixSub', botao: 'pendingPixCopiarBtn', aviso: 'pendingPixAviso'
+      });
+    }
+    $('pendingHonorarioPixToggle').addEventListener('change', atualizarQrDoPixPendente_);
+    $('pendingPixValor').addEventListener('input', atualizarQrDoPixPendente_);
+    $('pendingPixCopiarBtn').addEventListener('click', function () {
+      var codigo = $('pendingPixCopiarBtn').dataset.codigo || '';
+      if (codigo) copiarOuMostrar_('Pix do escritório', codigo, 'Código Pix copiado.');
+    });
+
     motivosEmUmToque_($('pendingFalhaMotivo'));
     function atualizarModoFalhaPendente() {
       var isFalha = $('pendingFalhaToggle').checked;
@@ -11198,6 +11238,8 @@
       $('pendingSemComprovanteWrap').hidden = isFalha;
       $('pendingSemComprovanteField').hidden = isFalha || !semComprovante;
       $('pendingHonorarioPixField').hidden = isFalha || !soHonorario;
+      if ($('pendingHonorarioPixField').hidden) $('pendingHonorarioPixToggle').checked = false;
+      atualizarQrDoPixPendente_();
       $('pendingFotoLabel').textContent = isFalha ? 'Foto (obrigatória)' : 'Foto (opcional se colher assinatura)';
       $('pendingConfirmBtn').textContent = isFalha ? 'Registrar entrega não realizada' : 'Confirmar entrega';
     }
