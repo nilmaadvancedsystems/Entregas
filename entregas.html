@@ -1817,6 +1817,8 @@
      conteúdo (Clientes › Ajustes, Rota › Paradas…). Sai daqui pro
      nilma-ui.css (scripts/monta-folha.js) e vale igual no Pendências e no
      Fiscal. */
+  .entrega-row .er-abrir { color: var(--ink-faint); font-size: 16px; margin-left: 4px; }
+  .entrega-row:hover .er-abrir, .entrega-row:focus-visible .er-abrir { color: var(--accent); }
   .mode-toggle {
     display: flex; gap: 3px; background: var(--surface-2); border: 1px solid var(--border);
     border-radius: var(--r-sm); padding: 3px; margin-bottom: var(--esp-4);
@@ -2782,18 +2784,6 @@
         <button type="button" class="btn-chip" id="verSemEntregaBtn"></button>
       </div>
     </div>
-    <div class="card caixa" id="fechamentoMesCard">
-      <div class="card-head-row">
-        <h2><i class="ph ph-list-checks" aria-hidden="true"></i> Fechamento do mês <span class="contagem" id="fechamentoMesResumo"></span></h2>
-        <div style="display:flex;gap:6px;align-items:center">
-          <label class="sr-only" for="fechamentoMesSelect">Competência</label>
-          <input class="input" id="fechamentoMesSelect" type="month" style="width:auto;padding:0 8px">
-          <button type="button" class="btn-chip" id="relatorioPessoaBtn"><i class="ph ph-printer" aria-hidden="true"></i> Relatório do mês</button>
-        </div>
-      </div>
-      <div class="fecha-barra"><span id="fechamentoMesBarra" style="width:0%"></span></div>
-      <div id="fechamentoMesList"></div>
-    </div>
     <div class="card caixa" id="graficoCard">
       <div class="card-head-row">
         <h2><i class="ph ph-chart-line-up" aria-hidden="true"></i> Entregas por dia</h2>
@@ -2825,10 +2815,6 @@
           <span><i class="map-legend-dot" style="background:var(--danger)"></i> Não entregue</span>
         </div>
       </div>
-      <details class="numeros-do-mes" id="numerosDoMes" hidden>
-        <summary>Números do mês</summary>
-        <div id="numerosDoMesCorpo"></div>
-      </details>
     </div>
   </section>
 
@@ -5430,7 +5416,6 @@
     ],
     painel: [
       { id: 'entregas', rotulo: 'Entregas', icone: 'ph-chart-bar', els: ['painelCard', 'alertaSemEntregaCard'] },
-      { id: 'mes', rotulo: 'Fechamento do mês', icone: 'ph-list-checks', els: ['fechamentoMesCard'] },
       { id: 'numeros', rotulo: 'Números', icone: 'ph-chart-line-up', els: ['graficoCard', 'rankingCard', 'mapaCard'] }
     ],
     solicitacoes: [
@@ -10288,10 +10273,16 @@
       row.innerHTML =
         '<div><div class="er-nome"></div><div class="er-sub"></div></div>' +
         '<span class="status-pill ' + pillClass + '">' + pillLabel + '</span>' +
-        '<button type="button" class="btn-chip"><i class="ph ph-clock-counter-clockwise" aria-hidden="true"></i> Histórico</button>';
+        '<i class="ph ph-caret-right er-abrir" aria-hidden="true"></i>';
+      // A linha inteira abre a empresa (sem botão "Histórico" separado); a
+      // seta e o título dizem isso a quem não sabia que dava pra clicar.
+      row.title = 'Abrir ' + clienteLabel(c);
+      row.tabIndex = 0;
+      row.setAttribute('role', 'button');
       row.querySelector('.er-nome').textContent = clienteLabel(c);
       row.querySelector('.er-sub').textContent = subtitle;
-      row.addEventListener('click', function () { openClienteHistorico(c); });
+      row.addEventListener('click', function () { openClienteHistorico(c, { soConsulta: true }); });
+      row.addEventListener('keydown', function (ev) { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); openClienteHistorico(c, { soConsulta: true }); } });
       listEl.appendChild(row);
     });
     avulsos.forEach(function (e) {
@@ -10450,7 +10441,9 @@
     el.innerHTML = svg;
   }
 
-  function openClienteHistorico(cliente) {
+  // opcoes.soConsulta: abre só pra ler (é como o Painel abre a empresa —
+  // sem WhatsApp, link, editar nem "Mais ações").
+  function openClienteHistorico(cliente, opcoes) {
     var root = $('modalRoot');
     root.innerHTML =
       '<div class="modal-overlay" id="overlay">' +
@@ -10464,7 +10457,7 @@
     db.collection('entregas').where('clienteId', '==', cliente.id).limit(200).get().then(function (snap) {
       var historico = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
       historico.sort(function (a, b) { return new Date(b.confirmadoEm || b.criadoEm) - new Date(a.confirmadoEm || a.criadoEm); });
-      renderHistoricoList(cliente, historico);
+      renderHistoricoList(cliente, historico, opcoes);
     }).catch(function (err) {
       var inner = $('modalInner');
       if (inner) inner.innerHTML = '<div class="empty-state">' + errMsg(err, 'Não foi possível carregar o histórico.') + '</div>';
@@ -10782,7 +10775,8 @@
     }));
   }
 
-  function renderHistoricoList(cliente, historico) {
+  function renderHistoricoList(cliente, historico, opcoes) {
+    var soConsulta = !!(opcoes && opcoes.soConsulta);
     var inner = $('modalInner');
     if (!inner) return;
     // Agrupa por competência: um cliente com várias entregas no mesmo mês
@@ -10831,7 +10825,7 @@
         }).join('');
 
     var precisaoAtual = cliente.geo && cliente.geo.precisao;
-    var avisoLocal = (!cliente.geo || precisaoAtual === 'cidade')
+    var avisoLocal = (!soConsulta && (!cliente.geo || precisaoAtual === 'cidade'))
       ? '<p class="aviso-linha"><i class="ph ph-map-pin-line" aria-hidden="true"></i> ' +
           (cliente.geo ? 'No mapa: só o centro da cidade' : 'Sem localização no mapa') +
           ' · <span class="aviso-dica">Mais ações › Corrigir localização</span></p>'
@@ -10846,14 +10840,7 @@
         '<button type="button" class="btn-chip" id="fichaMaisBtn" aria-expanded="false" aria-controls="fichaMaisPainel"><i class="ph ph-dots-three" aria-hidden="true"></i> Mais ações</button>' +
       '</div>' +
       '<div class="ficha-mais" id="fichaMaisPainel" hidden>' +
-        '<div class="ficha-mais-grupo"><span class="ficha-mais-titulo">Anotar</span>' +
-          TIPOS_DE_OCORRENCIA_.map(function (t) {
-            return '<button type="button" class="menu-acoes-item" data-ocorrencia="' + t.id + '"><i class="ph ' + t.icone + '" aria-hidden="true"></i> ' + t.rotulo + '</button>';
-          }).join('') +
-        '</div>' +
         '<div class="ficha-mais-grupo"><span class="ficha-mais-titulo">Cliente</span>' +
-          '<button type="button" class="menu-acoes-item" id="linhaDoTempoBtn"><i class="ph ph-clock-counter-clockwise" aria-hidden="true"></i> Linha do tempo</button>' +
-          '<button type="button" class="menu-acoes-item" id="emprestimoFichaBtn"><i class="ph ph-hand-arrow-down" aria-hidden="true"></i> Pegamos um documento</button>' +
           '<button type="button" class="menu-acoes-item" id="corrigirLocalBtn"><i class="ph ph-map-pin-line" aria-hidden="true"></i> Corrigir localização</button>' +
           '<button type="button" class="menu-acoes-item" id="aglutinarBtn"><i class="ph ph-link-simple" aria-hidden="true"></i> Aglutinar com outra empresa</button>' +
         '</div>' +
@@ -10933,9 +10920,9 @@
       receitaHtml +
       rowsHtml;
     // ações coladas no nome: é o que se vem fazer aqui
-    inner.querySelector('.modal-head').insertAdjacentHTML('afterend', acoesHtml);
+    if (!soConsulta) inner.querySelector('.modal-head').insertAdjacentHTML('afterend', acoesHtml);
     $('modalClose').addEventListener('click', closeModal);
-    $('fichaMaisBtn').addEventListener('click', function () {
+    if ($('fichaMaisBtn')) $('fichaMaisBtn').addEventListener('click', function () {
       var p = $('fichaMaisPainel');
       p.hidden = !p.hidden;
       this.setAttribute('aria-expanded', p.hidden ? 'false' : 'true');
@@ -11016,17 +11003,17 @@
         abrirProtocoloDoMes_(cliente, btn.dataset.protocolo, historico.filter(function (e) { return e.competencia === btn.dataset.protocolo; }));
       });
     });
-    $('linhaDoTempoBtn').addEventListener('click', function () {
+    if ($('linhaDoTempoBtn')) $('linhaDoTempoBtn').addEventListener('click', function () {
       abrirLinhaDoTempo_(cliente, historico, function () { renderHistoricoList(cliente, historico); });
     });
     if ($('editarCadastroBtn')) $('editarCadastroBtn').addEventListener('click', function () {
       abrirCadastroCliente_(cliente, function () { openClienteHistorico(clientesCache.get(cliente.id) || cliente); });
     });
     if ($('linkClienteBtn')) $('linkClienteBtn').addEventListener('click', function () { abrirLinkDoCliente_(cliente); });
-    $('corrigirLocalBtn').addEventListener('click', function () {
+    if ($('corrigirLocalBtn')) $('corrigirLocalBtn').addEventListener('click', function () {
       abrirCorrigirLocal_(cliente, function () { renderHistoricoList(cliente, historico); });
     });
-    $('aglutinarBtn').addEventListener('click', function () {
+    if ($('aglutinarBtn')) $('aglutinarBtn').addEventListener('click', function () {
       abrirAglutinar_(cliente, function () { renderHistoricoList(cliente, historico); });
     });
 
@@ -12673,7 +12660,6 @@
   // (as etiquetas eram da "Montagem do dia", que saiu da Rota)
   $('emprestimoNovoBtn').addEventListener('click', function () { abrirNovoEmprestimo_(null); });
   $('saudeSistemaAtualizarBtn').addEventListener('click', renderSaudeDoSistema_);
-  $('fechamentoMesSelect').addEventListener('change', function () { carregarFechamentoDoMes_(competenciaDoFechamento_()); });
   $('rotaFixaSalvarBtn').addEventListener('click', function () { salvarRotaFixa_(this); });
   $('painelMapaBtn').addEventListener('click', function () {
     var caixa = $('painelMapaCaixa');
@@ -12690,7 +12676,6 @@
     if (!caixa.hidden) renderCarteiraMapa_();
   });
   montarFaixaDeDemonstracao_();
-  $('relatorioPessoaBtn').addEventListener('click', function () { abrirRelatorioDoMes_(competenciaDoFechamento_()); });
   ['escPixChave', 'escPixNome', 'escPixCidade'].forEach(function (id) {
     $(id).addEventListener('input', atualizarPreviaDoPix_);
   });
@@ -14279,8 +14264,7 @@
     pedirRender_(['clientes', 'honorarios', 'painel', 'nova', 'rota']);
     sincronizarRotaLinks_();
     if (primeiraCargaClientes_) { primeiraCargaClientes_ = false; restaurarRascunhoSeExistir_(); atualizarAlertaSemEntrega_(); carregarObrigacoes_(); atualizarLinkParado_(); carregarLembretes_(); ouvirEmprestimos_(); carregarEscritorio_(); ouvirRecadosDoCliente_(); carregarRotaFixa_();
-      $('fechamentoMesSelect').value = competenciaAnterior_();
-      carregarFechamentoDoMes_(competenciaAnterior_()); }
+      /* "Fechamento do mês" saiu do Painel (pedido do escritório) */ }
     if (completo) {
       esperandoTodosOsClientes_.splice(0).forEach(function (f) { f(); });
       preencherClientesDeEntrega_();
