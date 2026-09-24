@@ -29,12 +29,12 @@
   } catch (e) {}
 })();
 </script>
-<link rel="stylesheet" href="nilma-icones.css?v=340">
+<link rel="stylesheet" href="nilma-icones.css?v=341">
 <!-- Mesmo sistema do Entregas: o script vem ANTES da folha e sem defer,
      senão a tela pisca no tema errado. -->
 <script src="bancos-nilma.js"></script>
-<script src="nilma-ui.js?v=340"></script>
-<link rel="stylesheet" href="nilma-ui.css?v=340">
+<script src="nilma-ui.js?v=341"></script>
+<link rel="stylesheet" href="nilma-ui.css?v=341">
 <style>
   /* ==========================================================================
      Tokens, paletas e preferências vêm de nilma-ui.css (gerado do
@@ -1397,10 +1397,11 @@
 </head>
 <body>
 <!-- Casca comum (barra de cima, menu ☰ e menu da conta): nilma-shell.js -->
-<script src="nilma-shell.js?v=340"></script>
+<script src="nilma-dialogo.js?v=341"></script>
+<script src="nilma-shell.js?v=341"></script>
 <script src="nilma-extras.js"></script>
 <script>
-  NilmaShell.montar({ modulo: 'Pendências', moduloId: 'pendencias', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false, versao: '2.340 · 24/09/2026' });
+  NilmaShell.montar({ modulo: 'Pendências', moduloId: 'pendencias', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false, versao: '2.341 · 24/09/2026' });
   // antes do login só a tela de entrada; a barra aparece junto com o app
   document.getElementById('topo').hidden = true;
 </script>
@@ -5947,10 +5948,18 @@
     var meu = modelosDisponiveis().filter(function (m) { return m.chave === modeloEscolhido; })[0];
     var modelo = (meu && meu.meu) || configCobranca.modelos[modeloEscolhido] || configCobranca.modelos['1'];
     var corpoAtual = $('cobCorpo').value;
-    if (corpoAtual && corpoAtual !== $('cobCorpo').dataset.gerado &&
-        !confirm('Você mexeu no texto. Trocar o modelo vai reescrever a mensagem. Continuar?')) {
+    if (corpoAtual && corpoAtual !== $('cobCorpo').dataset.gerado) {
+      var escolhido = modeloEscolhido;
+      // volta pro modelo de antes enquanto pergunta; só troca se confirmar
       modeloEscolhido = $('cobCorpo').dataset.modelo || sugerido;
       renderModelosDaCobranca(cliente, faltando, sugerido);
+      NilmaDialogo.confirmar({ titulo: 'Trocar o modelo?', texto: 'Você mexeu no texto. O modelo novo reescreve a mensagem.', acao: 'Trocar o modelo', perigo: true })
+        .then(function (sim) {
+          if (!sim) return;
+          modeloEscolhido = escolhido;
+          $('cobCorpo').dataset.gerado = $('cobCorpo').value; // já confirmou: não pergunta de novo
+          aplicarModeloNaCobranca(cliente, faltando, sugerido);
+        });
       return;
     }
     var corpo = comLinkDoPortal(modelo.corpo, preencherModelo(modelo.corpo, vars), vars.link,
@@ -6592,8 +6601,8 @@
       apagar.type = 'button';
       apagar.textContent = 'Apagar';
       apagar.disabled = !souAdmin;
-      apagar.addEventListener('click', function () {
-        if (!confirm('Apagar o modelo "' + (nome.value || 'sem nome') + '"?')) return;
+      apagar.addEventListener('click', async function () {
+        if (!(await NilmaDialogo.confirmar({ titulo: 'Apagar o modelo "' + (nome.value || 'sem nome') + '"?', acao: 'Apagar', perigo: true }))) return;
         configCobranca.meusModelos = (configCobranca.meusModelos || []).filter(function (x) { return x.id !== m.id; });
         atualizarEstadoConfig();
         renderMeusModelos();
@@ -7330,9 +7339,9 @@
     alvo.appendChild(box);
   }
 
-  $('btnArquivar').addEventListener('click', function () {
+  $('btnArquivar').addEventListener('click', async function () {
     var b = this;
-    if (!confirm('Organizar agora a pasta Claudio Secretario?\n\nOs arquivos vão pras pastas dos clientes no Drive, do mesmo jeito que a organização das 9h.')) return;
+    if (!(await NilmaDialogo.confirmar({ titulo: 'Organizar agora a pasta Claudio Secretario?', texto: 'Os arquivos vão pras pastas dos clientes no Drive, do mesmo jeito que a organização das 9h.', acao: 'Organizar agora' }))) return;
     b.disabled = true;
     db.collection('solicitacoesArquivo').add({
       status: 'pendente',

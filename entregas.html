@@ -47,7 +47,7 @@
 })();
 </script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<link rel="stylesheet" href="nilma-icones.css?v=340">
+<link rel="stylesheet" href="nilma-icones.css?v=341">
 <style>
   /* ==========================================================================
      Nilma Protocolos — folha de estilo
@@ -2683,6 +2683,32 @@
     .modal-close { width: 32px; height: 32px; }
   }
 
+  /* diálogo de confirmação (etapa 8, nilma-dialogo.js): o Dialog do N1 —
+     448px, cantos de 12px, pergunta em 14px com fio embaixo, frase e,
+     embaixo à direita, Voltar + a ação. É um <dialog>: fica por cima
+     de qualquer janela aberta. */
+  .n1-dialogo {
+    background: var(--surface); color: var(--ink); border: 1px solid var(--border);
+    border-radius: 12px; box-shadow: var(--shadow); width: calc(100% - 32px); max-width: 448px;
+    padding: 0; overflow: hidden; animation: modalEnterCentro var(--dur-lento) var(--ease);
+  }
+  /* o véu do N1 (#1F232866 no claro, #01040999 no escuro); ::backdrop não
+     herda variável em navegador mais velho, por isso a cor vai escrita */
+  .n1-dialogo::backdrop { background: #1F232866; }
+  :root[data-theme="dark"] .n1-dialogo::backdrop { background: #01040999; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .n1-dialogo::backdrop { background: #01040999; } }
+  .n1-dialogo h3 { margin: 0; padding: 16px; font-size: 14px; font-weight: 600; line-height: 20px; border-bottom: 1px solid var(--border); }
+  .n1-dialogo-texto { margin: 0; padding: 16px; font-size: 14px; line-height: 20px; white-space: pre-line; }
+  .n1-dialogo-texto b { font-weight: 600; }
+  .n1-dialogo-corpo { padding: 16px; }
+  .n1-dialogo-texto + .n1-dialogo-corpo { padding-top: 0; }
+  .n1-dialogo-rotulo { display: block; font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+  .n1-dialogo-campo { width: 100%; }
+  .n1-dialogo-acoes { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; padding: 16px; border-top: 1px solid var(--border); }
+  .n1-dialogo-acoes .btn { width: auto; }
+  @media (prefers-reduced-motion: reduce) { .n1-dialogo { animation: none; } }
+  html[data-animacao="reduzida"] .n1-dialogo { animation: none; }
+
   /* aviso flutuante (etapa 6): o Toast do N1 — fundo da superfície, borda
      e uma faixa de 4px à esquerda na cor do significado (marca = feito,
      vermelho = erro). No PC fica no canto de baixo à esquerda, como no N1;
@@ -2814,7 +2840,8 @@
 <!-- Casca no estilo do GitHub: barra de cima (☰ · Nilma / módulo · consulta
      rápida · anotações · avatar) e as duas gavetas. Nasce aqui, antes do
      resto, porque os scripts do app procuram #notasBtn, #topo etc. -->
-<script src="nilma-shell.js?v=340"></script>
+<script src="nilma-dialogo.js?v=341"></script>
+<script src="nilma-shell.js?v=341"></script>
 <script>NilmaShell.montar({ modulo: 'Entregas', moduloId: 'entregas', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle' });</script>
 <!-- Abas do módulo, sublinhadas, logo abaixo da barra. -->
 <nav class="tabs" id="tabsNav" role="tablist">
@@ -4509,8 +4536,15 @@
       '</div>';
   }
   function registrarOcorrencia_(cliente, tipo, aoTerminar) {
-    var texto = prompt('O que aconteceu? (aparece na ficha e na linha do tempo)');
-    if (!texto || !texto.trim()) return;
+    var rotulo = (TIPOS_DE_OCORRENCIA_.filter(function (t) { return t.id === tipo; })[0] || {}).rotulo || 'Ocorrência';
+    NilmaDialogo.perguntar({
+      titulo: rotulo + ' · ' + clienteLabel(cliente), rotulo: 'O que aconteceu?',
+      multilinha: true, obrigatorio: true, acao: 'Registrar'
+    }).then(function (texto) {
+      if (texto) gravarOcorrencia_(cliente, tipo, texto, aoTerminar);
+    });
+  }
+  function gravarOcorrencia_(cliente, tipo, texto, aoTerminar) {
     var nova = { tipo: tipo, texto: texto.trim().slice(0, 240), por: currentUserNome || '', em: new Date().toISOString() };
     var lista = [nova].concat(ocorrenciasDe_(cliente)).slice(0, 40);
     db.doc('clientes/' + cliente.id).update({ ocorrencias: lista })
@@ -5494,8 +5528,7 @@
     });
   }
 
-  // O botão pede confirmação nele mesmo (mesmo jeito de apagar entrega):
-  // o primeiro toque avisa, o segundo apaga.
+  // Pede confirmação no diálogo do N1 antes de apagar (confirmarDuplo).
   function apagarDadosDoCliente_(btn, cliente, aoTerminar) {
     confirmarDuplo(btn, function () {
       var limpo = {
@@ -5513,7 +5546,7 @@
         showToast('Dados pessoais apagados e link derrubado.');
         if (aoTerminar) aoTerminar();
       }).catch(function (err) { showToast(errMsg(err, 'Não foi possível apagar.'), 'error'); });
-    });
+    }, { titulo: 'Apagar os dados pessoais deste cliente?', texto: 'Telefone, e-mail, endereço e contatos saem do cadastro e o link do cliente para de funcionar. Não dá para desfazer.', acao: 'Apagar dados' });
   }
 
   // ---------- Clientes: carteira e ajustes do app ----------
@@ -8572,7 +8605,7 @@
             db.doc('recados/' + r.id).delete().catch(function (err) {
               showToast(errMsg(err, 'Não foi possível apagar.'), 'error');
             });
-          });
+          }, { titulo: 'Apagar este recado?', acao: 'Apagar' });
         });
         row.appendChild(apagar);
       }
@@ -9200,7 +9233,7 @@
           showToast(errMsg(err, 'Não foi possível remover.'), 'error');
           botaoLivre_(btn);
         });
-      });
+      }, { titulo: 'Remover da lista de honorários?', texto: 'O cliente deixa de aparecer nos Honorários.', acao: 'Remover' });
     });
   }
 
@@ -12155,7 +12188,7 @@
             historico = historico.filter(function (e) { return e.id !== entrega.id; });
             renderHistoricoList(cliente, historico);
           });
-        });
+        }, { titulo: 'Excluir esta entrega?', texto: 'A entrega e o comprovante saem do histórico do cliente. Não dá para desfazer.', acao: 'Excluir' });
       });
     }
 
@@ -12626,7 +12659,7 @@
     $('overlay').addEventListener('click', function (e) { if (e.target.id === 'overlay') closeModal(); });
     if ($('excluirPendenteBtn')) {
       $('excluirPendenteBtn').addEventListener('click', function () {
-        confirmarDuplo(this, function () { excluirEntrega(entrega, closeModal); });
+        confirmarDuplo(this, function () { excluirEntrega(entrega, closeModal); }, { titulo: 'Remover da rota?', texto: 'A entrega pendente é excluída.', acao: 'Remover' });
       });
     }
     if ($('pendingEditarBtn')) {
@@ -13385,7 +13418,7 @@
     var btn = this;
     // confirmação dupla no próprio botão, igual ao resto do app, em vez da
     // caixinha do navegador que ignora tema e paleta
-    confirmarDuplo(btn, function () { importarClientesSeed(btn); });
+    confirmarDuplo(btn, function () { importarClientesSeed(btn); }, { titulo: 'Importar clientes de arquivo?', acao: 'Importar', perigo: false });
   });
 
   // Le um .json escolhido pela pessoa e devolve o array. Substitui os
@@ -13460,7 +13493,7 @@
     // e a importação nunca sai do lugar.
     confirmarDuplo(btn, function () {
       lerJsonEscolhido_(null, function (lista) { importarEnderecos_(btn, lista); });
-    });
+    }, { titulo: 'Preencher endereços de arquivo?', texto: 'Os endereços do arquivo entram no cadastro dos clientes.', acao: 'Escolher arquivo', perigo: false });
   });
 
   function importarEnderecos_(btn, lista) {
@@ -13602,7 +13635,7 @@
     garantirTodosOsClientes_();   // a planilha cita clientes do escritório inteiro
     confirmarDuplo(btn, function () {
       lerJsonEscolhido_(null, function (lista) { importarHonorarios_(btn, lista); });
-    });
+    }, { titulo: 'Preencher honorários de arquivo?', acao: 'Escolher arquivo', perigo: false });
   });
 
   function importarHonorarios_(btn, lista) {
@@ -14023,7 +14056,7 @@
             showToast(err && err.message ? err.message : 'Não foi possível excluir.', 'error');
             botaoLivre_(btn);
           });
-        });
+        }, { titulo: 'Excluir o acesso desta pessoa?', texto: 'Ela não consegue mais entrar no app.', acao: 'Excluir acesso' });
       });
     }
 
@@ -15123,7 +15156,7 @@
               registrarAuditoria_('competencia_reaberta', fmtCompetencia(comp));
               showToast('Competência reaberta.');
             }).catch(function (err) { showToast(errMsg(err, 'Não foi possível reabrir.'), 'error'); });
-          }, 'Confirmar?');
+          }, { titulo: 'Reabrir esta competência?', texto: 'A edição do mês fica liberada para toda a equipe.', acao: 'Reabrir', perigo: false });
         });
       }
       el.appendChild(row);
@@ -15186,29 +15219,26 @@
     });
   });
 
-  // Confirmação dupla direto no botão (em vez do confirm() do navegador):
-  // primeiro toque avisa e arma um temporizador; só apaga de verdade se
-  // tocar de novo dentro de alguns segundos.
-  // rotulo (opcional) troca o aviso longo por um curto onde a linha é
-  // estreita — ex.: "Confirmar?" no Reabrir de Competências fechadas.
-  function confirmarDuplo(btn, acao, rotulo) {
-    if (btn.dataset.confirmando === '1') {
-      clearTimeout(btn._confirmTimer);
-      delete btn.dataset.confirmando;
-      btn.classList.remove('confirmando');
-      btn.textContent = btn.dataset.textoOriginal;
-      acao();
-      return;
-    }
-    btn.dataset.textoOriginal = btn.textContent;
-    btn.dataset.confirmando = '1';
-    btn.classList.add('confirmando');
-    btn.innerHTML = '<i class="ph ph-warning" aria-hidden="true"></i> ' + (rotulo || 'Toque de novo pra confirmar');
-    btn._confirmTimer = setTimeout(function () {
-      delete btn.dataset.confirmando;
-      btn.classList.remove('confirmando');
-      btn.textContent = btn.dataset.textoOriginal;
-    }, 4000);
+  // Confirmação antes de uma ação de risco (em vez do confirm() do navegador).
+  // Até a etapa 8 do N1 era um "toque de novo pra confirmar" no próprio botão.
+  //
+  // Etapa 8 do N1 ("excluir sempre com modal"): o nome e a chamada ficam,
+  // mas agora abre o diálogo de confirmação do N1 (nilma-dialogo.js), por
+  // cima da janela que estiver aberta. opcoes: { titulo, texto, acao,
+  // perigo } — sem título, pergunta com o nome do botão ("Excluir?").
+  // A ação roda dentro do clique do "confirmar", então quem abre seletor
+  // de arquivo depois (importar endereços/honorários) continua podendo.
+  function confirmarDuplo(btn, acao, opcoes) {
+    var o = (opcoes && typeof opcoes === 'object') ? opcoes : {};
+    var nome = (btn.getAttribute('aria-label') || btn.title || btn.textContent || '').trim();
+    NilmaDialogo.confirmar({
+      titulo: o.titulo || ((nome || 'Confirmar') + '?'),
+      texto: o.texto,
+      html: o.html,
+      acao: o.acao || nome || 'Confirmar',
+      perigo: o.perigo !== false,
+      aoConfirmar: function () { acao(); }
+    });
   }
 
   function excluirEntrega(entrega, onDone) {
@@ -16660,7 +16690,7 @@
   NilmaShell.ao('conta', function () { abrirConfiguracoes('conta'); });
   NilmaShell.ao('instalar', function () { instalarApp_(); });
   NilmaShell.ao('sair', function () { auth.signOut(); });
-  NilmaShell.versao('2.340 · 24/09/2026');
+  NilmaShell.versao('2.341 · 24/09/2026');
 
   auth.onAuthStateChanged(function (user) {
     if (user) {
@@ -17244,7 +17274,7 @@
       });
     }
     if ($('portalCriarBtn')) $('portalCriarBtn').addEventListener('click', function () { criar(this); });
-    if ($('portalTrocarBtn')) $('portalTrocarBtn').addEventListener('click', function () { var b = this; confirmarDuplo(b, function () { criar(b); }); });
+    if ($('portalTrocarBtn')) $('portalTrocarBtn').addEventListener('click', function () { var b = this; confirmarDuplo(b, function () { criar(b); }, { titulo: 'Trocar o link do cliente?', texto: 'O link antigo para de funcionar. Mande o novo para o cliente.', acao: 'Trocar o link', perigo: false }); });
     if (!tem) return;
     db.doc('portais/' + cliente.portalToken).get().then(function (snap) {
       var v = snap.exists && snap.data().visto;

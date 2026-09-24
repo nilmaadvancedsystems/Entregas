@@ -38,8 +38,10 @@ const pedacos = [
   ['chip',
    '  .chip { position: relative; }',
    '  /* ---------- valores ---------- */'],
+  // Começa na regra, não no título: começar no meio do comentário deixava
+  // o "*/" solto na frente do .btn, e o navegador jogava a regra fora.
   ['botão',
-   '     Botões — uma forma só, três pesos',
+   '  .btn {',
    '     Linhas de lista — o coração do app', 2],
   ['aviso flutuante',
    '  .toast {',

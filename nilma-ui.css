@@ -548,10 +548,8 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  botão
- (entregas.html, linhas 1130-1248)
+ (entregas.html, linhas 1132-1248)
  --------------------------------------------------------------- */
-   Botões — uma forma só, três pesos
-   ========================================================================== */
 .btn {
   border: 1px solid transparent; border-radius: var(--r-sm); padding: 12px 16px;
   font-weight: 600; font-size: var(--t-md); cursor: pointer; width: auto;
@@ -1151,7 +1149,7 @@ body:has(.gaveta:not([hidden])) { overflow: hidden; }
 
 /* ---------------------------------------------------------------
  design-n1: componentes (botões, selos, seletor, campos, janela, aviso)
- (entregas.html, linhas 2602-2699)
+ (entregas.html, linhas 2602-2725)
  --------------------------------------------------------------- */
 :root { /* botões do N1 (esta linha não pode ser igual à do :root do topo: é âncora do monta-folha) */
   --btn-bg: var(--surface-2);
@@ -1236,6 +1234,32 @@ body:has(.gaveta:not([hidden])) { overflow: hidden; }
   .modal-overlay:not(.modal-pagina) .modal { border-radius: 12px; }
   .modal-close { width: 32px; height: 32px; }
 }
+
+/* diálogo de confirmação (etapa 8, nilma-dialogo.js): o Dialog do N1 —
+   448px, cantos de 12px, pergunta em 14px com fio embaixo, frase e,
+   embaixo à direita, Voltar + a ação. É um <dialog>: fica por cima
+   de qualquer janela aberta. */
+.n1-dialogo {
+  background: var(--surface); color: var(--ink); border: 1px solid var(--border);
+  border-radius: 12px; box-shadow: var(--shadow); width: calc(100% - 32px); max-width: 448px;
+  padding: 0; overflow: hidden; animation: modalEnterCentro var(--dur-lento) var(--ease);
+}
+/* o véu do N1 (#1F232866 no claro, #01040999 no escuro); ::backdrop não
+   herda variável em navegador mais velho, por isso a cor vai escrita */
+.n1-dialogo::backdrop { background: #1F232866; }
+:root[data-theme="dark"] .n1-dialogo::backdrop { background: #01040999; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .n1-dialogo::backdrop { background: #01040999; } }
+.n1-dialogo h3 { margin: 0; padding: 16px; font-size: 14px; font-weight: 600; line-height: 20px; border-bottom: 1px solid var(--border); }
+.n1-dialogo-texto { margin: 0; padding: 16px; font-size: 14px; line-height: 20px; white-space: pre-line; }
+.n1-dialogo-texto b { font-weight: 600; }
+.n1-dialogo-corpo { padding: 16px; }
+.n1-dialogo-texto + .n1-dialogo-corpo { padding-top: 0; }
+.n1-dialogo-rotulo { display: block; font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+.n1-dialogo-campo { width: 100%; }
+.n1-dialogo-acoes { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; padding: 16px; border-top: 1px solid var(--border); }
+.n1-dialogo-acoes .btn { width: auto; }
+@media (prefers-reduced-motion: reduce) { .n1-dialogo { animation: none; } }
+html[data-animacao="reduzida"] .n1-dialogo { animation: none; }
 
 /* aviso flutuante (etapa 6): o Toast do N1 — fundo da superfície, borda
    e uma faixa de 4px à esquerda na cor do significado (marca = feito,

@@ -8,11 +8,11 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
-<link rel="stylesheet" href="nilma-icones.css?v=340">
+<link rel="stylesheet" href="nilma-icones.css?v=341">
 <!-- Aparência (tema, cor, texto, espaçamento, animação) igual à do Entregas:
      o script vem ANTES da folha e sem defer, senão a tela pisca no tema errado. -->
-<script src="nilma-ui.js?v=340"></script>
-<link rel="stylesheet" href="nilma-ui.css?v=340">
+<script src="nilma-ui.js?v=341"></script>
+<link rel="stylesheet" href="nilma-ui.css?v=341">
 <style>
 /* Tokens, base e componentes (botão, cartão, campo, chip, selo, aviso) vêm de
    nilma-ui.css, gerado do entregas.html. Aqui fica só o que é do LCDPR:
@@ -326,10 +326,11 @@ table.t-cfg tbody tr.vazio:hover { background: none; }
 <!-- Casca comum (barra de cima, menu ☰ e menu da conta): nilma-shell.js.
      As telas do LCDPR são as abas (fixas à esquerda no PC, sublinhadas no
      celular); renderNav() monta os botões dentro de #navlist. -->
-<script src="nilma-shell.js?v=340"></script>
+<script src="nilma-dialogo.js?v=341"></script>
+<script src="nilma-shell.js?v=341"></script>
 <script src="nilma-extras.js"></script>
 <script>
-  NilmaShell.montar({ modulo: 'Fiscal', moduloId: 'fiscal', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false, versao: '2.340 · 24/09/2026' });
+  NilmaShell.montar({ modulo: 'Fiscal', moduloId: 'fiscal', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false, versao: '2.341 · 24/09/2026' });
   // o LCDPR é um submódulo do Fiscal: "Nilma / Fiscal / Importador LCDPR"
   NilmaShell.definirSubmodulo('fiscal/lcdpr', 'Importador LCDPR');
   document.getElementById('topo').hidden = true;
@@ -965,7 +966,7 @@ async function handleFiles(fileList){
     try{
       // Mesmo arquivo de novo empilhava tudo em dobro, sem aviso nenhum.
       const jaVeio = (state.importacoes||[]).find(i=>i.arquivo===file.name && i.bytes===file.size);
-      if(jaVeio && !confirm('O arquivo "'+file.name+'" já foi importado em '+new Date(jaVeio.em).toLocaleString('pt-BR')+'.\n\nImportar de novo vai duplicar os lançamentos. Continuar?')){ skippedFiles++; continue; }
+      if(jaVeio && !(await NilmaDialogo.confirmar({titulo:'Importar este arquivo de novo?', texto:'"'+file.name+'" já foi importado em '+new Date(jaVeio.em).toLocaleString('pt-BR')+'. Importar de novo duplica os lançamentos.', acao:'Importar de novo', perigo:true}))){ skippedFiles++; continue; }
       const buf = await file.arrayBuffer();
       const wb = XLSX.read(buf, {type:'array', cellDates:true});
       const ws = wb.Sheets[wb.SheetNames[0]];
@@ -1009,10 +1010,10 @@ function registrarImportacao(file, quantos, erro, ids){
   state.importacoes = state.importacoes.slice(0, 40);
 }
 
-function desfazerImportacao(id){
+async function desfazerImportacao(id){
   const imp = (state.importacoes||[]).find(i=>String(i.id)===String(id));
   if(!imp || !imp.ids.length) return;
-  if(!confirm('Remover os '+imp.ids.length+' lançamento(s) que vieram de "'+imp.arquivo+'"?')) return;
+  if(!(await NilmaDialogo.confirmar({titulo:'Desfazer esta importação?', texto:'Saem os '+imp.ids.length+' lançamento(s) que vieram de "'+imp.arquivo+'".', acao:'Desfazer', perigo:true}))) return;
   const fora = new Set(imp.ids);
   state.lancamentos = state.lancamentos.filter(r=>!fora.has(r.id));
   imp.desfeita = new Date().toISOString();
@@ -1094,11 +1095,11 @@ function importCTe(rows){
 // Sem conta devedora e com "⚠ Sem regra correspondente" no histórico, a
 // linha ia pro arquivo entregue ao cliente do mesmo jeito. Agora é preciso
 // dizer de novo que quer, sabendo quantas linhas vão assim.
-function exportPlanilha(){
+async function exportPlanilha(){
   const pendentes = state.lancamentos.filter(r=>r.revisar);
   if(pendentes.length){
     const soma = pendentes.reduce((s,r)=>s+(Number(r.valor)||0),0);
-    const ok = confirm(pendentes.length + ' lançamento(s), somando R$ ' + fmtMoney(soma) + ', ainda não foram classificados.\n\nEles vão para a planilha sem conta e com o aviso de classificar manualmente no histórico.\n\nBaixar assim mesmo?');
+    const ok = await NilmaDialogo.confirmar({titulo:'Baixar com lançamentos sem classificar?', acao:'Baixar assim mesmo', texto: pendentes.length + ' lançamento(s), somando R$ ' + fmtMoney(soma) + ', ainda não foram classificados.\n\nEles vão para a planilha sem conta e com o aviso de classificar manualmente no histórico.'});
     if(!ok) return;
   }
   const header = ['Lancamento Automatico','Data','Conta Devedora','Conta Credora','Codigo Historico','Historico','Valor','Documento','Imovel','Tipo de Documento','Tipo de Lancamento','CPF/CNPJ','Produto'];
@@ -1374,17 +1375,19 @@ function regraQuePega(ncm){
 // Depois de classificar uma linha à mão, oferece transformar aquilo em regra.
 // O prefixo sugerido é o capítulo de 4 dígitos: pega a família do produto
 // sem casar com o país inteiro.
-function talvezVirarRegra(row){
+async function talvezVirarRegra(row){
   const ncm = ncmDaLinha(row);
   if(!ncm || !row.contaDeved) return;
   if(regraQuePega(ncm)) return;
   const prefixo = ncm.slice(0,4);
   const quantas = state.lancamentos.filter(r=>ncmDaLinha(r).startsWith(prefixo)).length;
-  const ok = confirm('Classificar sempre o NCM ' + prefixo + '… na conta ' + row.contaDeved + '?\n\n' +
+  const ok = await NilmaDialogo.confirmar({titulo:'Classificar sempre o NCM ' + prefixo + '… na conta ' + row.contaDeved + '?', acao:'Criar regra', texto:
     'Vale para ' + quantas + ' lançamento(s) desta importação e para as próximas, sem passar por REVISAR.\n' +
-    'Dá para mudar depois em Classificação › Regras de NCM.');
+    'Dá para mudar depois em Classificação › Regras de NCM.'});
   if(!ok) return;
   state.ncmRules.push({prefixo:prefixo, conta:row.contaDeved, codHist:row.codHist||'', historico:row.historico||''});
+  // quem chamou já salvou antes da resposta do diálogo: salva a regra agora
+  save(); render();
   toast('Regra criada para o NCM ' + prefixo + '.');
 }
 
@@ -1762,8 +1765,8 @@ function wireScreen(){
       }catch(err){ toast('Backup inválido: '+err.message); }
       e.target.value='';
     });
-    document.getElementById('btnResetData').addEventListener('click', ()=>{
-      if(confirm('Remover todos os lançamentos importados? As regras/cadastros não são afetadas.')){
+    document.getElementById('btnResetData').addEventListener('click', async ()=>{
+      if(await NilmaDialogo.confirmar({titulo:'Remover todos os lançamentos importados?', texto:'As regras e os cadastros continuam.', acao:'Remover tudo', perigo:true})){
         state.lancamentos = []; save(); render();
       }
     });
