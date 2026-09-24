@@ -31,6 +31,14 @@ const { getDb } = require('./firestore-client');
 const estadoRobo = require('./estado-robo.js');
 
 const PASTA_DESTINO = 'G:\\Meu Drive\\Claudio Secretario';
+// No PC a pasta do Drive é uma unidade montada (G:) e gravar nela é gravar em
+// disco. Na nuvem não existe unidade nenhuma, e o MESMO destino é alcançado
+// pela API do Drive — ver drive-arquivos.js. A escolha é dita em voz alta por
+// variável de ambiente, e não adivinhada: se o G: cair por um minuto aqui no
+// escritório, o certo é a gravação falhar e reclamar, e não mudar de caminho
+// calada e espalhar os documentos em dois lugares diferentes.
+const USAR_DRIVE_API = process.env.USAR_DRIVE_API === '1';
+const driveArquivos = USAR_DRIVE_API ? require('./drive-arquivos.js') : null;
 const MAX_MENSAGENS = 500;          // teto por execução, pra uma janela grande não travar
 const MAX_NAO_RECONHECIDOS = 100;
 const MAX_EXECUCOES = 30;
@@ -595,14 +603,24 @@ async function main() {
         let salvos = 0;
         for (const a of comBytes) {
           const compArquivo = competenciaDoTexto(a.filename, msg.data.internalDate) || competencia;
-          const pasta = path.join(PASTA_DESTINO, compArquivo, sanitizar(cliente.nome));
-          const jaEsta = copiaJaNaOrigem(cliente.nome, a.filename, a.buffer);
-          if (jaEsta) { pastas.add(jaEsta); salvos++; console.log('  já estava em', jaEsta + ':', a.filename); continue; }
-          pastas.add(relativa(pasta));
-          if (SIMULAR) { salvos++; continue; }
           try {
-            fs.mkdirSync(pasta, { recursive: true });
-            salvarArquivo(pasta, a.filename, a.buffer);
+            if (USAR_DRIVE_API) {
+              const drive = driveArquivos.getDrive();
+              const jaEsta = await driveArquivos.copiaJaNaOrigem(drive, cliente.nome, a.filename, a.buffer);
+              if (jaEsta) { pastas.add(jaEsta); salvos++; console.log('  já estava em', jaEsta + ':', a.filename); continue; }
+              pastas.add(compArquivo + '/' + sanitizar(cliente.nome));
+              if (SIMULAR) { salvos++; continue; }
+              const pastaId = await driveArquivos.pastaDoCliente(drive, compArquivo, cliente.nome);
+              await driveArquivos.salvarArquivo(drive, pastaId, a.filename, a.buffer);
+            } else {
+              const pasta = path.join(PASTA_DESTINO, compArquivo, sanitizar(cliente.nome));
+              const jaEsta = copiaJaNaOrigem(cliente.nome, a.filename, a.buffer);
+              if (jaEsta) { pastas.add(jaEsta); salvos++; console.log('  já estava em', jaEsta + ':', a.filename); continue; }
+              pastas.add(relativa(pasta));
+              if (SIMULAR) { salvos++; continue; }
+              fs.mkdirSync(pasta, { recursive: true });
+              salvarArquivo(pasta, a.filename, a.buffer);
+            }
             salvos++;
           } catch (err) {
             cont.erros++;

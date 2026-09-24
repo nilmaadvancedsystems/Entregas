@@ -39,12 +39,18 @@ function segredo(variavel, caminho, oQueE) {
   }
 }
 
-function getGmail() {
+// A mesma conta autoriza o Gmail e o Drive, num token só. Quem precisa de
+// outro servico do Google pede o cliente aqui em vez de remontar a autenticacao.
+function getAuth() {
   const creds = segredo('GMAIL_OAUTH_CLIENT', CLIENT_PATH, 'o cliente OAuth do Gmail').installed;
   const oAuth2Client = new google.auth.OAuth2(creds.client_id, creds.client_secret);
   const token = segredo('GMAIL_TOKEN', TOKEN_PATH, 'o token do Gmail');
   oAuth2Client.setCredentials(token);
-  return google.gmail({ version: 'v1', auth: oAuth2Client });
+  return oAuth2Client;
+}
+
+function getGmail() {
+  return google.gmail({ version: 'v1', auth: getAuth() });
 }
 
 // Só pra log e diagnóstico: diz de onde vieram, nunca o que são.
@@ -55,4 +61,4 @@ function origemDasCredenciais() {
   };
 }
 
-module.exports = { getGmail, origemDasCredenciais };
+module.exports = { getAuth, getGmail, origemDasCredenciais };
