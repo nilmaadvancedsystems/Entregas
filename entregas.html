@@ -2619,6 +2619,11 @@
   /* botões: 14px, peso 500, fundo cinza com borda; 32px no PC (no celular
      continua o alvo de 44px — é dedo, não mouse) */
   .btn { font-weight: 500; font-size: 14px; line-height: 20px; padding: 5px 16px; gap: 8px; min-height: var(--alvo); box-shadow: var(--btn-sombra); }
+  /* botão sem variante = o botão cinza do N1 (antes ficava com o fundo do
+     navegador, quase branco no escuro). :where() deixa o peso de uma classe
+     só, pra quem define .btn na própria página continuar mandando nela. */
+  .btn:where(:not(.btn-primary, .btn-ghost, .btn-success, .btn-icone)) { background: var(--btn-bg); border-color: var(--btn-border); color: var(--ink); }
+  .btn:where(:not(.btn-primary, .btn-ghost, .btn-success, .btn-icone)):where(:hover:not(:disabled)) { background: var(--btn-hover); }
   .btn-primary { background: var(--btn-primary); color: var(--btn-primary-ink); border-color: #1D1C1F26; }
   .btn-primary:hover:not(:disabled) { background: color-mix(in srgb, var(--btn-primary) 86%, #000); }
   .btn-secondary { background: var(--btn-bg); border-color: var(--btn-border); }
@@ -2658,6 +2663,41 @@
 
   /* números sempre alinhados (N1: tabular-nums) */
   .num, .dash-num, .historico-mes-total, .cp-kpi b, .contagem, .tab-badge, .cp-cont { font-variant-numeric: tabular-nums; }
+
+  /* janela (etapa 6): o Dialog do N1 — título 14px numa faixa com fio
+     embaixo, cantos de 12px no PC. Diferenças de propósito: no celular
+     continua a folha que sobe de baixo, a largura é a do app (540px, as
+     janelas daqui têm formulário) e o × fica, porque muitas não têm
+     "Cancelar". A página do cliente (.modal-pagina) tem o desenho dela. */
+  .modal-overlay:not(.modal-pagina) .modal-head {
+    margin: calc(-1 * var(--esp-4)) calc(-1 * var(--esp-4)) var(--esp-4);
+    padding: 8px 12px 8px 16px; min-height: 48px; align-items: center;
+    border-bottom: 1px solid var(--border); background: var(--surface);
+    position: sticky; top: calc(-1 * var(--esp-4)); z-index: 1;
+  }
+  .modal-overlay:not(.modal-pagina) .modal-head h2 { font-size: 14px; font-weight: 600; line-height: 20px; margin: 0; }
+  .modal-overlay:not(.modal-pagina) .modal-head-sub { font-size: 12px; color: var(--ink-soft); }
+  .modal-close { background: var(--btn-bg); border-color: var(--btn-border); color: var(--ink-soft); }
+  .modal-close:hover { background: var(--btn-hover); border-color: var(--btn-border); }
+  @media (min-width: 640px) {
+    .modal-overlay:not(.modal-pagina) .modal { border-radius: 12px; }
+    .modal-close { width: 32px; height: 32px; }
+  }
+
+  /* aviso flutuante (etapa 6): o Toast do N1 — fundo da superfície, borda
+     e uma faixa de 4px à esquerda na cor do significado (marca = feito,
+     vermelho = erro). No PC fica no canto de baixo à esquerda, como no N1;
+     no celular continua centrado, longe do polegar. */
+  .toast { /* (linha diferente do .toast de cima: aquele é âncora do monta-folha) */
+    background: var(--surface); color: var(--ink); border: 1px solid var(--border);
+    border-left: 4px solid var(--accent); border-radius: 6px; font-size: 14px; line-height: 20px;
+    padding: 12px 16px; box-shadow: var(--shadow);
+  }
+  .toast.error { background: var(--surface); color: var(--ink); border-left-color: var(--danger); }
+  @media (min-width: 900px) {
+    .toast { left: 16px; max-width: 420px; transform: translateY(10px); }
+    .toast.show { transform: none; }
+  }
   /* ---------- fim da camada design-n1 (componentes) ---------- */
 
   /* ==========================================================================
@@ -2772,7 +2812,7 @@
 <!-- Casca no estilo do GitHub: barra de cima (☰ · Nilma / módulo · consulta
      rápida · anotações · avatar) e as duas gavetas. Nasce aqui, antes do
      resto, porque os scripts do app procuram #notasBtn, #topo etc. -->
-<script src="nilma-shell.js?v=338"></script>
+<script src="nilma-shell.js?v=339"></script>
 <script>NilmaShell.montar({ modulo: 'Entregas', moduloId: 'entregas', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle' });</script>
 <!-- Abas do módulo, sublinhadas, logo abaixo da barra. -->
 <nav class="tabs" id="tabsNav" role="tablist">
@@ -13160,6 +13200,12 @@
         box.setAttribute('aria-modal', 'true');
         box.tabIndex = -1;
       }
+      // o × só tem ícone: sem nome, o leitor de tela lê "botão" e o mouse
+      // não mostra dica (regra do N1: botão só de ícone tem title e aria-label)
+      [].forEach.call(box.querySelectorAll('.modal-close'), function (b) {
+        if (!b.getAttribute('aria-label')) b.setAttribute('aria-label', 'Fechar');
+        if (!b.title) b.title = 'Fechar';
+      });
       if (!focoAntesDoModal) {
         var atual = document.activeElement;
         var foraDoModal = atual && atual !== document.body && !$('modalRoot').contains(atual);
@@ -16612,7 +16658,7 @@
   NilmaShell.ao('conta', function () { abrirConfiguracoes('conta'); });
   NilmaShell.ao('instalar', function () { instalarApp_(); });
   NilmaShell.ao('sair', function () { auth.signOut(); });
-  NilmaShell.versao('2.338 · 24/09/2026');
+  NilmaShell.versao('2.339 · 24/09/2026');
 
   auth.onAuthStateChanged(function (user) {
     if (user) {

@@ -1148,6 +1148,109 @@ body:has(.gaveta:not([hidden])) { overflow: hidden; }
   transition: border-color var(--dur) var(--ease), color var(--dur) var(--ease);
 }
 .cq-exemplo:hover { border-color: var(--border-forte); color: var(--ink); }
+
+/* ---------------------------------------------------------------
+ design-n1: componentes (botões, selos, seletor, campos, janela, aviso)
+ (entregas.html, linhas 2603-2700)
+ --------------------------------------------------------------- */
+:root { /* botões do N1 (esta linha não pode ser igual à do :root do topo: é âncora do monta-folha) */
+  --btn-bg: var(--surface-2);
+  --btn-hover: var(--surface-3);
+  --btn-border: var(--border);
+  --btn-primary: var(--accent);
+  --btn-primary-ink: var(--accent-ink);
+  --btn-sombra: 0 1px 0 #1D1C1F0A;
+}
+/* No escuro, com a paleta padrão, o botão principal do N1 é um vermelho mais
+   fechado com texto branco (o vermelho claro fica pro texto e pro ativo).
+   Com outra paleta escolhida, vale a cor dela, como sempre. */
+:root[data-theme="dark"]:not([data-paleta]), :root[data-theme="dark"][data-paleta="padrao"] { --btn-primary: #C62B32; --btn-primary-ink: #FFFFFF; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):not([data-paleta]), :root:not([data-theme="light"])[data-paleta="padrao"] { --btn-primary: #C62B32; --btn-primary-ink: #FFFFFF; }
+}
+
+/* botões: 14px, peso 500, fundo cinza com borda; 32px no PC (no celular
+   continua o alvo de 44px — é dedo, não mouse) */
+.btn { font-weight: 500; font-size: 14px; line-height: 20px; padding: 5px 16px; gap: 8px; min-height: var(--alvo); box-shadow: var(--btn-sombra); }
+/* botão sem variante = o botão cinza do N1 (antes ficava com o fundo do
+   navegador, quase branco no escuro). :where() deixa o peso de uma classe
+   só, pra quem define .btn na própria página continuar mandando nela. */
+.btn:where(:not(.btn-primary, .btn-ghost, .btn-success, .btn-icone)) { background: var(--btn-bg); border-color: var(--btn-border); color: var(--ink); }
+.btn:where(:not(.btn-primary, .btn-ghost, .btn-success, .btn-icone)):where(:hover:not(:disabled)) { background: var(--btn-hover); }
+.btn-primary { background: var(--btn-primary); color: var(--btn-primary-ink); border-color: #1D1C1F26; }
+.btn-primary:hover:not(:disabled) { background: color-mix(in srgb, var(--btn-primary) 86%, #000); }
+.btn-secondary { background: var(--btn-bg); border-color: var(--btn-border); }
+.btn-secondary:hover:not(:disabled) { background: var(--btn-hover); border-color: var(--btn-border); }
+.btn-perigo { color: var(--danger); }
+.btn-perigo:hover { background: var(--danger); border-color: var(--danger); color: #FFFFFF; }
+.btn-chip { background: var(--btn-bg); border-color: var(--btn-border); font-weight: 500; gap: 6px; box-shadow: var(--btn-sombra); }
+.btn-chip:hover { background: var(--btn-hover); border-color: var(--btn-border); }
+.btn-chip.accent { color: var(--accent-forte); }
+.btn-chip.accent:hover { background: var(--accent-soft); border-color: var(--accent); }
+.btn-chip.danger { color: var(--danger); }
+@media (min-width: 900px) {
+  .btn, .btn-chip { min-height: 32px; }
+  .btn-chip.mini, .btn-sm { min-height: 28px; padding: 3px 12px; font-size: 12px; }
+}
+
+/* selos: o badge do N1 — contorno colorido, sem fundo, em pílula.
+   Cor pelo significado: verde ok, laranja atenção, vermelho falhou,
+   marca = em andamento, cinza = apoio. */
+.status-pill { background: none !important; border: 1px solid currentColor; border-radius: 2em; font-weight: 500; padding: 0 7px; line-height: 18px; }
+.status-pill.entregue { color: var(--success); }
+.status-pill.pendente { color: var(--laranja); }
+.status-pill.rota { color: var(--accent-forte); }
+.status-pill.falha { color: var(--danger); }
+.status-pill.neutro { color: var(--ink-soft); border-color: var(--border); }
+
+/* seletor interno: o SegmentedControl do N1 (faixa cinza, ativo em branco
+   com borda). Diferença de propósito: no app ele ocupa a largura toda
+   (pedido do escritório), no N1 é do tamanho do conteúdo. */
+.mode-toggle { background: var(--surface-3); border: 1px solid var(--border); border-radius: 6px; padding: 0; gap: 0; }
+.mode-btn { margin: -1px; border: 1px solid transparent; border-radius: 6px; padding: 4px 16px; min-height: 30px; color: var(--ink); font-weight: 400; }
+.mode-btn:hover:not(.active) { background: color-mix(in srgb, var(--border-forte) 16%, transparent); }
+.mode-btn.active { background: var(--surface); border-color: var(--border-forte); color: var(--ink); font-weight: 600; box-shadow: none; }
+
+/* campos: borda da marca ao focar, como no N1 */
+.input:focus, input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); outline: none; }
+
+/* números sempre alinhados (N1: tabular-nums) */
+.num, .dash-num, .historico-mes-total, .cp-kpi b, .contagem, .tab-badge, .cp-cont { font-variant-numeric: tabular-nums; }
+
+/* janela (etapa 6): o Dialog do N1 — título 14px numa faixa com fio
+   embaixo, cantos de 12px no PC. Diferenças de propósito: no celular
+   continua a folha que sobe de baixo, a largura é a do app (540px, as
+   janelas daqui têm formulário) e o × fica, porque muitas não têm
+   "Cancelar". A página do cliente (.modal-pagina) tem o desenho dela. */
+.modal-overlay:not(.modal-pagina) .modal-head {
+  margin: calc(-1 * var(--esp-4)) calc(-1 * var(--esp-4)) var(--esp-4);
+  padding: 8px 12px 8px 16px; min-height: 48px; align-items: center;
+  border-bottom: 1px solid var(--border); background: var(--surface);
+  position: sticky; top: calc(-1 * var(--esp-4)); z-index: 1;
+}
+.modal-overlay:not(.modal-pagina) .modal-head h2 { font-size: 14px; font-weight: 600; line-height: 20px; margin: 0; }
+.modal-overlay:not(.modal-pagina) .modal-head-sub { font-size: 12px; color: var(--ink-soft); }
+.modal-close { background: var(--btn-bg); border-color: var(--btn-border); color: var(--ink-soft); }
+.modal-close:hover { background: var(--btn-hover); border-color: var(--btn-border); }
+@media (min-width: 640px) {
+  .modal-overlay:not(.modal-pagina) .modal { border-radius: 12px; }
+  .modal-close { width: 32px; height: 32px; }
+}
+
+/* aviso flutuante (etapa 6): o Toast do N1 — fundo da superfície, borda
+   e uma faixa de 4px à esquerda na cor do significado (marca = feito,
+   vermelho = erro). No PC fica no canto de baixo à esquerda, como no N1;
+   no celular continua centrado, longe do polegar. */
+.toast { /* (linha diferente do .toast de cima: aquele é âncora do monta-folha) */
+  background: var(--surface); color: var(--ink); border: 1px solid var(--border);
+  border-left: 4px solid var(--accent); border-radius: 6px; font-size: 14px; line-height: 20px;
+  padding: 12px 16px; box-shadow: var(--shadow);
+}
+.toast.error { background: var(--surface); color: var(--ink); border-left-color: var(--danger); }
+@media (min-width: 900px) {
+  .toast { left: 16px; max-width: 420px; transform: translateY(10px); }
+  .toast.show { transform: none; }
+}
 /* ---------------------------------------------------------------
    Só destas telas: janela de Aparência (nilma-ui.js) e a moldura
    (menu lateral, cabeçalho de página). O entregas.html tem a
