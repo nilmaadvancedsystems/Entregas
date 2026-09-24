@@ -6845,11 +6845,24 @@
   // do escritório (scripts/arquivador.js), porque a rotina usa o Claude
   // instalado lá e o G:. O que aparece aqui sai do manifesto da própria rotina.
   // ==========================================================================
-  var arq = { ligado: false, estado: {}, pedidos: [], execucoes: [], abertas: {}, detalhes: {}, unsubs: [] };
+  var arq = { ligado: false, estado: {}, pedidos: [], execucoes: [], abertas: {}, detalhes: {}, textosAbertos: {}, unsubs: [] };
 
   function pararArquivo() {
     arq.unsubs.forEach(function (u) { try { u(); } catch (e) {} });
-    arq = { ligado: false, estado: {}, pedidos: [], execucoes: [], abertas: {}, detalhes: {}, unsubs: [] };
+    arq = { ligado: false, estado: {}, pedidos: [], execucoes: [], abertas: {}, detalhes: {}, textosAbertos: {}, unsubs: [] };
+  }
+
+  // Um texto longo recolhido (mensagem do Claude, relatório). A tela redesenha
+  // a cada 30 s e a cada mudança no banco; sem lembrar quem estava aberto, o
+  // texto fechava sozinho no meio da leitura.
+  function textoRecolhido(chave, titulo, texto) {
+    var det = el('details', 'arq-relatorio');
+    det.open = !!arq.textosAbertos[chave];
+    det.appendChild(el('summary', null, titulo));
+    det.appendChild(el('pre', null, texto));
+    det.addEventListener('toggle', function () { arq.textosAbertos[chave] = det.open; });
+    det.addEventListener('click', function (ev) { ev.stopPropagation(); });
+    return det;
   }
 
   function abrirArquivo() {
@@ -6926,6 +6939,9 @@
     }
     if (p.status === 'erro') detalhe = p.erro || '';
     corpo.appendChild(el('div', 'texto', detalhe));
+    if ((p.status === 'concluido' || p.status === 'erro') && p.resposta) {
+      corpo.appendChild(textoRecolhido('pedido:' + p.id, 'Mensagem final do Claude', p.resposta));
+    }
     box.appendChild(corpo);
     if (p.status === 'pendente' || p.status === 'aguardando') {
       var acoes = el('div', 'acoes');
@@ -7069,13 +7085,8 @@
       ni.appendChild(ul2);
       td.appendChild(ni);
     }
-    if (d.relatorio) {
-      var det = el('details', 'arq-relatorio');
-      det.appendChild(el('summary', null, 'Relatório completo da rotina'));
-      det.appendChild(el('pre', null, d.relatorio));
-      det.addEventListener('click', function (ev) { ev.stopPropagation(); });
-      td.appendChild(det);
-    }
+    if (d.respostaClaude) td.appendChild(textoRecolhido('msg:' + x.id, 'Mensagem final do Claude', d.respostaClaude));
+    if (d.relatorio) td.appendChild(textoRecolhido('rel:' + x.id, 'Relatório completo da rotina', d.relatorio));
   }
 
   auth.onAuthStateChanged(function (user) {

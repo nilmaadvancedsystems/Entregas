@@ -137,7 +137,9 @@ async function publicar(ligarPedido) {
       if (ligarPedido && ligarPedido.id === id) resumo.pedidoId = ligarPedido.pedidoId;
       const ref = db.collection('arquivamentos').doc(id);
       await ref.set(resumo, { merge: true });
-      await ref.collection('detalhe').doc('tudo').set(detalhe);
+      // merge: a mensagem final do Claude (respostaClaude) é gravada depois,
+      // pelo pedido, e uma republicação não pode apagá-la.
+      await ref.collection('detalhe').doc('tudo').set(detalhe, { merge: true });
       publicados[id] = assinatura;
       gravarPublicados(publicados);
       novos.push(id);
@@ -230,6 +232,13 @@ async function atenderFila() {
       await publicar(execucao ? { id: execucao, pedidoId: doc.id } : null);
 
       const resposta = r.texto.length > 30000 ? r.texto.slice(-30000) : r.texto;
+      // A mensagem final também fica junto da execução: a lista de pedidos da
+      // tela só mostra os últimos, e a execução fica pra sempre.
+      if (execucao && resposta) {
+        await db.collection('arquivamentos').doc(execucao).collection('detalhe').doc('tudo')
+          .set({ respostaClaude: resposta, pedidoId: doc.id }, { merge: true })
+          .catch(err => log('não consegui guardar a mensagem do Claude na execução:', err.message));
+      }
       if (r.ok) {
         await doc.ref.update({ status: 'concluido', concluidoEm: agora(), execucao, resposta });
         log('pedido', doc.id, 'concluído', execucao ? '(' + execucao + ')' : '(sem relatório novo)');
