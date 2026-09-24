@@ -563,6 +563,37 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // ---------- arquivamento (rotina "Claudio Secretario") ----------
+    // O Pendências pede ("Arquivar agora") e o arquivador deste PC executa
+    // (scripts/arquivador.js). Quem pede só cria o pedido, e só no estado
+    // inicial; quem muda status, liga execução e grava resposta é o arquivador,
+    // pelo Admin SDK. A única mudança permitida pela tela é cancelar um pedido
+    // que ainda não começou.
+    match /solicitacoesArquivo/{id} {
+      allow read: if ehAdmin() || temPapel('contabil');
+      allow create: if (ehAdmin() || temPapel('contabil'))
+        && request.resource.data.status == 'pendente'
+        && request.resource.data.modo in ['PRODUCAO', 'SIMULACAO']
+        && request.resource.data.criadoPorUid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['status', 'modo', 'criadoEm', 'criadoPor', 'criadoPorUid']);
+      allow update: if (ehAdmin() || temPapel('contabil'))
+        && resource.data.status in ['pendente', 'aguardando']
+        && request.resource.data.status == 'cancelado'
+        && so(['status', 'canceladoEm', 'canceladoPor']);
+      allow delete: if false;
+    }
+
+    // O que foi arquivado: só leitura. Quem escreve é o arquivador, a partir
+    // do manifesto da própria rotina.
+    match /arquivamentos/{id} {
+      allow read: if ehAdmin() || temPapel('contabil');
+      allow write: if false;
+      match /detalhe/{doc} {
+        allow read: if ehAdmin() || temPapel('contabil');
+        allow write: if false;
+      }
+    }
+
     // ---------- reforço de IA da Consulta rápida ----------
     // A Consulta rápida responde sozinha no navegador o que ela conhece. O que
     // ela não entende vai pra cá, e quem responde é o vigia no PC do

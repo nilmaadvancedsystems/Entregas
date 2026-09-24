@@ -29,3 +29,5 @@ scripts/vigia-partidas.json
 scripts/*.tmp
 scripts/avisos-vencimento-feitos.json
 scripts/gmail-tentativas.json
+scripts/arquivador.lock
+scripts/arquivador-publicados.json

@@ -669,6 +669,29 @@
   .lista-anexos .vazio-linha { display: block; color: var(--ink-faint); font-size: var(--t-sm); }
   @media (max-width: 560px) { .lista-anexos li { grid-template-columns: 1fr; } .anexo-acao { justify-content: flex-start; } }
   .robo-acoes { display: flex; align-items: center; gap: var(--esp-3); flex-wrap: wrap; }
+  /* ---------- Arquivo ---------- */
+  #viewArquivo .pagina-topo { margin-bottom: var(--esp-4); }
+  .arq-busca { padding: var(--esp-2) 0; }
+  .arq-busca input { width: 100%; max-width: 360px; }
+  .arq-pedido { display: flex; gap: var(--esp-2); align-items: flex-start; padding: var(--esp-3); margin-bottom: var(--esp-4); border: 1px solid var(--border); border-radius: var(--r-md, 8px); background: var(--surface-2, transparent); font-size: var(--t-sm); }
+  .arq-pedido i { font-size: 18px; margin-top: 1px; }
+  .arq-pedido.erro { border-color: var(--danger); }
+  .arq-pedido .titulo { font-weight: 600; color: var(--ink); }
+  .arq-pedido .texto { color: var(--ink-soft); margin-top: 2px; }
+  .arq-pedido .acoes { margin-left: auto; }
+  .arq-tabela tr.arq-linha { cursor: pointer; }
+  .arq-tabela tr.arq-linha:hover td { background: var(--surface-2, transparent); }
+  .arq-tabela .arq-seta { transition: transform .15s; display: inline-block; }
+  .arq-tabela tr.aberta .arq-seta { transform: rotate(90deg); }
+  .arq-detalhe td { background: var(--surface-2, transparent); padding: var(--esp-3); }
+  .arq-cliente { margin: 0 0 var(--esp-3); }
+  .arq-cliente h3 { font-size: var(--t-base); margin: 0 0 4px; }
+  .arq-cliente ul, .arq-naoid ul { margin: 0; padding-left: 18px; font-size: var(--t-sm); }
+  .arq-cliente li, .arq-naoid li { margin: 2px 0; overflow-wrap: anywhere; }
+  .arq-cliente .para { color: var(--ink-faint); }
+  .arq-naoid h3 { font-size: var(--t-base); margin: var(--esp-3) 0 4px; color: var(--danger-forte); }
+  .arq-relatorio summary { cursor: pointer; font-size: var(--t-sm); margin-top: var(--esp-3); color: var(--ink-soft); }
+  .arq-relatorio pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; max-height: 420px; overflow: auto; background: var(--surface, transparent); border: 1px solid var(--border); padding: var(--esp-2); border-radius: 6px; }
   .robo-vigia { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 6px; font-size: var(--t-sm); color: var(--ink-soft); }
   .robo-vigia .ponto { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-faint); flex: none; }
   .robo-vigia.ligado .ponto { background: var(--success); }
@@ -1361,6 +1384,7 @@
   <button type="button" class="tab menu-item" id="menuClientes" data-pagina="clientes" data-filtro="todos"><span class="tab-ico"><i class="ph ph-users" aria-hidden="true"></i></span><span class="tab-label rot">Clientes</span><span class="tab-badge menu-cont" id="menuNumTodos" hidden></span></button>
   <button type="button" class="tab menu-item" id="menuCobrancas" data-pagina="cobrancas"><span class="tab-ico"><i class="ph ph-paper-plane-tilt" aria-hidden="true"></i></span><span class="tab-label rot">Cobranças</span><span class="tab-badge menu-cont" id="menuNumCobrancas" hidden></span></button>
   <button type="button" class="tab menu-item" id="menuRobo" data-pagina="robo"><span class="tab-ico"><i class="ph ph-robot" aria-hidden="true"></i></span><span class="tab-label rot">Robô do Gmail</span><span class="tab-badge menu-cont" id="menuNumRobo"></span></button>
+  <button type="button" class="tab menu-item" id="menuArquivo" data-pagina="arquivo" hidden><span class="tab-ico"><i class="ph ph-archive" aria-hidden="true"></i></span><span class="tab-label rot">Arquivo</span><span class="tab-badge menu-cont" id="menuNumArquivo"></span></button>
   <button type="button" class="tab menu-item" id="menuAnual" data-pagina="anual"><span class="tab-ico"><i class="ph ph-calendar-blank" aria-hidden="true"></i></span><span class="tab-label rot">Visão anual</span></button>
   <button type="button" class="tab menu-item" id="menuConfig" data-pagina="config"><span class="tab-ico"><i class="ph ph-sliders-horizontal" aria-hidden="true"></i></span><span class="tab-label rot">Configurações</span></button>
 </nav>
@@ -1594,12 +1618,35 @@
       </section>
     </div>
 
+    <!-- ================= PÁGINA: ARQUIVO ================= -->
+    <!-- A rotina "Claudio Secretario" (organizar a pasta e mandar cada arquivo
+         pra pasta do cliente). Quem executa é o arquivador no PC do escritório
+         (scripts/arquivador.js); esta página pede e mostra o que foi feito. -->
+    <div id="viewArquivo" hidden>
+      <div class="pagina-topo">
+        <div>
+          <h1>Arquivo</h1>
+          <div class="robo-vigia" id="arqVigia" aria-live="polite"></div>
+        </div>
+        <div class="robo-acoes">
+          <button type="button" class="btn btn-secondary" id="btnArquivar"><i class="ph ph-archive" aria-hidden="true"></i> Arquivar agora</button>
+        </div>
+      </div>
+      <div id="arqPedido" aria-live="polite"></div>
+      <section class="caixa-p">
+        <div class="caixa-cab"><h2><i class="ph ph-clock-counter-clockwise" aria-hidden="true"></i> Execuções</h2><span class="cont" id="arqN"></span></div>
+        <div class="arq-busca"><input type="search" id="arqBusca" placeholder="Filtrar por cliente ou código" aria-label="Filtrar execuções por cliente ou código"></div>
+        <div class="tab-rolagem"><table class="tab-simples arq-tabela" id="tabArquivo"></table></div>
+        <div id="arquivoVazio" class="vazio" hidden></div>
+      </section>
+    </div>
+
     <!-- ================= PÁGINA: ROBÔ DO GMAIL ================= -->
     <div id="viewRobo" hidden>
       <div class="pagina-topo">
         <div>
           <h1>Robô do Gmail</h1>
-          <!-- Quem lê o Gmail é um programa no PC do escritório, não esta página:
+          <!-- Quem lê o Gmail é o robô na nuvem (scripts/vigia-robo.js), não esta página:
                ela só pede, e mostra se o robô está online pra atender. -->
           <div class="robo-vigia" id="roboVigia" aria-live="polite"></div>
         </div>
@@ -3879,6 +3926,8 @@
     if (paginaAtual === 'config' && !telaCliente && typeof renderConfig === 'function') renderConfig();
     $('viewHoje').hidden = telaCliente || paginaAtual !== 'hoje';
     $('viewAnual').hidden = telaCliente || paginaAtual !== 'anual';
+    $('viewArquivo').hidden = telaCliente || paginaAtual !== 'arquivo';
+    if (paginaAtual === 'arquivo' && !telaCliente) abrirArquivo();
     if (paginaAtual === 'anual' && !telaCliente) carregarAnual();
     $('viewCliente').hidden = !telaCliente;
     atualizarMenu();
@@ -6789,12 +6838,253 @@
       });
   });
 
+
+  // ==========================================================================
+  // Arquivo: a rotina "Claudio Secretario". Esta página pede ("Arquivar
+  // agora") e mostra o que foi arquivado; quem executa é o arquivador no PC
+  // do escritório (scripts/arquivador.js), porque a rotina usa o Claude
+  // instalado lá e o G:. O que aparece aqui sai do manifesto da própria rotina.
+  // ==========================================================================
+  var arq = { ligado: false, estado: {}, pedidos: [], execucoes: [], abertas: {}, detalhes: {}, unsubs: [] };
+
+  function pararArquivo() {
+    arq.unsubs.forEach(function (u) { try { u(); } catch (e) {} });
+    arq = { ligado: false, estado: {}, pedidos: [], execucoes: [], abertas: {}, detalhes: {}, unsubs: [] };
+  }
+
+  function abrirArquivo() {
+    if (arq.ligado) { renderArquivo(); return; }
+    arq.ligado = true;
+    arq.unsubs.push(db.collection('robo').doc('arquivador').onSnapshot(function (d) {
+      arq.estado = d.exists ? d.data() : {};
+      renderArquivoTopo();
+    }, function () {}));
+    arq.unsubs.push(db.collection('solicitacoesArquivo').orderBy('criadoEm', 'desc').limit(5).onSnapshot(function (snap) {
+      arq.pedidos = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+      renderArquivoTopo();
+    }, function (err) { $('arqPedido').textContent = 'Não consegui ler os pedidos: ' + err.message; }));
+    arq.unsubs.push(db.collection('arquivamentos').orderBy('em', 'desc').limit(60).onSnapshot(function (snap) {
+      arq.execucoes = snap.docs.map(function (d) { return d.data(); });
+      renderArquivoLista();
+    }, function (err) { $('arquivoVazio').hidden = false; $('arquivoVazio').textContent = 'Não consegui ler o arquivo: ' + err.message; }));
+    renderArquivo();
+  }
+  setInterval(function () { if (arq.ligado && paginaAtual === 'arquivo') renderArquivoTopo(); }, 30000);
+
+  function arquivadorLigado() {
+    var em = arq.estado.em ? new Date(arq.estado.em) : null;
+    return !!(em && !isNaN(em) && Date.now() - em < 3 * 60000);
+  }
+  var MODO_ROTULO = { PRODUCAO: 'Organização', SIMULACAO: 'Simulação', AUDITORIA: 'Auditoria', CARGA_INICIAL: 'Carga inicial' };
+
+  function renderArquivo() { renderArquivoTopo(); renderArquivoLista(); }
+
+  function renderArquivoTopo() {
+    var ligado = arquivadorLigado();
+    var caixa = $('arqVigia');
+    caixa.innerHTML = '';
+    caixa.className = 'robo-vigia ' + (ligado ? 'ligado' : 'desligado');
+    caixa.appendChild(el('span', 'ponto'));
+    var e = arq.estado;
+    caixa.appendChild(el('span', null, ligado
+      ? 'PC do arquivador ligado' + (e.situacao === 'rodando' ? ' · organizando agora' : e.situacao === 'aguardando' ? ' · esperando pra começar' : '')
+      : 'PC do arquivador desligado' + (e.em && new Date(e.em).getTime() > 0 ? ' desde ' + dataHora(e.desligadoEm || e.em) : '') + ': o pedido sai quando ele ligar'));
+
+    var aberto = arq.pedidos.filter(function (p) { return ['pendente', 'aguardando', 'processando'].indexOf(p.status) !== -1; })[0];
+    var b = $('btnArquivar');
+    b.disabled = !!aberto;
+    b.lastChild.textContent = aberto ? (aberto.status === 'processando' ? ' Organizando...' : ' Arquivamento pedido...') : ' Arquivar agora';
+    b.title = ligado ? 'Organiza agora a pasta Claudio Secretario, como a organização das 9h' : 'O PC do arquivador está desligado: o pedido fica guardado e sai quando ele ligar';
+
+    var alvo = $('arqPedido');
+    alvo.innerHTML = '';
+    var p = aberto || arq.pedidos[0];
+    if (!p) return;
+    var recente = p.status === 'concluido' || p.status === 'erro' || p.status === 'cancelado'
+      ? Date.now() - new Date(p.concluidoEm || p.erroEm || p.canceladoEm || p.criadoEm) < 24 * 36e5 : true;
+    if (!recente) return;
+    var box = el('div', 'arq-pedido' + (p.status === 'erro' ? ' erro' : ''));
+    var icone = { pendente: 'ph-hourglass', aguardando: 'ph-clock', processando: 'ph-spinner-gap', concluido: 'ph-check-circle', erro: 'ph-warning-circle', cancelado: 'ph-x-circle' }[p.status] || 'ph-info';
+    box.appendChild(ico(icone));
+    var corpo = el('div');
+    var titulo = {
+      pendente: 'Arquivamento pedido por ' + (p.criadoPor || 'alguém'),
+      aguardando: 'Arquivamento esperando pra começar',
+      processando: 'Organizando a pasta Claudio Secretario',
+      concluido: 'Arquivamento concluído',
+      erro: 'O arquivamento deu erro',
+      cancelado: 'Pedido cancelado'
+    }[p.status] || p.status;
+    corpo.appendChild(el('div', 'titulo', titulo));
+    var detalhe = '';
+    if (p.status === 'pendente') detalhe = ligado ? 'O arquivador vai começar em instantes.' : 'O PC do arquivador está desligado: começa quando ele ligar.';
+    if (p.status === 'aguardando') detalhe = (p.aguardandoMotivo || '') + '.';
+    if (p.status === 'processando') detalhe = 'Desde ' + dataHora(p.processandoEm) + '. Costuma levar de 5 a 30 minutos.';
+    if (p.status === 'concluido') {
+      var ex = arq.execucoes.filter(function (x) { return x.id === p.execucao; })[0];
+      detalhe = dataHora(p.concluidoEm) + (ex ? ' · ' + plural(ex.arquivados || 0, 'arquivo arquivado', 'arquivos arquivados') + (ex.naoIdentificados ? ', ' + plural(ex.naoIdentificados, 'não identificado', 'não identificados') : '') : ' · nada novo pra arquivar');
+    }
+    if (p.status === 'erro') detalhe = p.erro || '';
+    corpo.appendChild(el('div', 'texto', detalhe));
+    box.appendChild(corpo);
+    if (p.status === 'pendente' || p.status === 'aguardando') {
+      var acoes = el('div', 'acoes');
+      var c = el('button', 'btn btn-sm btn-ghost', 'Cancelar');
+      c.type = 'button';
+      c.addEventListener('click', function () {
+        c.disabled = true;
+        db.collection('solicitacoesArquivo').doc(p.id).update({ status: 'cancelado', canceladoEm: new Date().toISOString(), canceladoPor: quemSou() })
+          .catch(function (err) { c.disabled = false; toast('Não consegui cancelar: ' + err.message, 'erro'); });
+      });
+      acoes.appendChild(c);
+      box.appendChild(acoes);
+    }
+    alvo.appendChild(box);
+  }
+
+  $('btnArquivar').addEventListener('click', function () {
+    var b = this;
+    if (!confirm('Organizar agora a pasta Claudio Secretario?\n\nOs arquivos vão pras pastas dos clientes no Drive, do mesmo jeito que a organização das 9h.')) return;
+    b.disabled = true;
+    db.collection('solicitacoesArquivo').add({
+      status: 'pendente',
+      modo: 'PRODUCAO',
+      criadoEm: new Date().toISOString(),
+      criadoPor: quemSou(),
+      criadoPorUid: auth.currentUser.uid
+    }).then(function () {
+      toast(arquivadorLigado() ? 'Arquivamento pedido. O PC do arquivador vai começar.' : 'Arquivamento pedido. O PC do arquivador está desligado: começa quando ele ligar.', 'ok');
+    }).catch(function (err) {
+      b.disabled = false;
+      toast('Não consegui pedir o arquivamento: ' + err.message, 'erro');
+    });
+  });
+
+  $('arqBusca').addEventListener('input', function () { renderArquivoLista(); });
+
+  function normalizarBusca(t) { return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
+
+  function renderArquivoLista() {
+    var termo = normalizarBusca($('arqBusca').value.trim());
+    var lista = arq.execucoes.filter(function (x) {
+      if (!termo) return true;
+      return (x.clientes || []).some(function (c) { return c.codigo === termo || normalizarBusca(c.nome).indexOf(termo) !== -1; });
+    });
+    var hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    var deHoje = arq.execucoes.filter(function (x) { return x.modo === 'PRODUCAO' && new Date(x.em) >= hoje; })
+      .reduce(function (s, x) { return s + (x.arquivados || 0); }, 0);
+    $('menuNumArquivo').textContent = deHoje ? deHoje : '';
+    $('arqN').textContent = lista.length || '';
+    var t = $('tabArquivo');
+    t.innerHTML = '';
+    var vazio = $('arquivoVazio');
+    vazio.hidden = lista.length > 0;
+    if (!lista.length) {
+      vazio.innerHTML = '';
+      vazio.appendChild(ico('ph-archive'));
+      vazio.appendChild(el('strong', null, termo ? 'Nenhuma execução com esse cliente' : 'Nenhuma execução registrada ainda'));
+      return;
+    }
+    var thead = el('thead'); var trh = el('tr');
+    ['', 'Quando', 'Tipo', 'Arquivados', 'Não identificados', 'Clientes'].forEach(function (c) { trh.appendChild(el('th', null, c)); });
+    thead.appendChild(trh); t.appendChild(thead);
+    var tbody = el('tbody');
+    lista.forEach(function (x) {
+      var aberta = !!arq.abertas[x.id];
+      var tr = el('tr', 'arq-linha' + (aberta ? ' aberta' : ''));
+      var seta = el('td'); var s = el('span', 'arq-seta'); s.appendChild(ico('ph-caret-right')); seta.appendChild(s); tr.appendChild(seta);
+      var quando = el('td', 'num', dataHora(x.em));
+      if (x.pedidoId) quando.appendChild(el('div', 'sub', 'pedido pelo app'));
+      tr.appendChild(quando);
+      var tipo = el('td', null, MODO_ROTULO[x.modo] || x.modo || '');
+      if (x.alerta) tipo.appendChild(el('div', 'sub', 'alerta: ' + x.alerta));
+      tr.appendChild(tipo);
+      var arqTd = el('td', 'num', String(x.arquivados || 0));
+      var extras = [];
+      if (x.duplicados) extras.push(x.duplicados + ' repetidos');
+      if (x.jaArquivados) extras.push(x.jaArquivados + ' já estavam');
+      if (extras.length) arqTd.appendChild(el('div', 'sub', extras.join(' · ')));
+      tr.appendChild(arqTd);
+      tr.appendChild(el('td', 'num', x.naoIdentificados ? String(x.naoIdentificados) : '—'));
+      var cl = x.clientes || [];
+      tr.appendChild(el('td', null, cl.length ? cl.slice(0, 3).map(function (c) { return c.nome; }).join(', ') + (cl.length > 3 ? ' e mais ' + (cl.length - 3) : '') : '—'));
+      tr.addEventListener('click', function () {
+        arq.abertas[x.id] = !arq.abertas[x.id];
+        renderArquivoLista();
+      });
+      tbody.appendChild(tr);
+      if (aberta) {
+        var trd = el('tr', 'arq-detalhe');
+        var td = el('td'); td.colSpan = 6;
+        trd.appendChild(td);
+        tbody.appendChild(trd);
+        preencherDetalhe(td, x, termo);
+      }
+    });
+    t.appendChild(tbody);
+    rotularColunas();
+  }
+
+  function preencherDetalhe(td, x, termo) {
+    var d = arq.detalhes[x.id];
+    if (!d) {
+      td.textContent = 'Carregando…';
+      db.collection('arquivamentos').doc(x.id).collection('detalhe').doc('tudo').get().then(function (snap) {
+        arq.detalhes[x.id] = snap.exists ? snap.data() : { arquivos: [], naoIdentificados: [], relatorio: '' };
+        renderArquivoLista();
+      }).catch(function (err) { td.textContent = 'Não consegui abrir: ' + err.message; });
+      return;
+    }
+    td.innerHTML = '';
+    var porCliente = {};
+    var ordem = [];
+    (d.arquivos || []).forEach(function (a) {
+      var chave = a.codigo ? a.codigo + ' - ' + (a.cliente || '') : 'Sem cliente na pasta';
+      if (!porCliente[chave]) { porCliente[chave] = { codigo: a.codigo, itens: [] }; ordem.push(chave); }
+      porCliente[chave].itens.push(a);
+    });
+    if (!ordem.length) td.appendChild(el('div', 'lado-vazio', 'Nenhum arquivo foi movido nesta execução.'));
+    ordem.forEach(function (chave) {
+      var g = porCliente[chave];
+      if (termo && !(g.codigo === termo || normalizarBusca(chave).indexOf(termo) !== -1)) return;
+      var bloco = el('div', 'arq-cliente');
+      bloco.appendChild(el('h3', null, chave + ' · ' + plural(g.itens.length, 'arquivo', 'arquivos')));
+      var ul = el('ul');
+      g.itens.forEach(function (a) {
+        var li = el('li');
+        li.appendChild(document.createTextNode(a.original));
+        var para = el('span', 'para', ' → ' + (a.subpasta ? a.subpasta.split('/').join(' › ') + ' › ' : '') + a.final);
+        li.appendChild(para);
+        ul.appendChild(li);
+      });
+      bloco.appendChild(ul);
+      td.appendChild(bloco);
+    });
+    if (d.arquivosCortados) td.appendChild(el('div', 'lado-vazio', 'e mais ' + d.arquivosCortados + ' arquivos (veja o relatório completo)'));
+    if ((d.naoIdentificados || []).length && !termo) {
+      var ni = el('div', 'arq-naoid');
+      ni.appendChild(el('h3', null, 'Não identificados · ficaram em NÃO IDENTIFICADOS'));
+      var ul2 = el('ul');
+      d.naoIdentificados.forEach(function (n) { ul2.appendChild(el('li', null, n.nome + (n.motivo ? ' — ' + n.motivo : ''))); });
+      ni.appendChild(ul2);
+      td.appendChild(ni);
+    }
+    if (d.relatorio) {
+      var det = el('details', 'arq-relatorio');
+      det.appendChild(el('summary', null, 'Relatório completo da rotina'));
+      det.appendChild(el('pre', null, d.relatorio));
+      det.addEventListener('click', function (ev) { ev.stopPropagation(); });
+      td.appendChild(det);
+    }
+  }
+
   auth.onAuthStateChanged(function (user) {
     if (unsubClientes) { unsubClientes(); unsubClientes = null; }
     if (unsubStatus) { unsubStatus(); unsubStatus = null; }
     if (unsubConfig) { unsubConfig(); unsubConfig = null; }
     if (unsubIgnorados) { unsubIgnorados(); unsubIgnorados = null; }
     if (unsubRobo) { unsubRobo(); unsubRobo = null; }
+    pararArquivo();
     if (!user) {
       $('authGate').hidden = false;
       $('app').hidden = true;
@@ -6830,6 +7120,8 @@
       $('app').hidden = false;
       $('topo').hidden = false;
       $('tabsNav').hidden = !podeUsar;
+      // Arquivo: só admin e contábil (as regras do banco pedem o mesmo).
+      $('menuArquivo').hidden = !(souAdmin || roles.indexOf('contabil') !== -1);
       if (!podeUsar) {
         document.querySelector('.app').innerHTML = '<div id="negado"><i class="ph ph-lock" style="font-size:32px;"></i>' +
           '<p>Sua conta não tem acesso a esta tela.</p></div>';

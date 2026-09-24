@@ -384,5 +384,26 @@ igual('soma o valor dos itens', abaEntregas[1]['Valor total'], 120.5);
 igual('item sem valor não quebra a soma', abaEntregas[0]['Valor total'], '');
 igual('itens viram texto legível', abaEntregas[1]['Itens'], 'DAS (R$ 100,50), FGTS (R$ 20,00)');
 
+
+// ---------- arquivamento: leitura do manifesto da rotina ----------
+const arq = require('./arquivo-manifesto');
+// o manifesto grava a barra do Windows sem escapar: JSON inválido de verdade
+const linhaCrua = '{"nome_original":"EXTRATO BNB JUN2026.pdf","destino_final":"G:\\Meu Drive\\2026\\58 - TORNEARIA VOLPONI LTDA\\CONTÁBIL\\EXTRATOS\\2026\\06\\\\","nome_final":"06-2026.pdf","id_execucao":"EXEC-20260923-171757"}';
+igual('linha com barra sem escape ainda é lida', !!arq.lerLinhaJson(linhaCrua), true);
+igual('linha vazia ou quebrada vira null', [arq.lerLinhaJson(''), arq.lerLinhaJson('{quebrado')], [null, null]);
+igual('destino separa código, cliente e subpasta', arq.destinoPorPartes('G:/Meu Drive/2026/58 - TORNEARIA VOLPONI LTDA/CONTÁBIL/EXTRATOS/2026/06/'),
+  { codigo: '58', cliente: 'TORNEARIA VOLPONI LTDA', subpasta: 'CONTÁBIL/EXTRATOS/2026/06' });
+igual('destino sem pasta de cliente não inventa código', arq.destinoPorPartes('G:/Meu Drive/Claudio Secretario/NÃO IDENTIFICADOS/x').codigo, null);
+const grupos = arq.agruparManifesto(linhaCrua + '\n\n' + linhaCrua.replace('JUN2026', 'JUL2026'));
+igual('manifesto agrupa por execução', grupos.get('EXEC-20260923-171757').length, 2);
+const rel = arq.lerRelatorio('ARQUIVADO: a.pdf -> x\nDUPLICADO: b.xml -> y\nDUPLICADO: c.xml -> y\nNAO_IDENTIFICADO: video.mp4 -> (E101 · CLIENTE_NAO_LOCALIZADO)\nlinha solta: não conta\n');
+igual('relatório conta só as linhas CATEGORIA:', rel.contagens, { ARQUIVADO: 1, DUPLICADO: 2, NAO_IDENTIFICADO: 1 });
+igual('não identificado traz nome e motivo', rel.naoIdentificados, [{ nome: 'video.mp4', motivo: 'E101 · CLIENTE_NAO_LOCALIZADO' }]);
+igual('modo sai do prefixo do id', ['EXEC-20260924-130945', 'SIM-20260901-094722', 'BACKFILL-20260827-181438', 'X'].map(arq.modoDoId),
+  ['PRODUCAO', 'SIMULACAO', 'CARGA_INICIAL', null]);
+igual('reprocessamento também tem data', !!arq.dataDoId('EXEC-20260902-132202-REPROC1'), true);
+const ex = arq.montarExecucao('EXEC-20260923-171757', grupos.get('EXEC-20260923-171757'), { naoIdentificados: 0, alerta: 'NENHUM' }, 'DUPLICADO: z');
+igual('resumo da execução', [ex.resumo.arquivados, ex.resumo.codigos, ex.resumo.duplicados, ex.resumo.alerta], [2, ['58'], 1, null]);
+
 console.log(falhas ? '\n' + falhas + ' de ' + total + ' testes FALHARAM' : total + ' testes, todos passaram');
 process.exit(falhas ? 1 : 0);
