@@ -10794,8 +10794,8 @@
       row.setAttribute('role', 'button');
       row.querySelector('.er-nome').textContent = clienteLabel(c);
       row.querySelector('.er-sub').textContent = subtitle;
-      row.addEventListener('click', function () { openClienteHistorico(c, { soConsulta: true }); });
-      row.addEventListener('keydown', function (ev) { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); openClienteHistorico(c, { soConsulta: true }); } });
+      row.addEventListener('click', function () { openClienteHistorico(c, { soConsulta: true, pagina: true }); });
+      row.addEventListener('keydown', function (ev) { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); openClienteHistorico(c, { soConsulta: true, pagina: true }); } });
       listEl.appendChild(row);
     });
     avulsos.forEach(function (e) {
@@ -11319,8 +11319,11 @@
       '<div class="cp-card-corpo">' + corpo + '</div></section>';
   }
 
+  // partes.soConsulta: como o Painel abre a empresa — só ler. Sem WhatsApp,
+  // Ligar, Editar, link do cliente, "Já vi" e sem a aba Ações.
   function montarPaginaDoCliente_(inner, cliente, historico, porCompetencia, partes) {
-    var admin = temPapel('admin');
+    var consulta = !!partes.soConsulta;
+    var admin = temPapel('admin') && !consulta;
     var r = cliente.receita || null;
     var regime = cliente.enquadramento || (r ? (r.mei ? 'MEI' : (r.simples ? 'Simples Nacional' : '')) : '');
     var nomeTela = cliente.nome || '';
@@ -11387,7 +11390,7 @@
     var mud = mudancasDaReceita_(cliente);
     mud.forEach(function (m) { avisos.push('<div class="cp-aviso' + (m.grave ? ' grave' : '') + '"><i class="ph ' + (m.grave ? 'ph-warning' : 'ph-info') + '" aria-hidden="true"></i><span>Receita: ' + escapeHtml_(m.texto) + '</span></div>'); });
     if (cliente.observacao) avisos.push('<div class="cp-aviso recado"><i class="ph ph-note" aria-hidden="true"></i><span>' + escapeHtml_(cliente.observacao) + '</span></div>');
-    if (!cliente.geo || (cliente.geo && cliente.geo.precisao === 'cidade')) {
+    if (!consulta && (!cliente.geo || (cliente.geo && cliente.geo.precisao === 'cidade'))) {
       avisos.push('<div class="cp-aviso"><i class="ph ph-map-pin-line" aria-hidden="true"></i><span>' + (cliente.geo ? 'No mapa da rota ele está só no centro da cidade.' : 'Sem ponto no mapa da rota.') +
         ' <button type="button" class="link-btn" data-ir-aba="acoes">Corrigir localização</button></span></div>');
     }
@@ -11397,7 +11400,7 @@
 
     // ---- contato ----
     var zap = whatsAppNumero_(cliente.telefone);
-    var telHtml = cliente.telefone
+    var telHtml = (cliente.telefone && consulta) ? escapeHtml_(cliente.telefone) : cliente.telefone
       ? escapeHtml_(cliente.telefone) + ' <span class="cp-inline-acoes">' +
           (zap ? '<button type="button" class="btn-chip mini accent" id="falarClienteBtn"><i class="ph ph-whatsapp-logo" aria-hidden="true"></i> WhatsApp</button>' : '') +
           '<a class="btn-chip mini" href="tel:' + escapeHtml_(String(cliente.telefone).replace(/[^0-9+]/g, '')) + '"><i class="ph ph-phone" aria-hidden="true"></i> Ligar</a></span>'
@@ -11441,7 +11444,7 @@
       cartaoDaPagina_('Últimas entregas', 'ph-truck', ultimasHtml);
 
     // ---- cadastro ----
-    var linkHtml = (cliente.portalToken || admin)
+    var linkHtml = !consulta && (cliente.portalToken || admin)
       ? '<p class="card-hint" style="margin:0 0 8px">' + (cliente.portalToken ? 'O cliente tem link próprio: vê as guias, confirma o recebimento e manda documentos.' : 'Este cliente ainda não tem link.') + '</p>' +
         '<button type="button" class="btn-chip" id="linkClienteBtn"><i class="ph ph-link" aria-hidden="true"></i> ' + (cliente.portalToken ? 'Abrir link do cliente' : 'Criar link do cliente') + '</button>'
       : '';
@@ -11497,7 +11500,7 @@
       var z = whatsAppNumero_(c.telefone);
       return '<div class="cp-linha"><div><div class="er-nome">' + escapeHtml_(c.nome || c.telefone) + '</div>' +
         '<div class="er-sub">' + escapeHtml_([c.papel, c.telefone].filter(Boolean).join(' · ')) + '</div></div>' +
-        (c.telefone ? '<div class="cr-actions">' + (z ? '<button type="button" class="btn-chip" data-zap="' + i + '"><i class="ph ph-whatsapp-logo" aria-hidden="true"></i> WhatsApp</button>' : '') +
+        (c.telefone && !consulta ? '<div class="cr-actions">' + (z ? '<button type="button" class="btn-chip" data-zap="' + i + '"><i class="ph ph-whatsapp-logo" aria-hidden="true"></i> WhatsApp</button>' : '') +
           '<a class="btn-chip" href="tel:' + escapeHtml_(c.telefone.replace(/[^0-9+]/g, '')) + '"><i class="ph ph-phone" aria-hidden="true"></i> Ligar</a></div>' : '') + '</div>';
     }).join('');
     var contatosHtml = cartaoDaPagina_('Contato principal', 'ph-user', contatoHtml) + cartaoDaPagina_('Outros contatos', 'ph-users', extras);
@@ -11531,6 +11534,7 @@
       { id: 'documentos', rotulo: 'Documentos', icone: 'ph-certificate', html: documentosHtml },
       { id: 'acoes', rotulo: 'Ações', icone: 'ph-gear-six', html: acoesHtml }
     ].filter(function (a) {
+      if (a.id === 'acoes') return !consulta;
       if (a.id === 'contatos') return (partes.contatosFicha || []).length > 0;   // o principal já está no Resumo
       return a.id === 'resumo' || a.id === 'entregas' || a.id === 'receita' || String(a.html || '').replace(/<[^>]*>/g, '').trim();
     });
@@ -11698,8 +11702,8 @@
         '<button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button>' +
       '</div>';
 
-    if (pagina && !soConsulta) {
-      montarPaginaDoCliente_(inner, cliente, historico, porCompetencia, { rowsHtml: rowsHtml, papeisHtml: papeisHtml, contatosFicha: contatosFicha });
+    if (pagina) {
+      montarPaginaDoCliente_(inner, cliente, historico, porCompetencia, { rowsHtml: rowsHtml, papeisHtml: papeisHtml, contatosFicha: contatosFicha, soConsulta: soConsulta });
     } else {
       inner.innerHTML = cabecaHtml +
         etiquetasHtml +
