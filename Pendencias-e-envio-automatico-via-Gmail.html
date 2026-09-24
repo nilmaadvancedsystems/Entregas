@@ -29,12 +29,12 @@
   } catch (e) {}
 })();
 </script>
-<link rel="stylesheet" href="nilma-icones.css?v=341">
+<link rel="stylesheet" href="nilma-icones.css?v=342">
 <!-- Mesmo sistema do Entregas: o script vem ANTES da folha e sem defer,
      senão a tela pisca no tema errado. -->
 <script src="bancos-nilma.js"></script>
-<script src="nilma-ui.js?v=341"></script>
-<link rel="stylesheet" href="nilma-ui.css?v=341">
+<script src="nilma-ui.js?v=342"></script>
+<link rel="stylesheet" href="nilma-ui.css?v=342">
 <style>
   /* ==========================================================================
      Tokens, paletas e preferências vêm de nilma-ui.css (gerado do
@@ -1393,15 +1393,126 @@
     .lista-barra #cobrarLote { margin-left: auto; }
     .ordem-cab > span { display: none; }
   }
+
+  /* ==========================================================================
+     design-n1 — Arquivo (pedido do escritório, 24/09/2026)
+     Pastas e Execuções no desenho do kit N1: caixa com cabeçalho de 48px
+     (trilha + busca), resumo em cinza, linhas de 40px com nome numa linha
+     só, tabela com números à direita e cor pelo significado (verde feito,
+     laranja atenção, vermelho erro). Classes e ids continuam os mesmos.
+     ========================================================================== */
+  /* busca do N1: campo de 32px com a lupa dentro */
+  .n1-busca { position: relative; display: flex; align-items: center; }
+  .n1-busca > .ph { position: absolute; left: 10px; font-size: 16px; color: var(--ink-soft); pointer-events: none; }
+  .n1-busca input {
+    width: 100%; min-height: 32px; padding: 5px 12px 5px 32px; font: inherit; font-size: 14px; line-height: 20px;
+    color: var(--ink); background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+  }
+  .n1-busca input:focus { outline: none; border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+
+  /* botão enquanto organiza: spinner no lugar do ícone (N1: processando) */
+  @keyframes n1Gira { to { transform: rotate(360deg); } }
+  .btn.ocupado > .ph { display: none; }
+  .btn.ocupado::before {
+    content: ''; width: 14px; height: 14px; flex: none; margin-right: 6px; border-radius: 50%;
+    border: 2px solid currentColor; border-right-color: transparent; animation: n1Gira .6s linear infinite;
+  }
+
+  /* pedido em andamento / último resultado: o .alert do N1 */
+  .arq-pedido { padding: 12px 16px; gap: 8px; border-radius: 6px; font-size: 14px; background: var(--surface-2); }
+  .arq-pedido > .ph { font-size: 16px; margin-top: 2px; color: var(--ink-soft); }
+  .arq-pedido.processando > .ph { animation: n1Gira 1.2s linear infinite; }
+  .arq-pedido.concluido { border-color: var(--success); background: var(--success-soft); }
+  .arq-pedido.concluido > .ph { color: var(--success); }
+  .arq-pedido.erro { border-color: var(--danger); background: var(--danger-soft); }
+  .arq-pedido.erro > .ph { color: var(--danger); }
+  .arq-pedido .titulo { font-size: 14px; }
+  .arq-pedido .texto { font-size: 14px; }
+  .arq-andamento { background: var(--surface); font-size: 12px; line-height: 18px; padding: 8px 12px; }
+  .arq-andamento li { grid-template-columns: 58px minmax(0, 1fr); }
+  @media (prefers-reduced-motion: reduce) { .arq-pedido.processando > .ph, .btn.ocupado::before { animation: none; } }
+
+  /* Pastas: a caixa do N1 */
+  #arqPastas .exp-topo, #painelPasta .exp-topo {
+    min-height: 48px; padding: 8px 16px; gap: 8px 16px;
+    background: var(--surface-2); border-bottom: 1px solid var(--border);
+  }
+  #painelPasta .exp-topo { border: 1px solid var(--border); border-radius: 6px 6px 0 0; }
+  .exp-trilha { font-size: 14px; }
+  .exp-trilha button { color: var(--ink-soft); }
+  .exp-trilha button:hover { color: var(--ink); background: var(--surface-3); }
+  .exp-busca { flex: 0 1 320px; }
+  .exp-info { padding: 8px 16px; font-size: 12px; color: var(--ink-soft); border-bottom: 1px solid var(--border); }
+  .exp-lista { border-top: 0; }
+  .exp-lista li:last-child { border-bottom: 0; }
+  .exp-item { grid-template-columns: 16px minmax(0, 1fr) auto; gap: 8px 12px; min-height: 40px; padding: 6px 16px; font-size: 14px; }
+  .exp-item i, .exp-item i.ph-folder, .exp-item i.ph-folder-simple-user { font-size: 16px; color: var(--ink-soft); }
+  .exp-nome { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .exp-nome .onde { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .exp-meta { font-size: 12px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+  .exp-vazio { padding: 24px 16px; font-size: 14px; color: var(--ink-soft); }
+  #painelPasta .exp-info, #painelPasta .exp-lista { border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
+  #painelPasta .exp-lista { border-bottom: 1px solid var(--border); border-radius: 0 0 6px 6px; }
+  /* celular: o tamanho e a data descem pra baixo do nome (antes cortavam) */
+  @media (max-width: 640px) {
+    .exp-item { grid-template-columns: 16px minmax(0, 1fr); padding: 8px 16px; }
+    .exp-meta { grid-column: 2; text-align: left; white-space: normal; }
+    .exp-busca { flex: 1 1 100%; }
+    .exp-meta .data { display: inline; }
+  }
+
+  /* Execuções: a tabela do N1 */
+  .arq-busca { padding: 12px 16px; border-bottom: 1px solid var(--border); }
+  .arq-busca .n1-busca { max-width: 360px; }
+  /* tabela só no PC; abaixo de 700px cada execução vira um cartão (regra
+     .tab-simples da página) */
+  .arq-tabela .sub { font-size: 12px; color: var(--ink-soft); }
+  .arq-tabela .arq-tipo .sub { color: var(--laranja); }
+  .arq-tabela td.num.atencao { color: var(--laranja); font-weight: 600; }
+  .arq-tabela .arq-tipo.apoio { color: var(--ink-soft); }
+  @media (min-width: 701px) {
+    .arq-tabela { font-size: 14px; }
+    .arq-tabela th { font-size: 12px; color: var(--ink-soft); padding: 8px 16px; background: var(--surface-2); }
+    .arq-tabela td { padding: 8px 16px; vertical-align: middle; }
+    .arq-tabela th.num, .arq-tabela td.num { text-align: right; color: var(--ink); font-variant-numeric: tabular-nums; }
+    .arq-tabela .arq-col-seta, .arq-tabela tr > td:first-child { width: 16px; padding-right: 0; }
+    .arq-tabela .arq-seta { color: var(--ink-soft); font-size: 14px; }
+    .arq-tabela .arq-quando { white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .arq-tabela tr.aberta td { background: var(--surface-2); }
+  }
+  @media (max-width: 700px) {
+    .arq-tabela tr.arq-linha { padding: 8px 16px; }
+    .arq-tabela tr.arq-linha > td:first-child { display: none; }
+    .arq-tabela tr.aberta { background: var(--surface-2); }
+    .arq-tabela tr.arq-detalhe { padding: 0; }
+    .arq-tabela .arq-detalhe td { display: block; }
+    .arq-tabela .arq-detalhe td { font-weight: 400; }  /* a regra do cartão põe a 1ª célula em negrito */
+    .arq-tabela td::before { font-weight: 400; }
+  }
+  .arq-detalhe td { background: var(--surface); padding: 12px 16px 16px 48px; border-bottom: 1px solid var(--border); }
+  .arq-cliente h3, .arq-naoid h3 { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; font-size: 14px; font-weight: 600; margin: 0 0 6px; color: var(--ink); }
+  .arq-cliente h3 .cont, .arq-naoid h3 .cont { font-size: 12px; font-weight: 400; color: var(--ink-soft); }
+  .arq-naoid h3 { color: var(--laranja); margin-top: 16px; }
+  .arq-cliente ul, .arq-naoid ul { list-style: none; padding: 0; font-size: 14px; border: 1px solid var(--border); border-radius: 6px; }
+  .arq-cliente li, .arq-naoid li { margin: 0; padding: 6px 12px; border-top: 1px solid var(--border); }
+  .arq-cliente li:first-child, .arq-naoid li:first-child { border-top: 0; }
+  .arq-cliente .para { color: var(--ink-soft); }
+  .arq-relatorio summary { display: inline-block; margin-top: 12px; font-size: 14px; font-weight: 500; color: var(--accent-forte); }
+  .arq-relatorio summary:hover { text-decoration: underline; }
+  .arq-relatorio pre { font-size: 12px; line-height: 18px; background: var(--surface-2); border-radius: 6px; padding: 8px 12px; }
+  @media (max-width: 700px) {
+    .arq-detalhe td { padding: 12px 16px; }
+  }
+  /* ---------- fim da camada design-n1 (Arquivo) ---------- */
 </style>
 </head>
 <body>
 <!-- Casca comum (barra de cima, menu ☰ e menu da conta): nilma-shell.js -->
-<script src="nilma-dialogo.js?v=341"></script>
-<script src="nilma-shell.js?v=341"></script>
+<script src="nilma-dialogo.js?v=342"></script>
+<script src="nilma-shell.js?v=342"></script>
 <script src="nilma-extras.js"></script>
 <script>
-  NilmaShell.montar({ modulo: 'Pendências', moduloId: 'pendencias', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false, versao: '2.341 · 24/09/2026' });
+  NilmaShell.montar({ modulo: 'Pendências', moduloId: 'pendencias', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false, versao: '2.342 · 24/09/2026' });
   // antes do login só a tela de entrada; a barra aparece junto com o app
   document.getElementById('topo').hidden = true;
 </script>
@@ -1670,7 +1781,7 @@
       <section class="caixa-p" id="arqPastas"></section>
       <section class="caixa-p" id="arqExecucoes" hidden>
         <div class="caixa-cab"><h2><i class="ph ph-clock-counter-clockwise" aria-hidden="true"></i> Execuções</h2><span class="cont" id="arqN"></span></div>
-        <div class="arq-busca"><input type="search" id="arqBusca" placeholder="Filtrar por cliente ou código" aria-label="Filtrar execuções por cliente ou código"></div>
+        <div class="arq-busca"><div class="n1-busca"><i class="ph ph-magnifying-glass" aria-hidden="true"></i><input type="search" id="arqBusca" placeholder="Filtrar por cliente ou código" aria-label="Filtrar execuções por cliente ou código"></div></div>
         <div class="tab-rolagem"><table class="tab-simples arq-tabela" id="tabArquivo"></table></div>
         <div id="arquivoVazio" class="vazio" hidden></div>
       </section>
@@ -7016,7 +7127,8 @@
     caixa.innerHTML = '';
     var topo = el('div', 'exp-topo');
     var trilha = el('nav', 'exp-trilha'); trilha.setAttribute('aria-label', 'Caminho da pasta');
-    var buscaBox = el('div', 'exp-busca');
+    var buscaBox = el('div', 'exp-busca n1-busca');
+    buscaBox.appendChild(ico('ph-magnifying-glass'));
     var busca = el('input'); busca.type = 'search';
     busca.setAttribute('aria-label', 'Buscar nesta pasta');
     buscaBox.appendChild(busca);
@@ -7044,7 +7156,7 @@
       var m = el('span', 'exp-meta', meta || '');
       if (data) { m.appendChild(document.createTextNode(meta ? ' · ' : '')); m.appendChild(el('span', 'data', data)); }
       b.appendChild(m);
-      if (rotulo) b.title = rotulo;
+      b.title = rotulo || nome;
       b.addEventListener('click', acao);
       li.appendChild(b);
       return li;
@@ -7267,6 +7379,7 @@
     var aberto = arq.pedidos.filter(function (p) { return ['pendente', 'aguardando', 'processando'].indexOf(p.status) !== -1; })[0];
     var b = $('btnArquivar');
     b.disabled = !!aberto;
+    b.classList.toggle('ocupado', !!aberto);
     b.lastChild.textContent = aberto ? (aberto.status === 'processando' ? ' Organizando...' : ' Arquivamento pedido...') : ' Arquivar agora';
     b.title = ligado ? 'Organiza agora a pasta Claudio Secretario, como a organização das 9h' : 'O PC do arquivador está desligado: o pedido fica guardado e sai quando ele ligar';
 
@@ -7277,7 +7390,7 @@
     var recente = p.status === 'concluido' || p.status === 'erro' || p.status === 'cancelado'
       ? Date.now() - new Date(p.concluidoEm || p.erroEm || p.canceladoEm || p.criadoEm) < 24 * 36e5 : true;
     if (!recente) return;
-    var box = el('div', 'arq-pedido' + (p.status === 'erro' ? ' erro' : ''));
+    var box = el('div', 'arq-pedido ' + p.status);
     var icone = { pendente: 'ph-hourglass', aguardando: 'ph-clock', processando: 'ph-spinner-gap', concluido: 'ph-check-circle', erro: 'ph-warning-circle', cancelado: 'ph-x-circle' }[p.status] || 'ph-info';
     box.appendChild(ico(icone));
     var corpo = el('div');
@@ -7381,17 +7494,17 @@
       return;
     }
     var thead = el('thead'); var trh = el('tr');
-    ['', 'Quando', 'Tipo', 'Arquivados', 'Não identificados', 'Clientes'].forEach(function (c) { trh.appendChild(el('th', null, c)); });
+    [['', 'arq-col-seta'], ['Quando'], ['Tipo'], ['Arquivados', 'num'], ['Não identificados', 'num'], ['Clientes']].forEach(function (c) { trh.appendChild(el('th', c[1] || null, c[0])); });
     thead.appendChild(trh); t.appendChild(thead);
     var tbody = el('tbody');
     lista.forEach(function (x) {
       var aberta = !!arq.abertas[x.id];
       var tr = el('tr', 'arq-linha' + (aberta ? ' aberta' : ''));
       var seta = el('td'); var s = el('span', 'arq-seta'); s.appendChild(ico('ph-caret-right')); seta.appendChild(s); tr.appendChild(seta);
-      var quando = el('td', 'num', dataHora(x.em));
+      var quando = el('td', 'arq-quando', dataHora(x.em));
       if (x.pedidoId) quando.appendChild(el('div', 'sub', 'pedido pelo app'));
       tr.appendChild(quando);
-      var tipo = el('td', null, MODO_ROTULO[x.modo] || x.modo || '');
+      var tipo = el('td', 'arq-tipo' + (x.modo && x.modo !== 'PRODUCAO' ? ' apoio' : ''), MODO_ROTULO[x.modo] || x.modo || '');
       if (x.alerta) tipo.appendChild(el('div', 'sub', 'alerta: ' + x.alerta));
       tr.appendChild(tipo);
       var arqTd = el('td', 'num', String(x.arquivados || 0));
@@ -7400,7 +7513,7 @@
       if (x.jaArquivados) extras.push(x.jaArquivados + ' já estavam');
       if (extras.length) arqTd.appendChild(el('div', 'sub', extras.join(' · ')));
       tr.appendChild(arqTd);
-      tr.appendChild(el('td', 'num', x.naoIdentificados ? String(x.naoIdentificados) : '—'));
+      tr.appendChild(el('td', 'num' + (x.naoIdentificados ? ' atencao' : ''), x.naoIdentificados ? String(x.naoIdentificados) : '—'));
       var cl = x.clientes || [];
       tr.appendChild(el('td', null, cl.length ? cl.slice(0, 3).map(function (c) { return c.nome; }).join(', ') + (cl.length > 3 ? ' e mais ' + (cl.length - 3) : '') : '—'));
       tr.addEventListener('click', function () {
@@ -7443,7 +7556,9 @@
       var g = porCliente[chave];
       if (termo && !(g.codigo === termo || normalizarBusca(chave).indexOf(termo) !== -1)) return;
       var bloco = el('div', 'arq-cliente');
-      bloco.appendChild(el('h3', null, chave + ' · ' + plural(g.itens.length, 'arquivo', 'arquivos')));
+      var h3 = el('h3', null, chave);
+      h3.appendChild(el('span', 'cont', plural(g.itens.length, 'arquivo', 'arquivos')));
+      bloco.appendChild(h3);
       var ul = el('ul');
       g.itens.forEach(function (a) {
         var li = el('li');
@@ -7458,7 +7573,9 @@
     if (d.arquivosCortados) td.appendChild(el('div', 'lado-vazio', 'e mais ' + d.arquivosCortados + ' arquivos (veja o relatório completo)'));
     if ((d.naoIdentificados || []).length && !termo) {
       var ni = el('div', 'arq-naoid');
-      ni.appendChild(el('h3', null, 'Não identificados · ficaram em NÃO IDENTIFICADOS'));
+      var h3n = el('h3', null, 'Não identificados');
+      h3n.appendChild(el('span', 'cont', 'ficaram em NÃO IDENTIFICADOS'));
+      ni.appendChild(h3n);
       var ul2 = el('ul');
       d.naoIdentificados.forEach(function (n) { ul2.appendChild(el('li', null, n.nome + (n.motivo ? ' — ' + n.motivo : ''))); });
       ni.appendChild(ul2);
