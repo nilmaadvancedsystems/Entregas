@@ -27,7 +27,8 @@ function ambienteJaTemCredencial() {
   return !!(process.env.GOOGLE_APPLICATION_CREDENTIALS ||
     process.env.K_SERVICE ||          // Cloud Run / Functions 2ª geração
     process.env.FUNCTION_TARGET ||    // Cloud Functions
-    process.env.GAE_ENV);             // App Engine
+    process.env.GAE_ENV ||            // App Engine
+    process.env.ROBO_NA_NUVEM);       // máquina virtual do Google: o serviço do robô liga isto
 }
 
 function ensureAdcFile() {

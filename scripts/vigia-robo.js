@@ -28,6 +28,7 @@ const { FieldValue } = require('firebase-admin/firestore');
 const { getGmail } = require('./gmail-client');
 const { getDb } = require('./firestore-client');
 const { iniciarAtendenteIA } = require('./ia-atendente');
+const lideranca = require('./lideranca');
 
 const CAIXA = 'nilmacontabilidade@gmail.com';
 const ROBO = path.join(__dirname, 'download-attachments.js');
@@ -591,11 +592,19 @@ async function iniciar() {
   log('vigia ligado em', os.hostname() + (A_CADA_MIN ? ', lendo sozinho a cada ' + A_CADA_MIN + ' min' : '') + '. Ctrl+C para parar.');
 }
 
-// Ao fechar, avisa a tela na hora em vez de esperar os 3 minutos sem ponto.
+// Só quem está com a vez fala pela tela. Um vigia de reserva que é fechado
+// não pode anunciar "robô desligado" enquanto o titular segue trabalhando.
+let comAVez = false;
+
+// Ao fechar, avisa a tela na hora em vez de esperar os 3 minutos sem ponto, e
+// devolve a vez pra o reserva (se houver) assumir já, sem esperar o prazo.
 function desligar() {
-  roboRef.set({ vigia: { em: new Date(0).toISOString(), pc: os.hostname(), desligadoEm: agora() } }, { merge: true })
-    .finally(() => process.exit(0));
   setTimeout(() => process.exit(0), 3000);
+  if (!comAVez) { process.exit(0); return; }
+  Promise.all([
+    roboRef.set({ vigia: { em: new Date(0).toISOString(), pc: os.hostname(), desligadoEm: agora() } }, { merge: true }),
+    lideranca.devolverAVez(db),
+  ]).catch(() => {}).finally(() => process.exit(0));
 }
 process.on('SIGINT', desligar);
 process.on('SIGTERM', desligar);
@@ -625,5 +634,18 @@ if (SO_VER_RESUMO) {
 } else {
   const espera = esperaAntesDeLigar(Date.now());
   if (espera) log('muitas partidas seguidas: espero', Math.round(espera / 60000), 'min antes de ligar (pra não gastar o banco à toa)');
-  setTimeout(() => { iniciar().catch(err => { log('ERRO ao iniciar:', err.message); process.exit(1); }); }, espera);
+  setTimeout(async () => {
+    try {
+      // Um vigia só, entre máquinas: espera de reserva até ser a vez dele.
+      // Ver lideranca.js.
+      await lideranca.esperarAVez(db, log);
+      comAVez = true;
+      log('a vez é deste vigia (' + lideranca.EU.maquina + ')');
+      // Perdeu a vez com o processo rodando: sai sem mexer em nada. O código 3
+      // é o que o ícone da bandeja entende como "tem outro rodando" — ele
+      // religa em 1 minuto, e este volta a esperar de reserva.
+      lideranca.manterAVez(db, log, () => { comAVez = false; process.exit(3); });
+      await iniciar();
+    } catch (err) { log('ERRO ao iniciar:', err.message); process.exit(1); }
+  }, espera);
 }

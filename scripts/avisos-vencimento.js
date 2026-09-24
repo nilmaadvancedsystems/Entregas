@@ -17,14 +17,27 @@ const { FieldValue } = require('firebase-admin/firestore');
 const fs = require('fs');
 const path = require('path');
 const BASE = 'https://nilmaadvancedsystems.github.io/Entregas/cliente.html';
-// Quem já foi avisado hoje fica num arquivo deste PC. Se o vigia cair no meio
-// da rodada e religar, os primeiros clientes não recebem o mesmo aviso de novo.
+// Quem já foi avisado hoje fica anotado. Se o vigia cair no meio da rodada e
+// religar, os primeiros clientes não recebem o mesmo aviso de novo.
+//
+// A anotação mora no banco (robo/avisosVencimento), e não só num arquivo
+// deste PC: na nuvem o disco nasce limpo a cada reinício, e quando a vez passa
+// de uma máquina pra outra no meio do dia a que assume precisa saber o que a
+// outra já avisou. O arquivo continua como reserva pra quando o banco falhar.
 const ARQ_FEITOS = path.join(__dirname, 'avisos-vencimento-feitos.json');
-function lerFeitos(dia) {
+const refFeitos = db => db.collection('robo').doc('avisosVencimento');
+async function lerFeitos(db, dia) {
+  try {
+    const d = (await refFeitos(db).get()).data();
+    if (d && d.dia === dia) return new Set(d.tokens || []);
+    if (d) return new Set();
+  } catch (e) { /* sem banco: vale o arquivo */ }
   try { const j = JSON.parse(fs.readFileSync(ARQ_FEITOS, 'utf8')); return j.dia === dia ? new Set(j.tokens) : new Set(); } catch (e) { return new Set(); }
 }
-function gravarFeitos(dia, feitos) {
-  try { fs.writeFileSync(ARQ_FEITOS, JSON.stringify({ dia, tokens: Array.from(feitos) })); } catch (e) {}
+async function gravarFeitos(db, dia, feitos) {
+  const dados = { dia, tokens: Array.from(feitos) };
+  try { fs.writeFileSync(ARQ_FEITOS, JSON.stringify(dados)); } catch (e) {}
+  try { await refFeitos(db).set(dados); } catch (e) {}
 }
 // endereço de aviso que o Firebase diz que não existe mais (ou nunca existiu)
 const ENDERECO_MORTO = ['messaging/registration-token-not-registered', 'messaging/invalid-registration-token', 'messaging/invalid-argument'];
@@ -61,7 +74,7 @@ function textoDoAviso(achadas) {
 
 async function avisarHoje(db, log, hoje) {
   const dia = iso(hoje);
-  const feitos = lerFeitos(dia);
+  const feitos = await lerFeitos(db, dia);
   const snap = await db.collection('portais').get();
   let enviados = 0, falhas = 0, primeiroErro = '';
   for (const doc of snap.docs) {
@@ -86,7 +99,7 @@ async function avisarHoje(db, log, hoje) {
       falhas += r.failureCount;
       r.responses.forEach(x => { if (x.error && !primeiroErro) primeiroErro = x.error.code || x.error.message; });
       feitos.add(doc.id);
-      gravarFeitos(dia, feitos);
+      await gravarFeitos(db, dia, feitos);
       const mortos = enderecos.filter((_, i) => r.responses[i].error && ENDERECO_MORTO.includes(r.responses[i].error.code));
       if (mortos.length) await doc.ref.update({ avisar: FieldValue.arrayRemove(...mortos) }).catch(() => {});
     } catch (err) {
