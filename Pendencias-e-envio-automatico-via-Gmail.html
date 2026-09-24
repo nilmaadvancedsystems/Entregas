@@ -1210,16 +1210,10 @@
   .caixa-p > .tab-rolagem:has(table:empty) { display: none; }
   #viewHoje .pagina-topo { margin-bottom: var(--esp-4); }
   .hoje-grade { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 var(--esp-5); align-items: start; }
-  @media (min-width: 1100px) { .hoje-grade { grid-template-columns: minmax(0, 1fr) 340px; } }
+  @media (min-width: 1100px) { .hoje-grade:has(> .hoje-lado) { grid-template-columns: minmax(0, 1fr) 340px; } }
   @media (max-width: 560px) { .caixa-p .tab-simples tr { padding-left: var(--esp-3); padding-right: var(--esp-3); } }
 
   /* Robô: resumo como lista de pares, igual ao "About" do GitHub. */
-  .robo-resumo { margin: 0; }
-  .robo-resumo > div { display: flex; align-items: baseline; justify-content: space-between; gap: var(--esp-3); padding: var(--esp-2) var(--esp-3); border-bottom: 1px solid var(--border); }
-  .robo-resumo > div:last-child, .robo-resumo > div:has(~ div[hidden]):not(:has(~ div:not([hidden]))) { border-bottom: 0; }
-  .robo-resumo dt { font-size: var(--t-sm); color: var(--ink-soft); }
-  .robo-resumo dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
-  .robo-resumo dd.suave { font-weight: 400; font-size: var(--t-sm); }
   #viewRobo .pagina-topo, #viewCobrancas .pagina-topo { margin-bottom: var(--esp-4); }
   #roboAviso:not(:empty) { margin-bottom: var(--esp-4); }
   .caixa-p .vazio { padding: 32px 16px; }
@@ -1670,17 +1664,6 @@
           </section>
           </div>
         </div>
-        <aside class="hoje-lado">
-          <section class="caixa-p">
-            <div class="caixa-cab"><h2><i class="ph ph-gauge" aria-hidden="true"></i> Resumo</h2></div>
-            <dl class="robo-resumo">
-              <div><dt>Marcados em <span id="roboMesLabel"></span></dt><dd id="roboMarcados">–</dd></div>
-              <div><dt>Última leitura</dt><dd class="suave" id="roboUltima">–</dd></div>
-              <div hidden><dt>Clientes reconhecidos</dt><dd id="roboComEmail">–</dd></div>
-              <div hidden><dt>Sem e-mail</dt><dd id="roboSemEmail">–</dd></div>
-            </dl>
-          </section>
-        </aside>
       </div>
     </div>
 
@@ -2583,7 +2566,6 @@
     $('docsMesLabel').textContent = competenciaPorExtenso(competenciaStr(competenciaAtual));
     $('cobMesLabel').textContent = competenciaPorExtenso(competenciaStr(competenciaAtual));
     $('cobMesLabel2').textContent = competenciaLabel(competenciaAtual);
-    $('roboMesLabel').textContent = competenciaPorExtenso(competenciaStr(competenciaAtual));
     $('hojeMesLabel').textContent = competenciaLabel(competenciaAtual);
     $('roboMesLabel2').textContent = competenciaPorExtenso(competenciaStr(competenciaAtual));
     $('menuMes').textContent = competenciaLabel(competenciaAtual);
@@ -4051,12 +4033,8 @@
       });
     });
     marcados.sort(function (a, b) { return String(b.em).localeCompare(String(a.em)); });
-    $('roboMarcados').textContent = statusCarregado ? String(marcados.length) : '–';
     $('roboMarcadosN').textContent = marcados.length || '';
     $('menuNumRobo').textContent = statusCarregado && marcados.length ? marcados.length : '';
-    $('roboUltima').textContent = ultimaGeral ? dataHora(ultimaGeral) : 'nenhuma nos últimos 6 meses';
-    $('roboComEmail').textContent = comEmail + ' de ' + clientesCache.length;
-    $('roboSemEmail').textContent = String(semEmail);
     var rb = $('roboBadge');
     rb.textContent = !statusCarregado ? 'carregando' : marcados.length ? 'ativo no mês' : ultimaGeral ? 'sem leitura no mês' : 'sem registro';
 
@@ -4075,7 +4053,6 @@
       al.appendChild(cp);
       $('roboAviso').appendChild(al);
     }
-    if (configRobo.ultimaExecucao) $('roboUltima').textContent = dataHora(configRobo.ultimaExecucao) + (configRobo.ultimaExecucaoResumo ? ' (' + configRobo.ultimaExecucaoResumo + ')' : '');
 
     // Não reconhecidos (robo/estado.naoReconhecidos, gravado pelo script).
     var naoRec = Array.isArray(configRobo.naoReconhecidos) ? configRobo.naoReconhecidos.slice() : [];
