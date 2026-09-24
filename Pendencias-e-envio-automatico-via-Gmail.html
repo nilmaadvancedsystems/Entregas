@@ -670,6 +670,28 @@
   @media (max-width: 560px) { .lista-anexos li { grid-template-columns: 1fr; } .anexo-acao { justify-content: flex-start; } }
   .robo-acoes { display: flex; align-items: center; gap: var(--esp-3); flex-wrap: wrap; }
   /* ---------- Arquivo ---------- */
+  #arqAbas { margin-bottom: var(--esp-3); }
+  /* explorador de pastas (aba Arquivo e ficha do cliente) */
+  .exp-topo { display: flex; align-items: center; gap: var(--esp-2); flex-wrap: wrap; padding: var(--esp-2) 0; }
+  .exp-trilha { display: flex; align-items: center; flex-wrap: wrap; gap: 2px; font-size: var(--t-sm); min-width: 0; flex: 1 1 320px; }
+  .exp-trilha button { background: none; border: 0; padding: 2px 4px; border-radius: 4px; font: inherit; color: var(--accent, inherit); cursor: pointer; overflow-wrap: anywhere; text-align: left; }
+  .exp-trilha button:hover { background: var(--surface-2, transparent); }
+  .exp-trilha .atual { font-weight: 600; color: var(--ink); padding: 2px 4px; overflow-wrap: anywhere; }
+  .exp-trilha .sep { color: var(--ink-faint); }
+  .exp-busca { flex: 0 1 280px; min-width: 180px; }
+  .exp-busca input { width: 100%; }
+  .exp-info { font-size: var(--t-sm); color: var(--ink-faint); padding: 0 0 var(--esp-2); }
+  .exp-lista { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--border); }
+  .exp-lista li { border-bottom: 1px solid var(--border); }
+  .exp-item { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: var(--esp-2); align-items: center; width: 100%; min-height: var(--linha, 40px); padding: 6px 8px; background: none; border: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+  .exp-item:hover, .exp-item:focus-visible { background: var(--surface-2, transparent); }
+  .exp-item i { font-size: 18px; color: var(--ink-soft); }
+  .exp-item .pasta i, .exp-item i.ph-folder, .exp-item i.ph-folder-simple-user { color: var(--accent, var(--ink-soft)); }
+  .exp-nome { min-width: 0; overflow-wrap: anywhere; }
+  .exp-nome .onde { display: block; font-size: var(--t-sm); color: var(--ink-faint); }
+  .exp-meta { font-size: var(--t-sm); color: var(--ink-faint); white-space: nowrap; text-align: right; }
+  .exp-vazio { padding: var(--esp-4) 0; color: var(--ink-faint); font-size: var(--t-sm); text-align: center; }
+  @media (max-width: 600px) { .exp-meta .data { display: none; } }
   #viewArquivo .pagina-topo { margin-bottom: var(--esp-4); }
   .arq-busca { padding: var(--esp-2) 0; }
   .arq-busca input { width: 100%; max-width: 360px; }
@@ -1633,7 +1655,12 @@
         </div>
       </div>
       <div id="arqPedido" aria-live="polite"></div>
-      <section class="caixa-p">
+      <nav class="cliente-menu" role="tablist" aria-label="Seções do arquivo" id="arqAbas">
+        <button type="button" class="secao-btn" role="tab" data-arq="pastas" aria-selected="true"><i class="ph ph-folders" aria-hidden="true"></i><span>Pastas</span></button>
+        <button type="button" class="secao-btn" role="tab" data-arq="execucoes" aria-selected="false"><i class="ph ph-clock-counter-clockwise" aria-hidden="true"></i><span>Execuções</span></button>
+      </nav>
+      <section class="caixa-p" id="arqPastas"></section>
+      <section class="caixa-p" id="arqExecucoes" hidden>
         <div class="caixa-cab"><h2><i class="ph ph-clock-counter-clockwise" aria-hidden="true"></i> Execuções</h2><span class="cont" id="arqN"></span></div>
         <div class="arq-busca"><input type="search" id="arqBusca" placeholder="Filtrar por cliente ou código" aria-label="Filtrar execuções por cliente ou código"></div>
         <div class="tab-rolagem"><table class="tab-simples arq-tabela" id="tabArquivo"></table></div>
@@ -1926,6 +1953,9 @@
           <button type="button" class="secao-btn" role="tab" id="abaHistorico" data-painel="painelHistorico" aria-selected="false">
             <i class="ph ph-clock-counter-clockwise" aria-hidden="true"></i><span>Histórico</span>
           </button>
+          <button type="button" class="secao-btn" role="tab" id="abaPasta" data-painel="painelPasta" aria-selected="false" hidden>
+            <i class="ph ph-folder-open" aria-hidden="true"></i><span>Pasta</span>
+          </button>
           <button type="button" class="secao-btn" role="tab" id="abaSobre" data-painel="painelSobre" aria-selected="false">
             <i class="ph ph-buildings" aria-hidden="true"></i><span>Sobre o cliente</span>
           </button>
@@ -2034,6 +2064,8 @@
             <ul class="timeline" id="historicoTimeline"></ul>
             <div id="historicoVazio" class="vazio" hidden></div>
           </div>
+
+          <div id="painelPasta" role="tabpanel" aria-labelledby="abaPasta" hidden></div>
 
           <div id="painelSobre" role="tabpanel" aria-labelledby="abaSobre" hidden>
             <div class="painel-titulo"><h2>Ficha cadastral</h2></div>
@@ -5015,7 +5047,7 @@
   // ==========================================================================
   // Tela do cliente
   // ==========================================================================
-  var ABAS = ['abaResumo', 'abaDocs', 'abaEntregas', 'abaComunicacao', 'abaHistorico', 'abaSobre'];
+  var ABAS = ['abaResumo', 'abaDocs', 'abaEntregas', 'abaComunicacao', 'abaHistorico', 'abaPasta', 'abaSobre'];
 
   function selecionarAba(idAba) {
     secaoAtual = idAba;
@@ -5027,6 +5059,7 @@
       $(aba.dataset.painel).hidden = !ativa;
     });
     if (idAba === 'abaEntregas' || idAba === 'abaHistorico' || idAba === 'abaResumo') carregarEntregas();
+    if (idAba === 'abaPasta') mostrarPastaDoCliente();
   }
   ABAS.forEach(function (id, i) {
     $(id).addEventListener('click', function () { selecionarAba(id); });
@@ -5035,6 +5068,7 @@
       if (!passo) return;
       ev.preventDefault();
       var proxima = ABAS[(i + passo + ABAS.length) % ABAS.length];
+      if ($(proxima).hidden) proxima = ABAS[(i + 2 * passo + ABAS.length) % ABAS.length];
       selecionarAba(proxima);
       $(proxima).focus();
     });
@@ -5057,6 +5091,7 @@
     renderDetalhe();
     marcarSelecao();
     aplicarLayout();
+    if (secaoAtual === 'abaPasta') mostrarPastaDoCliente();
     window.scrollTo(0, 0);
     if (abaInicial === 'abaComunicacao') { setTimeout(function () { $('detEmailInput').focus(); }, 50); }
     else $('voltarBtn').focus();
@@ -6839,6 +6874,300 @@
   });
 
 
+
+  // ==========================================================================
+  // Explorador da pasta do ano no Drive (2026). O navegador não fala com o
+  // Drive: lê o mapa que o robô da nuvem mantém no banco (driveIndice, ver
+  // scripts/drive-indice.js), atualizado ~1 minuto depois de qualquer mudança.
+  // Abrir um arquivo é um pedido (aberturasDrive): o robô traz uma cópia que
+  // dura 30 minutos. Nada aqui pode apagar ou mudar coisa no Drive.
+  // ==========================================================================
+  var podeVerArquivo = false;
+  var indiceDrive = { raiz: null, unsubRaiz: null, clientes: {}, ouvintes: {} };
+
+  // Um ouvinte por lugar da tela (chave): abrir outro cliente troca o da
+  // ficha em vez de acumular um explorador velho redesenhando por cima.
+  function ouvirRaizDoDrive(chave, aoMudar) {
+    indiceDrive.aoMudar = indiceDrive.aoMudar || {};
+    indiceDrive.aoMudar[chave] = aoMudar;
+    if (indiceDrive.unsubRaiz) return;
+    indiceDrive.unsubRaiz = db.collection('driveIndice').doc('raiz').onSnapshot(function (d) {
+      indiceDrive.raiz = d.exists ? d.data() : { clientes: [] };
+      Object.keys(indiceDrive.aoMudar).forEach(function (k) { try { indiceDrive.aoMudar[k](); } catch (e) {} });
+    }, function () {});
+  }
+
+  // Itens de uma pasta de cliente: o resumo é ouvido ao vivo; quando o robô
+  // regrava (atualizadoEm muda), as partes são lidas de novo.
+  function itensDoCliente(pastaId, chave, aoChegar) {
+    var c = indiceDrive.clientes[pastaId];
+    if (c && c.itens) aoChegar(c);
+    if (indiceDrive.ouvintes[pastaId]) { indiceDrive.ouvintes[pastaId][chave] = aoChegar; return; }
+    indiceDrive.ouvintes[pastaId] = {};
+    indiceDrive.ouvintes[pastaId][chave] = aoChegar;
+    var ref = db.collection('driveIndice').doc(pastaId);
+    ref.onSnapshot(function (d) {
+      if (!d.exists) return;
+      var resumo = d.data();
+      var atual = indiceDrive.clientes[pastaId];
+      if (atual && atual.resumo && atual.resumo.atualizadoEm === resumo.atualizadoEm && atual.itens) return;
+      ref.collection('partes').get().then(function (snap) {
+        var itens = [];
+        snap.docs.sort(function (a, b) { return Number(a.id) - Number(b.id); })
+          .forEach(function (p) { itens = itens.concat(p.data().itens || []); });
+        var dados = { resumo: resumo, itens: itens, filhos: {} };
+        itens.forEach(function (it) { (dados.filhos[it.p] = dados.filhos[it.p] || []).push(it); });
+        indiceDrive.clientes[pastaId] = dados;
+        var ouv = indiceDrive.ouvintes[pastaId];
+        Object.keys(ouv).forEach(function (k) { try { ouv[k](dados); } catch (e) {} });
+      });
+    }, function () {});
+  }
+
+  var ordenarNomes = new Intl.Collator('pt-BR', { numeric: true, sensitivity: 'base' }).compare;
+  function tamanhoLegivel(b) {
+    if (b == null) return '';
+    if (b < 1024) return b + ' B';
+    if (b < 1048576) return Math.round(b / 1024) + ' KB';
+    return (b / 1048576).toFixed(1).replace('.', ',') + ' MB';
+  }
+  function iconeDoArquivo(it) {
+    if (it.t === 'd') return 'ph-folder';
+    var n = String(it.n || '').toLowerCase();
+    if (/\.pdf$/.test(n)) return 'ph-file-pdf';
+    if (/\.(xml|ofx)$/.test(n)) return 'ph-file-code';
+    if (/\.(xlsx?|csv|ods)$/.test(n) || /spreadsheet/.test(it.x || '')) return 'ph-file-xls';
+    if (/\.(docx?|odt|txt)$/.test(n) || /document/.test(it.x || '')) return 'ph-file-doc';
+    if (/\.(jpe?g|png|gif|webp|heic)$/.test(n)) return 'ph-file-image';
+    if (/\.(zip|rar|7z)$/.test(n)) return 'ph-file-zip';
+    if (/\.(mp4|mov|avi|mkv)$/.test(n)) return 'ph-file-video';
+    return 'ph-file';
+  }
+  function dataCurta(iso) {
+    if (!iso) return '';
+    var d = new Date(iso); if (isNaN(d)) return '';
+    return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear();
+  }
+
+  // Abre o arquivo: a janela nasce no clique (senão o navegador bloqueia) e
+  // recebe o endereço quando o robô terminar de buscar.
+  function abrirArquivoDoDrive(it) {
+    var janela = window.open('', '_blank');
+    if (janela) {
+      try {
+        janela.document.title = 'Abrindo ' + it.n;
+        janela.document.body.style.cssText = 'font-family:system-ui,sans-serif;padding:32px;color:#444';
+        janela.document.body.textContent = 'Buscando "' + it.n + '" no Drive…';
+      } catch (e) {}
+    }
+    db.collection('aberturasDrive').add({
+      status: 'pendente', fileId: it.i, nome: it.n,
+      criadoEm: new Date().toISOString(), criadoPor: quemSou(), criadoPorUid: auth.currentUser.uid
+    }).then(function (ref) {
+      var fim = setTimeout(function () {
+        parar();
+        var msg = 'O robô não respondeu a tempo. Confira se ele está online e tente de novo.';
+        if (janela) { try { janela.document.body.textContent = msg; } catch (e) {} }
+        toast(msg, 'erro');
+      }, 90000);
+      var parar = ref.onSnapshot(function (d) {
+        var p = d.data() || {};
+        if (p.status === 'pronto' && p.url) {
+          clearTimeout(fim); parar();
+          if (janela && !janela.closed) janela.location.href = p.url; else window.open(p.url, '_blank');
+        } else if (p.status === 'erro') {
+          clearTimeout(fim); parar();
+          if (janela) { try { janela.document.body.textContent = 'Não consegui abrir: ' + (p.erro || 'erro'); } catch (e) {} }
+          toast('Não consegui abrir: ' + (p.erro || 'erro'), 'erro');
+        }
+      }, function () {});
+    }).catch(function (err) {
+      if (janela) { try { janela.close(); } catch (e) {} }
+      toast('Não consegui pedir o arquivo: ' + err.message, 'erro');
+    });
+  }
+
+  // Um explorador dentro de "caixa". opcoes.pastaCliente: começa (e para)
+  // dentro da pasta de um cliente; sem ela, começa na pasta do ano.
+  function criarExplorador(caixa, opcoes) {
+    opcoes = opcoes || {};
+    var est = { caminho: [], busca: '' };   // caminho: [{ id, nome, cliente }]
+    // A caixa pode ganhar um explorador novo (outro cliente na ficha): o
+    // antigo reconhece que foi substituído e para de desenhar.
+    var marca = {};
+    caixa._explorador = marca;
+    function meu() { return caixa._explorador === marca; }
+    caixa.innerHTML = '';
+    var topo = el('div', 'exp-topo');
+    var trilha = el('nav', 'exp-trilha'); trilha.setAttribute('aria-label', 'Caminho da pasta');
+    var buscaBox = el('div', 'exp-busca');
+    var busca = el('input'); busca.type = 'search';
+    busca.setAttribute('aria-label', 'Buscar nesta pasta');
+    buscaBox.appendChild(busca);
+    topo.appendChild(trilha); topo.appendChild(buscaBox);
+    var info = el('div', 'exp-info');
+    var lista = el('ul', 'exp-lista');
+    caixa.appendChild(topo); caixa.appendChild(info); caixa.appendChild(lista);
+    var buscaTimer = null;
+    busca.addEventListener('input', function () {
+      clearTimeout(buscaTimer);
+      buscaTimer = setTimeout(function () { est.busca = busca.value.trim(); desenhar(); }, 150);
+    });
+
+    if (opcoes.pastaCliente) est.caminho = [{ id: opcoes.pastaCliente.id, nome: opcoes.pastaCliente.nomePasta || opcoes.pastaCliente.nome, cliente: opcoes.pastaCliente.id }];
+
+    function ir(caminho) { est.caminho = caminho; est.busca = ''; busca.value = ''; desenhar(); caixa.scrollIntoView({ block: 'nearest' }); }
+
+    function linha(icone, nome, onde, meta, data, acao, rotulo) {
+      var li = el('li');
+      var b = el('button', 'exp-item'); b.type = 'button';
+      b.appendChild(ico(icone));
+      var n = el('span', 'exp-nome', nome);
+      if (onde) n.appendChild(el('span', 'onde', onde));
+      b.appendChild(n);
+      var m = el('span', 'exp-meta', meta || '');
+      if (data) { m.appendChild(document.createTextNode(meta ? ' · ' : '')); m.appendChild(el('span', 'data', data)); }
+      b.appendChild(m);
+      if (rotulo) b.title = rotulo;
+      b.addEventListener('click', acao);
+      li.appendChild(b);
+      return li;
+    }
+
+    function desenharTrilha() {
+      trilha.innerHTML = '';
+      var partes = [];
+      if (!opcoes.pastaCliente) partes.push({ nome: (indiceDrive.raiz && indiceDrive.raiz.pastaNome) || '2026', caminho: [] });
+      est.caminho.forEach(function (c, i) { partes.push({ nome: c.nome, caminho: est.caminho.slice(0, i + 1) }); });
+      partes.forEach(function (p, i) {
+        if (i) trilha.appendChild(el('span', 'sep', '›'));
+        if (i === partes.length - 1) trilha.appendChild(el('span', 'atual', p.nome));
+        else { var b = el('button', null, p.nome); b.type = 'button'; b.addEventListener('click', function () { ir(p.caminho); }); trilha.appendChild(b); }
+      });
+      busca.placeholder = est.caminho.length ? 'Buscar nesta pasta e nas de dentro' : 'Buscar cliente pelo nome ou código';
+    }
+
+    function desenhar() {
+      desenharTrilha();
+      lista.innerHTML = '';
+      var raiz = indiceDrive.raiz;
+      if (!raiz) { info.textContent = 'Carregando o mapa do Drive…'; return; }
+      if (!raiz.pastaId) { info.textContent = 'O robô ainda não montou o mapa do Drive.'; return; }
+      var termo = normalizarBusca(est.busca);
+
+      // Pasta do ano: um item por cliente.
+      if (!est.caminho.length) {
+        var cl = (raiz.clientes || []).filter(function (c) {
+          return !termo || String(c.codigo) === termo || normalizarBusca(c.nomePasta || c.nome).indexOf(termo) !== -1;
+        });
+        info.textContent = plural(cl.length, 'pasta de cliente', 'pastas de cliente') + (raiz.atualizadoEm ? ' · mapa atualizado ' + dataHora(raiz.atualizadoEm) : '');
+        if (!cl.length) lista.appendChild(el('li', 'exp-vazio', 'Nenhuma pasta com esse nome ou código.'));
+        cl.forEach(function (c) {
+          lista.appendChild(linha('ph-folder-simple-user', c.nomePasta || ((c.codigo ? c.codigo + ' - ' : '') + c.nome), null,
+            plural(c.arquivos || 0, 'arquivo', 'arquivos'), dataCurta(c.mod),
+            function () { ir([{ id: c.id, nome: c.nomePasta || c.nome, cliente: c.id }]); }));
+        });
+        return;
+      }
+
+      var pastaCliente = est.caminho[0].cliente;
+      var atual = est.caminho[est.caminho.length - 1].id;
+      info.textContent = 'Carregando…';
+      itensDoCliente(pastaCliente, opcoes.chave || 'arquivo', function (dados) {
+        if (!meu()) return;
+        if (!est.caminho.length || est.caminho[0].cliente !== pastaCliente) return;   // o usuário já saiu daqui
+        if (est.caminho[est.caminho.length - 1].id !== atual) return;
+        lista.innerHTML = '';
+        var itens;
+        if (termo) {
+          // Busca na pasta atual e em tudo que está dentro dela.
+          var dentro = [], fila = [atual];
+          while (fila.length) {
+            var id = fila.shift();
+            (dados.filhos[id] || []).forEach(function (f) { dentro.push(f); if (f.t === 'd') fila.push(f.i); });
+          }
+          itens = dentro.filter(function (f) { return normalizarBusca(f.n).indexOf(termo) !== -1; });
+        } else {
+          itens = (dados.filhos[atual] || []).slice();
+        }
+        itens.sort(function (a, b) { return ((a.t === 'd') === (b.t === 'd')) ? ordenarNomes(a.n, b.n) : (a.t === 'd' ? -1 : 1); });
+        var porId = {};
+        dados.itens.forEach(function (i) { porId[i.i] = i; });
+        function caminhoAte(it) {
+          var nomes = [], p = it.p, voltas = 0;
+          while (p && p !== atual && porId[p] && voltas++ < 40) { nomes.unshift(porId[p].n); p = porId[p].p; }
+          return nomes;
+        }
+        function caminhoCompleto(it) {
+          var cam = [], p = it.i, voltas = 0;
+          while (p && porId[p] && voltas++ < 40) { cam.unshift({ id: p, nome: porId[p].n, cliente: pastaCliente }); p = porId[p].p; }
+          return [est.caminho[0]].concat(cam);
+        }
+        var nArq = itens.filter(function (i) { return i.t !== 'd'; }).length;
+        var nPas = itens.length - nArq;
+        info.textContent = termo
+          ? plural(itens.length, 'resultado', 'resultados') + ' para "' + est.busca + '"'
+          : [nPas ? plural(nPas, 'pasta', 'pastas') : '', nArq ? plural(nArq, 'arquivo', 'arquivos') : ''].filter(Boolean).join(' · ') || 'Pasta vazia';
+        if (!itens.length) lista.appendChild(el('li', 'exp-vazio', termo ? 'Nada encontrado aqui dentro.' : 'Esta pasta está vazia.'));
+        itens.slice(0, 1500).forEach(function (it) {
+          var onde = termo ? caminhoAte(it).join(' › ') : '';
+          if (it.t === 'd') {
+            var n = (dados.filhos[it.i] || []).length;
+            lista.appendChild(linha('ph-folder', it.n, onde, plural(n, 'item', 'itens'), dataCurta(it.m),
+              function () { ir(caminhoCompleto(it)); }));
+          } else {
+            lista.appendChild(linha(iconeDoArquivo(it), it.n, onde, tamanhoLegivel(it.s), dataCurta(it.m),
+              function () { abrirArquivoDoDrive(it); }, 'Abrir ' + it.n));
+          }
+        });
+        if (itens.length > 1500) lista.appendChild(el('li', 'exp-vazio', 'Mostrando 1.500 de ' + itens.length + '. Use a busca pra achar o que precisa.'));
+      });
+    }
+
+    ouvirRaizDoDrive(opcoes.chave || 'arquivo', function () { if (meu()) desenhar(); });
+    desenhar();
+    return { desenhar: desenhar };
+  }
+
+  // Aba "Pasta" da ficha do cliente: acha a pasta pelo código do cadastro.
+  var expCliente = null;
+  function mostrarPastaDoCliente() {
+    var caixa = $('painelPasta');
+    var c = clientesPorId.get(clienteSelecionadoId);
+    function montar() {
+      var raiz = indiceDrive.raiz;
+      if (!raiz) { caixa.innerHTML = ''; caixa.appendChild(el('div', 'exp-vazio', 'Carregando o mapa do Drive…')); return; }
+      var cod = c && c.codigoOrigem != null ? String(c.codigoOrigem).trim() : '';
+      var pasta = (raiz.clientes || []).filter(function (p) { return cod && String(p.codigo) === cod; })[0];
+      if (!pasta) {
+        caixa.innerHTML = '';
+        caixa.appendChild(el('div', 'exp-vazio', cod
+          ? 'Não há pasta "' + cod + ' - …" em ' + (raiz.pastaNome || '2026') + ' no Drive.'
+          : 'Este cliente não tem código no cadastro, então não dá pra achar a pasta dele.'));
+        return;
+      }
+      if (caixa.dataset.pasta === pasta.id && expCliente) return;
+      caixa.dataset.pasta = pasta.id;
+      expCliente = criarExplorador(caixa, { pastaCliente: pasta, chave: 'ficha' });
+    }
+    caixa.dataset.pasta = '';
+    expCliente = null;
+    // Enquanto o mapa não chega, quem ouve é o "montar"; o explorador toma o
+    // lugar dele (mesma chave) assim que for criado.
+    if (!indiceDrive.raiz) ouvirRaizDoDrive('ficha', function () { if (secaoAtual === 'abaPasta' && telaCliente) montar(); });
+    montar();
+  }
+
+  // Aba Arquivo: Pastas | Execuções.
+  var expArquivo = null;
+  document.querySelectorAll('#arqAbas [data-arq]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.querySelectorAll('#arqAbas [data-arq]').forEach(function (x) { x.setAttribute('aria-selected', String(x === b)); });
+      $('arqPastas').hidden = b.dataset.arq !== 'pastas';
+      $('arqExecucoes').hidden = b.dataset.arq !== 'execucoes';
+    });
+  });
+
   // ==========================================================================
   // Arquivo: a rotina "Claudio Secretario". Esta página pede ("Arquivar
   // agora") e mostra o que foi arquivado; quem executa é o arquivador no PC
@@ -6866,6 +7195,7 @@
   }
 
   function abrirArquivo() {
+    if (!expArquivo) expArquivo = criarExplorador($('arqPastas'), { chave: 'arquivo' });
     if (arq.ligado) { renderArquivo(); return; }
     arq.ligado = true;
     arq.unsubs.push(db.collection('robo').doc('arquivador').onSnapshot(function (d) {
@@ -6977,8 +7307,6 @@
   });
 
   $('arqBusca').addEventListener('input', function () { renderArquivoLista(); });
-
-  function normalizarBusca(t) { return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
 
   function renderArquivoLista() {
     var termo = normalizarBusca($('arqBusca').value.trim());
@@ -7132,7 +7460,9 @@
       $('topo').hidden = false;
       $('tabsNav').hidden = !podeUsar;
       // Arquivo: só admin e contábil (as regras do banco pedem o mesmo).
-      $('menuArquivo').hidden = !(souAdmin || roles.indexOf('contabil') !== -1);
+      podeVerArquivo = souAdmin || roles.indexOf('contabil') !== -1;
+      $('menuArquivo').hidden = !podeVerArquivo;
+      $('abaPasta').hidden = !podeVerArquivo;
       if (!podeUsar) {
         document.querySelector('.app').innerHTML = '<div id="negado"><i class="ph ph-lock" style="font-size:32px;"></i>' +
           '<p>Sua conta não tem acesso a esta tela.</p></div>';

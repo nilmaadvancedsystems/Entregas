@@ -583,6 +583,29 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // Mapa da pasta do ano no Drive (scripts/drive-indice.js). Só leitura, e
+    // só pra quem vê o Arquivo: é a lista de documentos de todos os clientes.
+    match /driveIndice/{id} {
+      allow read: if ehAdmin() || temPapel('contabil');
+      allow write: if false;
+      match /partes/{n} {
+        allow read: if ehAdmin() || temPapel('contabil');
+        allow write: if false;
+      }
+    }
+
+    // Pedido pra abrir um arquivo do Drive pelo app (scripts/abrir-do-drive.js).
+    // Cada um só lê o próprio pedido: a resposta traz o link do arquivo.
+    match /aberturasDrive/{id} {
+      allow read: if (ehAdmin() || temPapel('contabil')) && resource.data.criadoPorUid == request.auth.uid;
+      allow create: if (ehAdmin() || temPapel('contabil'))
+        && request.resource.data.status == 'pendente'
+        && request.resource.data.criadoPorUid == request.auth.uid
+        && request.resource.data.fileId is string
+        && request.resource.data.keys().hasOnly(['status', 'fileId', 'nome', 'criadoEm', 'criadoPor', 'criadoPorUid']);
+      allow update, delete: if false;
+    }
+
     // O que foi arquivado: só leitura. Quem escreve é o arquivador, a partir
     // do manifesto da própria rotina.
     match /arquivamentos/{id} {

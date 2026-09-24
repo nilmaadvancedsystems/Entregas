@@ -559,6 +559,15 @@ async function iniciar() {
   catch (err) { log('recados da página do cliente desligados:', err.message); }
   try { require('./envios-do-portal').iniciarEnviosDoPortal(db, log); }
   catch (err) { log('documentos pelo link desligados:', err.message); }
+  // Mapa da pasta do ano no Drive (explorador do Pendências, status pela
+  // pasta) e "abrir arquivo" pelo app. Só onde o robô fala com o Drive pela
+  // API — na nuvem. Ver drive-indice.js e abrir-do-drive.js.
+  if (process.env.USAR_DRIVE_API === '1') {
+    try { require('./drive-indice').iniciarIndiceDrive(db, log); }
+    catch (err) { log('mapa do Drive desligado:', err.message); }
+    try { require('./abrir-do-drive').iniciarAberturaDoDrive(db, log); }
+    catch (err) { log('abrir arquivo do Drive desligado:', err.message); }
+  }
   // Os dois abaixo mandam e-mail pra CLIENTE e vêm desligados: quem liga é o
   // admin em Pendências › Configurações › Automático. Passam pelo mesmo freio
   // por hora da fila de cobrança.

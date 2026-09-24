@@ -405,5 +405,26 @@ igual('reprocessamento também tem data', !!arq.dataDoId('EXEC-20260902-132202-R
 const ex = arq.montarExecucao('EXEC-20260923-171757', grupos.get('EXEC-20260923-171757'), { naoIdentificados: 0, alerta: 'NENHUM' }, 'DUPLICADO: z');
 igual('resumo da execução', [ex.resumo.arquivados, ex.resumo.codigos, ex.resumo.duplicados, ex.resumo.alerta], [2, ['58'], 1, null]);
 
+
+// ---------- mapa do Drive: status pelo que está na pasta ----------
+const di = require('./drive-indice');
+const itensPasta = [
+  { i: 'c', n: 'CONTÁBIL', p: 'R', t: 'd' }, { i: 'e', n: 'EXTRATOS', p: 'c', t: 'd' }, { i: 'a', n: '2026', p: 'e', t: 'd' },
+  { i: 'm', n: '06', p: 'a', t: 'd' }, { i: 'b', n: 'BANCA\u0301RIOS', p: 'm', t: 'd' }, { i: 'bb', n: 'BNB', p: 'b', t: 'd' },
+  { i: 'f1', n: '06-2026.pdf', p: 'bb', t: 'f', s: 10 }, { i: 'q', n: 'MAQUININHAS', p: 'm', t: 'd' }, { i: 'f2', n: 'cielo.pdf', p: 'q', t: 'f' },
+  { i: 'k', n: 'COMPROVANTES', p: 'm', t: 'd' }, { i: 'f3', n: 'pix.pdf', p: 'k', t: 'f' },
+  { i: 'ap', n: 'APLICAÇÕES', p: 'm', t: 'd' }, { i: 'vazia', n: 'SICOOB', p: 'ap', t: 'd' },
+  { i: 'x', n: '13', p: 'a', t: 'd' }, { i: 'xb', n: 'BANCÁRIOS', p: 'x', t: 'd' }, { i: 'f4', n: 'mes13.pdf', p: 'xb', t: 'f' },
+  { i: 'fi', n: 'FISCAL', p: 'R', t: 'd' }, { i: 'f5', n: 'nota.xml', p: 'fi', t: 'f' },
+];
+const achadosPasta = di.documentosNaPasta(itensPasta, 'R');
+igual('pasta BANCÁRIOS do mês vira extrato (acento em qualquer forma)', (achadosPasta.get('2026-06|extrato') || []).map(a => a.id), ['f1']);
+igual('COMPROVANTES vira comprovante', (achadosPasta.get('2026-06|comprovante') || []).map(a => a.id), ['f3']);
+igual('pasta vazia não prova nada', achadosPasta.has('2026-06|aplicacao'), false);
+igual('maquininha, mês inválido e FISCAL ficam de fora', Array.from(achadosPasta.keys()).sort(), ['2026-06|comprovante', '2026-06|extrato']);
+igual('código e nome saem do nome da pasta', di.codigoDaPasta('58 - TORNEARIA VOLPONI LTDA'), { codigo: '58', nome: 'TORNEARIA VOLPONI LTDA' });
+igual('pasta sem código', di.codigoDaPasta('MODELOS').codigo, null);
+igual('totais contam arquivos e pastas', [di.totais(itensPasta).arquivos, di.totais(itensPasta).pastas], [5, 13]);
+
 console.log(falhas ? '\n' + falhas + ' de ' + total + ' testes FALHARAM' : total + ' testes, todos passaram');
 process.exit(falhas ? 1 : 0);
