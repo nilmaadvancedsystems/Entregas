@@ -1149,7 +1149,7 @@ body:has(.gaveta:not([hidden])) { overflow: hidden; }
 
 /* ---------------------------------------------------------------
  design-n1: componentes (botões, selos, seletor, campos, janela, aviso)
- (entregas.html, linhas 2602-2725)
+ (entregas.html, linhas 2602-2729)
  --------------------------------------------------------------- */
 :root { /* botões do N1 (esta linha não pode ser igual à do :root do topo: é âncora do monta-folha) */
   --btn-bg: var(--surface-2);
@@ -1214,6 +1214,10 @@ body:has(.gaveta:not([hidden])) { overflow: hidden; }
 
 /* números sempre alinhados (N1: tabular-nums) */
 .num, .dash-num, .historico-mes-total, .cp-kpi b, .contagem, .tab-badge, .cp-cont { font-variant-numeric: tabular-nums; }
+/* etapa 9: também as datas e valores das linhas de lista, o ranking, o
+   gráfico e a meta do Painel, o resumo em anel e o dia dos Honorários */
+.er-sub, #rankingEquipe, #graficoDiario, #metaResumo, .summary-text,
+.honorario-linha > div:nth-child(3) { font-variant-numeric: tabular-nums; }
 
 /* janela (etapa 6): o Dialog do N1 — título 14px numa faixa com fio
    embaixo, cantos de 12px no PC. Diferenças de propósito: no celular

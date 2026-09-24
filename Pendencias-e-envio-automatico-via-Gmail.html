@@ -29,12 +29,12 @@
   } catch (e) {}
 })();
 </script>
-<link rel="stylesheet" href="nilma-icones.css?v=342">
+<link rel="stylesheet" href="nilma-icones.css?v=343">
 <!-- Mesmo sistema do Entregas: o script vem ANTES da folha e sem defer,
      senão a tela pisca no tema errado. -->
 <script src="bancos-nilma.js"></script>
-<script src="nilma-ui.js?v=342"></script>
-<link rel="stylesheet" href="nilma-ui.css?v=342">
+<script src="nilma-ui.js?v=343"></script>
+<link rel="stylesheet" href="nilma-ui.css?v=343">
 <style>
   /* ==========================================================================
      Tokens, paletas e preferências vêm de nilma-ui.css (gerado do
@@ -1504,15 +1504,54 @@
     .arq-detalhe td { padding: 12px 16px; }
   }
   /* ---------- fim da camada design-n1 (Arquivo) ---------- */
+
+  /* ==========================================================================
+     design-n1 — botões e aviso flutuante desta página (etapa 11)
+     A página tem o próprio .btn e o próprio .toast (mais antigos que a folha
+     comum); aqui eles ganham as medidas e as cores do kit N1.
+     ========================================================================== */
+  /* botões: 14px peso 500, 32px no PC (40px no celular, alvo de dedo);
+     secundário no cinza do N1 com borda; principal vermelho com texto branco */
+  .btn { height: auto; min-height: 32px; padding: 5px 16px; font-weight: 500; font-size: 14px; line-height: 20px; box-shadow: var(--btn-sombra, none); }
+  .btn-secondary { background: var(--btn-bg, var(--surface-2)); border-color: var(--btn-border, var(--border)); }
+  .btn-secondary:hover:not(:disabled) { background: var(--btn-hover, var(--surface-3)); }
+  .btn-primary { background: var(--btn-primary, var(--accent)); color: var(--btn-primary-ink, var(--accent-ink)); border-color: #1D1C1F26; }
+  .btn-primary:hover:not(:disabled) { background: color-mix(in srgb, var(--btn-primary, var(--accent)) 86%, #000); }
+  .btn-ghost { box-shadow: none; }
+  .btn-ghost:hover:not(:disabled) { background: var(--hover-bg, var(--surface-2)); }
+  .btn-sm { height: auto; min-height: 28px; padding: 3px 12px; font-size: 12px; }
+  .btn-icone { box-shadow: none; }
+  @media (max-width: 899px) { .btn { min-height: 40px; } .btn-sm { min-height: 32px; } }
+
+  /* aviso flutuante: o Toast do N1 — superfície, borda e faixa de 4px na
+     cor do significado (marca, verde ok, vermelho erro); no PC fica no
+     canto de baixo à esquerda */
+  .toast {
+    background: var(--surface); color: var(--ink); border: 1px solid var(--border);
+    border-left: 4px solid var(--accent); border-radius: 6px; font-size: 14px; line-height: 20px; padding: 12px 16px;
+  }
+  .toast.ok { border-left-color: var(--success); }
+  .toast.erro { border-left-color: var(--danger); }
+  .toast.ok i { color: var(--success); }
+  .toast.erro i { color: var(--danger); }
+  .toast-acao { border-color: var(--border); color: var(--accent-forte); font-weight: 500; }
+  .toast-acao:hover { background: var(--surface-2); }
+  @media (min-width: 900px) {
+    .toast { left: 16px; max-width: 420px; transform: translateY(8px); }
+    .toast.show { transform: none; }
+  }
+  /* ícone de título de caixa em cinza: no N1 o vermelho é da ação principal */
+  .caixa-cab h2 .ph { color: var(--ink-soft); }
+  /* ---------- fim da camada design-n1 (botões e aviso) ---------- */
 </style>
 </head>
 <body>
 <!-- Casca comum (barra de cima, menu ☰ e menu da conta): nilma-shell.js -->
-<script src="nilma-dialogo.js?v=342"></script>
-<script src="nilma-shell.js?v=342"></script>
+<script src="nilma-dialogo.js?v=343"></script>
+<script src="nilma-shell.js?v=343"></script>
 <script src="nilma-extras.js"></script>
 <script>
-  NilmaShell.montar({ modulo: 'Pendências', moduloId: 'pendencias', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false, versao: '2.342 · 24/09/2026' });
+  NilmaShell.montar({ modulo: 'Pendências', moduloId: 'pendencias', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false, versao: '2.343 · 24/09/2026' });
   // antes do login só a tela de entrada; a barra aparece junto com o app
   document.getElementById('topo').hidden = true;
 </script>
