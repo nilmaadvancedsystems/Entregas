@@ -2661,6 +2661,50 @@
   .num, .dash-num, .historico-mes-total, .cp-kpi b, .contagem, .tab-badge, .cp-cont { font-variant-numeric: tabular-nums; }
   /* ---------- fim da camada design-n1 (componentes) ---------- */
 
+  /* ==========================================================================
+     design-n1 — telas do Entregas (etapa 4 da reformulação, 24/09/2026)
+     Nova entrega, Rota, Painel, Honorários: as medidas do kit N1 em cima do
+     desenho que já existia (caixa com cabeçalho de fundo). Só visual.
+     ========================================================================== */
+  /* Ícone de título em cinza: no N1 o vermelho é da ação principal e do
+     item ativo, não de enfeite em todo título. */
+  .card h2 .ph, .modal h2 .ph { color: var(--ink-faint); }
+
+  /* Caixa (gh-box do N1): cabeçalho de 48px, título 14px, laterais de 16px */
+  .card.caixa > .card-head-row { min-height: 48px; padding: 8px 16px; }
+  .card.caixa > .card-head-row > h2 { font-size: 14px; font-weight: 600; }
+  .card.caixa > .card-ferramentas, .card.caixa > .filters, .card.caixa > .linha-busca-cnpj,
+  .card.caixa > .painel-resumo { padding: 12px 16px; }
+  .card.caixa .entrega-row, .card.caixa .history-row, .card.caixa .fecha-linha, .card.caixa .montagem-linha { padding-left: 16px; padding-right: 16px; }
+  .card.caixa > #graficoDiario, .card.caixa > #rankingEquipe, .card.caixa > #metaResumo,
+  .card.caixa > .map-wrap, .card.caixa > .numeros-do-mes { padding: 12px 16px; }
+  .card.caixa .contagem { color: var(--ink-soft); }
+
+  /* Formulário da tela (Nova entrega): o .card do N1 — borda, fundo e o
+     título numa faixa cinza em cima. */
+  .view > form.card:not(.caixa) {
+    border: 1px solid var(--border); border-radius: 6px; background: var(--surface);
+    padding: 16px; margin-bottom: 16px;
+  }
+  .view > form.card:not(.caixa) > h2:first-child {
+    margin: -16px -16px 16px; padding: 12px 16px; font-size: 14px; font-weight: 600;
+    background: var(--surface-2); border-bottom: 1px solid var(--border); border-radius: 6px 6px 0 0;
+  }
+  @media (max-width: 640px) {
+    .view > form.card:not(.caixa) { padding: 12px; }
+    .view > form.card:not(.caixa) > h2:first-child { margin: -12px -12px 12px; padding: 10px 12px; }
+  }
+
+  /* Lista vazia: frase curta, cinza, centrada (o .empty do N1) */
+  .empty-state { font-size: 14px; color: var(--ink-soft); padding: 24px 16px; }
+
+  /* Honorários: a tabela do N1 — cabeçalho 12px cinza sobre faixa, 16px de lado */
+  .honorario-linha { padding-left: 16px; padding-right: 16px; }
+  @media (min-width: 900px) {
+    .honorarios-cabecalho { padding: 8px 16px; font-size: 12px; border-bottom: 1px solid var(--border); }
+  }
+  /* ---------- fim da camada design-n1 (telas do Entregas) ---------- */
+
 </style>
 </head>
 <body>
