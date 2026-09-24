@@ -11557,12 +11557,12 @@
           '</label>' +
           '<label class="avulso-toggle" id="pendingSemComprovanteWrap" style="margin-bottom:14px;">' +
             '<input type="checkbox" id="pendingSemComprovanteToggle">' +
-            '<i class="ph ph-note-pencil" aria-hidden="true"></i> Entreguei, mas não tenho assinatura nem foto' +
+            '<i class="ph ph-note-pencil" aria-hidden="true"></i> Entreguei, mas o cliente não assinou' +
           '</label>' +
           '<label class="field" id="pendingSemComprovanteField" hidden>' +
-            '<span>Por que não tem comprovante</span>' +
-            '<textarea class="input" id="pendingSemComprovanteMotivo" rows="2" placeholder="Ex.: esqueci de registrar na hora, celular sem bateria, deixei na portaria..."></textarea>' +
-            '<span class="card-hint" style="margin-top:4px;display:block;">A entrega fica registrada e marcada como <strong>sem comprovante</strong> — assim ninguém vai procurar uma assinatura que não existe.</span>' +
+            '<span>Por que não assinou (opcional)</span>' +
+            '<textarea class="input" id="pendingSemComprovanteMotivo" rows="2" placeholder="Ex.: deixei na portaria, responsável não estava..."></textarea>' +
+            '<span class="card-hint" style="margin-top:4px;display:block;">Tire uma <strong>foto</strong> mostrando a entrega (o documento na portaria, na mesa, na caixa de correio): ela vale como comprovante.</span>' +
             '<div class="field-error" id="err-pendingSemComprovanteMotivo">Explique o que aconteceu.</div>' +
           '</label>' +
           '<div class="field">' +
@@ -11732,7 +11732,7 @@
       $('pendingHonorarioPixField').hidden = isFalha || !soHonorario;
       if ($('pendingHonorarioPixField').hidden) $('pendingHonorarioPixToggle').checked = false;
       atualizarQrDoPixPendente_();
-      $('pendingFotoLabel').textContent = isFalha ? 'Foto (obrigatória)' : 'Foto (opcional se colher assinatura)';
+      $('pendingFotoLabel').textContent = (isFalha || semComprovante) ? 'Foto (obrigatória)' : 'Foto (opcional se colher assinatura)';
       $('pendingConfirmBtn').textContent = isFalha ? 'Registrar entrega não realizada' : 'Confirmar entrega';
     }
     $('pendingFalhaToggle').addEventListener('change', atualizarModoFalhaPendente);
@@ -11755,9 +11755,9 @@
         if (!motivo) { showFieldError('pendingFalhaMotivo'); ok = false; }
         if (!ok) return;
       } else if (semComprovante) {
-        // sem assinatura e sem foto é aceitável, mas nunca em silêncio:
-        // exige dizer o porquê, e a entrega fica marcada com isso
-        if (!motivoSemComprovante) { showFieldError('pendingSemComprovanteMotivo'); return; }
+        // Cliente não assinou: a foto passa a ser o comprovante, e por isso é
+        // obrigatória (pedido do escritório, 24/09/2026). O motivo é opcional.
+        if (!pendingFoto) { showFieldError('pendingFoto'); return; }
       } else if (comPix) {
         if (!pendingFoto) { showFieldError('pendingFoto'); return; }
       } else if (!dispensaComprovante && !pendingPad.hasSignature && !pendingFoto) {
@@ -11787,9 +11787,11 @@
         recebedor: isFalha ? '' : $('pendingRecebedor').value.trim(),
         geo: pendingGeo,
         temAssinatura: !isFalha && !semComprovante && pendingPad.hasSignature,
-        temFoto: !isFalha && semComprovante ? false : !!pendingFoto,
-        semComprovante: semComprovante,
-        motivoSemComprovante: semComprovante ? motivoSemComprovante : '',
+        temFoto: !!pendingFoto,
+        // Com a foto obrigatória, "sem assinatura" não é mais "sem comprovante".
+        semComprovante: false,
+        semAssinatura: semComprovante,
+        motivoSemAssinatura: semComprovante ? motivoSemComprovante : '',
         localDivergente: !isFalha && avaliacao.divergente,
         distanciaDoClienteKm: avaliacao.distancia,
         falha: isFalha,
@@ -11809,7 +11811,7 @@
         ? null
         : (assinaturaRemota || (pendingPad.hasSignature ? pendingPad.dataUrl() : null));
       if (assinaturaFinal) comprovante.assinatura = assinaturaFinal;
-      if (!semComprovante && pendingFoto) comprovante.foto = pendingFoto;
+      if (pendingFoto) comprovante.foto = pendingFoto;
       if (Object.keys(comprovante).length) {
         lote.set(entregaRef.collection('anexos').doc('comprovante'), comprovante, { merge: true });
       }
@@ -11823,7 +11825,7 @@
 
       escritaQueNaoTrava_(gravacao, 'a confirmação de ' + (entrega.clienteNome || 'uma entrega')).then(function (resultado) {
         showToast(avisoDeEscrita_(resultado, isFalha ? 'Entrega não realizada registrada.'
-          : (semComprovante ? 'Entrega registrada sem comprovante.' : 'Entrega confirmada.')));
+          : (semComprovante ? 'Entrega confirmada com foto, sem assinatura.' : 'Entrega confirmada.')));
         if (!isFalha) avisarLocalDivergente_(avaliacao, entrega.clienteNome);
         closeModal();
         // Cliente ausente quase sempre significa "volto amanhã". Em vez de
