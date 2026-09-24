@@ -2590,6 +2590,73 @@
   .cq-exemplo:hover { border-color: var(--border-forte); color: var(--ink); }
   /* ---------- fim da consulta (Perguntar à IA) ---------- */
 
+  /* ==========================================================================
+     design-n1 — componentes (etapa 2 da reformulação, 24/09/2026)
+     A aparência vem do kit N1 (skill design-n1: css/nilma.css). As CLASSES
+     continuam as do app (.btn-chip, .status-pill, .mode-toggle...), porque o
+     código inteiro depende delas; esta camada, no fim da folha, só troca o
+     visual. Onde o N1 e o app divergem de propósito, está dito.
+     ========================================================================== */
+  :root {
+    --btn-bg: var(--surface-2);
+    --btn-hover: var(--surface-3);
+    --btn-border: var(--border);
+    --btn-primary: var(--accent);
+    --btn-primary-ink: var(--accent-ink);
+    --btn-sombra: 0 1px 0 #1D1C1F0A;
+  }
+  /* No escuro, com a paleta padrão, o botão principal do N1 é um vermelho mais
+     fechado com texto branco (o vermelho claro fica pro texto e pro ativo).
+     Com outra paleta escolhida, vale a cor dela, como sempre. */
+  :root[data-theme="dark"]:not([data-paleta]), :root[data-theme="dark"][data-paleta="padrao"] { --btn-primary: #C62B32; --btn-primary-ink: #FFFFFF; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]):not([data-paleta]), :root:not([data-theme="light"])[data-paleta="padrao"] { --btn-primary: #C62B32; --btn-primary-ink: #FFFFFF; }
+  }
+
+  /* botões: 14px, peso 500, fundo cinza com borda; 32px no PC (no celular
+     continua o alvo de 44px — é dedo, não mouse) */
+  .btn { font-weight: 500; font-size: 14px; line-height: 20px; padding: 5px 16px; gap: 8px; min-height: var(--alvo); box-shadow: var(--btn-sombra); }
+  .btn-primary { background: var(--btn-primary); color: var(--btn-primary-ink); border-color: #1D1C1F26; }
+  .btn-primary:hover:not(:disabled) { background: color-mix(in srgb, var(--btn-primary) 86%, #000); }
+  .btn-secondary { background: var(--btn-bg); border-color: var(--btn-border); }
+  .btn-secondary:hover:not(:disabled) { background: var(--btn-hover); border-color: var(--btn-border); }
+  .btn-perigo { color: var(--danger); }
+  .btn-perigo:hover { background: var(--danger); border-color: var(--danger); color: #FFFFFF; }
+  .btn-chip { background: var(--btn-bg); border-color: var(--btn-border); font-weight: 500; gap: 6px; box-shadow: var(--btn-sombra); }
+  .btn-chip:hover { background: var(--btn-hover); border-color: var(--btn-border); }
+  .btn-chip.accent { color: var(--accent-forte); }
+  .btn-chip.accent:hover { background: var(--accent-soft); border-color: var(--accent); }
+  .btn-chip.danger { color: var(--danger); }
+  @media (min-width: 900px) {
+    .btn, .btn-chip { min-height: 32px; }
+    .btn-chip.mini, .btn-sm { min-height: 28px; padding: 3px 12px; font-size: 12px; }
+  }
+
+  /* selos: o badge do N1 — contorno colorido, sem fundo, em pílula.
+     Cor pelo significado: verde ok, laranja atenção, vermelho falhou,
+     marca = em andamento, cinza = apoio. */
+  .status-pill { background: none !important; border: 1px solid currentColor; border-radius: 2em; font-weight: 500; padding: 0 7px; line-height: 18px; }
+  .status-pill.entregue { color: var(--success); }
+  .status-pill.pendente { color: var(--laranja); }
+  .status-pill.rota { color: var(--accent-forte); }
+  .status-pill.falha { color: var(--danger); }
+  .status-pill.neutro { color: var(--ink-soft); border-color: var(--border); }
+
+  /* seletor interno: o SegmentedControl do N1 (faixa cinza, ativo em branco
+     com borda). Diferença de propósito: no app ele ocupa a largura toda
+     (pedido do escritório), no N1 é do tamanho do conteúdo. */
+  .mode-toggle { background: var(--surface-3); border: 1px solid var(--border); border-radius: 6px; padding: 0; gap: 0; }
+  .mode-btn { margin: -1px; border: 1px solid transparent; border-radius: 6px; padding: 4px 16px; min-height: 30px; color: var(--ink); font-weight: 400; }
+  .mode-btn:hover:not(.active) { background: color-mix(in srgb, var(--border-forte) 16%, transparent); }
+  .mode-btn.active { background: var(--surface); border-color: var(--border-forte); color: var(--ink); font-weight: 600; box-shadow: none; }
+
+  /* campos: borda da marca ao focar, como no N1 */
+  .input:focus, input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); outline: none; }
+
+  /* números sempre alinhados (N1: tabular-nums) */
+  .num, .dash-num, .historico-mes-total, .cp-kpi b, .contagem, .tab-badge, .cp-cont { font-variant-numeric: tabular-nums; }
+  /* ---------- fim da camada design-n1 (componentes) ---------- */
+
 </style>
 </head>
 <body>
