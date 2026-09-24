@@ -72,6 +72,8 @@
 
   :root {
     /* --- neutros ---
+       Valores do design-n1 (skill design-n1, docs/tokens.md), o sistema de
+       design da Conferência Contábil, desde 24/09/2026.
        UMA SUPERFÍCIE SÓ. Barra de cima, menu lateral e conteúdo dividem o
        mesmo fundo; o que separa é fio de 1px, não bloco de cor. Antes o
        conteúdo era um painel claro boiando numa bandeja escura, e o vão
@@ -82,37 +84,43 @@
        cravado na base. */
     --bg-base: #FFFFFF;
     --surface-base: #FFFFFF;
-    --surface-2-base: #F2F2F2;
-    --border-base: #E3E3E3;
-    --border-forte-base: #C9C9C9;
+    --surface-2-base: #F7F7F8;
+    --border-base: #DADADF;
+    --border-forte-base: #8C8C92;
     --bg: var(--bg-base);
     --surface: var(--surface-base);
     --surface-2: var(--surface-2-base);
     --border: var(--border-base);
     --border-forte: var(--border-forte-base);
+    /* design-n1: terceira superfície (hover de linha, faixa) e fundo da barra
+       de cima, que no N1 se distingue um pouco do conteúdo. */
+    --surface-3: #EEEEF0;
+    --header-bg: #F7F7F8;
+    --laranja: #BC4C00;          /* N1: atenção / diferença */
+    --laranja-soft: #FFF1E5;
 
     /* Os cinzas de texto NÃO são tingidos. Eram eles que faziam a tela
        inteira parecer pintada de vermelho. */
-    --ink: #1A1A1A;
-    --ink-soft: #525252;
-    --ink-faint: #6C6C6C;
+    --ink: #1D1C1F;
+    --ink-soft: #5E5D64;
+    --ink-faint: #5E5D64;
 
     /* --- cor da marca --- */
-    --accent: #9A2B24;
+    --accent: #B0262D;
     --accent-ink: #FFFFFF;
-    --accent-soft: #F7E7E5;
+    --accent-soft: #F9E7E7;
     --accent-2: #6B6F75;
     --accent-2-soft: #EAEAEC;
 
     /* --- significado ---
        Verde = feito, amarelo = atenção, vermelho = falhou. Não mudam com a
        paleta escolhida: significado não é gosto. */
-    --success: #17694A;
-    --success-soft: #E2F2EA;
-    --warning: #8A5D12;
-    --warning-soft: #FAF0DC;
-    --danger: #A8322F;
-    --danger-soft: #FAE6E4;
+    --success: #1A7F37;
+    --success-soft: #DAFBE1;
+    --warning: #9A6700;
+    --warning-soft: #FFF8C5;
+    --danger: #CF222E;
+    --danger-soft: #FFEBE9;
     --danger-ink: #FFFFFF;
 
     /* Versão "de texto" de cada cor: a cor cheia preenche (botão, barra,
@@ -135,15 +143,15 @@
     /* --- elevação ---
        Uma sombra só, e só pro que realmente flutua: modal, barra de abas do
        celular, lista suspensa. Cartão não flutua — cartão tem borda. */
-    --shadow: 0 10px 28px -14px rgba(10, 10, 16, .45), 0 2px 6px -3px rgba(10, 10, 16, .18);
+    --shadow: 0 8px 24px #1D1C1F33, 0 0 0 1px #DADADF80;
 
     /* --- forma ---
        Escala curta e fechada. Raio grande em cartão é o que fazia a tela
        parecer app de banco em vez de ferramenta. */
     --r-xs: 4px;
     --r-sm: 6px;
-    --r-md: 8px;
-    --r-lg: 10px;
+    --r-md: 6px;
+    --r-lg: 6px;
     --r-pill: 999px;
     /* nomes antigos, mantidos porque ainda há regra apontando pra eles */
     --radius-s: var(--r-sm);
@@ -225,56 +233,64 @@
 
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-      --bg-base: #141414;
-      --surface-base: #141414;
-      --surface-2-base: #1E1E1E;
-      --border-base: #2C2C2C;
-      --border-forte-base: #404040;
-      --ink: #F0F0F0;
-      --ink-soft: #ADADAD;
-      --ink-faint: #8C8C8C;
+      --surface-3: #222226;
+      --header-bg: #08080A;
+      --laranja: #DB6D28;
+      --laranja-soft: #DB6D281A;
+      --bg-base: #0E0E10;
+      --surface-base: #0E0E10;
+      --surface-2-base: #17171A;
+      --border-base: #34343A;
+      --border-forte-base: #6B6B73;
+      --ink: #F1F1F3;
+      --ink-soft: #A0A0A8;
+      --ink-faint: #A0A0A8;
       /* No escuro a marca já nasce clara — misturar com o texto só desbota. */
       --dose-forte: 92%;
-      --accent: #DE756B;
-      --accent-ink: #26100E;
-      --accent-soft: #38201D;
+      --accent: #F0626A;
+      --accent-ink: #1A0506;
+      --accent-soft: #F0626A1A;
       --accent-2: #A9ADB2;
       --accent-2-soft: #2C2E33;
-      --success: #4FC188;
-      --success-soft: #14301F;
-      --warning: #D9A857;
-      --warning-soft: #322614;
-      --danger: #E8827A;
-      --danger-soft: #381C1A;
-      --danger-ink: #2E100E;
+      --success: #3FB950;
+      --success-soft: #2EA04326;
+      --warning: #D29922;
+      --warning-soft: #BB800926;
+      --danger: #F85149;
+      --danger-soft: #F851491A;
+      --danger-ink: #1A0506;
       --scrim: rgba(4, 4, 8, .62);
-      --shadow: 0 10px 28px -14px rgba(0, 0, 0, .7), 0 2px 6px -3px rgba(0, 0, 0, .5);
+      --shadow: 0 8px 24px #000, 0 0 0 1px #34343A;
     }
   }
   :root[data-theme="dark"] {
-    --bg-base: #141414;
-    --surface-base: #141414;
-    --surface-2-base: #1E1E1E;
-    --border-base: #2C2C2C;
-    --border-forte-base: #404040;
-    --ink: #F0F0F0;
-    --ink-soft: #ADADAD;
-    --ink-faint: #8C8C8C;
+    --surface-3: #222226;
+    --header-bg: #08080A;
+    --laranja: #DB6D28;
+    --laranja-soft: #DB6D281A;
+    --bg-base: #0E0E10;
+    --surface-base: #0E0E10;
+    --surface-2-base: #17171A;
+    --border-base: #34343A;
+    --border-forte-base: #6B6B73;
+    --ink: #F1F1F3;
+    --ink-soft: #A0A0A8;
+    --ink-faint: #A0A0A8;
     --dose-forte: 92%;
-    --accent: #DE756B;
-    --accent-ink: #26100E;
-    --accent-soft: #38201D;
+    --accent: #F0626A;
+    --accent-ink: #1A0506;
+    --accent-soft: #F0626A1A;
     --accent-2: #A9ADB2;
     --accent-2-soft: #2C2E33;
-    --success: #4FC188;
-    --success-soft: #14301F;
-    --warning: #D9A857;
-    --warning-soft: #322614;
-    --danger: #E8827A;
-    --danger-soft: #381C1A;
-    --danger-ink: #2E100E;
+    --success: #3FB950;
+    --success-soft: #2EA04326;
+    --warning: #D29922;
+    --warning-soft: #BB800926;
+    --danger: #F85149;
+    --danger-soft: #F851491A;
+    --danger-ink: #1A0506;
     --scrim: rgba(4, 4, 8, .62);
-    --shadow: 0 10px 28px -14px rgba(0, 0, 0, .7), 0 2px 6px -3px rgba(0, 0, 0, .5);
+    --shadow: 0 8px 24px #000, 0 0 0 1px #34343A;
   }
 
   /* Paletas (Configurações → Cor). Trocam só a cor da marca. Sucesso, aviso e
