@@ -32,7 +32,8 @@ const fs = require('fs');
 const path = require('path');
 const { getDb } = require('./firestore-client');
 
-const DESTINO_PADRAO = 'G:\\Meu Drive\\NILMA-PROTOCOLO-BACKUPS\\banco';
+// BACKUP_PASTA: na nuvem não há G:, e o backup vai pro disco da máquina (ver backup-diario.js).
+const DESTINO_PADRAO = process.env.BACKUP_PASTA || 'G:\\Meu Drive\\NILMA-PROTOCOLO-BACKUPS\\banco';
 const CAMPOS_DE_PROVA = ['assinatura', 'foto'];
 
 // Converte tipos do Firestore (Timestamp, GeoPoint, referencia) em algo que

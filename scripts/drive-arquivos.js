@@ -170,6 +170,66 @@ async function copiaJaNaOrigem(drive, nomeCliente, nome, buffer) {
   return null;
 }
 
+// Um caminho de pastas a partir da raiz do Meu Drive, criando o que faltar.
+// Ex.: ['NILMA-PROTOCOLO-BACKUPS', 'banco'].
+async function garantirCaminho(drive, partes) {
+  let pai = 'root';
+  for (const parte of partes) pai = await garantirPasta(drive, pai, parte);
+  return pai;
+}
+
+// Tudo que está dentro de uma pasta do Drive, pelo nome (uma listagem por
+// pasta, em vez de uma consulta por arquivo).
+async function nomesNaPasta(drive, pastaId) {
+  const nomes = new Map();
+  let pageToken;
+  do {
+    const r = await drive.files.list({
+      q: `'${paraConsulta(pastaId)}' in parents and trashed = false`,
+      fields: 'nextPageToken, files(id, name, mimeType)',
+      pageSize: 1000,
+      pageToken,
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
+    });
+    (r.data.files || []).forEach(f => nomes.set(f.name, f));
+    pageToken = r.data.nextPageToken;
+  } while (pageToken);
+  return nomes;
+}
+
+// Copia pro Drive o que existe numa pasta do disco e ainda não existe lá,
+// subpasta por subpasta. É como o backup chega ao Drive quando o robô roda na
+// nuvem: ele grava no disco da máquina (como sempre gravou no G:) e esta
+// função leva o que for novo. Arquivo que já está lá com o mesmo nome fica
+// como está: nada é sobrescrito nem apagado.
+async function espelharPasta(drive, pastaLocal, pastaId, resumo) {
+  resumo = resumo || { enviados: 0, jaEstavam: 0, bytes: 0 };
+  const fs = require('fs');
+  const path = require('path');
+  const noDrive = await nomesNaPasta(drive, pastaId);
+  for (const item of fs.readdirSync(pastaLocal, { withFileTypes: true })) {
+    const local = path.join(pastaLocal, item.name);
+    if (item.isDirectory()) {
+      const sub = noDrive.get(item.name);
+      const subId = sub && sub.mimeType === MIME_PASTA ? sub.id : await garantirPasta(drive, pastaId, item.name);
+      await espelharPasta(drive, local, subId, resumo);
+      continue;
+    }
+    if (noDrive.has(item.name)) { resumo.jaEstavam++; continue; }
+    const buffer = fs.readFileSync(local);
+    await drive.files.create({
+      requestBody: { name: item.name, parents: [pastaId] },
+      media: { body: Readable.from(buffer) },
+      fields: 'id',
+      supportsAllDrives: true,
+    });
+    resumo.enviados++;
+    resumo.bytes += buffer.length;
+  }
+  return resumo;
+}
+
 // Mesma conta, mesmo token do Gmail — ver gmail-client.js.
 let drive = null;
 function getDrive() {
@@ -179,4 +239,5 @@ function getDrive() {
 
 module.exports = {
   PASTA_RAIZ, sanitizar, getDrive, pastaDoCliente, salvarArquivo, copiaJaNaOrigem, pastaRaiz,
+  garantirCaminho, espelharPasta,
 };

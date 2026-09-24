@@ -14,7 +14,8 @@ const fs = require('fs');
 const path = require('path');
 const XLSX = require('xlsx');
 
-const PASTA_PADRAO = 'G:\\Meu Drive\\NILMA-PROTOCOLO-BACKUPS\\banco';
+// BACKUP_PASTA: na nuvem não há G:, e o backup vai pro disco da máquina (ver backup-diario.js).
+const PASTA_PADRAO = process.env.BACKUP_PASTA || 'G:\\Meu Drive\\NILMA-PROTOCOLO-BACKUPS\\banco';
 
 // "207 - BMJ SOM AUTOMOTIVO LTDA" -> { codigo: '207', nome: 'BMJ SOM AUTOMOTIVO LTDA' }
 // Cobre também clienteNome de documentosMensal/entregas, que já vem assim.

@@ -78,6 +78,20 @@ function iniciarBackupDiario(db, log) {
         // e seguro — só a planilha (um extra) que fica pra próxima.
         const p = await rodarPlanilha();
         log('planilha do backup:', p.ok ? 'ok' : 'falhou', '-', p.resumo);
+        // Na nuvem o backup nasce no disco da máquina, e daqui vai pra mesma
+        // pasta do Drive onde o PC sempre gravou. Falhar aqui não desfaz o
+        // backup: ele continua no disco e sobe na próxima vez.
+        if (process.env.USAR_DRIVE_API === '1' && process.env.BACKUP_PASTA) {
+          try {
+            const da = require('./drive-arquivos.js');
+            const drive = da.getDrive();
+            const destino = await da.garantirCaminho(drive, ['NILMA-PROTOCOLO-BACKUPS', 'banco']);
+            const e = await da.espelharPasta(drive, process.env.BACKUP_PASTA, destino);
+            log('backup no Drive:', e.enviados, 'arquivo(s) novo(s) (' + (e.bytes / 1048576).toFixed(1) + ' MB),', e.jaEstavam, 'já estavam lá');
+          } catch (err) {
+            log('backup no Drive falhou (fica no disco e sobe na próxima):', err.message);
+          }
+        }
       }
     } catch (err) {
       log('backup do dia falhou:', err.message);
