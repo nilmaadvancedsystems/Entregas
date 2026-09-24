@@ -1070,6 +1070,12 @@
 
   /* ---------- valores ---------- */
   .valores-list { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+  .docs-lista { display: flex; flex-direction: column; gap: 6px; margin: 6px 0 8px; }
+  .docs-lista:empty { display: none; }
+  .doc-linha .vl-label { font-weight: 600; }
+  .doc-sem-valor { color: var(--ink-faint); font-size: var(--t-sm); margin-left: auto; }
+  .docs-add { position: relative; }
+  .docs-add-menu { position: absolute; left: 0; top: calc(100% + 4px); z-index: var(--z-suspenso, 40); min-width: 240px; max-width: min(92vw, 360px); max-height: 300px; overflow: auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md, 8px); box-shadow: var(--shadow); padding: 4px; }
   .valor-row { display: flex; align-items: center; justify-content: space-between; gap: var(--esp-2); }
   .valor-row .vl-label { font-size: var(--t-base); color: var(--ink-soft); flex: 1; min-width: 0; }
   .valor-row input { width: 132px; min-height: 38px; text-align: right; padding: 7px 10px; }
@@ -2614,11 +2620,20 @@
         <input class="input" id="vencimentoInput" type="date">
       </label>
 
-      <label class="field" id="itensField">
+      <!-- Documentos por demanda (pedido do escritório): em vez da grade com
+           todos os tipos, um botão "Adicionar documento"; cada um vira uma
+           linha com o valor ao lado. As caixinhas continuam existindo
+           (escondidas) porque o resto do código lê e marca por elas. -->
+      <div class="field" id="itensField">
         <span>Documentos entregues</span>
-        <div class="chip-grid" id="itensGrid"></div>
-        <div class="field-error" id="err-itens">Selecione ao menos um documento.</div>
-      </label>
+        <div class="chip-grid" id="itensGrid" hidden></div>
+        <div class="docs-lista" id="docsAdicionados"></div>
+        <div class="docs-add">
+          <button type="button" class="btn-chip accent" id="docAddBtn" aria-haspopup="menu" aria-expanded="false" aria-controls="docAddMenu"><i class="ph ph-plus" aria-hidden="true"></i> Adicionar documento</button>
+          <div class="docs-add-menu" id="docAddMenu" role="menu" hidden></div>
+        </div>
+        <div class="field-error" id="err-itens">Adicione ao menos um documento.</div>
+      </div>
 
       <div class="field" id="repetirMesField" hidden>
         <div class="repetir-aviso">
@@ -2647,7 +2662,7 @@
         <p class="field-info" id="honorarioPixAviso" hidden></p>
       </div>
 
-      <label class="field" id="outroField">
+      <label class="field" id="outroField" hidden>
         <span>Outro documento (opcional)</span>
         <input class="input" id="outroInput" type="text" placeholder="Ex.: Contrato social, procuração...">
       </label>
@@ -5962,7 +5977,7 @@
     });
     if (tipoAchado) {
       var chk = itensGrid.querySelector('input[data-key="' + tipoAchado + '"]');
-      if (chk && !chk.checked) { chk.checked = true; chk.dispatchEvent(new Event('change')); }
+      if (chk && !chk.checked) { chk.checked = true; chk.dispatchEvent(new Event('change', { bubbles: true })); }
       achados.push('tipo de documento');
     }
 
@@ -6228,36 +6243,51 @@
     return fRow;
   }
 
+  // "Outro documento…" escolhido no menu mas ainda sem nome digitado.
+  var outroAberto_ = false;
+
+  function tirarDocumento_(e) {
+    if (e.key === 'outro') {
+      $('outroInput').value = '';
+      outroAberto_ = false;
+      $('outroInput').dispatchEvent(new Event('input', { bubbles: true }));
+    } else {
+      var chk = itensGrid.querySelector('input[data-key="' + e.key + '"]');
+      if (chk) chk.checked = false;
+      valoresState[e.key] = '';
+    }
+    itensGrid.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  // Cada documento adicionado é uma linha: nome, valor (se tiver) e ✕.
   function renderValores() {
     var entries = getActiveDocEntries();
-    var comValor = entries.filter(function (e) { return !e.semValor; });
-    var field = $('valoresField');
-    var list = $('valoresList');
-    if (comValor.length === 0 && duplicatasExtras.length === 0) { field.hidden = true; list.innerHTML = ''; return; }
-    field.hidden = false;
+    var list = $('docsAdicionados');
+    $('valoresField').hidden = true;   // os valores moram nas linhas agora
+    $('outroField').hidden = !(outroAberto_ || $('outroInput').value.trim());
     list.innerHTML = '';
-    comValor.forEach(function (e) {
+    entries.forEach(function (e) {
       var row = document.createElement('div');
-      row.className = 'valor-row';
-      row.innerHTML = '<span class="vl-label"></span><input class="input" inputmode="decimal" placeholder="R$ 0,00">' +
-        '<button type="button" class="valor-duplicar" title="Repetir este documento (outro valor)"><i class="ph ph-copy" aria-hidden="true"></i></button>' +
-        '<button type="button" class="valor-clear" title="Remover valor"><i class="ph ph-x" aria-hidden="true"></i></button>';
+      row.className = 'valor-row doc-linha';
+      row.innerHTML = '<span class="vl-label"></span>' +
+        (e.semValor ? '<span class="doc-sem-valor">sem valor</span>'
+          : '<input class="input" inputmode="decimal" placeholder="R$ 0,00">' +
+            '<button type="button" class="valor-duplicar" title="Repetir este documento (outro valor)"><i class="ph ph-copy" aria-hidden="true"></i></button>') +
+        '<button type="button" class="valor-clear" title="Tirar este documento"><i class="ph ph-x" aria-hidden="true"></i></button>';
       row.querySelector('.vl-label').textContent = e.label;
       var inp = row.querySelector('input');
-      inp.setAttribute('aria-label', 'Valor de ' + e.label);
-      inp.value = valoresState[e.key] || '';
-      inp.addEventListener('input', function () { valoresState[e.key] = inp.value; });
-      inp.addEventListener('blur', function () { avisarValorDivergente_(e.key, inp); });
-      row.querySelector('.valor-clear').addEventListener('click', function () {
-        valoresState[e.key] = '';
-        inp.value = '';
-        var aviso = row.querySelector('.valor-divergente');
-        if (aviso) aviso.remove();
-      });
-      row.querySelector('.valor-duplicar').addEventListener('click', function () {
-        duplicatasExtras.push({ id: 'dup' + (++duplicataSeq), label: e.label, pedeFuncionario: e.pedeFuncionario, valor: '', funcionario: '' });
-        renderValores();
-      });
+      if (inp) {
+        inp.setAttribute('aria-label', 'Valor de ' + e.label);
+        inp.value = valoresState[e.key] || '';
+        inp.addEventListener('input', function () { valoresState[e.key] = inp.value; });
+        inp.addEventListener('blur', function () { avisarValorDivergente_(e.key, inp); });
+        row.querySelector('.valor-duplicar').addEventListener('click', function () {
+          duplicatasExtras.push({ id: 'dup' + (++duplicataSeq), label: e.label, pedeFuncionario: e.pedeFuncionario, valor: '', funcionario: '' });
+          renderValores();
+        });
+      }
+      row.querySelector('.valor-clear').setAttribute('aria-label', 'Tirar ' + e.label);
+      row.querySelector('.valor-clear').addEventListener('click', function () { tirarDocumento_(e); });
       list.appendChild(row);
       if (e.pedeFuncionario) {
         list.appendChild(criarLinhaFuncionario_(e.label, funcionarioState[e.key], function (v) { funcionarioState[e.key] = v; }));
@@ -6265,7 +6295,7 @@
     });
     duplicatasExtras.forEach(function (dup) {
       var row = document.createElement('div');
-      row.className = 'valor-row';
+      row.className = 'valor-row doc-linha';
       row.innerHTML = '<span class="vl-label"></span><input class="input" inputmode="decimal" placeholder="R$ 0,00">' +
         '<button type="button" class="valor-clear" title="Remover esta repetição"><i class="ph ph-x" aria-hidden="true"></i></button>';
       row.querySelector('.vl-label').textContent = dup.label + ' (repetido)';
@@ -6282,7 +6312,54 @@
         list.appendChild(criarLinhaFuncionario_(dup.label, dup.funcionario, function (v) { dup.funcionario = v; }));
       }
     });
+    renderMenuDeDocs_();
   }
+
+  // O menu do "Adicionar documento": só os tipos que ainda não estão na lista.
+  function renderMenuDeDocs_() {
+    var menu = $('docAddMenu');
+    if (!menu) return;
+    var marcados = {};
+    itensGrid.querySelectorAll('input:checked').forEach(function (i) { marcados[i.dataset.key] = true; });
+    menu.innerHTML = DOC_TIPOS.filter(function (t) { return !marcados[t.key]; }).map(function (t) {
+      return '<button type="button" class="menu-acoes-item" role="menuitem" data-add="' + t.key + '">' + escapeHtml_(t.label) + '</button>';
+    }).join('') +
+      '<button type="button" class="menu-acoes-item" role="menuitem" data-add="__outro"><i class="ph ph-pencil-simple" aria-hidden="true"></i> Outro documento…</button>';
+  }
+  function fecharMenuDeDocs_() {
+    $('docAddMenu').hidden = true;
+    $('docAddBtn').setAttribute('aria-expanded', 'false');
+  }
+  $('docAddBtn').addEventListener('click', function (ev) {
+    ev.stopPropagation();
+    var menu = $('docAddMenu');
+    renderMenuDeDocs_();
+    menu.hidden = !menu.hidden;
+    this.setAttribute('aria-expanded', String(!menu.hidden));
+    if (!menu.hidden) { var primeiro = menu.querySelector('button'); if (primeiro) primeiro.focus(); }
+  });
+  $('docAddMenu').addEventListener('click', function (ev) {
+    var b = ev.target.closest('[data-add]');
+    if (!b) return;
+    ev.stopPropagation();
+    fecharMenuDeDocs_();
+    clearFieldError('itens');
+    if (b.dataset.add === '__outro') {
+      outroAberto_ = true;
+      renderValores();
+      $('outroInput').focus();
+      return;
+    }
+    var chk = itensGrid.querySelector('input[data-key="' + b.dataset.add + '"]');
+    if (chk) { chk.checked = true; itensGrid.dispatchEvent(new Event('change', { bubbles: true })); }
+    $('docAddBtn').focus();
+  });
+  $('docAddMenu').addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape') { fecharMenuDeDocs_(); $('docAddBtn').focus(); }
+  });
+  document.addEventListener('click', function (ev) {
+    if (!$('docAddMenu').hidden && !ev.target.closest('.docs-add')) fecharMenuDeDocs_();
+  });
 
   // ---------- repetir a entrega do mês passado ----------
   // Muito cliente recebe sempre os mesmos documentos todo mês. Ao escolher
@@ -6916,7 +6993,7 @@
     $('clienteComboboxWrap').hidden = false;
     if (!manterItens) {
       itensGrid.querySelectorAll('input:checked').forEach(function (i) { i.checked = false; });
-      $('outroInput').value = '';
+      $('outroInput').value = ''; outroAberto_ = false;
       valoresState = {};
       funcionarioState = {};
       duplicatasExtras = [];
@@ -8465,7 +8542,7 @@
     // "Honorário" mesmo, que é o tipo pensado pra isso.
     var chaveDoc = (cliente.honorarioForma || '').toLowerCase().indexOf('boleto') !== -1 ? 'boleto' : 'honorario';
     var chk = itensGrid.querySelector('input[data-key="' + chaveDoc + '"]');
-    if (chk && !chk.checked) { chk.checked = true; chk.dispatchEvent(new Event('change')); }
+    if (chk && !chk.checked) { chk.checked = true; chk.dispatchEvent(new Event('change', { bubbles: true })); }
   }
 
   function honorarioStatusChave_(x) {
