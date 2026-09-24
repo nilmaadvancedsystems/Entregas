@@ -2422,9 +2422,8 @@
     #solDescricaoField { grid-column: 1 / -1; }
     #form-nova .mode-toggle { width: max-content; margin-bottom: var(--esp-5); }
     #form-nova .mode-btn { flex: none; padding: 8px 20px; white-space: nowrap; }
-    #form-cliente button[type="submit"] {
-      width: max-content; min-width: 220px; justify-self: start;
-    }
+    /* o Adicionar cliente mora no cabeçalho do cartão: tamanho do rótulo */
+    #form-cliente button[type="submit"] { width: max-content; }
     #form-cliente .row2 { display: grid; grid-template-columns: 1fr 1fr; }
 
   }
@@ -2680,12 +2679,8 @@
   .card.caixa > .map-wrap, .card.caixa > .numeros-do-mes { padding: 12px 16px; }
   .card.caixa .contagem { color: var(--ink-soft); }
 
-  /* Formulário da tela (Nova entrega): o .card do N1 — borda, fundo e o
-     título numa faixa cinza em cima. */
-  .view > form.card:not(.caixa) {
-    border: 1px solid var(--border); border-radius: 6px; background: var(--surface);
-    padding: 16px; margin-bottom: 16px;
-  }
+  /* Formulário da tela (Nova entrega): o .card do N1 — título numa faixa
+     cinza em cima (a borda e o fundo estão na camada de Clientes). */
   .view > form.card:not(.caixa) > h2:first-child {
     margin: -16px -16px 16px; padding: 12px 16px; font-size: 14px; font-weight: 600;
     background: var(--surface-2); border-bottom: 1px solid var(--border); border-radius: 6px 6px 0 0;
@@ -2704,6 +2699,72 @@
     .honorarios-cabecalho { padding: 8px 16px; font-size: 12px; border-bottom: 1px solid var(--border); }
   }
   /* ---------- fim da camada design-n1 (telas do Entregas) ---------- */
+
+  /* ==========================================================================
+     design-n1 — Clientes (etapa 5 da reformulação, 24/09/2026)
+     Carteira, Novo cliente, Ajustes, Sistema e a página do cliente. Só
+     visual; classes e ids do app ficam como estão.
+     ========================================================================== */
+  /* Formulários (Novo cliente e os do Ajustes): o .card do N1 — borda,
+     fundo e o cabeçalho numa faixa cinza, com o Salvar à direita. */
+  .view > form.card:not(.caixa), .card.form-ajuste {
+    border: 1px solid var(--border); border-radius: 6px; background: var(--surface);
+    padding: 16px; margin-bottom: 16px;
+  }
+  .view > form.card:not(.caixa) > .card-head-row:first-child,
+  .card.form-ajuste > .card-head-row {
+    margin: -16px -16px 16px; padding: 8px 16px; min-height: 48px;
+    background: var(--surface-2); border-bottom: 1px solid var(--border); border-radius: 6px 6px 0 0;
+  }
+  .view > form.card:not(.caixa) > .card-head-row:first-child > h2,
+  .card.form-ajuste > .card-head-row > h2 { font-size: 14px; font-weight: 600; }
+  @media (max-width: 640px) {
+    .card.form-ajuste { padding: 12px; }
+    .view > form.card:not(.caixa) > .card-head-row:first-child,
+    .card.form-ajuste > .card-head-row { margin: -12px -12px 12px; padding: 8px 12px; }
+  }
+
+  /* Carteira: linha de cliente com 16px de lado, como a tabela do N1 */
+  .card.caixa .client-row { padding-left: 16px; padding-right: 16px; }
+
+  /* ---- página do cliente ---- */
+  .cp-avatar { width: 48px; height: 48px; color: var(--ink-soft); }
+  .cp-quem-texto h2 { font-size: 20px; font-weight: 600; }
+  /* números: o stat do N1 — rótulo 12px cinza, valor 24px */
+  .cp-kpis { border-radius: 6px; }
+  .cp-kpi { padding: 12px 16px; }
+  .cp-kpi-r { font-size: 12px; }
+  .cp-kpi b { font-size: 24px; font-weight: 600; line-height: 1.25; }
+  .cp-kpi b.pend { color: var(--laranja); }
+  /* avisos: o .alert do N1 — faixa de fundo suave, cor pelo significado
+     (laranja = atenção, vermelho = grave, cinza = recado do escritório) */
+  .cp-aviso { border-radius: 6px; padding: 12px 16px; font-size: 14px; border: 1px solid var(--laranja); border-left-width: 1px; background: var(--laranja-soft); }
+  .cp-aviso i { color: var(--laranja); }
+  .cp-aviso.grave { border-color: var(--danger); background: var(--danger-soft); }
+  .cp-aviso.grave i { color: var(--danger); }
+  .cp-aviso.recado { border-color: var(--border); background: var(--surface-2); }
+  .cp-aviso.recado i { color: var(--accent-forte); }
+  /* cartões (Contato, Empresa, Últimas entregas): caixa do N1 */
+  .cp-card, .cp-acoes-lista { border-radius: 6px; }
+  .cp-card-cab { min-height: 48px; padding: 8px 16px; border-radius: 6px 6px 0 0; }
+  .cp-card-cab h3 { font-size: 14px; font-weight: 600; }
+  .cp-card-cab h3 .ph { color: var(--ink-faint); }
+  .cp-card-corpo { padding: 12px 16px; }
+  .cp-dados dt { font-size: 12px; }
+  .cp-acao { padding: 12px 16px; }
+  .cp-acao > i:first-child { font-size: 18px; color: var(--ink-faint); }
+  /* menu lateral da página: o mesmo item do menu lateral do app */
+  .cp-menu button { min-height: 36px; padding: 0 12px; position: relative; }
+  .cp-menu button[aria-selected="true"] { box-shadow: none; }
+  .cp-menu button[aria-selected="true"]::before {
+    content: ''; position: absolute; left: -8px; top: 6px; bottom: 6px;
+    width: 3px; border-radius: var(--r-pill); background: var(--accent);
+  }
+  @media (max-width: 899px) {
+    .cp-menu button[aria-selected="true"]::before { content: none; }
+    .cp-menu button[aria-selected="true"] { box-shadow: inset 0 -2px 0 var(--accent); }
+  }
+  /* ---------- fim da camada design-n1 (Clientes) ---------- */
 
 </style>
 </head>
