@@ -4232,7 +4232,9 @@
     // apareciam ao lado de TODAS as categorias (e embaixo delas no
     // celular), sem relação com Equipe ou Rota — agora moram na categoria
     // "Sistema" (DESTINOS_CLIENTES_) e o Ajustes usa a largura toda.
-    'tab-clientes': ['importCard', 'enderecosCard', 'qualidadeRotaCard']
+    // A Carteira não tem mais faixa lateral: a lista ocupa a largura toda
+    // (pedido do escritório). "Qualidade da rota" foi pra Rota, como
+    // categoria própria; Base inicial e Endereços saíram.
   };
   Object.keys(contextoPorAba_).forEach(function (idAba) {
     var aba = document.getElementById(idAba);
@@ -5534,7 +5536,10 @@
       { id: 'paradas', rotulo: 'Paradas', icone: 'ph-path', els: ['rotaCard', 'vencimentosCard', 'atestadosCard', 'obrigacoesCard'] },
       // A ordem fixa mora na Rota agora (antes: Ajustes do app › Rota).
       { id: 'ordem', rotulo: 'Ordem fixa', icone: 'ph-list-numbers', els: ['rotaFixaCard'] },
-      { id: 'protocolos', rotulo: 'Protocolos', icone: 'ph-printer', els: ['protocolosCard'] }
+      { id: 'protocolos', rotulo: 'Protocolos', icone: 'ph-printer', els: ['protocolosCard'] },
+      // Clientes sem região ou com endereço impreciso: só aparece quando há
+      // o que corrigir (a categoria some sozinha quando o cartão está vazio).
+      { id: 'qualidade', rotulo: 'Qualidade', icone: 'ph-map-trifold', els: ['qualidadeRotaCard'] }
     ],
     painel: [
       { id: 'entregas', rotulo: 'Entregas', icone: 'ph-chart-bar', els: ['painelCard', 'alertaSemEntregaCard'] },
