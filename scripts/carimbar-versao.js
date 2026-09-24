@@ -3,7 +3,7 @@
 // Versão = "2.<número do commit> · <data>", mostrada no rodapé do ☰
 // (NilmaShell.versao / opção versao do NilmaShell.montar). O mesmo número
 // vai no ?v= dos arquivos compartilhados (nilma-shell.js, nilma-ui.css,
-// nilma-ui.js): mudou o número, o navegador busca o arquivo novo em vez de
+// nilma-ui.js, nilma-icones.css): mudou o número, o navegador busca o arquivo novo em vez de
 // ficar com o antigo guardado.
 //
 // Só age quando o commit leva alguma página ou arquivo compartilhado. Não
@@ -15,7 +15,7 @@ const path = require('path');
 
 process.chdir(path.join(__dirname, '..'));
 const PAGINAS = ['entregas.html', 'Pendencias-e-envio-automatico-via-Gmail.html', 'lcdpr.html', 'conciliador.html', 'cheque-especial.html'];
-const COMPARTILHADOS = ['nilma-shell.js', 'nilma-ui.css', 'nilma-ui.js'];
+const COMPARTILHADOS = ['nilma-shell.js', 'nilma-ui.css', 'nilma-ui.js', 'nilma-icones.css'];
 const git = (c) => execSync('git ' + c, { encoding: 'utf8' }).trim();
 
 const noCommit = git('diff --cached --name-only').split(/\r?\n/).filter(Boolean);
@@ -34,7 +34,7 @@ for (const f of PAGINAS) {
   }
   const antes = fs.readFileSync(f, 'utf8');
   const depois = antes
-    .replace(/((?:src|href)="nilma-(?:shell\.js|ui\.css|ui\.js))(?:\?v=[^"]*)?"/g, '$1?v=' + n + '"')
+    .replace(/((?:src|href)="nilma-(?:shell\.js|ui\.css|ui\.js|icones\.css))(?:\?v=[^"]*)?"/g, '$1?v=' + n + '"')
     .replace(/NilmaShell\.versao\('[^']*'\)/g, "NilmaShell.versao('" + rotulo + "')")
     .replace(/(NilmaShell\.montar\(\{[^\n]*?versao: )'[^']*'/g, "$1'" + rotulo + "'");
   if (depois !== antes) {

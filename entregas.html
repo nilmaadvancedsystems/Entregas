@@ -47,8 +47,7 @@
 })();
 </script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
-<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<link rel="stylesheet" href="nilma-icones.css?v=340">
 <style>
   /* ==========================================================================
      Nilma Protocolos — folha de estilo
@@ -2730,6 +2729,9 @@
     .view > form.card:not(.caixa) > h2:first-child { margin: -12px -12px 12px; padding: 10px 12px; }
   }
 
+  /* "Assine aqui": ícone separado do texto e o cinza de apoio do N1 */
+  .sig-placeholder { gap: 6px; color: var(--ink-soft); }
+
   /* Lista vazia: frase curta, cinza, centrada (o .empty do N1) */
   .empty-state { font-size: 14px; color: var(--ink-soft); padding: 24px 16px; }
 
@@ -2812,7 +2814,7 @@
 <!-- Casca no estilo do GitHub: barra de cima (☰ · Nilma / módulo · consulta
      rápida · anotações · avatar) e as duas gavetas. Nasce aqui, antes do
      resto, porque os scripts do app procuram #notasBtn, #topo etc. -->
-<script src="nilma-shell.js?v=339"></script>
+<script src="nilma-shell.js?v=340"></script>
 <script>NilmaShell.montar({ modulo: 'Entregas', moduloId: 'entregas', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle' });</script>
 <!-- Abas do módulo, sublinhadas, logo abaixo da barra. -->
 <nav class="tabs" id="tabsNav" role="tablist">
@@ -16658,7 +16660,7 @@
   NilmaShell.ao('conta', function () { abrirConfiguracoes('conta'); });
   NilmaShell.ao('instalar', function () { instalarApp_(); });
   NilmaShell.ao('sair', function () { auth.signOut(); });
-  NilmaShell.versao('2.339 · 24/09/2026');
+  NilmaShell.versao('2.340 · 24/09/2026');
 
   auth.onAuthStateChanged(function (user) {
     if (user) {
