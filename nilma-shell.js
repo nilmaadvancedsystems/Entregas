@@ -146,6 +146,9 @@
         '</div>' +
         '<nav class="gaveta-corpo" aria-label="Conta">' +
           '<button type="button" class="gaveta-item" id="menuPerfilBtn" hidden><i class="ph ph-identification-badge" aria-hidden="true"></i><span>Meu perfil</span></button>' +
+          // Solicitações moram aqui (pedido do escritório): escondido por
+          // padrão, a página que tem Solicitações mostra e ouve 'solicitacoes'.
+          '<button type="button" class="gaveta-item" id="menuSolicitacoesBtn" hidden><i class="ph ph-envelope-simple" aria-hidden="true"></i><span>Solicitações</span><span class="tab-badge" id="menuSolicitacoesBadge" hidden>0</span></button>' +
           '<button type="button" class="gaveta-item" id="menuAparenciaBtn"><i class="ph ph-paint-brush" aria-hidden="true"></i><span>Aparência</span></button>' +
           '<button type="button" class="gaveta-item" id="menuContaBtn"><i class="ph ph-user-circle" aria-hidden="true"></i><span>Conta</span></button>' +
           '<div class="gaveta-fio" role="separator"></div>' +
@@ -302,6 +305,7 @@
     botao('menuBuscaBtn', 'buscaGlobal');
     botao('menuInstalarBtn', 'instalar');
     botao('menuPerfilBtn', 'perfil');
+    botao('menuSolicitacoesBtn', 'solicitacoes');
     botao('menuAparenciaBtn', 'aparencia');
     botao('menuContaBtn', 'conta');
     botao('menuSairBtn', 'sair');

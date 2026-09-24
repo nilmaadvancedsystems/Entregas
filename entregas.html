@@ -1076,7 +1076,7 @@
   .doc-sem-valor { color: var(--ink-faint); font-size: var(--t-sm); margin-left: auto; }
   .docs-add { position: relative; }
   .protocolos-marcar { padding: 4px 0 8px; }
-  .protocolo-dia { font-size: var(--t-sm); font-weight: 600; color: var(--ink-soft); padding: 10px 0 4px; border-bottom: 1px solid var(--border); }
+  .protocolo-dia { display: flex; align-items: center; justify-content: space-between; gap: var(--esp-2); font-size: var(--t-sm); font-weight: 600; color: var(--ink-soft); padding: 10px 0 4px; border-bottom: 1px solid var(--border); }
   .protocolo-linha { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: var(--esp-2); align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); }
   .protocolo-linha .er-nome { overflow-wrap: anywhere; }
   .docs-add-menu { position: absolute; left: 0; top: calc(100% + 4px); z-index: var(--z-suspenso, 40); min-width: 240px; max-width: min(92vw, 360px); max-height: 300px; overflow: auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md, 8px); box-shadow: var(--shadow); padding: 4px; }
@@ -2516,7 +2516,7 @@
   <button class="tab active" data-tab="nova" role="tab" id="tabbtn-nova" aria-controls="tab-nova" aria-selected="true"><span class="tab-ico"><i class="ph ph-pen-nib" aria-hidden="true"></i></span><span class="tab-label">Nova entrega</span></button>
   <button class="tab" data-tab="rota" role="tab" id="tabbtn-rota" aria-controls="tab-rota" aria-selected="false" tabindex="-1"><span class="tab-ico"><i class="ph ph-truck" aria-hidden="true"></i></span><span class="tab-label">Rota</span><span class="tab-badge" id="rotaBadge" hidden>0</span></button>
   <button class="tab" data-tab="painel" role="tab" id="tabbtn-painel" aria-controls="tab-painel" aria-selected="false" tabindex="-1"><span class="tab-ico"><i class="ph ph-chart-bar" aria-hidden="true"></i></span><span class="tab-label">Painel</span></button>
-  <button class="tab" data-tab="solicitacoes" role="tab" id="tabbtn-solicitacoes" aria-controls="tab-solicitacoes" aria-selected="false" tabindex="-1"><span class="tab-ico"><i class="ph ph-envelope-simple" aria-hidden="true"></i></span><span class="tab-label">Solicitações</span><span class="tab-badge" id="solicitacoesBadge" hidden>0</span></button>
+  <button class="tab" hidden data-tab="solicitacoes" role="tab" id="tabbtn-solicitacoes" aria-controls="tab-solicitacoes" aria-selected="false" tabindex="-1"><span class="tab-ico"><i class="ph ph-envelope-simple" aria-hidden="true"></i></span><span class="tab-label">Solicitações</span><span class="tab-badge" id="solicitacoesBadge" hidden>0</span></button>
   <button class="tab" data-tab="honorarios" role="tab" id="tabHonorarios" aria-controls="tab-honorarios" aria-selected="false" tabindex="-1" hidden><span class="tab-ico"><i class="ph ph-hand-coins" aria-hidden="true"></i></span><span class="tab-label">Honorários</span><span class="tab-badge" id="honorariosBadge" hidden>0</span></button>
   <button class="tab" data-tab="clientes" role="tab" id="tabbtn-clientes" aria-controls="tab-clientes" aria-selected="false" tabindex="-1" hidden><span class="tab-ico"><i class="ph ph-users" aria-hidden="true"></i></span><span class="tab-label">Clientes e ajustes</span></button>
   <button class="tab" data-tab="perfil" role="tab" id="tabPerfil" aria-controls="tab-perfil" aria-selected="false" tabindex="-1" hidden><span class="tab-ico"><i class="ph ph-identification-badge" aria-hidden="true"></i></span><span class="tab-label">Perfil</span></button>
@@ -3085,7 +3085,7 @@
       <div class="card-head-row">
         <h2><i class="ph ph-hand-coins" aria-hidden="true"></i> Honorários <span class="contagem" id="honorariosResumoTab"></span></h2>
         <button type="button" class="btn-chip" id="exportHonorariosBtn"><i class="ph ph-download-simple" aria-hidden="true"></i> Exportar planilha</button>
-        <button type="button" class="btn-chip" id="addHonorarioClienteBtn"><i class="ph ph-plus" aria-hidden="true"></i> Adicionar cliente</button>
+        <button type="button" class="btn-chip" id="honorarioCadastrosBtn"><i class="ph ph-address-book" aria-hidden="true"></i> Cadastros</button>
       </div>
       <div class="filters">
         <div class="filtro">
@@ -6847,6 +6847,9 @@
       $('recebedorField').hidden = semPresenca;
       $('assinaturaField').hidden = semPresenca;
       $('fotoField').hidden = semPresenca;
+      // PDF do documento saiu do formulário (pedido do escritório). Só volta
+      // no "Pelo link", que precisa dele: é a guia que o cliente vê no link.
+      $('pdfField').hidden = !isLink;
       $('falhaToggleWrap').hidden = semPresenca;
       $('zonaField').hidden = !isRota;
       if (semPresenca) { $('falhaToggle').checked = false; }
@@ -7466,7 +7469,16 @@
     lista.forEach(function (e) {
       var quando = new Date(e.confirmadoEm);
       var dia = quando.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' });
-      if (dia !== diaAtual) { diaAtual = dia; el.appendChild(Object.assign(document.createElement('div'), { className: 'protocolo-dia', textContent: dia })); }
+      if (dia !== diaAtual) {
+        diaAtual = dia;
+        var cab = document.createElement('div');
+        cab.className = 'protocolo-dia';
+        cab.innerHTML = '<span></span><button type="button" class="btn-chip"><i class="ph ph-file-pdf" aria-hidden="true"></i> Fechamento do dia</button>';
+        cab.querySelector('span').textContent = dia;
+        var diaIso = quando.getFullYear() + '-' + String(quando.getMonth() + 1).padStart(2, '0') + '-' + String(quando.getDate()).padStart(2, '0');
+        cab.querySelector('button').addEventListener('click', function () { gerarFechamentoDoDia_(diaIso); });
+        el.appendChild(cab);
+      }
       var row = document.createElement('div');
       row.className = 'protocolo-linha';
       var itens = (e.itens || []).map(function (i) { return typeof i === 'string' ? i : (i && i.tipo) || ''; }).filter(Boolean).join(', ');
@@ -7510,6 +7522,74 @@
     var de = protocolos_.carregadoDe.split('-').reverse().join('/'), ate = protocolos_.carregadoAte.split('-').reverse().join('/');
     abrirProtocoloDeEntregas_('Entregas de ' + de + (ate !== de ? ' a ' + ate : ''), escolhidas);
   });
+
+  // ---------- Fechamento do dia (PDF) ----------
+  // O que era o cartão "Fechamento do dia" da Rota virou um botão na data,
+  // em Protocolos: gera a folha do dia pra imprimir ou salvar em PDF (o
+  // "Salvar como PDF" do próprio navegador). Vale pra qualquer dia, não só
+  // pra hoje.
+  function gerarFechamentoDoDia_(diaIso) {
+    var doDia = protocolos_.lista.filter(function (e) {
+      var d = new Date(e.confirmadoEm);
+      return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') === diaIso;
+    }).sort(function (a, b) { return String(a.confirmadoEm).localeCompare(String(b.confirmadoEm)); });
+    var entregues = doDia.filter(function (e) { return e.status === 'confirmada'; });
+    var falhas = doDia.filter(function (e) { return e.status === 'falha'; });
+    var ehHoje = diaIso === hojeIsoLocal_();
+    var aba = window.open('', '_blank');
+    if (!aba) { showToast('O navegador bloqueou a nova aba. Permita pop-ups para este site.', 'error'); return; }
+    var h = escapeHtml_;
+    var dataLonga = new Date(diaIso + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+    var hora = function (e) { return new Date(e.confirmadoEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }); };
+    var docs = function (e) { return (e.itens || []).map(function (i) { return typeof i === 'string' ? i : (i && i.tipo) || ''; }).filter(Boolean).join(', '); };
+    var quem = function (e) { return e.entregadoPorNome || e.entregadoPor || ''; };
+    var comprovante = function (e) {
+      if (e.recebidoPeloLink) return 'pelo link';
+      if (e.temAssinatura) return 'assinatura';
+      if (e.semAssinatura) return 'foto, sem assinatura';
+      if (e.temFoto) return 'foto';
+      if (e.semComprovante) return 'sem comprovante';
+      return '—';
+    };
+    var porPessoa = {};
+    doDia.forEach(function (e) {
+      var q = quem(e) || 'sem registro';
+      porPessoa[q] = porPessoa[q] || { e: 0, f: 0 };
+      if (e.status === 'confirmada') porPessoa[q].e++; else porPessoa[q].f++;
+    });
+    var linhasPessoa = Object.keys(porPessoa).sort(function (a, b) { return a.localeCompare(b, 'pt-BR'); }).map(function (q) {
+      return '<tr><td>' + h(q) + '</td><td class="n">' + porPessoa[q].e + '</td><td class="n">' + porPessoa[q].f + '</td></tr>';
+    }).join('');
+    var tabela = function (lista, colunas, linha) {
+      if (!lista.length) return '<p class="vazio">Nenhuma.</p>';
+      return '<table><thead><tr>' + colunas.map(function (c) { return '<th>' + c + '</th>'; }).join('') + '</tr></thead><tbody>' +
+        lista.map(linha).join('') + '</tbody></table>';
+    };
+    var html = '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Fechamento do dia ' + h(diaIso.split('-').reverse().join('/')) + '</title>' +
+      '<style>body{font:13px/1.45 system-ui,Segoe UI,Arial,sans-serif;color:#111;margin:28px}h1{font-size:19px;margin:0 0 2px}' +
+      '.sub{color:#555;margin:0 0 18px}.resumo{display:flex;gap:28px;margin:0 0 18px}.resumo b{display:block;font-size:22px}' +
+      'h2{font-size:14px;margin:22px 0 6px;border-bottom:1px solid #999;padding-bottom:3px}table{width:100%;border-collapse:collapse}' +
+      'th,td{text-align:left;padding:4px 6px;border-bottom:1px solid #ddd;vertical-align:top}th{font-size:11px;text-transform:uppercase;color:#555}' +
+      '.n{text-align:right;width:90px}.vazio{color:#777}.rodape{margin-top:28px;color:#777;font-size:11px}' +
+      '@media print{body{margin:12mm}button{display:none}}</style></head><body>' +
+      '<button onclick="print()" style="float:right;padding:6px 12px">Imprimir / salvar PDF</button>' +
+      '<h1>Fechamento do dia</h1><p class="sub">' + h(dataLonga.charAt(0).toUpperCase() + dataLonga.slice(1)) + '</p>' +
+      '<div class="resumo"><div><b>' + entregues.length + '</b>entregues</div><div><b>' + falhas.length + '</b>não entregues</div>' +
+        (ehHoje ? '<div><b>' + pendentesCache.length + '</b>ainda na rota</div>' : '') + '</div>' +
+      '<h2>Por pessoa</h2>' + (linhasPessoa ? '<table><thead><tr><th>Quem entregou</th><th class="n">Entregues</th><th class="n">Não entregues</th></tr></thead><tbody>' + linhasPessoa + '</tbody></table>' : '<p class="vazio">Nenhuma entrega.</p>') +
+      '<h2>Entregues (' + entregues.length + ')</h2>' + tabela(entregues, ['Hora', 'Cliente', 'Documentos', 'Quem entregou', 'Comprovante'], function (e) {
+        return '<tr><td>' + hora(e) + '</td><td>' + h(e.clienteNome || '') + '</td><td>' + h(docs(e)) + '</td><td>' + h(quem(e)) + '</td><td>' + h(comprovante(e)) + '</td></tr>';
+      }) +
+      '<h2>Não entregues (' + falhas.length + ')</h2>' + tabela(falhas, ['Hora', 'Cliente', 'Motivo', 'Quem foi'], function (e) {
+        return '<tr><td>' + hora(e) + '</td><td>' + h(e.clienteNome || '') + '</td><td>' + h(e.motivoFalha || '') + '</td><td>' + h(quem(e)) + '</td></tr>';
+      }) +
+      '<p class="rodape">Gerado em ' + h(new Date().toLocaleString('pt-BR')) + ' por ' + h(currentUserNome || '') + '.</p>' +
+      '<script>setTimeout(function(){print()},400)<\/script></body></html>';
+    aba.document.open();
+    aba.document.write(html);
+    aba.document.close();
+    registrarAuditoria_('fechamento_do_dia', diaIso);
+  }
 
   // O papel do dia: o que ainda falta entregar e o que já foi entregue hoje,
   // na mesma folha — serve tanto pra levar na mão quanto pra arquivar
@@ -8603,7 +8683,57 @@
     }));
     $('addHonorarioBusca').focus();
   }
-  $('addHonorarioClienteBtn').addEventListener('click', abrirAdicionarHonorarioCliente_);
+  // ---------- honorários: Cadastros ----------
+  // Pedido do escritório: um botão "Cadastros" nos Honorários, com todos os
+  // clientes que têm honorário cadastrado (forma, dia, ponto de referência),
+  // busca, "Editar" em cada um e "Adicionar cliente". O "Editar" de cada
+  // linha da lista continua onde estava.
+  function abrirCadastrosDeHonorario_() {
+    if (!clientesCompletos_) { garantirTodosOsClientes_().then(abrirCadastrosDeHonorario_); return; }
+    var root = $('modalRoot');
+    root.innerHTML =
+      '<div class="modal-overlay" id="overlay"><div class="modal" id="modalInner">' +
+        '<div class="modal-head"><div><h2>Cadastros de honorário</h2>' +
+          '<div class="card-hint modal-head-sub" id="cadHonorarioContador"></div>' +
+        '</div><button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button></div>' +
+        '<div class="modal-acoes"><button type="button" class="btn-chip accent" id="cadHonorarioAddBtn"><i class="ph ph-plus" aria-hidden="true"></i> Adicionar cliente</button></div>' +
+        '<label class="field"><span>Buscar</span>' +
+          '<input class="input" id="cadHonorarioBusca" type="text" placeholder="Nome, código, CNPJ ou forma" autocomplete="off"></label>' +
+        '<div id="cadHonorarioLista"></div>' +
+      '</div></div>';
+    $('overlay').addEventListener('click', function (e) { if (e.target.id === 'overlay') closeModal(); });
+    $('modalClose').addEventListener('click', closeModal);
+    $('cadHonorarioAddBtn').addEventListener('click', abrirAdicionarHonorarioCliente_);
+
+    var cadastrados = Array.from(clientesCache.values())
+      .filter(function (c) { return c.ativo !== false && c.honorarioForma; })
+      .sort(function (a, b) { return String(a.codigoOrigem || 'zzz').localeCompare(String(b.codigoOrigem || 'zzz'), 'pt-BR', { numeric: true }); });
+    $('cadHonorarioContador').textContent = cadastrados.length + (cadastrados.length === 1 ? ' cliente' : ' clientes');
+
+    function desenhar() {
+      var q = $('cadHonorarioBusca').value.trim().toLowerCase();
+      var lista = $('cadHonorarioLista');
+      lista.innerHTML = '';
+      var visiveis = cadastrados.filter(function (c) {
+        return !q || clienteCombina_(c, q) || String(c.honorarioForma || '').toLowerCase().indexOf(q) !== -1;
+      });
+      if (!visiveis.length) { lista.innerHTML = '<div class="empty-state">Nenhum cadastro com essa busca.</div>'; return; }
+      visiveis.forEach(function (c) {
+        var row = document.createElement('div');
+        row.className = 'client-row';
+        row.innerHTML = '<div><div class="cr-name"></div><div class="cr-sub"></div></div>' +
+          '<button type="button" class="btn-chip"><i class="ph ph-pencil-simple" aria-hidden="true"></i> Editar</button>';
+        row.querySelector('.cr-name').textContent = clienteLabel(c);
+        row.querySelector('.cr-sub').textContent = [c.honorarioForma, c.honorarioDia ? 'dia ' + c.honorarioDia : '', c.pontoReferencia].filter(Boolean).join(' · ');
+        row.querySelector('button').addEventListener('click', function () { abrirEditarHonorarioCliente_(c); });
+        lista.appendChild(row);
+      });
+    }
+    $('cadHonorarioBusca').addEventListener('input', aoParar(desenhar));
+    desenhar();
+    $('cadHonorarioBusca').focus();
+  }
+  $('honorarioCadastrosBtn').addEventListener('click', abrirCadastrosDeHonorario_);
 
   // ---------- honorários: editar / remover dados do cliente ----------
   // Corrige forma, dia ou ponto de referência sem precisar reimportar a
@@ -10175,6 +10305,8 @@
     var pendentes = solicitacoesCache.filter(function (s) { return s.status !== 'concluida'; });
     var badge = $('solicitacoesBadge');
     atualizarBadge_(badge, pendentes.length);
+    var badgeMenu = document.getElementById('menuSolicitacoesBadge');
+    if (badgeMenu) atualizarBadge_(badgeMenu, pendentes.length);
 
     var lista = solVerConcluidas ? solicitacoesCache.filter(function (s) { return s.status === 'concluida'; }).slice(0, 30) : pendentes;
     var listEl = $('solicitacoesList');
@@ -15106,7 +15238,7 @@
     $('tabbtn-nova').hidden = false;
     $('tabbtn-rota').hidden = false;
     $('tabbtn-painel').hidden = false;
-    $('tabbtn-solicitacoes').hidden = false;
+    $('tabbtn-solicitacoes').hidden = true;   // Solicitações moram no menu da foto
     $('tabHonorarios').hidden = !(temPapel('admin') || temPapel('office_boy'));
     $('tabPerfil').hidden = true;          // virou "Ajustes do app", dentro de Clientes
     ajustarSubnavDeClientes_();
@@ -15833,6 +15965,16 @@
   });
   NilmaShell.ao('buscaGlobal', function () { abrirBuscaGlobal_(); });
   NilmaShell.ao('notas', function () { abrirNotas(); });
+  // Solicitações: no menu da foto, junto de Aparência e Conta. Abre a tela
+  // de Solicitações do Entregas de onde a pessoa estiver.
+  (function () { var b = document.getElementById('menuSolicitacoesBtn'); if (b) b.hidden = false; })();
+  NilmaShell.ao('solicitacoes', function () {
+    if (!auth.currentUser || !appStarted) return;
+    sairDeAbaSecundaria_();
+    entrarNaFuncao('entregas');
+    var aba = document.querySelector('[data-tab="solicitacoes"]');
+    if (aba) aba.click();
+  });
   NilmaShell.ao('aparencia', function () { abrirConfiguracoes('personalizacao'); });
   NilmaShell.ao('conta', function () { abrirConfiguracoes('conta'); });
   NilmaShell.ao('instalar', function () { instalarApp_(); });
