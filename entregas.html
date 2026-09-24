@@ -1079,6 +1079,21 @@
   .protocolo-dia { display: flex; align-items: center; justify-content: space-between; gap: var(--esp-2); font-size: var(--t-sm); font-weight: 600; color: var(--ink-soft); padding: 10px 0 4px; border-bottom: 1px solid var(--border); }
   .protocolo-linha { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: var(--esp-2); align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); }
   .protocolo-linha .er-nome { overflow-wrap: anywhere; }
+  .docs-planilha { position: absolute; left: 0; top: calc(100% + 4px); z-index: var(--z-suspenso, 40); width: min(92vw, 560px); background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md, 8px); box-shadow: var(--shadow); padding: var(--esp-3); }
+  .docs-planilha h3 { margin: 0 0 var(--esp-2); font-size: var(--t-base); }
+  .docs-planilha .dp-rolagem { max-height: 50vh; overflow: auto; border: 1px solid var(--border); border-radius: var(--r-sm, 6px); }
+  .docs-planilha table { width: 100%; border-collapse: collapse; }
+  .docs-planilha th { position: sticky; top: 0; background: var(--surface-3, var(--surface-2)); text-align: left; font-size: var(--t-sm); font-weight: 600; color: var(--ink-soft); padding: 6px 8px; border-bottom: 1px solid var(--border); }
+  .docs-planilha td { padding: 2px 4px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  .docs-planilha tr:last-child td { border-bottom: 0; }
+  .docs-planilha td.dp-doc { width: 58%; padding-left: 8px; }
+  .docs-planilha td.dp-x { width: 36px; text-align: center; }
+  .docs-planilha .input { min-height: 34px; padding: 4px 8px; border-color: transparent; background: transparent; }
+  .docs-planilha .input:focus { border-color: var(--accent); background: var(--surface); }
+  .docs-planilha tr.dp-nova td { color: var(--ink-faint); }
+  .docs-planilha tr.dp-nova select.input { color: var(--ink-soft); }
+  .docs-planilha .dp-sem-valor { color: var(--ink-faint); font-size: var(--t-sm); padding-left: 8px; }
+  .docs-planilha .dp-rodape { display: flex; justify-content: flex-end; gap: var(--esp-2); margin-top: var(--esp-2); }
   .docs-add-menu { position: absolute; left: 0; top: calc(100% + 4px); z-index: var(--z-suspenso, 40); min-width: 240px; max-width: min(92vw, 360px); max-height: 300px; overflow: auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md, 8px); box-shadow: var(--shadow); padding: 4px; }
   .valor-row { display: flex; align-items: center; justify-content: space-between; gap: var(--esp-2); }
   .valor-row .vl-label { font-size: var(--t-base); color: var(--ink-soft); flex: 1; min-width: 0; }
@@ -1464,6 +1479,21 @@
   [data-removido] { display: none !important; }
   /* Cliente aberto pela Carteira: página inteira, não janelinha. */
   .modal-overlay.modal-pagina { align-items: stretch; justify-content: stretch; background: var(--bg); }
+  .cliente-pagina { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: var(--esp-5); margin-top: var(--esp-3); }
+  .cp-menu { display: flex; flex-direction: column; gap: 2px; align-self: start; position: sticky; top: 0; }
+  .cp-menu button { display: flex; align-items: center; gap: 8px; width: 100%; min-height: var(--alvo, 40px); padding: 6px 10px; border: 0; border-radius: var(--r-sm, 6px); background: none; color: var(--ink-soft); font: inherit; text-align: left; cursor: pointer; }
+  .cp-menu button:hover { background: var(--surface-2); color: var(--ink); }
+  .cp-menu button[aria-selected="true"] { background: var(--surface-2); color: var(--ink); font-weight: 600; box-shadow: inset 3px 0 0 var(--accent); }
+  .cp-menu .cp-cont { margin-left: auto; font-size: var(--t-sm); color: var(--ink-faint); font-weight: 400; }
+  .cp-conteudo { min-width: 0; }
+  .cp-acoes .ficha-mais-grupo { margin-bottom: var(--esp-4); }
+  .cp-acoes .menu-acoes-item { width: 100%; border-bottom: 1px solid var(--border); border-radius: 0; }
+  @media (max-width: 760px) {
+    .cliente-pagina { grid-template-columns: 1fr; gap: var(--esp-3); }
+    .cp-menu { flex-direction: row; overflow-x: auto; position: static; border-bottom: 1px solid var(--border); }
+    .cp-menu button { width: auto; white-space: nowrap; }
+    .cp-menu button[aria-selected="true"] { box-shadow: inset 0 -2px 0 var(--accent); }
+  }
   .modal-overlay.modal-pagina .modal { max-width: none; width: 100%; max-height: none; height: 100%; border: 0; border-radius: 0; box-shadow: none; padding: var(--esp-5) max(var(--esp-4), calc((100vw - 980px) / 2)); }
   .modal-overlay {
     position: fixed; inset: 0; background: var(--scrim); z-index: var(--z-veu);
@@ -1964,7 +1994,8 @@
 
   /* Sem a faixa lateral (Competências e Auditoria foram pra "Sistema"),
      o Ajustes ganharia a largura toda; formulário de 1.100px não se lê. */
-  #clientesDestino-ajustes { max-width: 880px; }
+  /* Largura toda, como as outras telas (pedido do escritório). */
+  #clientesDestino-ajustes { max-width: none; }
   /* Celular: as 5 categorias do Ajustes não cabem numa fileira; a barra
      rola de lado. Sem os ícones cabe quase tudo em 375px, e a borda que
      esmaece (data-mais, posto por marcarRolagemSubnav_) mostra que tem
@@ -2372,8 +2403,8 @@
        de Carteira quando Ajustes está aberto) também não conta: sem o
        :not([hidden]) no .col-lado, os filhos visíveis dela seguravam a
        coluna de 360px vazia ao lado do Ajustes. */
-    .view:not(:has(> .col-lado:not([hidden]) > *:not([hidden]))) { grid-template-columns: minmax(0, 1fr); }
-    .view:not(:has(> .col-lado:not([hidden]) > *:not([hidden]))) > .col-lado { display: none; }
+    .view:not(:has(> .col-lado:not([hidden]) > *:not([hidden]):not([data-removido]))) { grid-template-columns: minmax(0, 1fr); }
+    .view:not(:has(> .col-lado:not([hidden]) > *:not([hidden]):not([data-removido]))) > .col-lado { display: none; }
 
     /* O mapa é a única seção de contexto que não cabe em 336px — fica na
        coluna de trabalho, embaixo da lista. */
@@ -2633,8 +2664,8 @@
         <div class="chip-grid" id="itensGrid" hidden></div>
         <div class="docs-lista" id="docsAdicionados"></div>
         <div class="docs-add">
-          <button type="button" class="btn-chip accent" id="docAddBtn" aria-haspopup="menu" aria-expanded="false" aria-controls="docAddMenu"><i class="ph ph-plus" aria-hidden="true"></i> Adicionar documento</button>
-          <div class="docs-add-menu" id="docAddMenu" role="menu" hidden></div>
+          <button type="button" class="btn-chip accent" id="docAddBtn" aria-haspopup="dialog" aria-expanded="false" aria-controls="docAddMenu"><i class="ph ph-plus" aria-hidden="true"></i> Adicionar documento</button>
+          <div class="docs-planilha" id="docAddMenu" role="dialog" aria-label="Documentos da entrega" hidden></div>
         </div>
         <div class="field-error" id="err-itens">Adicione ao menos um documento.</div>
       </div>
@@ -6348,53 +6379,137 @@
         list.appendChild(criarLinhaFuncionario_(dup.label, dup.funcionario, function (v) { dup.funcionario = v; }));
       }
     });
-    renderMenuDeDocs_();
+    if ($('docAddMenu') && $('docAddMenu').hidden) renderMenuDeDocs_();
   }
 
-  // O menu do "Adicionar documento": só os tipos que ainda não estão na lista.
-  function renderMenuDeDocs_() {
-    var menu = $('docAddMenu');
-    if (!menu) return;
+  // "Adicionar documento" abre uma planilha flutuante (pedido do escritório):
+  // uma linha por documento, com o valor ao lado; a última linha fica vazia —
+  // clica, escolhe o tipo, e o cursor já vai pro valor. Enter no valor abre a
+  // próxima. Por baixo continuam as mesmas caixinhas e o mesmo valoresState.
+  function linhaDaPlanilha_(e, tb) {
+    var tr = document.createElement('tr');
+    var tdDoc = document.createElement('td'); tdDoc.className = 'dp-doc';
+    var tdVal = document.createElement('td');
+    var tdX = document.createElement('td'); tdX.className = 'dp-x';
+    if (e.key === 'outro') {
+      var nome = document.createElement('input');
+      nome.className = 'input'; nome.placeholder = 'Nome do documento'; nome.value = $('outroInput').value;
+      nome.setAttribute('aria-label', 'Nome do outro documento');
+      nome.addEventListener('input', function () { $('outroInput').value = nome.value; $('outroInput').dispatchEvent(new Event('input', { bubbles: true })); });
+      tdDoc.appendChild(nome);
+    } else {
+      tdDoc.textContent = e.label;
+    }
+    if (e.semValor) {
+      tdVal.innerHTML = '<span class="dp-sem-valor">sem valor</span>';
+    } else {
+      var inp = document.createElement('input');
+      inp.className = 'input'; inp.inputMode = 'decimal'; inp.placeholder = 'R$ 0,00';
+      inp.setAttribute('aria-label', 'Valor de ' + e.label);
+      inp.value = e.dup ? (e.dup.valor || '') : (valoresState[e.key] || '');
+      inp.addEventListener('input', function () { if (e.dup) e.dup.valor = inp.value; else valoresState[e.key] = inp.value; });
+      inp.addEventListener('blur', function () { if (!e.dup) avisarValorDivergente_(e.key, inp); });
+      inp.addEventListener('keydown', function (ev) {
+        if (ev.key !== 'Enter') return;
+        ev.preventDefault();
+        var nova = tb.querySelector('tr.dp-nova select');
+        if (nova) nova.focus();
+      });
+      tdVal.appendChild(inp);
+    }
+    var x = document.createElement('button');
+    x.type = 'button'; x.className = 'valor-clear'; x.title = 'Tirar ' + e.label;
+    x.setAttribute('aria-label', 'Tirar ' + e.label);
+    x.innerHTML = '<i class="ph ph-x" aria-hidden="true"></i>';
+    x.addEventListener('click', function () {
+      if (e.dup) duplicatasExtras = duplicatasExtras.filter(function (d) { return d.id !== e.dup.id; });
+      else tirarDocumento_(e);
+      renderValores();
+      renderMenuDeDocs_();
+    });
+    tdX.appendChild(x);
+    tr.appendChild(tdDoc); tr.appendChild(tdVal); tr.appendChild(tdX);
+    return tr;
+  }
+
+  function renderMenuDeDocs_(focarValorDe) {
+    var painel = $('docAddMenu');
+    if (!painel) return;
     var marcados = {};
     itensGrid.querySelectorAll('input:checked').forEach(function (i) { marcados[i.dataset.key] = true; });
-    menu.innerHTML = DOC_TIPOS.filter(function (t) { return !marcados[t.key]; }).map(function (t) {
-      return '<button type="button" class="menu-acoes-item" role="menuitem" data-add="' + t.key + '">' + escapeHtml_(t.label) + '</button>';
-    }).join('') +
-      '<button type="button" class="menu-acoes-item" role="menuitem" data-add="__outro"><i class="ph ph-pencil-simple" aria-hidden="true"></i> Outro documento…</button>';
+    var entradas = getActiveDocEntries();
+    if (outroAberto_ && !entradas.some(function (e) { return e.key === 'outro'; })) {
+      entradas.push({ key: 'outro', label: 'Outro documento', semValor: false, pedeFuncionario: false });
+    }
+    duplicatasExtras.forEach(function (d) { entradas.push({ key: d.id, label: d.label + ' (repetido)', semValor: false, dup: d }); });
+
+    painel.innerHTML = '<h3>Documentos da entrega</h3>' +
+      '<div class="dp-rolagem"><table><thead><tr><th>Documento</th><th>Valor</th><th><span class="sr-only">Tirar</span></th></tr></thead><tbody></tbody></table></div>' +
+      '<div class="dp-rodape"><button type="button" class="btn btn-primary btn-sm" id="docPlanilhaPronto">Pronto</button></div>';
+    var tb = painel.querySelector('tbody');
+    entradas.forEach(function (e) { tb.appendChild(linhaDaPlanilha_(e, tb)); });
+
+    // a linha vazia do fim: escolhe o tipo e o cursor vai pro valor
+    var livres = DOC_TIPOS.filter(function (t) { return !marcados[t.key]; });
+    var tr = document.createElement('tr');
+    tr.className = 'dp-nova';
+    tr.innerHTML = '<td class="dp-doc" colspan="3"><select class="input" aria-label="Escolher o próximo documento">' +
+      '<option value="">+ clique pra escolher o documento</option>' +
+      livres.map(function (t) { return '<option value="' + t.key + '">' + escapeHtml_(t.label) + '</option>'; }).join('') +
+      (outroAberto_ || $('outroInput').value.trim() ? '' : '<option value="__outro">Outro documento…</option>') +
+      '</select></td>';
+    tb.appendChild(tr);
+    var sel = tr.querySelector('select');
+    sel.addEventListener('change', function () {
+      var chave = sel.value;
+      if (!chave) return;
+      clearFieldError('itens');
+      if (chave === '__outro') {
+        outroAberto_ = true;
+      } else {
+        var chk = itensGrid.querySelector('input[data-key="' + chave + '"]');
+        if (chk) { chk.checked = true; itensGrid.dispatchEvent(new Event('change', { bubbles: true })); }
+      }
+      renderValores();
+      renderMenuDeDocs_(chave);
+    });
+    $('docPlanilhaPronto').addEventListener('click', function () { fecharMenuDeDocs_(); $('docAddBtn').focus(); });
+
+    // depois de escolher um tipo, o foco vai pro valor dele (ou pro nome, no "Outro")
+    if (focarValorDe) {
+      var linhas = tb.querySelectorAll('tr:not(.dp-nova)');
+      var alvo = null;
+      entradas.forEach(function (e, i) { if (e.key === focarValorDe || (focarValorDe === '__outro' && e.key === 'outro')) alvo = linhas[i]; });
+      var campo = alvo && (focarValorDe === '__outro' ? alvo.querySelector('td.dp-doc input') : alvo.querySelector('td:nth-child(2) input'));
+      if (campo) campo.focus(); else sel.focus();
+    }
   }
   function fecharMenuDeDocs_() {
     $('docAddMenu').hidden = true;
+    $('docsAdicionados').hidden = false;
     $('docAddBtn').setAttribute('aria-expanded', 'false');
+    renderValores();
   }
   $('docAddBtn').addEventListener('click', function (ev) {
     ev.stopPropagation();
-    var menu = $('docAddMenu');
+    var painel = $('docAddMenu');
+    if (!painel.hidden) { fecharMenuDeDocs_(); return; }
     renderMenuDeDocs_();
-    menu.hidden = !menu.hidden;
-    this.setAttribute('aria-expanded', String(!menu.hidden));
-    if (!menu.hidden) { var primeiro = menu.querySelector('button'); if (primeiro) primeiro.focus(); }
-  });
-  $('docAddMenu').addEventListener('click', function (ev) {
-    var b = ev.target.closest('[data-add]');
-    if (!b) return;
-    ev.stopPropagation();
-    fecharMenuDeDocs_();
-    clearFieldError('itens');
-    if (b.dataset.add === '__outro') {
-      outroAberto_ = true;
-      renderValores();
-      $('outroInput').focus();
-      return;
-    }
-    var chk = itensGrid.querySelector('input[data-key="' + b.dataset.add + '"]');
-    if (chk) { chk.checked = true; itensGrid.dispatchEvent(new Event('change', { bubbles: true })); }
-    $('docAddBtn').focus();
+    painel.hidden = false;
+    // a planilha é o lugar de editar enquanto está aberta: a lista do
+    // formulário some pra não mostrar valor desatualizado ao lado
+    $('docsAdicionados').hidden = true;
+    this.setAttribute('aria-expanded', 'true');
+    var sel = painel.querySelector('tr.dp-nova select');
+    if (sel) sel.focus();
   });
   $('docAddMenu').addEventListener('keydown', function (ev) {
     if (ev.key === 'Escape') { fecharMenuDeDocs_(); $('docAddBtn').focus(); }
   });
   document.addEventListener('click', function (ev) {
-    if (!$('docAddMenu').hidden && !ev.target.closest('.docs-add')) fecharMenuDeDocs_();
+    // clique num elemento que a própria planilha acabou de redesenhar (o ✕,
+    // a escolha do tipo) já não está na página: não conta como "fora"
+    if (!$('docAddMenu').hidden && document.contains(ev.target) && !ev.target.closest('.docs-add')) fecharMenuDeDocs_();
   });
 
   // ---------- repetir a entrega do mês passado ----------
@@ -11185,15 +11300,16 @@
           ' · <span class="aviso-dica">Mais ações › Corrigir localização</span></p>'
       : '';
 
-    var acoesHtml = '<div class="modal-acoes">' +
+    var pagina = !!(opcoes && opcoes.pagina);
+    var barraAcoesHtml = '<div class="modal-acoes">' +
         (whatsAppNumero_(cliente.telefone)
           ? '<button type="button" class="btn-chip accent" id="falarClienteBtn"><i class="ph ph-whatsapp-logo" aria-hidden="true"></i> WhatsApp</button>'
           : '') +
         ((cliente.portalToken || temPapel('admin')) ? '<button type="button" class="btn-chip" id="linkClienteBtn"><i class="ph ph-link" aria-hidden="true"></i> Link do cliente</button>' : '') +
         (temPapel('admin') ? '<button type="button" class="btn-chip" id="editarCadastroBtn"><i class="ph ph-pencil-simple" aria-hidden="true"></i> Editar</button>' : '') +
         '<button type="button" class="btn-chip" id="fichaMaisBtn" aria-expanded="false" aria-controls="fichaMaisPainel"><i class="ph ph-dots-three" aria-hidden="true"></i> Mais ações</button>' +
-      '</div>' +
-      '<div class="ficha-mais" id="fichaMaisPainel" hidden>' +
+      '</div>';
+    var gruposAcoesHtml =
         '<div class="ficha-mais-grupo"><span class="ficha-mais-titulo">Cliente</span>' +
           '<button type="button" class="menu-acoes-item" id="corrigirLocalBtn"><i class="ph ph-map-pin-line" aria-hidden="true"></i> Corrigir localização</button>' +
           '<button type="button" class="menu-acoes-item" id="aglutinarBtn"><i class="ph ph-link-simple" aria-hidden="true"></i> Aglutinar com outra empresa</button>' +
@@ -11206,8 +11322,8 @@
             ? '<button type="button" class="menu-acoes-item" id="levarDadosBtn" title="Arquivo com tudo que o sistema tem deste cliente"><i class="ph ph-download-simple" aria-hidden="true"></i> Levar os dados (LGPD)</button>' +
               '<button type="button" class="menu-acoes-item perigo" id="apagarDadosBtn" title="Tira telefone, e-mail, endereço, contatos e derruba a página do cliente"><i class="ph ph-eraser" aria-hidden="true"></i> Apagar dados pessoais</button>'
             : '') +
-        '</div>' +
-      '</div>' + avisoLocal;
+        '</div>';
+    var acoesHtml = barraAcoesHtml + '<div class="ficha-mais" id="fichaMaisPainel" hidden>' + gruposAcoesHtml + '</div>' + avisoLocal;
 
     var receitaHtml = htmlDaReceita_(cliente);
 
@@ -11249,14 +11365,7 @@
         '</div>'
       : '';
 
-    inner.innerHTML =
-      '<div class="modal-head">' +
-        '<div><h2>' + escapeHtml_(clienteLabel(cliente)) + '</h2><div class="card-hint modal-head-sub">' +
-          historico.length + ' entrega(s) em ' + porCompetencia.length + ' competência(s)</div></div>' +
-        '<button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button>' +
-      '</div>' +
-      etiquetasHtml +
-      (function () {
+    var papeisHtml = (function () {
         var papeis = papeisDe_(cliente).map(function (p) { return { p: p, dias: diasAte_(p.vence) }; })
           .sort(function (a, b) { return (a.dias === null ? 9999 : a.dias) - (b.dias === null ? 9999 : b.dias); });
         if (!papeis.length) return '';
@@ -11267,15 +11376,81 @@
               '<div class="er-sub">' + escapeHtml_([String(x.p.vence).split('-').reverse().join('/'), x.p.observacao].filter(Boolean).join(' · ')) + '</div></div>' +
               '<span class="papel-prazo ' + classe + '">' + escapeHtml_(x.dias === null ? '' : textoPrazo_(x.dias)) + '</span></div>';
           }).join('') + '</div>';
-      })() +
-      recadoHtml +
-      contatosHtml +
-      htmlDasOcorrencias_(cliente) +
-      infoHonorario +
-      receitaHtml +
-      rowsHtml;
-    // ações coladas no nome: é o que se vem fazer aqui
-    if (!soConsulta) inner.querySelector('.modal-head').insertAdjacentHTML('afterend', acoesHtml);
+      })();
+    var cabecaHtml =
+      '<div class="modal-head">' +
+        '<div><h2>' + escapeHtml_(clienteLabel(cliente)) + '</h2><div class="card-hint modal-head-sub">' +
+          historico.length + ' entrega(s) em ' + porCompetencia.length + ' competência(s)</div></div>' +
+        '<button class="modal-close" id="modalClose"><i class="ph ph-x" aria-hidden="true"></i></button>' +
+      '</div>';
+
+    if (pagina && !soConsulta) {
+      // Página do cliente (aberta pela Carteira): menu de abas à esquerda,
+      // como a ficha do cliente no Pendências, e sem a barra de botões —
+      // cada ação mora na aba dela. Aba sem nada dentro não aparece.
+      var ocorrenciasHtml = htmlDasOcorrencias_(cliente);
+      var zapPrincipal = whatsAppNumero_(cliente.telefone);
+      var contatoPrincipalHtml = (cliente.telefone || cliente.email)
+        ? '<div class="entrega-row" style="cursor:default"><div><div class="er-nome">Principal</div>' +
+            '<div class="er-sub">' + escapeHtml_([cliente.telefone, cliente.email].filter(Boolean).join(' · ')) + '</div></div>' +
+            '<div class="cr-actions">' +
+              (zapPrincipal ? '<button type="button" class="btn-chip accent" id="falarClienteBtn"><i class="ph ph-whatsapp-logo" aria-hidden="true"></i> WhatsApp</button>' : '') +
+              (cliente.telefone ? '<a class="btn-chip" href="tel:' + escapeHtml_(String(cliente.telefone).replace(/[^0-9+]/g, '')) + '"><i class="ph ph-phone" aria-hidden="true"></i> Ligar</a>' : '') +
+            '</div></div>'
+        : '';
+      var botoesCadastro =
+        ((cliente.portalToken || temPapel('admin')) ? '<button type="button" class="btn-chip" id="linkClienteBtn"><i class="ph ph-link" aria-hidden="true"></i> Link do cliente</button>' : '') +
+        (temPapel('admin') ? '<button type="button" class="btn-chip accent" id="editarCadastroBtn"><i class="ph ph-pencil-simple" aria-hidden="true"></i> Editar cadastro</button>' : '');
+      var enderecoHtml = cliente.endereco
+        ? '<div class="entrega-row" style="cursor:default"><div><div class="er-nome">Endereço</div><div class="er-sub">' + escapeHtml_(cliente.endereco) + '</div></div></div>'
+        : '';
+      var abas = [
+        { id: 'entregas', rotulo: 'Entregas', icone: 'ph-truck', n: historico.length, html: rowsHtml },
+        { id: 'cadastro', rotulo: 'Cadastro', icone: 'ph-identification-card',
+          html: (botoesCadastro ? '<div class="modal-acoes">' + botoesCadastro + '</div>' : '') + etiquetasHtml + recadoHtml + enderecoHtml + infoHonorario +
+            avisoLocal.replace('Mais ações › Corrigir localização', 'Ações › Corrigir localização') },
+        { id: 'contatos', rotulo: 'Contatos', icone: 'ph-address-book', html: contatoPrincipalHtml + contatosHtml },
+        { id: 'documentos', rotulo: 'Documentos', icone: 'ph-certificate', html: papeisHtml + ocorrenciasHtml },
+        { id: 'receita', rotulo: 'Receita', icone: 'ph-bank', html: receitaHtml },
+        { id: 'acoes', rotulo: 'Ações', icone: 'ph-gear-six', html: '<div class="cp-acoes">' + gruposAcoesHtml + '</div>' }
+      ].filter(function (a) { return a.id === 'entregas' || a.id === 'cadastro' || String(a.html || '').replace(/<[^>]*>/g, '').trim(); });
+      var abaInicial = renderHistoricoList.abaDaPagina && abas.some(function (a) { return a.id === renderHistoricoList.abaDaPagina; })
+        ? renderHistoricoList.abaDaPagina : 'entregas';
+      inner.innerHTML = cabecaHtml +
+        '<div class="cliente-pagina">' +
+          '<nav class="cp-menu" role="tablist" aria-label="Seções do cliente">' +
+            abas.map(function (a) {
+              return '<button type="button" role="tab" data-cp="' + a.id + '" aria-selected="' + (a.id === abaInicial) + '">' +
+                '<i class="ph ' + a.icone + '" aria-hidden="true"></i><span>' + a.rotulo + '</span>' +
+                (a.n ? '<span class="cp-cont">' + a.n + '</span>' : '') + '</button>';
+            }).join('') +
+          '</nav>' +
+          '<div class="cp-conteudo">' +
+            abas.map(function (a) {
+              return '<section role="tabpanel" data-cp="' + a.id + '"' + (a.id === abaInicial ? '' : ' hidden') + '>' + a.html + '</section>';
+            }).join('') +
+          '</div>' +
+        '</div>';
+      inner.querySelectorAll('.cp-menu [data-cp]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          renderHistoricoList.abaDaPagina = b.dataset.cp;
+          inner.querySelectorAll('.cp-menu [data-cp]').forEach(function (x) { x.setAttribute('aria-selected', String(x === b)); });
+          inner.querySelectorAll('.cp-conteudo > [data-cp]').forEach(function (sec) { sec.hidden = sec.dataset.cp !== b.dataset.cp; });
+        });
+      });
+    } else {
+      inner.innerHTML = cabecaHtml +
+        etiquetasHtml +
+        papeisHtml +
+        recadoHtml +
+        contatosHtml +
+        htmlDasOcorrencias_(cliente) +
+        infoHonorario +
+        receitaHtml +
+        rowsHtml;
+      // ações coladas no nome: é o que se vem fazer aqui
+      if (!soConsulta) inner.querySelector('.modal-head').insertAdjacentHTML('afterend', acoesHtml);
+    }
     $('modalClose').addEventListener('click', closeModal);
     if ($('fichaMaisBtn')) $('fichaMaisBtn').addEventListener('click', function () {
       var p = $('fichaMaisPainel');
@@ -11362,7 +11537,7 @@
       abrirLinhaDoTempo_(cliente, historico, function () { renderHistoricoList(cliente, historico); });
     });
     if ($('editarCadastroBtn')) $('editarCadastroBtn').addEventListener('click', function () {
-      abrirCadastroCliente_(cliente, function () { openClienteHistorico(clientesCache.get(cliente.id) || cliente); });
+      abrirCadastroCliente_(cliente, function () { openClienteHistorico(clientesCache.get(cliente.id) || cliente, opcoes); });
     });
     if ($('linkClienteBtn')) $('linkClienteBtn').addEventListener('click', function () { abrirLinkDoCliente_(cliente); });
     if ($('corrigirLocalBtn')) $('corrigirLocalBtn').addEventListener('click', function () {
