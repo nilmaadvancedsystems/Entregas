@@ -2547,9 +2547,11 @@
     <form id="form-nova" class="card" novalidate>
       <h2><i class="ph ph-pen-nib" aria-hidden="true"></i> Registrar entrega</h2>
 
-      <div class="mode-toggle" id="modeToggle">
-        <button type="button" class="mode-btn active" data-mode="agora">Entregar agora</button>
-        <button type="button" class="mode-btn" data-mode="rota">Preparar rota</button>
+      <!-- "Entregar agora" saiu (pedido do escritório, 24/09/2026): entrega se
+           faz pela Rota. O seletor só aparece quando o cliente tem link e dá
+           pra escolher "Pelo link". -->
+      <div class="mode-toggle" id="modeToggle" hidden>
+        <button type="button" class="mode-btn active" data-mode="rota">Preparar rota</button>
         <button type="button" class="mode-btn" data-mode="link" id="modoLinkBtn" hidden>Pelo link</button>
       </div>
 
@@ -2582,13 +2584,13 @@
                  aria-autocomplete="list" enterkeyhint="search">
           <div class="suggestions" id="clienteSuggestions" role="listbox" aria-label="Clientes encontrados"></div>
         </div>
-        <input class="input" id="avulsoNomeInput" type="text" placeholder="Nome da pessoa" hidden autocomplete="off">
+        <input class="input" id="avulsoNomeInput" type="text" placeholder="Nome do cliente" hidden autocomplete="off">
         <div class="field-error" id="err-cliente">Selecione um cliente da lista, ou informe o nome.</div>
         <!-- embaixo do campo: em cima, empurrava o campo pra baixo e a
              Competência, ao lado, ficava desalinhada -->
         <label class="avulso-toggle avulso-embaixo">
           <input type="checkbox" id="avulsoToggle">
-          Pessoa física avulsa
+          Cliente avulso
         </label>
       </label>
 
@@ -2688,27 +2690,13 @@
   </section>
 
   <section id="tab-rota" class="view" role="tabpanel" tabindex="-1" aria-labelledby="tabbtn-rota" hidden>
-    <div class="card caixa" id="recadosCard">
-      <div class="card-head-row">
-        <h2><i class="ph ph-push-pin" aria-hidden="true"></i> Recados</h2>
-        <button type="button" class="btn-chip accent" id="recadoNovoBtn">+ Novo recado</button>
-      </div>
-      <div class="linha-busca-cnpj" id="recadoForm" hidden style="margin-top:12px;">
-        <input class="input" id="recadoTexto" type="text" maxlength="280" placeholder="Ex.: Drogaria Antonino fecha das 12h às 14h" enterkeyhint="send">
-        <button type="button" class="btn btn-secondary" id="recadoSalvarBtn">Publicar</button>
-      </div>
-      <div id="recadosList" style="margin-top:12px;"></div>
-    </div>
     <div class="card caixa" id="rotaCard">
       <div class="card-head-row">
         <h2><i class="ph ph-path" aria-hidden="true"></i> Rota de entregas <span class="contagem" id="rotaPrevisao" hidden></span></h2>
         <button type="button" class="btn-chip accent" id="rotaAddBtn">+ Adicionar à rota</button>
       </div>
       <div class="card-ferramentas">
-        <button type="button" class="btn-chip" id="rotaProximidadeBtn"><i class="ph ph-navigation-arrow" aria-hidden="true"></i> Ordenar por proximidade</button>
         <button type="button" class="btn-chip" id="rotaLerGuiaBtn" hidden><i class="ph ph-barcode" aria-hidden="true"></i> Ler guia</button>
-        <button type="button" class="btn-chip" id="rotaMapsBtn"><i class="ph ph-map-trifold" aria-hidden="true"></i> Abrir no Maps</button>
-        <button type="button" class="btn-chip" id="rotaEnviarLinkBtn"><i class="ph ph-share-network" aria-hidden="true"></i> Enviar rota pro cliente</button>
         <button type="button" class="btn-chip" id="rotaProtocoloBtn"><i class="ph ph-printer" aria-hidden="true"></i> Protocolo</button>
       </div>
       <div class="filters">
@@ -2738,13 +2726,6 @@
       </div>
       <div id="rotaList"><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
     </div>
-    <div class="card caixa" id="montagemCard" hidden>
-      <div class="card-head-row">
-        <h2><i class="ph ph-package" aria-hidden="true"></i> Montagem do dia <span class="contagem" id="montagemResumo"></span></h2>
-        <button type="button" class="btn-chip accent" id="etiquetasBtn"><i class="ph ph-printer" aria-hidden="true"></i> Etiquetas</button>
-      </div>
-      <div id="montagemList"></div>
-    </div>
     <div class="card caixa" id="obrigacoesCard" hidden>
       <div class="card-head-row">
         <h2><i class="ph ph-calendar-dots" aria-hidden="true"></i> Obrigações do mês</h2>
@@ -2756,18 +2737,6 @@
         <h2><i class="ph ph-clock-countdown" aria-hidden="true"></i> Vencendo</h2>
       </div>
       <div id="vencimentosList"></div>
-    </div>
-    <div class="card caixa" id="fechamentoCard">
-      <div class="card-head-row">
-        <h2><i class="ph ph-clipboard-text" aria-hidden="true"></i> Fechamento do dia</h2>
-        <button type="button" class="btn-chip" id="fechamentoCopiarBtn"><i class="ph ph-whatsapp-logo" aria-hidden="true"></i> Copiar resumo</button>
-      </div>
-      <div class="dash-strip">
-        <div class="dash-item ok"><span class="dash-ico"><i class="ph ph-check" aria-hidden="true"></i></span><span class="dash-num" id="fechEntregues">0</span><span class="dash-label">entregues hoje</span></div>
-        <div class="dash-item falha"><span class="dash-ico"><i class="ph ph-x-circle" aria-hidden="true"></i></span><span class="dash-num" id="fechFalhas">0</span><span class="dash-label">não entregues hoje</span></div>
-        <div class="dash-item rota"><span class="dash-ico"><i class="ph ph-truck" aria-hidden="true"></i></span><span class="dash-num" id="fechRota">0</span><span class="dash-label">ainda na rota</span></div>
-      </div>
-      <div id="fechamentoDetalhe" style="margin-top:12px;"></div>
     </div>
     <div class="card caixa" id="atestadosCard" hidden>
       <div class="card-head-row">
@@ -3573,7 +3542,7 @@
   var pendentesCache = [];
   var geoRequested = false;
   var valoresState = {};
-  var formMode = 'agora';
+  var formMode = 'rota';
 
   var DOC_TIPOS = [
     { key: 'das', label: 'DAS' },
@@ -5457,9 +5426,7 @@
   // uma categoria só, o submenu inteiro some.
   var SUBMENUS_DAS_ABAS_ = {
     rota: [
-      { id: 'paradas', rotulo: 'Paradas', icone: 'ph-path', els: ['rotaCard', 'vencimentosCard', 'montagemCard', 'atestadosCard'] },
-      { id: 'recados', rotulo: 'Recados', icone: 'ph-push-pin', els: ['recadosCard'] },
-      { id: 'fechamento', rotulo: 'Fechamento do dia', icone: 'ph-clipboard-text', els: ['fechamentoCard', 'obrigacoesCard'] }
+      { id: 'paradas', rotulo: 'Paradas', icone: 'ph-path', els: ['rotaCard', 'vencimentosCard', 'atestadosCard', 'obrigacoesCard'] }
     ],
     painel: [
       { id: 'entregas', rotulo: 'Entregas', icone: 'ph-chart-bar', els: ['painelCard', 'alertaSemEntregaCard'] },
@@ -6539,7 +6506,8 @@
     sugerirRecebedores_(c && c.id, $('recebedorInput'));
     var temLink = !!(c && donosDoLinkDe_(c.id).length);
     $('modoLinkBtn').hidden = !temLink;
-    if (!temLink && formMode === 'link') document.querySelector('#modeToggle .mode-btn[data-mode="agora"]').click();
+    $('modeToggle').hidden = !temLink;
+    if (!temLink && formMode === 'link') document.querySelector('#modeToggle .mode-btn[data-mode="rota"]').click();
   }
 
   // ---------- quem costuma receber ----------
@@ -6779,6 +6747,7 @@
       var semPresenca = isRota || isLink;
       $('recebedorField').hidden = semPresenca;
       $('assinaturaField').hidden = semPresenca;
+      $('fotoField').hidden = semPresenca;
       $('falhaToggleWrap').hidden = semPresenca;
       $('zonaField').hidden = !isRota;
       if (semPresenca) { $('falhaToggle').checked = false; }
@@ -6786,6 +6755,8 @@
       atualizarModoFalha();
     });
   });
+
+  document.querySelector('#modeToggle .mode-btn[data-mode="rota"]').click();
 
   // ---------- motivo de não entrega em um toque ----------
   // Na calçada ninguém quer digitar. Os motivos que se repetem viram botões: um
@@ -7338,7 +7309,7 @@
     document.querySelector('.tab[data-tab="nova"]').click();
     document.querySelector('#modeToggle .mode-btn[data-mode="rota"]').click();
   });
-  $('rotaProximidadeBtn').addEventListener('click', ordenarRotaPorProximidade_);
+  // A proximidade virou automática: ver encaixarPorProximidade_.
 
   // ---------- ler o código de barras da guia com a câmera ----------
   // Com dez guias na mão, achar a parada certa na lista é o que toma tempo. A
@@ -7649,9 +7620,8 @@
     }
   }
 
-  $('fechamentoCopiarBtn').addEventListener('click', function () {
-    copiarOuMostrar_('Fechamento do dia', textoResumoDoDia_(), 'Resumo copiado — é só colar no WhatsApp.');
-  });
+  // (o cartão "Fechamento do dia" saiu da Rota; renderFechamentoDia_ já
+  // não acha o cartão e não faz nada)
 
   // ---------- busca rápida (Ctrl+K) ----------
   var ABAS_BUSCA = [
@@ -7923,7 +7893,8 @@
     listaChegou_(el);
   }
 
-  $('recadoNovoBtn').addEventListener('click', function () {
+  // Recados saíram da Rota (vão pra Mensagens). Os dados continuam no banco.
+  if ($('recadoNovoBtn')) $('recadoNovoBtn').addEventListener('click', function () {
     var form = $('recadoForm');
     form.hidden = !form.hidden;
     if (!form.hidden) $('recadoTexto').focus();
@@ -7948,8 +7919,8 @@
     }).finally(function () { botaoLivre_(btn); });
   }
 
-  $('recadoSalvarBtn').addEventListener('click', publicarRecado_);
-  $('recadoTexto').addEventListener('keydown', function (ev) {
+  if ($('recadoSalvarBtn')) $('recadoSalvarBtn').addEventListener('click', publicarRecado_);
+  if ($('recadoTexto')) $('recadoTexto').addEventListener('keydown', function (ev) {
     if (ev.key === 'Enter') { ev.preventDefault(); publicarRecado_(); }
   });
 
@@ -9221,7 +9192,7 @@
     }
   }
 
-  $('rotaMapsBtn').addEventListener('click', abrirRotaNoMaps_);
+  // "Abrir no Maps" saiu da Rota (pedido do escritório).
 
   // paradas, não entregas: o mesmo cliente com 3 guias é uma parada só,
   // e duas empresas aglutinadas (mesmo endereço físico) também contam
@@ -9256,7 +9227,7 @@
     return (ORDEM_DAS_ZONAS_[zona] === undefined ? 1 : ORDEM_DAS_ZONAS_[zona]) * 1000 + pos;
   }
   function ordenarPendentes_(lista) {
-    return lista.slice().sort(function (a, b) {
+    var ordenada = lista.slice().sort(function (a, b) {
       var ao = typeof a.ordemRota === 'number' ? a.ordemRota : null;
       var bo = typeof b.ordemRota === 'number' ? b.ordemRota : null;
       if (ao !== null && bo !== null && ao !== bo) return ao - bo;
@@ -9268,6 +9239,44 @@
       if (af === null && bf !== null) return 1;
       return new Date(a.criadoEm) - new Date(b.criadoEm);
     });
+    return encaixarPorProximidade_(ordenada);
+  }
+
+  // Proximidade automática (antes era o botão "Ordenar por proximidade").
+  // A ordem fixa do escritório e o que alguém arrastou continuam mandando;
+  // quem não está em nenhuma das duas não vai mais pro fim por ordem de
+  // chegada: entra logo depois da parada mais perto dela, na mesma região.
+  // Só com endereço confiável (ponto no centro da cidade não conta), e sem
+  // gravar nada: é só a ordem de mostrar.
+  function encaixarPorProximidade_(ordenada) {
+    function geoDe(e) {
+      var c = e.clienteId ? clientesCache.get(e.clienteId) : null;
+      var g = c && c.geo;
+      return g && typeof g.lat === 'number' && g.precisao !== 'cidade' ? g : null;
+    }
+    function zonaDe(e) {
+      var c = e.clienteId ? clientesCache.get(e.clienteId) : null;
+      return e.zona || (c && c.zona) || '';
+    }
+    var base = [], soltos = [];
+    ordenada.forEach(function (e) {
+      (typeof e.ordemRota === 'number' || posicaoNaRotaFixa_(e) !== null ? base : soltos).push(e);
+    });
+    if (!soltos.length || !base.length) return ordenada;
+    var semLugar = [];
+    soltos.forEach(function (e) {
+      var g = geoDe(e);
+      if (!g) { semLugar.push(e); return; }
+      var z = zonaDe(e), melhor = -1, dist = Infinity;
+      base.forEach(function (b, i) {
+        var gb = geoDe(b);
+        if (!gb || (z && zonaDe(b) && zonaDe(b) !== z)) return;
+        var d = distanciaKm_(g, gb);
+        if (d < dist) { dist = d; melhor = i; }
+      });
+      if (melhor === -1) semLugar.push(e); else base.splice(melhor + 1, 0, e);
+    });
+    return base.concat(semLugar);
   }
 
   // Um aviso por parada, na ordem de quanto custa ignorar: porta fechada
@@ -11903,7 +11912,7 @@
       listaEl.appendChild(b);
     });
   }
-  $('rotaEnviarLinkBtn').addEventListener('click', abrirEscolherParadaEnviarRota_);
+  // "Enviar rota pro cliente" saiu da Rota (pedido do escritório).
 
   // ---------- link de acompanhamento de rota pro cliente ----------
   // Mesma ideia da assinatura remota (link com token, sem login), mas pra
@@ -12659,7 +12668,7 @@
 
   $('clientesBusca').addEventListener('input', aoParar(renderClientesList));
   $('clientesOrdem').addEventListener('change', renderClientesList);
-  $('etiquetasBtn').addEventListener('click', imprimirEtiquetas_);
+  // (as etiquetas eram da "Montagem do dia", que saiu da Rota)
   $('emprestimoNovoBtn').addEventListener('click', function () { abrirNovoEmprestimo_(null); });
   $('saudeSistemaAtualizarBtn').addEventListener('click', renderSaudeDoSistema_);
   $('fechamentoMesSelect').addEventListener('change', function () { carregarFechamentoDoMes_(competenciaDoFechamento_()); });
