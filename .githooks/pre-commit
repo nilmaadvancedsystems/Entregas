@@ -1,0 +1,3 @@
+#!/bin/sh
+# Carimba a versão do app (rodapé do ☰ e ?v= dos arquivos compartilhados).
+node scripts/carimbar-versao.js || exit 1
