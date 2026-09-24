@@ -1479,6 +1479,44 @@
   [data-removido] { display: none !important; }
   /* Cliente aberto pela Carteira: página inteira, não janelinha. */
   .modal-overlay.modal-pagina { align-items: stretch; justify-content: stretch; background: var(--bg); }
+  .cp-cabeca { align-items: flex-start; padding-bottom: var(--esp-3); border-bottom: 1px solid var(--border); }
+  .cp-quem { display: flex; gap: var(--esp-3); align-items: flex-start; min-width: 0; }
+  .cp-avatar { flex: none; width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 1.1rem; background: var(--surface-2); color: var(--accent-forte, var(--ink)); border: 1px solid var(--border); }
+  .cp-quem-texto { min-width: 0; }
+  .cp-quem-texto h2 { margin: 0; overflow-wrap: anywhere; }
+  .cp-sub { color: var(--ink-soft); font-size: var(--t-sm); margin-top: 2px; overflow-wrap: anywhere; }
+  .cp-selos { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .cp-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: var(--r-md, 8px); overflow: hidden; margin-bottom: var(--esp-4); }
+  .cp-kpi { background: var(--surface); padding: 10px 14px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .cp-kpi-r { font-size: var(--t-sm); color: var(--ink-soft); }
+  .cp-kpi b { font-size: 1.15rem; font-variant-numeric: tabular-nums; }
+  .cp-kpi b.pend { color: var(--danger-forte); }
+  .cp-kpi-s { font-size: var(--t-sm); color: var(--ink-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cp-avisos { display: flex; flex-direction: column; gap: 6px; margin-bottom: var(--esp-4); }
+  .cp-aviso { display: flex; gap: 8px; align-items: flex-start; padding: 8px 12px; border: 1px solid var(--border); border-left: 3px solid var(--ink-faint); border-radius: var(--r-sm, 6px); font-size: var(--t-sm); background: var(--surface); }
+  .cp-aviso.grave { border-left-color: var(--danger); }
+  .cp-aviso.recado { border-left-color: var(--accent); }
+  .cp-aviso i { margin-top: 2px; }
+  .cp-grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--esp-4); }
+  .cp-card { border: 1px solid var(--border); border-radius: var(--r-md, 8px); margin-bottom: var(--esp-4); background: var(--surface); min-width: 0; }
+  .cp-card-cab { display: flex; align-items: center; justify-content: space-between; gap: var(--esp-2); padding: 8px 14px; border-bottom: 1px solid var(--border); background: var(--surface-2); border-radius: var(--r-md, 8px) var(--r-md, 8px) 0 0; }
+  .cp-card-cab h3 { margin: 0; font-size: var(--t-base); display: flex; align-items: center; gap: 6px; }
+  .cp-card-corpo { padding: 10px 14px; }
+  .cp-card-corpo > .history-row:last-child, .cp-card-corpo > .cp-linha:last-child { border-bottom: 0; }
+  .cp-dados { display: grid; grid-template-columns: minmax(110px, max-content) minmax(0, 1fr); gap: 6px 16px; margin: 0; }
+  .cp-dados dt { color: var(--ink-soft); font-size: var(--t-sm); }
+  .cp-dados dd { margin: 0; overflow-wrap: anywhere; }
+  .cp-inline-acoes { display: inline-flex; gap: 4px; margin-left: 6px; vertical-align: middle; }
+  .cp-linha { display: flex; align-items: center; justify-content: space-between; gap: var(--esp-2); padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .cp-acoes-lista { border: 1px solid var(--border); border-radius: var(--r-md, 8px); overflow: hidden; }
+  .cp-acao { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 14px; background: var(--surface); border: 0; border-bottom: 1px solid var(--border); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+  .cp-acao:last-child { border-bottom: 0; }
+  .cp-acao:hover { background: var(--surface-2); }
+  .cp-acao > i:first-child { font-size: 20px; color: var(--ink-soft); }
+  .cp-acao > span { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .cp-acao > span > span { font-size: var(--t-sm); color: var(--ink-soft); }
+  .cp-acao.perigo, .cp-acao.perigo > i:first-child { color: var(--danger-forte); }
+  .cp-acao-seta { color: var(--ink-faint); }
   .cliente-pagina { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: var(--esp-5); margin-top: var(--esp-3); }
   .cp-menu { display: flex; flex-direction: column; gap: 2px; align-self: start; position: sticky; top: 0; }
   .cp-menu button { display: flex; align-items: center; gap: 8px; width: 100%; min-height: var(--alvo, 40px); padding: 6px 10px; border: 0; border-radius: var(--r-sm, 6px); background: none; color: var(--ink-soft); font: inherit; text-align: left; cursor: pointer; }
@@ -1488,7 +1526,9 @@
   .cp-conteudo { min-width: 0; }
   .cp-acoes .ficha-mais-grupo { margin-bottom: var(--esp-4); }
   .cp-acoes .menu-acoes-item { width: 100%; border-bottom: 1px solid var(--border); border-radius: 0; }
-  @media (max-width: 760px) {
+  @media (max-width: 899px) {
+    .cp-dados { grid-template-columns: 1fr; gap: 0; }
+    .cp-dados dd { margin-bottom: 8px; }
     .cliente-pagina { grid-template-columns: 1fr; gap: var(--esp-3); }
     .cp-menu { flex-direction: row; overflow-x: auto; position: static; border-bottom: 1px solid var(--border); }
     .cp-menu button { width: auto; white-space: nowrap; }
@@ -11244,6 +11284,275 @@
     }));
   }
 
+
+  // ==========================================================================
+  // Página do cliente (aberta pela Carteira). Pensada pra responder, de cima
+  // pra baixo, o que se vem procurar aqui: quem é (cabeçalho com selos),
+  // como está (Resumo: números do cliente, contato, empresa, avisos e as
+  // últimas entregas) e o detalhe de cada assunto numa aba própria. Os
+  // botões mantêm os mesmos ids da ficha antiga: a ligação deles está em
+  // renderHistoricoList, logo abaixo.
+  // ==========================================================================
+  function fmtDocumento_(d) {
+    var n = String(d || '').replace(/\D/g, '');
+    if (n.length === 14) return n.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
+    if (n.length === 11) return n.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4');
+    return String(d || '');
+  }
+  function dataBr_(iso) { return iso ? String(iso).slice(0, 10).split('-').reverse().join('/') : ''; }
+  // <dl> de duas colunas; linha sem valor não aparece
+  function listaDeDados_(linhas) {
+    var boas = linhas.filter(function (l) { return l && l[1] !== undefined && l[1] !== null && String(l[1]).trim() !== ''; });
+    if (!boas.length) return '';
+    return '<dl class="cp-dados">' + boas.map(function (l) {
+      return '<dt>' + escapeHtml_(l[0]) + '</dt><dd' + (l[2] ? ' class="' + l[2] + '"' : '') + '>' + (l[3] ? l[1] : escapeHtml_(String(l[1]))) + '</dd>';
+    }).join('') + '</dl>';
+  }
+  function cartaoDaPagina_(titulo, icone, corpo, acaoHtml) {
+    if (!corpo) return '';
+    return '<section class="cp-card"><div class="cp-card-cab"><h3><i class="ph ' + icone + '" aria-hidden="true"></i> ' + escapeHtml_(titulo) + '</h3>' + (acaoHtml || '') + '</div>' +
+      '<div class="cp-card-corpo">' + corpo + '</div></section>';
+  }
+
+  function montarPaginaDoCliente_(inner, cliente, historico, porCompetencia, partes) {
+    var admin = temPapel('admin');
+    var r = cliente.receita || null;
+    var regime = cliente.enquadramento || (r ? (r.mei ? 'MEI' : (r.simples ? 'Simples Nacional' : '')) : '');
+    var nomeTela = cliente.nome || '';
+    var iniciais = nomeTela.replace(/^[\d\s.\-]+/, '').split(/\s+/).filter(Boolean).slice(0, 2).map(function (p) { return p.charAt(0); }).join('').toUpperCase() || '?';
+    var cidade = cliente.cidade || '';
+    var grupo = cliente.grupoLocal
+      ? Array.from(clientesCache.values()).filter(function (x) { return x.id !== cliente.id && x.grupoLocal === cliente.grupoLocal; }).map(function (x) { return x.nome; })
+      : [];
+
+    // ---- cabeçalho: quem é ----
+    var selos = [];
+    if (cliente.ativo === false) selos.push('<span class="status-pill falha">Inativo</span>');
+    if (r && r.situacao) selos.push('<span class="status-pill ' + (r.situacao === 'ATIVA' ? 'entregue' : 'falha') + '">Receita: ' + escapeHtml_(r.situacao) + '</span>');
+    if (regime) selos.push('<span class="status-pill neutro">' + escapeHtml_(regime) + '</span>');
+    if (cliente.zona && typeof ZONA_LABEL !== 'undefined' && ZONA_LABEL[cliente.zona]) selos.push('<span class="status-pill neutro"><i class="ph ph-map-pin" aria-hidden="true"></i> ' + escapeHtml_(ZONA_LABEL[cliente.zona]) + '</span>');
+    if (grupo.length) selos.push('<span class="status-pill rota" title="' + escapeHtml_(grupo.join(', ')) + '">Entrega junto com ' + grupo.length + '</span>');
+    etiquetasDe_(cliente).forEach(function (e) { selos.push('<span class="etq escolhida">' + escapeHtml_(e) + '</span>'); });
+    var sub = [cliente.codigoOrigem ? 'Código ' + cliente.codigoOrigem : '', fmtDocumento_(cliente.documento),
+      (cliente.nomeFantasia && cliente.nomeFantasia !== nomeTela.replace(/^\d+\s*-\s*/, '')) ? cliente.nomeFantasia : '', cidade].filter(Boolean);
+    var cabeca =
+      '<div class="modal-head cp-cabeca">' +
+        '<div class="cp-quem">' +
+          '<span class="cp-avatar" aria-hidden="true">' + escapeHtml_(iniciais) + '</span>' +
+          '<div class="cp-quem-texto"><h2>' + escapeHtml_(clienteLabel(cliente)) + '</h2>' +
+            '<div class="cp-sub">' + escapeHtml_(sub.join(' · ')) + '</div>' +
+            (selos.length ? '<div class="cp-selos">' + selos.join('') + '</div>' : '') +
+          '</div>' +
+        '</div>' +
+        '<button class="modal-close" id="modalClose" aria-label="Fechar"><i class="ph ph-x" aria-hidden="true"></i></button>' +
+      '</div>';
+
+    // ---- números do cliente ----
+    var agora = new Date();
+    var compAtual = agora.getFullYear() + '-' + String(agora.getMonth() + 1).padStart(2, '0');
+    var doMes = historico.filter(function (e) { return e.competencia === compAtual; });
+    var entreguesMes = doMes.filter(function (e) { return e.status === 'confirmada'; }).length;
+    var naRotaMes = doMes.filter(function (e) { return e.status !== 'confirmada' && e.status !== 'falha'; }).length;
+    var ultima = historico.filter(function (e) { return e.status === 'confirmada'; })[0];
+    var kpis = [
+      { r: 'Entregas', v: String(historico.length), s: porCompetencia.length ? 'em ' + porCompetencia.length + (porCompetencia.length === 1 ? ' mês' : ' meses') : 'nenhuma ainda' },
+      { r: 'Última entrega', v: ultima ? dataBr_(ultima.confirmadoEm) : '—',
+        s: ultima ? (ultima.itens || []).map(function (i) { return typeof i === 'string' ? i : (i && i.tipo) || ''; }).filter(Boolean).slice(0, 3).join(', ') : '' },
+      { r: 'Este mês', v: entreguesMes ? entreguesMes + (entreguesMes === 1 ? ' entregue' : ' entregues') : (naRotaMes ? 'na rota' : 'nada ainda'),
+        s: naRotaMes && entreguesMes ? naRotaMes + ' ainda na rota' : fmtCompetencia(compAtual) }
+    ];
+    if (cliente.honorarioForma) {
+      // Das próprias entregas do cliente (a lista da aba Honorários só existe
+      // depois que alguém abre aquela aba): entregue se houve, neste mês, uma
+      // entrega confirmada com um documento que conta como honorário.
+      var tiposHon = tiposQueContamComoHonorario_(cliente.honorarioForma);
+      var hOk = honorarioPrecisaVisita_(cliente.honorarioForma) ? historico.some(function (e) {
+        return e.status === 'confirmada' && String(e.confirmadoEm || '').slice(0, 7) === compAtual &&
+          (e.itens || []).some(function (i) { return tiposHon.indexOf(typeof i === 'string' ? i : (i && i.tipo)) !== -1; });
+      }) : null;
+      kpis.push({ r: 'Honorário', v: hOk === null ? cliente.honorarioForma : (hOk ? 'Entregue' : 'Pendente'),
+        s: [hOk === null ? '' : cliente.honorarioForma, cliente.honorarioDia ? 'dia ' + cliente.honorarioDia : ''].filter(Boolean).join(' · '), classe: hOk === false ? 'pend' : '' });
+    }
+    var kpisHtml = '<div class="cp-kpis">' + kpis.map(function (k) {
+      return '<div class="cp-kpi"><span class="cp-kpi-r">' + escapeHtml_(k.r) + '</span><b class="' + (k.classe || '') + '">' + escapeHtml_(k.v) + '</b><span class="cp-kpi-s">' + escapeHtml_(k.s || '') + '</span></div>';
+    }).join('') + '</div>';
+
+    // ---- avisos ----
+    var avisos = [];
+    var mud = mudancasDaReceita_(cliente);
+    mud.forEach(function (m) { avisos.push('<div class="cp-aviso' + (m.grave ? ' grave' : '') + '"><i class="ph ' + (m.grave ? 'ph-warning' : 'ph-info') + '" aria-hidden="true"></i><span>Receita: ' + escapeHtml_(m.texto) + '</span></div>'); });
+    if (cliente.observacao) avisos.push('<div class="cp-aviso recado"><i class="ph ph-note" aria-hidden="true"></i><span>' + escapeHtml_(cliente.observacao) + '</span></div>');
+    if (!cliente.geo || (cliente.geo && cliente.geo.precisao === 'cidade')) {
+      avisos.push('<div class="cp-aviso"><i class="ph ph-map-pin-line" aria-hidden="true"></i><span>' + (cliente.geo ? 'No mapa da rota ele está só no centro da cidade.' : 'Sem ponto no mapa da rota.') +
+        ' <button type="button" class="link-btn" data-ir-aba="acoes">Corrigir localização</button></span></div>');
+    }
+    var vencendo = papeisDe_(cliente).map(function (p) { return { p: p, dias: diasAte_(p.vence) }; }).filter(function (x) { return x.dias !== null && x.dias <= 30; });
+    vencendo.forEach(function (x) { avisos.push('<div class="cp-aviso' + (x.dias < 0 ? ' grave' : '') + '"><i class="ph ph-certificate" aria-hidden="true"></i><span>' + escapeHtml_(nomeDoPapel_(x.p.tipo)) + ': ' + escapeHtml_(textoPrazo_(x.dias)) + '</span></div>'); });
+    var avisosHtml = avisos.length ? '<div class="cp-avisos">' + avisos.join('') + '</div>' : '';
+
+    // ---- contato ----
+    var zap = whatsAppNumero_(cliente.telefone);
+    var telHtml = cliente.telefone
+      ? escapeHtml_(cliente.telefone) + ' <span class="cp-inline-acoes">' +
+          (zap ? '<button type="button" class="btn-chip mini accent" id="falarClienteBtn"><i class="ph ph-whatsapp-logo" aria-hidden="true"></i> WhatsApp</button>' : '') +
+          '<a class="btn-chip mini" href="tel:' + escapeHtml_(String(cliente.telefone).replace(/[^0-9+]/g, '')) + '"><i class="ph ph-phone" aria-hidden="true"></i> Ligar</a></span>'
+      : '';
+    var emails = [cliente.email].concat(cliente.emails || []).filter(Boolean).filter(function (e, i, a) { return a.indexOf(e) === i; });
+    var enderecoCompleto = [cliente.endereco, cliente.bairro && String(cliente.endereco || '').indexOf(cliente.bairro) === -1 ? cliente.bairro : '',
+      cidade && String(cliente.endereco || '').indexOf(cidade) === -1 ? cidade : '', cliente.cep ? 'CEP ' + cliente.cep : ''].filter(Boolean).join(' · ');
+    var contatoHtml = listaDeDados_([
+      ['Telefone', telHtml, '', true],
+      ['E-mail', emails.map(escapeHtml_).join('<br>'), '', true],
+      ['Endereço', enderecoCompleto],
+      ['Referência', cliente.pontoReferencia],
+      ['Recebe', [textoDiasDeEntrega_(cliente), textoDaJanela_(cliente)].filter(Boolean).join(' · ')]
+    ]);
+    // ---- empresa (resumo da Receita) ----
+    var empresaHtml = r ? listaDeDados_([
+      ['Razão social', r.razaoSocial],
+      ['Situação', r.situacao + (r.situacaoDesde ? ' desde ' + dataBr_(r.situacaoDesde) : ''), r.situacao !== 'ATIVA' ? 'receita-ruim' : ''],
+      ['Regime', r.mei ? 'MEI' : (r.simples ? 'Simples Nacional' : 'Fora do Simples')],
+      ['Atividade', r.cnaeDescricao || r.cnae]
+    ]) + '<button type="button" class="link-btn" data-ir-aba="receita">Ver tudo da Receita</button>'
+      : listaDeDados_([['Inscrição estadual', cliente.inscricaoEstadual], ['Enquadramento', cliente.enquadramento]]);
+
+    // ---- últimas entregas (as 5 mais novas) ----
+    var recentes = historico.slice(0, 5).map(function (e) {
+      var itensStr = (e.itens || []).map(function (i) { return typeof i === 'string' ? i : i.tipo; }).join(', ');
+      var ok = e.status === 'confirmada', falha = e.status === 'falha';
+      return '<div class="cp-linha"><div><div class="er-nome">' + escapeHtml_(itensStr || 'sem documentos') + '</div>' +
+        '<div class="er-sub">' + escapeHtml_(fmtDateTime(e.confirmadoEm || e.criadoEm)) + (e.competencia ? ' · ' + escapeHtml_(fmtCompetencia(e.competencia)) : '') + '</div></div>' +
+        '<span class="status-pill ' + (ok ? 'entregue' : (falha ? 'falha' : 'rota')) + '">' + (ok ? 'Entregue' : (falha ? 'Não entregue' : 'Na rota')) + '</span></div>';
+    }).join('');
+    var ultimasHtml = recentes
+      ? recentes + (historico.length > 5 ? '<button type="button" class="link-btn" data-ir-aba="entregas">Ver as ' + historico.length + ' entregas</button>' : '')
+      : '<div class="empty-state">Nenhuma entrega registrada para este cliente ainda.</div>';
+
+    var resumoHtml = kpisHtml + avisosHtml +
+      '<div class="cp-grade">' +
+        cartaoDaPagina_('Contato', 'ph-address-book', contatoHtml || '<p class="card-hint">Sem telefone, e-mail ou endereço no cadastro.</p>') +
+        cartaoDaPagina_('Empresa', 'ph-buildings', empresaHtml || '<p class="card-hint">Sem dados da Receita ainda.</p>') +
+      '</div>' +
+      cartaoDaPagina_('Últimas entregas', 'ph-truck', ultimasHtml);
+
+    // ---- cadastro ----
+    var linkHtml = (cliente.portalToken || admin)
+      ? '<p class="card-hint" style="margin:0 0 8px">' + (cliente.portalToken ? 'O cliente tem link próprio: vê as guias, confirma o recebimento e manda documentos.' : 'Este cliente ainda não tem link.') + '</p>' +
+        '<button type="button" class="btn-chip" id="linkClienteBtn"><i class="ph ph-link" aria-hidden="true"></i> ' + (cliente.portalToken ? 'Abrir link do cliente' : 'Criar link do cliente') + '</button>'
+      : '';
+    var cadastroHtml =
+      cartaoDaPagina_('Dados do cadastro', 'ph-identification-card', listaDeDados_([
+        ['Código', cliente.codigoOrigem],
+        ['Nome', cliente.nome],
+        ['Nome fantasia', cliente.nomeFantasia],
+        [String(cliente.documento || '').replace(/\D/g, '').length === 11 ? 'CPF' : 'CNPJ', fmtDocumento_(cliente.documento)],
+        ['Inscrição estadual', cliente.inscricaoEstadual],
+        ['Enquadramento', cliente.enquadramento],
+        ['Endereço', cliente.endereco],
+        ['Bairro', cliente.bairro],
+        ['Cidade', cidade],
+        ['CEP', cliente.cep],
+        ['Telefone', cliente.telefone],
+        ['E-mail', emails.join(', ')],
+        ['Cliente desde', dataBr_(cliente.criadoEm)]
+      ]), admin ? '<button type="button" class="btn-chip accent" id="editarCadastroBtn"><i class="ph ph-pencil-simple" aria-hidden="true"></i> Editar cadastro</button>' : '') +
+      cartaoDaPagina_('Rota', 'ph-path', listaDeDados_([
+        ['Região', cliente.zona && typeof ZONA_LABEL !== 'undefined' ? ZONA_LABEL[cliente.zona] : ''],
+        ['Referência', cliente.pontoReferencia],
+        ['Dias que recebe', textoDiasDeEntrega_(cliente)],
+        ['Horário', textoDaJanela_(cliente)],
+        ['Entrega junto com', grupo.join(', ')],
+        ['Ponto no mapa', cliente.geo ? (cliente.geo.precisao === 'cidade' ? 'só o centro da cidade' : 'marcado') : 'sem ponto']
+      ])) +
+      cartaoDaPagina_('Honorário', 'ph-hand-coins', listaDeDados_([
+        ['Forma', cliente.honorarioForma],
+        ['Dia', cliente.honorarioDia]
+      ])) +
+      cartaoDaPagina_('Link do cliente', 'ph-link', linkHtml);
+
+    // ---- Receita: tudo à vista ----
+    var receitaHtml = r
+      ? (mud.length ? '<div class="cp-avisos">' + mud.map(function (m) { return '<div class="cp-aviso' + (m.grave ? ' grave' : '') + '"><i class="ph ' + (m.grave ? 'ph-warning' : 'ph-info') + '" aria-hidden="true"></i><span>' + escapeHtml_(m.texto) + ' · notado em ' + escapeHtml_(dataBr_(m.em)) + '</span></div>'; }).join('') +
+          (admin ? '<button type="button" class="btn-chip" id="receitaVistoBtn"><i class="ph ph-check" aria-hidden="true"></i> Já vi</button>' : '') + '</div>' : '') +
+        cartaoDaPagina_('Dados na Receita Federal', 'ph-bank', listaDeDados_([
+          ['Razão social', r.razaoSocial],
+          ['Situação', r.situacao + (r.situacaoDesde ? ' desde ' + dataBr_(r.situacaoDesde) : '') + (r.motivoSituacao && r.situacao !== 'ATIVA' ? ' (' + r.motivoSituacao + ')' : ''), r.situacao !== 'ATIVA' ? 'receita-ruim' : ''],
+          ['Natureza jurídica', r.naturezaJuridica],
+          ['Porte', r.porte],
+          ['Regime', r.mei ? 'MEI' : (r.simples ? 'Simples Nacional' : 'Fora do Simples')],
+          ['Atividade principal', [r.cnae, r.cnaeDescricao].filter(Boolean).join(' · ')],
+          ['Abertura', dataBr_(r.abertura)],
+          ['Endereço na Receita', r.endereco],
+          ['Sócios', (r.socios || []).map(escapeHtml_).join('<br>'), '', true]
+        ]) + '<p class="card-hint" style="margin:10px 0 0">Dados abertos da Receita, conferidos toda semana (último: ' + escapeHtml_(dataBr_(r.conferidoEm)) + '). Podem ter semanas de atraso em relação ao e-CAC.</p>')
+      : '<div class="empty-state">Ainda sem dados da Receita para este cliente. O robô confere os CNPJs uma vez por semana.</div>';
+
+    // ---- contatos ----
+    var extras = (partes.contatosFicha || []).map(function (c, i) {
+      var z = whatsAppNumero_(c.telefone);
+      return '<div class="cp-linha"><div><div class="er-nome">' + escapeHtml_(c.nome || c.telefone) + '</div>' +
+        '<div class="er-sub">' + escapeHtml_([c.papel, c.telefone].filter(Boolean).join(' · ')) + '</div></div>' +
+        (c.telefone ? '<div class="cr-actions">' + (z ? '<button type="button" class="btn-chip" data-zap="' + i + '"><i class="ph ph-whatsapp-logo" aria-hidden="true"></i> WhatsApp</button>' : '') +
+          '<a class="btn-chip" href="tel:' + escapeHtml_(c.telefone.replace(/[^0-9+]/g, '')) + '"><i class="ph ph-phone" aria-hidden="true"></i> Ligar</a></div>' : '') + '</div>';
+    }).join('');
+    var contatosHtml = cartaoDaPagina_('Contato principal', 'ph-user', contatoHtml) + cartaoDaPagina_('Outros contatos', 'ph-users', extras);
+
+    // ---- documentos ----
+    var ocorrencias = htmlDasOcorrencias_(cliente);
+    var documentosHtml = cartaoDaPagina_('Documentos com validade', 'ph-certificate', partes.papeisHtml) + cartaoDaPagina_('Anotações', 'ph-note', ocorrencias);
+
+    // ---- ações, cada uma dizendo o que faz ----
+    function acao(id, icone, titulo, texto, perigo) {
+      return '<button type="button" class="cp-acao' + (perigo ? ' perigo' : '') + '" id="' + id + '"><i class="ph ' + icone + '" aria-hidden="true"></i>' +
+        '<span><b>' + escapeHtml_(titulo) + '</b><span>' + escapeHtml_(texto) + '</span></span><i class="ph ph-caret-right cp-acao-seta" aria-hidden="true"></i></button>';
+    }
+    var acoesHtml = '<div class="cp-acoes-lista">' +
+      acao('corrigirLocalBtn', 'ph-map-pin-line', 'Corrigir localização', 'Acerta o ponto do cliente no mapa, que é o que ordena a rota.') +
+      acao('aglutinarBtn', 'ph-link-simple', 'Aglutinar com outra empresa', 'Mesma porta de outra empresa: as duas viram uma parada só e uma assinatura.') +
+      acao('copiarDadosBtn', 'ph-copy', 'Copiar dados', 'Nome, CNPJ, endereço e contato, prontos pra colar.') +
+      (historico.length ? acao('exportarHistoricoBtn', 'ph-download-simple', 'Exportar histórico', 'Planilha com todas as entregas deste cliente.') : '') +
+      (admin ? acao('ativarClienteBtn', cliente.ativo === false ? 'ph-arrow-counter-clockwise' : 'ph-archive', cliente.ativo === false ? 'Reativar cliente' : 'Desativar cliente',
+        cliente.ativo === false ? 'Volta pra carteira ativa e pras listas.' : 'Sai das listas e da rota. O histórico fica guardado.') : '') +
+      (admin ? acao('levarDadosBtn', 'ph-download-simple', 'Levar os dados (LGPD)', 'Arquivo com tudo que o sistema tem deste cliente.') : '') +
+      (admin ? acao('apagarDadosBtn', 'ph-eraser', 'Apagar dados pessoais', 'Tira telefone, e-mail, endereço e contatos, e desliga o link do cliente.', true) : '') +
+      '</div>';
+
+    var abas = [
+      { id: 'resumo', rotulo: 'Resumo', icone: 'ph-squares-four', html: resumoHtml },
+      { id: 'entregas', rotulo: 'Entregas', icone: 'ph-truck', n: historico.length, html: partes.rowsHtml },
+      { id: 'cadastro', rotulo: 'Cadastro', icone: 'ph-identification-card', html: cadastroHtml },
+      { id: 'receita', rotulo: 'Receita', icone: 'ph-bank', html: receitaHtml },
+      { id: 'contatos', rotulo: 'Contatos', icone: 'ph-address-book', n: (partes.contatosFicha || []).length || 0, html: contatosHtml },
+      { id: 'documentos', rotulo: 'Documentos', icone: 'ph-certificate', html: documentosHtml },
+      { id: 'acoes', rotulo: 'Ações', icone: 'ph-gear-six', html: acoesHtml }
+    ].filter(function (a) {
+      if (a.id === 'contatos') return (partes.contatosFicha || []).length > 0;   // o principal já está no Resumo
+      return a.id === 'resumo' || a.id === 'entregas' || a.id === 'receita' || String(a.html || '').replace(/<[^>]*>/g, '').trim();
+    });
+    var abaInicial = montarPaginaDoCliente_.aba && abas.some(function (a) { return a.id === montarPaginaDoCliente_.aba; }) ? montarPaginaDoCliente_.aba : 'resumo';
+
+    inner.innerHTML = cabeca +
+      '<div class="cliente-pagina">' +
+        '<nav class="cp-menu" role="tablist" aria-label="Seções do cliente">' +
+          abas.map(function (a) {
+            return '<button type="button" role="tab" data-cp="' + a.id + '" aria-selected="' + (a.id === abaInicial) + '">' +
+              '<i class="ph ' + a.icone + '" aria-hidden="true"></i><span>' + a.rotulo + '</span>' + (a.n ? '<span class="cp-cont">' + a.n + '</span>' : '') + '</button>';
+          }).join('') +
+        '</nav>' +
+        '<div class="cp-conteudo">' +
+          abas.map(function (a) { return '<section role="tabpanel" data-cp="' + a.id + '"' + (a.id === abaInicial ? '' : ' hidden') + '>' + a.html + '</section>'; }).join('') +
+        '</div>' +
+      '</div>';
+    function irPara(id) {
+      montarPaginaDoCliente_.aba = id;
+      inner.querySelectorAll('.cp-menu [data-cp]').forEach(function (x) { x.setAttribute('aria-selected', String(x.dataset.cp === id)); });
+      inner.querySelectorAll('.cp-conteudo > [data-cp]').forEach(function (sec) { sec.hidden = sec.dataset.cp !== id; });
+      inner.scrollTop = 0;
+    }
+    inner.querySelectorAll('.cp-menu [data-cp]').forEach(function (b) { b.addEventListener('click', function () { irPara(b.dataset.cp); }); });
+    inner.querySelectorAll('[data-ir-aba]').forEach(function (b) { b.addEventListener('click', function () { irPara(b.dataset.irAba); }); });
+  }
+
   function renderHistoricoList(cliente, historico, opcoes) {
     var soConsulta = !!(opcoes && opcoes.soConsulta);
     var inner = $('modalInner');
@@ -11385,59 +11694,7 @@
       '</div>';
 
     if (pagina && !soConsulta) {
-      // Página do cliente (aberta pela Carteira): menu de abas à esquerda,
-      // como a ficha do cliente no Pendências, e sem a barra de botões —
-      // cada ação mora na aba dela. Aba sem nada dentro não aparece.
-      var ocorrenciasHtml = htmlDasOcorrencias_(cliente);
-      var zapPrincipal = whatsAppNumero_(cliente.telefone);
-      var contatoPrincipalHtml = (cliente.telefone || cliente.email)
-        ? '<div class="entrega-row" style="cursor:default"><div><div class="er-nome">Principal</div>' +
-            '<div class="er-sub">' + escapeHtml_([cliente.telefone, cliente.email].filter(Boolean).join(' · ')) + '</div></div>' +
-            '<div class="cr-actions">' +
-              (zapPrincipal ? '<button type="button" class="btn-chip accent" id="falarClienteBtn"><i class="ph ph-whatsapp-logo" aria-hidden="true"></i> WhatsApp</button>' : '') +
-              (cliente.telefone ? '<a class="btn-chip" href="tel:' + escapeHtml_(String(cliente.telefone).replace(/[^0-9+]/g, '')) + '"><i class="ph ph-phone" aria-hidden="true"></i> Ligar</a>' : '') +
-            '</div></div>'
-        : '';
-      var botoesCadastro =
-        ((cliente.portalToken || temPapel('admin')) ? '<button type="button" class="btn-chip" id="linkClienteBtn"><i class="ph ph-link" aria-hidden="true"></i> Link do cliente</button>' : '') +
-        (temPapel('admin') ? '<button type="button" class="btn-chip accent" id="editarCadastroBtn"><i class="ph ph-pencil-simple" aria-hidden="true"></i> Editar cadastro</button>' : '');
-      var enderecoHtml = cliente.endereco
-        ? '<div class="entrega-row" style="cursor:default"><div><div class="er-nome">Endereço</div><div class="er-sub">' + escapeHtml_(cliente.endereco) + '</div></div></div>'
-        : '';
-      var abas = [
-        { id: 'entregas', rotulo: 'Entregas', icone: 'ph-truck', n: historico.length, html: rowsHtml },
-        { id: 'cadastro', rotulo: 'Cadastro', icone: 'ph-identification-card',
-          html: (botoesCadastro ? '<div class="modal-acoes">' + botoesCadastro + '</div>' : '') + etiquetasHtml + recadoHtml + enderecoHtml + infoHonorario +
-            avisoLocal.replace('Mais ações › Corrigir localização', 'Ações › Corrigir localização') },
-        { id: 'contatos', rotulo: 'Contatos', icone: 'ph-address-book', html: contatoPrincipalHtml + contatosHtml },
-        { id: 'documentos', rotulo: 'Documentos', icone: 'ph-certificate', html: papeisHtml + ocorrenciasHtml },
-        { id: 'receita', rotulo: 'Receita', icone: 'ph-bank', html: receitaHtml },
-        { id: 'acoes', rotulo: 'Ações', icone: 'ph-gear-six', html: '<div class="cp-acoes">' + gruposAcoesHtml + '</div>' }
-      ].filter(function (a) { return a.id === 'entregas' || a.id === 'cadastro' || String(a.html || '').replace(/<[^>]*>/g, '').trim(); });
-      var abaInicial = renderHistoricoList.abaDaPagina && abas.some(function (a) { return a.id === renderHistoricoList.abaDaPagina; })
-        ? renderHistoricoList.abaDaPagina : 'entregas';
-      inner.innerHTML = cabecaHtml +
-        '<div class="cliente-pagina">' +
-          '<nav class="cp-menu" role="tablist" aria-label="Seções do cliente">' +
-            abas.map(function (a) {
-              return '<button type="button" role="tab" data-cp="' + a.id + '" aria-selected="' + (a.id === abaInicial) + '">' +
-                '<i class="ph ' + a.icone + '" aria-hidden="true"></i><span>' + a.rotulo + '</span>' +
-                (a.n ? '<span class="cp-cont">' + a.n + '</span>' : '') + '</button>';
-            }).join('') +
-          '</nav>' +
-          '<div class="cp-conteudo">' +
-            abas.map(function (a) {
-              return '<section role="tabpanel" data-cp="' + a.id + '"' + (a.id === abaInicial ? '' : ' hidden') + '>' + a.html + '</section>';
-            }).join('') +
-          '</div>' +
-        '</div>';
-      inner.querySelectorAll('.cp-menu [data-cp]').forEach(function (b) {
-        b.addEventListener('click', function () {
-          renderHistoricoList.abaDaPagina = b.dataset.cp;
-          inner.querySelectorAll('.cp-menu [data-cp]').forEach(function (x) { x.setAttribute('aria-selected', String(x === b)); });
-          inner.querySelectorAll('.cp-conteudo > [data-cp]').forEach(function (sec) { sec.hidden = sec.dataset.cp !== b.dataset.cp; });
-        });
-      });
+      montarPaginaDoCliente_(inner, cliente, historico, porCompetencia, { rowsHtml: rowsHtml, papeisHtml: papeisHtml, contatosFicha: contatosFicha });
     } else {
       inner.innerHTML = cabecaHtml +
         etiquetasHtml +
