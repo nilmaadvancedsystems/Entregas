@@ -701,6 +701,14 @@
   .arq-pedido .titulo { font-weight: 600; color: var(--ink); }
   .arq-pedido .texto { color: var(--ink-soft); margin-top: 2px; }
   .arq-pedido .acoes { margin-left: auto; }
+  .arq-pedido > div { min-width: 0; flex: 1; }
+  .arq-andamento { list-style: none; margin: var(--esp-2) 0 0; padding: 6px 8px; max-height: 260px; overflow: auto; border: 1px solid var(--border); border-radius: 6px; background: var(--surface, transparent); font-size: 12px; line-height: 1.45; }
+  .arq-andamento li { display: grid; grid-template-columns: 62px minmax(0, 1fr); gap: 6px; padding: 1px 0; }
+  .arq-andamento .and-hora { color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+  .arq-andamento .and-texto { overflow-wrap: anywhere; color: var(--ink-soft); }
+  .arq-andamento .and-etapa .and-texto { color: var(--ink); font-weight: 600; }
+  .arq-andamento .and-fala .and-texto { color: var(--ink); font-style: italic; }
+  .arq-andamento .and-sub .and-texto { padding-left: 14px; }
   .arq-tabela tr.arq-linha { cursor: pointer; }
   .arq-tabela tr.arq-linha:hover td { background: var(--surface-2, transparent); }
   .arq-tabela .arq-seta { transition: transform .15s; display: inline-block; }
@@ -7184,6 +7192,17 @@
   // Um texto longo recolhido (mensagem do Claude, relatório). A tela redesenha
   // a cada 30 s e a cada mudança no banco; sem lembrar quem estava aberto, o
   // texto fechava sozinho no meio da leitura.
+  function horaCurta(iso) {
+    var d = new Date(iso); if (isNaN(d)) return '';
+    return pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':' + pad2(d.getSeconds());
+  }
+  function linhaAndamento(l) {
+    var li = el('li', 'and-' + (l.tipo || 'passo') + (l.sub ? ' and-sub' : ''));
+    li.appendChild(el('span', 'and-hora', horaCurta(l.em)));
+    li.appendChild(el('span', 'and-texto', l.texto));
+    return li;
+  }
+
   function textoRecolhido(chave, titulo, texto) {
     var det = el('details', 'arq-relatorio');
     det.open = !!arq.textosAbertos[chave];
@@ -7212,7 +7231,11 @@
     }, function (err) { $('arquivoVazio').hidden = false; $('arquivoVazio').textContent = 'Não consegui ler o arquivo: ' + err.message; }));
     renderArquivo();
   }
-  setInterval(function () { if (arq.ligado && paginaAtual === 'arquivo') renderArquivoTopo(); }, 30000);
+  setInterval(function () {
+    if (!arq.ligado || paginaAtual !== 'arquivo') return;
+    var rodando = arq.pedidos.some(function (p) { return p.status === 'processando'; });
+    if (rodando || !(renderArquivoTopo.ultima > Date.now() - 30000)) { renderArquivoTopo.ultima = Date.now(); renderArquivoTopo(); }
+  }, 10000);
 
   function arquivadorLigado() {
     var em = arq.estado.em ? new Date(arq.estado.em) : null;
@@ -7262,13 +7285,33 @@
     var detalhe = '';
     if (p.status === 'pendente') detalhe = ligado ? 'O arquivador vai começar em instantes.' : 'O PC do arquivador está desligado: começa quando ele ligar.';
     if (p.status === 'aguardando') detalhe = (p.aguardandoMotivo || '') + '.';
-    if (p.status === 'processando') detalhe = 'Desde ' + dataHora(p.processandoEm) + '. Costuma levar de 5 a 30 minutos.';
+    if (p.status === 'processando') {
+      var min = Math.max(0, Math.round((Date.now() - new Date(p.processandoEm)) / 60000));
+      detalhe = 'Começou ' + dataHora(p.processandoEm) + ' · há ' + (min < 1 ? 'menos de 1 min' : plural(min, 'minuto', 'minutos')) +
+        (p.passos ? ' · ' + plural(p.passos, 'passo', 'passos') : '') + '. Costuma levar de 10 a 30 minutos.';
+    }
     if (p.status === 'concluido') {
       var ex = arq.execucoes.filter(function (x) { return x.id === p.execucao; })[0];
       detalhe = dataHora(p.concluidoEm) + (ex ? ' · ' + plural(ex.arquivados || 0, 'arquivo arquivado', 'arquivos arquivados') + (ex.naoIdentificados ? ', ' + plural(ex.naoIdentificados, 'não identificado', 'não identificados') : '') : ' · nada novo pra arquivar');
     }
     if (p.status === 'erro') detalhe = p.erro || '';
     corpo.appendChild(el('div', 'texto', detalhe));
+    // Transcrição ao vivo: o que o Claude está fazendo, passo a passo
+    // (o arquivador manda as últimas linhas a cada ~8 s).
+    var linhasAnd = Array.isArray(p.andamento) ? p.andamento : [];
+    if (p.status === 'processando' && linhasAnd.length) {
+      var ao = el('ol', 'arq-andamento');
+      ao.setAttribute('aria-label', 'Andamento da organização');
+      linhasAnd.slice(-15).forEach(function (l) { ao.appendChild(linhaAndamento(l)); });
+      corpo.appendChild(ao);
+      setTimeout(function () { ao.scrollTop = ao.scrollHeight; }, 0);
+    } else if (p.status === 'processando') {
+      corpo.appendChild(el('div', 'texto', 'Aguardando o primeiro passo do Claude…'));
+    }
+    if ((p.status === 'concluido' || p.status === 'erro') && linhasAnd.length) {
+      corpo.appendChild(textoRecolhido('andamento:' + p.id, 'Como foi (' + plural(p.passos || linhasAnd.length, 'passo', 'passos') + ', últimos ' + linhasAnd.length + ')',
+        linhasAnd.map(function (l) { return horaCurta(l.em) + '  ' + (l.sub ? '   ↳ ' : '') + l.texto; }).join('\n')));
+    }
     if ((p.status === 'concluido' || p.status === 'erro') && p.resposta) {
       corpo.appendChild(textoRecolhido('pedido:' + p.id, 'Mensagem final do Claude', p.resposta));
     }

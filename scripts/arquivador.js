@@ -132,7 +132,7 @@ async function publicar(ligarPedido) {
       if (publicados[id] === assinatura) continue;
       let texto = '';
       if (rel) { try { texto = fs.readFileSync(rel.txt, 'utf8'); } catch (e) {} }
-      const { resumo, detalhe } = man.montarExecucao(id, porExec.get(id), qual.get(id), texto);
+      const { resumo, detalhe } = man.montarExecucao(id, porExec.get(id), qual.get(id), texto, rel ? rel.mtime : null);
       resumo.publicadoEm = agora();
       if (ligarPedido && ligarPedido.id === id) resumo.pedidoId = ligarPedido.pedidoId;
       const ref = db.collection('arquivamentos').doc(id);
@@ -164,22 +164,71 @@ function ambienteLimpo() {
   return env;
 }
 
-function rodarRotina(modo) {
+// Uma linha legível pra cada coisa que o Claude faz. É o que aparece ao vivo
+// no quadro "Organizando" da tela.
+function descreverPasso(item) {
+  const i = item.input || {};
+  const base = f => String(f || '').split(/[\\/]/).filter(Boolean).pop() || '';
+  const curto = (x, n) => { x = String(x || '').replace(/\s+/g, ' ').trim(); return x.length > n ? x.slice(0, n - 1) + '…' : x; };
+  switch (item.name) {
+    case 'TodoWrite': {
+      const lista = Array.isArray(i.todos) ? i.todos : [];
+      const agora = lista.find(x => x.status === 'in_progress');
+      const feitas = lista.filter(x => x.status === 'completed').length;
+      return agora ? 'etapa ' + (feitas + 1) + '/' + lista.length + ': ' + curto(agora.activeForm || agora.content, 160)
+        : 'plano: ' + feitas + '/' + lista.length + ' etapas concluídas';
+    }
+    case 'Task': case 'Agent': return 'subagente ' + (i.subagent_type || '') + ': ' + curto(i.description || i.prompt, 140);
+    case 'Read': return 'lendo ' + base(i.file_path);
+    case 'Write': return 'gravando ' + base(i.file_path);
+    case 'Edit': case 'MultiEdit': return 'atualizando ' + base(i.file_path);
+    case 'Glob': return 'procurando arquivos: ' + curto(i.pattern, 100);
+    case 'Grep': return 'procurando "' + curto(i.pattern, 60) + '"';
+    case 'Bash': case 'PowerShell': return curto(i.description || i.command, 160);
+    default: return item.name || 'passo';
+  }
+}
+
+function rodarRotina(modo, aoAndar) {
   return new Promise(resolve => {
-    const saida = [];
-    // --add-dir: a rotina move arquivos em G:\Meu Drive, fora da pasta dela. Na
-    // tarefa das 9h isso vem de .claude/settings.local.json da rotina, que o
-    // Claude só aplica em pasta "confiada" pela janela interativa; aqui a
-    // pasta vai dita no comando, sem mexer na configuração de ninguém.
+    const erros = [];
+    let resposta = '';
+    let sucesso = null;
+    let resto = '';
+    // stream-json: uma linha JSON por evento (texto do Claude, ferramenta
+    // usada, resultado final). É daí que sai o andamento ao vivo.
     const filho = spawn(CLAUDE, ['-p', '/organizar ' + modo, '--permission-mode', 'bypassPermissions',
-      '--add-dir', DRIVE, '--output-format', 'text'],
+      '--add-dir', DRIVE, '--output-format', 'stream-json', '--verbose'],
       { cwd: RAIZ, windowsHide: true, env: ambienteLimpo(), stdio: ['ignore', 'pipe', 'pipe'] });
-    const guardar = b => { saida.push(String(b)); };
-    filho.stdout.on('data', guardar);
-    filho.stderr.on('data', guardar);
+    filho.stdout.on('data', b => {
+      resto += String(b);
+      const linhas = resto.split(/\r?\n/);
+      resto = linhas.pop();
+      for (const l of linhas) {
+        if (!l.trim()) continue;
+        let ev;
+        try { ev = JSON.parse(l); } catch (e) { continue; }
+        const sub = !!ev.parent_tool_use_id;
+        if (ev.type === 'assistant' && ev.message && Array.isArray(ev.message.content)) {
+          for (const c of ev.message.content) {
+            if (c.type === 'text' && c.text && c.text.trim()) aoAndar({ texto: c.text.trim().replace(/\s+/g, ' ').slice(0, 300), sub, tipo: 'fala' });
+            if (c.type === 'tool_use') aoAndar({ texto: descreverPasso(c), sub, tipo: c.name === 'TodoWrite' ? 'etapa' : 'passo' });
+          }
+        }
+        if (ev.type === 'result') {
+          resposta = String(ev.result || '');
+          sucesso = ev.subtype === 'success' && !ev.is_error;
+        }
+      }
+    });
+    filho.stderr.on('data', b => { erros.push(String(b)); if (erros.length > 20) erros.shift(); });
     const relogio = setTimeout(() => { log('a rotina passou de 3 horas; encerrando'); try { filho.kill(); } catch (e) {} }, LIMITE_EXECUCAO_MS);
     filho.on('error', err => { clearTimeout(relogio); resolve({ ok: false, texto: err.message }); });
-    filho.on('close', code => { clearTimeout(relogio); resolve({ ok: code === 0, texto: saida.join('').trim(), code }); });
+    filho.on('close', code => {
+      clearTimeout(relogio);
+      const ok = code === 0 && sucesso !== false;
+      resolve({ ok, texto: (resposta || erros.join('')).trim(), code });
+    });
   });
 }
 
@@ -221,13 +270,31 @@ async function atenderFila() {
       mudarEstado({ situacao: 'rodando', pedidoId: doc.id, mensagem: 'organizando (' + modo + ')' });
       log('pedido', doc.id, 'de', p.criadoPor || 'alguém', '- rodando /organizar', modo);
 
-      const r = await rodarRotina(modo);
+      // Andamento ao vivo: as últimas linhas vão pro pedido de tempos em tempos
+      // (não a cada linha, pra não gastar gravação à toa).
+      const andamento = [];
+      let passos = 0, sujo = false, ultimaEscrita = 0;
+      const gravarAndamento = forcar => {
+        if (!sujo || (!forcar && Date.now() - ultimaEscrita < 8000)) return;
+        sujo = false; ultimaEscrita = Date.now();
+        doc.ref.update({ andamento: andamento.slice(-40), passos, ultimoPassoEm: agora() }).catch(() => {});
+      };
+      const timerAndamento = setInterval(() => gravarAndamento(false), 4000);
+      const r = await rodarRotina(modo, linha => {
+        passos++;
+        andamento.push(Object.assign({ em: agora() }, linha));
+        if (andamento.length > 200) andamento.shift();
+        sujo = true;
+      });
+      clearInterval(timerAndamento);
+      gravarAndamento(true);
 
       // Qual execução saiu desta rodada: o relatório mais novo, do mesmo tipo,
       // criado depois que começamos.
-      const prefixo = modo === 'PRODUCAO' ? 'EXEC-' : 'SIM-';
+      // Pela hora em que o relatório foi gravado, não pelo nome: o nome já
+      // saiu com prefixo errado e hora em UTC.
       const execucao = man.listarExecucoes(CONTROLE)
-        .filter(e => e.id.startsWith(prefixo) && new Date(man.dataDoId(e.id)).getTime() >= inicio - 60000)
+        .filter(e => e.mtime >= inicio - 60000)
         .map(e => e.id).pop() || null;
       await publicar(execucao ? { id: execucao, pedidoId: doc.id } : null);
 

@@ -79,6 +79,10 @@ function lerQualidade(texto) {
 function lerRelatorio(texto) {
   const contagens = {};
   const naoIdentificados = [];
+  // O cabeçalho diz o modo de verdade. O prefixo do id não é confiável: uma
+  // SIMULACAO já saiu como "EXEC-..." (e com a hora em UTC).
+  const cab = /^\s*modo\s*:\s*([A-Z_]+)/m.exec(String(texto || ''));
+  const modo = cab ? cab[1] : null;
   String(texto || '').split(/\r?\n/).forEach(linha => {
     const m = /^([A-Z][A-Z_]{3,}):\s*(.*)$/.exec(linha.trim());
     if (!m) return;
@@ -89,7 +93,7 @@ function lerRelatorio(texto) {
       naoIdentificados.push({ nome: partes[0].trim(), motivo });
     }
   });
-  return { contagens, naoIdentificados };
+  return { contagens, naoIdentificados, modo };
 }
 
 // "EXEC-20260924-130945" -> "2026-09-24T13:09:45" (hora local do PC, que é a do escritório)
@@ -129,7 +133,7 @@ function listarExecucoes(raizControle) {
       }
     }
   }
-  return achadas.sort((a, b) => String(dataDoId(a.id)).localeCompare(String(dataDoId(b.id))));
+  return achadas.sort((a, b) => a.mtime - b.mtime);
 }
 
 const MAX_ARQUIVOS_NO_DETALHE = 2500;   // folga larga sob o teto de 1 MB por documento
@@ -137,7 +141,9 @@ const MAX_RELATORIO = 120 * 1024;
 
 // Monta os dois documentos de uma execução: o resumo (leve, pra lista) e o
 // detalhe (lista de arquivos + relatório, carregado só quando alguém abre).
-function montarExecucao(id, arquivos, qualidade, relatorioTexto) {
+// mtimeRelatorio: quando o relatório foi gravado (fim da execução). É a hora
+// que vale pra mostrar: a do id às vezes vem em UTC.
+function montarExecucao(id, arquivos, qualidade, relatorioTexto, mtimeRelatorio) {
   arquivos = arquivos || [];
   const rel = lerRelatorio(relatorioTexto);
   const porCliente = new Map();
@@ -151,8 +157,8 @@ function montarExecucao(id, arquivos, qualidade, relatorioTexto) {
   const naoId = qualidade && qualidade.naoIdentificados != null ? qualidade.naoIdentificados : rel.naoIdentificados.length;
   const resumo = {
     id,
-    modo: modoDoId(id),
-    em: dataDoId(id),
+    modo: rel.modo || modoDoId(id),
+    em: mtimeRelatorio ? new Date(mtimeRelatorio).toISOString() : dataDoId(id),
     arquivados: arquivos.length,
     naoIdentificados: naoId,
     duplicados: rel.contagens.DUPLICADO || 0,
