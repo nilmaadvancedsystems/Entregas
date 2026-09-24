@@ -86,21 +86,6 @@
       (a.badge ? '<span class="tab-badge" id="' + escapar(a.badge) + '" hidden>0</span>' : '') +
       '</button>';
   }
-  // Coluna lateral do N1 (design-n1): as SEÇÕES do sistema, sempre as
-  // mesmas, com a atual marcada; no pé, "Ocultar barra lateral" (só ícones),
-  // lembrado no navegador. As abas do módulo ficam na horizontal, embaixo do
-  // cabeçalho. No celular a coluna some e as seções ficam no ☰.
-  function htmlSecoes(lista) {
-    return '<nav class="secoes" id="secoesNav" aria-label="Seções">' +
-      '<div class="secoes-itens">' + lista.map(function (m) {
-        return '<a class="secao-item" data-modulo="' + escapar(m.id) + '" href="' + escapar(m.href) + '"' +
-          (m.papel ? ' data-papel="' + escapar(m.papel) + '"' : '') + ' title="' + escapar(m.rotulo) + '">' +
-          '<i class="ph ' + escapar(m.icone) + '" aria-hidden="true"></i><span>' + escapar(m.rotulo) + '</span></a>';
-      }).join('') + '</div>' +
-      '<div class="secoes-pe"><button type="button" class="secao-item secoes-ocultar" id="secoesOcultar" aria-pressed="false" title="Ocultar barra lateral">' +
-        '<i class="ph ph-sidebar-simple" aria-hidden="true"></i><span>Ocultar barra lateral</span></button></div>' +
-    '</nav>';
-  }
   function htmlCasca(o) {
     var listaModulos = o.modulos || MODULOS_PADRAO;
     var modulos = listaModulos.map(htmlModulo).join('');
@@ -286,20 +271,6 @@
       if (chamar('modulo', id, ev)) { ev.preventDefault(); fecharGaveta(true); return; }
       fecharGaveta(true);
     });
-    var secoes = $('secoesNav');
-    if (secoes) secoes.addEventListener('click', function (ev) {
-      var ocultar = ev.target.closest('#secoesOcultar');
-      if (ocultar) {
-        var oculta = doc.documentElement.classList.toggle('secoes-ocultas');
-        ocultar.setAttribute('aria-pressed', String(oculta));
-        ocultar.title = oculta ? 'Mostrar barra lateral' : 'Ocultar barra lateral';
-        try { janela.localStorage.setItem('nilma_lateral_oculta', oculta ? '1' : '0'); } catch (e) {}
-        return;
-      }
-      var a = ev.target.closest('.secao-item[data-modulo]');
-      if (!a) return;
-      if (chamar('modulo', a.dataset.modulo, ev)) ev.preventDefault();
-    });
     var voltarBtn = $('menuAppVoltar');
     if (voltarBtn) voltarBtn.addEventListener('click', function () { voltarAosModulos(true); });
     // o nome do módulo na barra abre a lista dos submódulos dele
@@ -414,14 +385,14 @@
     if (u.podeVer) filtrarModulos(u.podeVer);
   }
   function filtrarModulos(podeVer) {
-    [].forEach.call(doc.querySelectorAll('#menuAppModulos .gaveta-item[data-modulo], #secoesNav .secao-item[data-modulo]'), function (a) {
+    [].forEach.call(doc.querySelectorAll('#menuAppModulos .gaveta-item[data-modulo]'), function (a) {
       a.hidden = !podeVer(a.dataset.modulo, a.dataset.papel || '');
     });
   }
   function definirModulo(id, nome) {
     var m = $('topoModulo');
     if (m && nome != null) m.textContent = nome;
-    [].forEach.call(doc.querySelectorAll('#menuAppModulos .gaveta-item[data-modulo], #secoesNav .secao-item[data-modulo]'), function (a) {
+    [].forEach.call(doc.querySelectorAll('#menuAppModulos .gaveta-item[data-modulo]'), function (a) {
       if (a.dataset.modulo === id) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
     });
     // módulo com submódulos: o nome na barra vira botão que abre a lista
@@ -469,11 +440,6 @@
     }
     if ($('topo')) return api;   // já montada
     doc.body.insertAdjacentHTML('afterbegin', htmlCasca(opcoes));
-    if (!opcoes.semMenu) {
-      var topoEl = $('topo');
-      if (topoEl) topoEl.insertAdjacentHTML('afterend', htmlSecoes(opcoes.modulos || MODULOS_PADRAO));
-      try { if (janela.localStorage.getItem('nilma_lateral_oculta') === '1') doc.documentElement.classList.add('secoes-ocultas'); } catch (e) {}
-    }
     doc.documentElement.classList.add('com-casca');
     ligar();
     if (opcoes.moduloId) definirModulo(opcoes.moduloId, opcoes.modulo);
