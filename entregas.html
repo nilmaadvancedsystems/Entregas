@@ -3038,7 +3038,7 @@
       </label>
     </div>
     <div class="card form-ajuste" id="iaCard" hidden>
-      <!-- O estado (No ar / Sem chave / PC desligado) é um selo no próprio
+      <!-- O estado (No ar / Sem chave / Robô fora do ar) é um selo no próprio
            cabeçalho; a explicação longa fica no title do selo. -->
       <div class="card-head-row">
         <h2><i class="ph ph-sparkle" aria-hidden="true"></i> IA da Consulta</h2>
@@ -4280,7 +4280,7 @@
   }
 
   // ---------- lembretes do escritório ----------
-  // Ficam em config/lembretes; quem avisa é o PC do robô (scripts/lembretes.js).
+  // Ficam em config/lembretes; quem avisa é o robô da nuvem (scripts/lembretes.js).
   var lembretes_ = [];
   var PAPEIS_DO_LEMBRETE_ = [['admin', 'Admin'], ['contabil', 'Contábil'], ['fiscal', 'Fiscal'], ['office_boy', 'Office boy'], ['', 'Todo mundo']];
   function renderLembretes_() {
@@ -5373,7 +5373,7 @@
     marcarRolagemSubnav_(subnav);
     container.querySelectorAll(':scope > .card-grupo').forEach(function (g) { g.hidden = g.dataset.grupo !== grupo; });
     if (destino === 'ajustes' && grupo === 'sistema') renderSaudeDoSistema_();
-    // O selo da IA (No ar / Sem chave / PC desligado) vem do mesmo
+    // O selo da IA (No ar / Sem chave / Robô fora do ar) vem do mesmo
     // robo/estado da Consulta rápida, que só escuta quando ela abre; sem
     // isto o cabeçalho de "IA da Consulta" ficava sem selo.
     if (destino === 'ajustes' && grupo === 'integracoes' && db) cqLerEstadoRoboUmaVez_();
@@ -14034,10 +14034,10 @@
     var el = $('iaEstado');
     if (!el) return;
     var estado = cqIaDisponivel_()
-      ? ['entregue', 'No ar', 'O PC do escritório está ligado e com chave configurada.']
+      ? ['entregue', 'No ar', 'O robô está online na nuvem e com chave configurada.']
       : (cqVigiaLigado
-        ? ['neutro', 'Sem chave', 'O PC do escritório está ligado, mas sem chave da IA — veja INSTALACAO.md, seção "O reforço de IA". A Consulta rápida funciona do mesmo jeito.']
-        : ['neutro', 'PC desligado', 'O PC do escritório está desligado. A Consulta rápida funciona do mesmo jeito; só o "Tentar com a IA" fica fora do ar.']);
+        ? ['neutro', 'Sem chave', 'O robô está online na nuvem, mas sem chave da IA — veja INSTALACAO.md, seção "O reforço de IA". A Consulta rápida funciona do mesmo jeito.']
+        : ['neutro', 'Robô fora do ar', 'O robô da nuvem está fora do ar. A Consulta rápida funciona do mesmo jeito; só o "Tentar com a IA" fica fora do ar.']);
     el.innerHTML = '<span class="status-pill ' + estado[0] + '" title="' + escapeHtml_(estado[2]) + '">' + estado[1] + '</span>';
   }
 
@@ -14703,7 +14703,7 @@
       var frases = [];
       var sinal = e.vigia && e.vigia.em ? new Date(e.vigia.em) : null;
       if (sinal && !isNaN(sinal) && sinal < inicioDoUltimoDiaUtil_(agora)) {
-        frases.push('O PC do robô está sem dar sinal desde ' + fmtDateTime(e.vigia.em) +
+        frases.push('O robô da nuvem está sem dar sinal desde ' + fmtDateTime(e.vigia.em) +
           '. Enquanto isso não saem avisos no celular nem lembretes de vencimento, o Gmail não é lido e o backup não roda.');
       }
       var b = e.backup;
@@ -14739,7 +14739,7 @@
         '<div class="er-sub">' + lidas.toLocaleString('pt-BR') + ' de ' + LIMITE_LEITURAS_DIA_.toLocaleString('pt-BR') + ' (' + pct + '%)</div></div>' +
         barraDeUso_(pct, cor) +
         '<span class="status-pill ' + (pct >= 80 ? 'falha' : 'entregue') + '">' + (pct >= 80 ? 'ver' : 'ok') + '</span></div>' +
-      '<div id="saudeRoboLinhas"><div class="saude-msg">Consultando o PC do robô…</div></div>';
+      '<div id="saudeRoboLinhas"><div class="saude-msg">Consultando o robô…</div></div>';
     if (!db) return;
     db.doc('robo/estado').get().then(function (snap) {
       var e = snap.exists ? snap.data() : {};
@@ -14749,7 +14749,7 @@
       var vivo = sinal && !isNaN(sinal) && (agora - sinal) < 3 * 60000;
       linhas.push({
         ok: !!vivo,
-        titulo: vivo ? 'PC do robô ligado' : 'PC do robô sem dar sinal',
+        titulo: vivo ? 'Robô online na nuvem' : 'Robô fora do ar',
         sub: sinal && !isNaN(sinal) ? 'último sinal em ' + fmtDateTime(e.vigia.em) + (e.vigia.pc ? ' · ' + e.vigia.pc : '') : 'nunca deu sinal'
       });
       var b = e.backup || {};
@@ -14757,7 +14757,7 @@
       linhas.push({
         ok: b.ok !== false && diasBackup !== null && diasBackup <= 3,
         titulo: b.ok === false ? 'Último backup falhou' : (diasBackup === null ? 'Sem backup registrado' : 'Backup de ' + (diasBackup === 0 ? 'hoje' : 'há ' + diasBackup + ' dia(s)')),
-        sub: b.resumo || (b.em ? fmtDateTime(b.em) : 'o backup roda no PC do robô, uma vez por dia')
+        sub: b.resumo || (b.em ? fmtDateTime(b.em) : 'o backup roda no robô da nuvem, uma vez por dia')
       });
       if (e.ultimaExecucao) {
         linhas.push({ ok: true, titulo: 'Última leitura do Gmail', sub: fmtDateTime(e.ultimaExecucao) + (e.ultimaExecucaoResumo ? ' · ' + e.ultimaExecucaoResumo : '') });
@@ -15182,7 +15182,7 @@
   }
 
   // ---------- o que a Receita diz do cliente ----------
-  // Quem preenche clientes.receita é o vigia de CNPJ, no PC do robô, uma vez
+  // Quem preenche clientes.receita é o vigia de CNPJ, no robô da nuvem, uma vez
   // por semana (scripts/vigia-cnpj.js). Aqui só se lê. Os dados abertos têm
   // atraso de semanas: é alarme, não certidão — e a tela diz isso.
   function mudancasDaReceita_(c) {
@@ -16752,7 +16752,7 @@
     // travado esperando uma resposta que não vem.
     var relogio = setTimeout(function () {
       if (terminou || geracao !== cqGeracao) return;
-      cqHistorico[indice] = { eu: false, html: '<div class="cq-erro">A IA não respondeu a tempo — o PC do escritório pode ter desligado. Tenta de novo daqui a pouco, ou use a resposta rápida.</div>' };
+      cqHistorico[indice] = { eu: false, html: '<div class="cq-erro">A IA não respondeu a tempo — o robô pode estar fora do ar. Tenta de novo daqui a pouco, ou use a resposta rápida.</div>' };
       liberar();
       cqRender_();
     }, 120000);

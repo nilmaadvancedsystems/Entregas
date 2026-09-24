@@ -1606,7 +1606,7 @@
         <div>
           <h1>Robô do Gmail</h1>
           <!-- Quem lê o Gmail é um programa no PC do escritório, não esta página:
-               ela só pede, e mostra se esse PC está ligado pra atender. -->
+               ela só pede, e mostra se o robô está online pra atender. -->
           <div class="robo-vigia" id="roboVigia" aria-live="polite"></div>
         </div>
         <div class="robo-acoes">
@@ -1802,7 +1802,7 @@
             <div class="lista-tipos" id="cfgVariaveis"></div>
           </div>
 
-          <!-- O que o PC do robô faz sozinho. Tudo vem desligado. -->
+          <!-- O que o robô faz sozinho. Tudo vem desligado. -->
           <div class="cfg-painel" data-cfg-painel="auto" hidden>
             <div class="cfg-modelo">
               <label class="cfg-liga-linha" for="cfgReguaLigada">
@@ -1820,7 +1820,7 @@
                 <span><span class="cfg-modelo-titulo">Comprovante de entrega por e-mail</span></span>
               </label>
             </div>
-            <div class="cfg-meta" id="cfgAutoMeta">Precisa do PC do robô ligado.</div>
+            <div class="cfg-meta" id="cfgAutoMeta">Quem faz é o robô, online na nuvem.</div>
           </div>
 
         </div>
@@ -2183,7 +2183,7 @@
     lote: { assunto: 'Documentos de {mes} pendentes',
             corpo: 'Olá,\n\nEstamos fechando a contabilidade de {mes} e ainda faltam documentos (extrato bancário, comprovantes de pagamento ou aplicação financeira) da sua empresa.\n\nPode responder este e-mail com os arquivos em anexo? O recebimento é registrado automaticamente.\n\nObrigado,\n{assinatura}' }
   };
-  // o que o PC do robô faz sozinho (scripts/regua-cobranca.js e comprovante-email.js)
+  // o que o robô faz sozinho (scripts/regua-cobranca.js e comprovante-email.js)
   CONFIG_PADRAO.comprovanteEmail = false;
   CONFIG_PADRAO.regua = { ligada: false, dias: [] };
   var configCobranca = JSON.parse(JSON.stringify(CONFIG_PADRAO));
@@ -4071,7 +4071,7 @@
       al.appendChild(ico('ph-warning-circle'));
       var cp = el('div', 'corpo');
       cp.appendChild(el('div', 'titulo', ultimaExec ? 'Robô sem rodar há ' + plural(uteis, 'dia útil', 'dias úteis') : 'Nenhuma execução do robô registrada'));
-      cp.appendChild(el('div', 'texto', 'Confira o PC do robô.' + (ultimaExec ? ' Última execução: ' + dataHora(ultimaExec) + '.' : '')));
+      cp.appendChild(el('div', 'texto', 'Confira se o robô está online.' + (ultimaExec ? ' Última execução: ' + dataHora(ultimaExec) + '.' : '')));
       al.appendChild(cp);
       $('roboAviso').appendChild(al);
     }
@@ -6011,7 +6011,7 @@
     return db.collection('solicitacoesEmail').add(pedido).then(function (ref) {
       acompanharPedido(ref, textos);
       var ligado = vigiaLigado();
-      toast(ligado ? textos.fila : textos.fila + ' O PC do robô está desligado: sai quando ele ligar.', ligado ? 'ok' : null);
+      toast(ligado ? textos.fila : textos.fila + ' O robô está fora do ar: sai quando ele voltar.', ligado ? 'ok' : null);
       return ref;
     });
   }
@@ -6098,7 +6098,7 @@
   function textoRodapeEnvio(prefixo) {
     return (prefixo || '') + (vigiaLigado()
       ? 'Enviar manda na hora pela caixa ' + CAIXA_GMAIL + '.'
-      : 'PC do robô desligado: Enviar deixa na fila. Pra mandar agora, use Abrir no Gmail.');
+      : 'Robô fora do ar: Enviar deixa na fila. Pra mandar agora, use Abrir no Gmail.');
   }
 
   // ---------- fila e vigia na página do robô ----------
@@ -6122,8 +6122,8 @@
     caixa.className = 'robo-vigia ' + (ligado ? 'ligado' : 'desligado');
     caixa.appendChild(el('span', 'ponto'));
     caixa.appendChild(el('span', null, ligado
-      ? 'PC do robô ligado'
-      : (v.desligadoEm || v.em ? 'PC do robô desligado desde ' + dataHora(v.desligadoEm || v.em) : 'O vigia do robô ainda não foi ligado no PC')));
+      ? 'Robô online na nuvem'
+      : (v.desligadoEm || v.em ? 'Robô fora do ar desde ' + dataHora(v.desligadoEm || v.em) : 'O robô ainda não deu sinal')));
     var lendo = configRobo.status === 'lendo';
     if (lendo) caixa.appendChild(el('span', null, '· lendo o Gmail agora'));
     var envios = filaEmail.filter(function (f) { return f.tipo !== 'verificar'; }).length;
@@ -6134,7 +6134,7 @@
     var pedidoAberto = filaEmail.some(function (f) { return f.tipo === 'verificar'; });
     b.disabled = lendo || pedidoAberto;
     b.lastChild.textContent = lendo ? ' Lendo o Gmail...' : pedidoAberto ? ' Leitura pedida...' : ' Verificar Gmail agora';
-    b.title = ligado ? 'Pede ao PC do robô que leia o Gmail agora' : 'O PC do robô está desligado: a leitura fica pedida e acontece quando ele ligar';
+    b.title = ligado ? 'Pede ao robô que leia o Gmail agora' : 'O robô está fora do ar: a leitura fica pedida e acontece quando ele voltar';
   }
   // O vigia pode desligar sem avisar; a página percebe pelo relógio.
   setInterval(renderVigia, 30000);
