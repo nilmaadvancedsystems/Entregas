@@ -153,6 +153,11 @@ function resumirEntrega(entrega) {
     competencia: entrega.competencia || null,
     status: entrega.status || null,
     documentos: itens.map(function (i) { return i && i.tipo ? i.tipo : '?'; }),
+    // O valor guia a guia. Só o total somado não responde a pergunta mais
+    // comum do balcão: "quanto deu o DAS de fulano?".
+    valores: itens
+      .filter(function (i) { return i && typeof i.valor === 'number'; })
+      .map(function (i) { return { documento: i.tipo || '?', valor: i.valor }; }),
     valorTotal: itens.reduce(function (soma, i) {
       const v = i && typeof i.valor === 'number' ? i.valor : 0;
       return soma + v;

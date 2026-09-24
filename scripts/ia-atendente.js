@@ -39,6 +39,19 @@ const { FERRAMENTAS, executarFerramenta, competenciaAtual } = require('./ia-cons
 // cravado que envelhece. O escritório troca isso em Perfil → Integrações sem
 // mexer em código: `config/integracoes.iaModelo`.
 const MODELO_PADRAO = 'gemini-flash-latest';
+// Quando o modelo escolhido recusa por sobrecarga (503) ou por cota do dia
+// (429), a pergunta vai para o seguinte da lista, em vez de devolver erro
+// pra quem está esperando. Na faixa gratuita isso é rotina, não exceção:
+// quando falta máquina, o Google corta primeiro quem não paga, e corta
+// primeiro os modelos mais novos, que são os mais disputados. Cada modelo
+// tem a sua própria cota, então o de reserva ainda tem a dele inteira.
+// (Apelido "-latest" no lite porque o Google aposenta os lite com número
+// sem aviso: o 2.5-flash-lite já foi recusado para contas novas.)
+const MODELOS_RESERVA = ['gemini-2.5-flash', 'gemini-flash-lite-latest'];
+// Modelo sobrecarregado nem sempre recusa: às vezes aceita e fica mais de um
+// minuto calado. Uma resposta normal sai em poucos segundos, então passar
+// disto é travamento, e a pergunta segue pro modelo seguinte da lista.
+const LIMITE_POR_TENTATIVA_MS = 30000;
 const INTERVALO_GRAVACAO_MS = 900;   // freio das gravações de texto parcial
 // Cada ida de ferramenta é uma chamada de verdade à API, separada da que
 // devolve a resposta final — ou seja, cada pergunta pode custar
@@ -137,6 +150,16 @@ function acumularParte(partes, nova) {
 
 // Erro de cota da faixa gratuita vem como 429. Vale traduzir: "RESOURCE
 // EXHAUSTED" não diz nada pra quem está na calçada querendo uma resposta.
+// Recusa que outro modelo pode resolver: falta de máquina ou cota do dia.
+// Chave recusada, modelo inexistente e erro de pergunta não mudam trocando
+// de modelo, então nesses não adianta insistir.
+function valeTentarOutroModelo(err) {
+  const m = (err && err.message) || String(err);
+  return /"code":\s*(503|429)|UNAVAILABLE|RESOURCE_EXHAUSTED|high demand|overloaded/i.test(m) ||
+    (err && (err.name === 'AbortError' || err.name === 'TimeoutError')) ||
+    /aborted|timed? ?out/i.test(m);
+}
+
 function traduzirErro(err) {
   const m = (err && err.message) || String(err);
   if (/429|RESOURCE_EXHAUSTED|quota/i.test(m)) {
@@ -189,6 +212,7 @@ async function responder(ai, db, opcoes) {
         tools: [{ functionDeclarations: FERRAMENTAS }],
         maxOutputTokens: MAX_TOKENS_RESPOSTA,
         temperature: 0.2,
+        httpOptions: { timeout: LIMITE_POR_TENTATIVA_MS },
       },
     });
 
@@ -310,16 +334,29 @@ async function atenderConversa(ai, db, conversaRef, dados, modeloPadrao) {
   };
 
   try {
-    const contents = montarHistorico(mensagens);
-    const r = await responder(ai, db, {
-      modelo: dados.modelo || modeloPadrao,
-      contents: contents,
-      aoTexto: gravarTexto,
-      aoFerramenta: function (nome, args) {
-        log('consulta:', nome, JSON.stringify(args));
-        respostaRef.update({ consultando: nome }).catch(function () {});
-      },
-    });
+    const escolhido = dados.modelo || modeloPadrao;
+    const fila = [escolhido].concat(MODELOS_RESERVA.filter(function (m) { return m !== escolhido; }));
+    let r = null;
+    for (let i = 0; i < fila.length; i++) {
+      try {
+        // Histórico montado de novo a cada tentativa: responder() acrescenta
+        // nele as idas de ferramenta, e a assinatura de raciocínio de um
+        // modelo não serve pra outro.
+        r = await responder(ai, db, {
+          modelo: fila[i],
+          contents: montarHistorico(mensagens),
+          aoTexto: gravarTexto,
+          aoFerramenta: function (nome, args) {
+            log('consulta:', nome, JSON.stringify(args));
+            respostaRef.update({ consultando: nome }).catch(function () {});
+          },
+        });
+        break;
+      } catch (err) {
+        if (i === fila.length - 1 || !valeTentarOutroModelo(err)) throw err;
+        log(fila[i], 'recusou (' + traduzirErro(err) + '); tentando', fila[i + 1]);
+      }
+    }
 
     await respostaRef.update({
       texto: r.texto,
@@ -423,6 +460,7 @@ module.exports = {
   instrucoes,
   lerChave,
   traduzirErro,
+  valeTentarOutroModelo,
   MODELO_PADRAO,
   MAX_IDAS_FERRAMENTA,
   MAX_MENSAGENS_HISTORICO,
