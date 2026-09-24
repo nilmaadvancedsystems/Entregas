@@ -415,7 +415,7 @@ select:focus-visible, textarea:focus-visible, a:focus-visible, .chip:focus-visib
 
 /* ---------------------------------------------------------------
  cartão
- (entregas.html, linhas 729-772)
+ (entregas.html, linhas 744-787)
  --------------------------------------------------------------- */
 .card {
   background: none; border: none; border-radius: 0;
@@ -464,7 +464,7 @@ select:focus-visible, textarea:focus-visible, a:focus-visible, .chip:focus-visib
 
 /* ---------------------------------------------------------------
  campo, entrada e erro de campo
- (entregas.html, linhas 773-826)
+ (entregas.html, linhas 788-841)
  --------------------------------------------------------------- */
 .field { display: block; margin-bottom: var(--esp-4); }
 /* rótulo de campo: 14px, 600, na cor do texto — a Nilma lê o rótulo
@@ -523,7 +523,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  chip
- (entregas.html, linhas 1067-1086)
+ (entregas.html, linhas 1082-1101)
  --------------------------------------------------------------- */
 .chip { position: relative; }
 .chip input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
@@ -548,7 +548,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  botão
- (entregas.html, linhas 1127-1245)
+ (entregas.html, linhas 1142-1260)
  --------------------------------------------------------------- */
    Botões — uma forma só, três pesos
    ========================================================================== */
@@ -672,7 +672,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  aviso flutuante
- (entregas.html, linhas 1479-1487)
+ (entregas.html, linhas 1494-1502)
  --------------------------------------------------------------- */
 .toast {
   position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 10px); z-index: var(--z-aviso);
@@ -686,7 +686,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  janela (modal)
- (entregas.html, linhas 1554-1599)
+ (entregas.html, linhas 1569-1614)
  --------------------------------------------------------------- */
 .modal-overlay {
   position: fixed; inset: 0; background: var(--scrim); z-index: var(--z-veu);
@@ -737,7 +737,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  selo de situação
- (entregas.html, linhas 1342-1352)
+ (entregas.html, linhas 1357-1367)
  --------------------------------------------------------------- */
 /* ---------- selo de situação ---------- */
 .status-pill {
@@ -753,7 +753,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  tela vazia e janela
- (entregas.html, linhas 1353-1395)
+ (entregas.html, linhas 1368-1410)
  --------------------------------------------------------------- */
 .empty-state { color: var(--ink-faint); font-size: var(--t-base); text-align: center; padding: var(--esp-5) var(--esp-3); line-height: 1.5; }
 
@@ -801,7 +801,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  casca GitHub: barra de cima, abas do módulo e gavetas (nilma-shell.js)
- (entregas.html, linhas 505-711)
+ (entregas.html, linhas 505-726)
  --------------------------------------------------------------- */
 /* ---------- casca GitHub: barra, abas e gavetas ---------- */
 /* A marcação nasce em nilma-shell.js; este bloco sai inteiro pra
@@ -985,35 +985,50 @@ body:has(.gaveta:not([hidden])) { overflow: hidden; }
   color: var(--ink); font-size: var(--t-base); line-height: 1.45;
 }
 .aviso-faixa > .ph { color: var(--warning-forte); font-size: 1.1rem; flex: none; margin-top: 1px; }
-/* --- PC: as abas do módulo viram barra lateral fixa ---
-   Duas barras laterais, como pediu a Nilma: esta, fixa, com as abas do
-   módulo; e o ☰, que abre por cima com módulos e ferramentas. No celular
-   as abas continuam sublinhadas logo abaixo da barra de cima. */
+/* --- casca N1 (design-n1): coluna lateral com as SEÇÕES do sistema ---
+   Entregas, Clientes, Contábil, Fiscal, Pendências — sempre as mesmas, a
+   atual marcada. As abas do módulo ficam na horizontal, embaixo do
+   cabeçalho (o .tabs acima, sem mudança). "Ocultar barra lateral" deixa
+   só os ícones e fica lembrado no navegador. No celular a coluna some: as
+   seções ficam no ☰, como antes. */
+.secoes { display: none; }
 @media (min-width: 900px) {
-  .tabs {
+  .secoes {
     position: fixed; top: var(--topo-total); left: 0; bottom: 0; z-index: var(--z-fixo);
-    width: var(--lateral); min-height: 0; flex-direction: column; align-items: stretch; gap: 2px;
-    padding: var(--esp-3) var(--esp-2); border-bottom: 0; border-right: 1px solid var(--border);
+    width: var(--lateral); display: flex; flex-direction: column; gap: 2px;
+    padding: var(--esp-3) var(--esp-2); background: var(--bg); border-right: 1px solid var(--border);
     overflow-x: hidden; overflow-y: auto;
   }
-  .tab {
-    position: relative; justify-content: flex-start; min-height: var(--alvo); padding: 0 var(--esp-3);
-    margin: 0; border-bottom: 0; border-radius: var(--r-sm);
+  .secoes-itens { display: flex; flex-direction: column; gap: 2px; }
+  .secoes-pe { margin-top: auto; padding-top: var(--esp-2); border-top: 1px solid var(--border); }
+  .secao-item {
+    position: relative; display: flex; align-items: center; gap: var(--esp-3); width: 100%;
+    min-height: 36px; padding: 0 var(--esp-3); border: 0; border-radius: var(--r-sm);
+    background: none; color: var(--ink-soft); font: inherit; font-size: var(--t-base);
+    text-align: left; text-decoration: none; cursor: pointer; white-space: nowrap;
   }
-  .tab:hover { background: var(--surface-2); }
-  .tab:hover .tab-label { background: none; }
-  .tab-label { flex: 1; min-width: 0; padding: 0; margin: 0; text-align: left; overflow: hidden; text-overflow: ellipsis; }
-  .tab.active { background: var(--surface-2); }
-  .tab.active::before {
+  .secao-item > .ph { flex: none; width: 20px; text-align: center; font-size: 1.1rem; color: var(--ink-faint); }
+  .secao-item > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .secao-item:hover { background: var(--surface-2); color: var(--ink); }
+  .secao-item[aria-current="page"] { background: var(--surface-2); color: var(--ink); font-weight: 600; }
+  .secao-item[aria-current="page"] > .ph { color: var(--accent-forte); }
+  .secao-item[aria-current="page"]::before {
     content: ''; position: absolute; left: calc(-1 * var(--esp-2)); top: 6px; bottom: 6px;
     width: 3px; border-radius: var(--r-pill); background: var(--accent);
   }
-  body:has(> .tabs:not([hidden])) { padding-left: var(--lateral); }
+  .secoes-ocultar { color: var(--ink-faint); font-size: var(--t-sm); }
+  #topo[hidden] + .secoes { display: none; }
+  body:has(> #topo:not([hidden]) + .secoes) { padding-left: var(--lateral); }
+  html.secoes-ocultas .secoes { width: 56px; }
+  html.secoes-ocultas .secao-item { justify-content: center; padding: 0; }
+  html.secoes-ocultas .secao-item > span { display: none; }
+  html.secoes-ocultas .secoes-ocultar > .ph { transform: scaleX(-1); }
+  html.secoes-ocultas body:has(> #topo:not([hidden]) + .secoes) { padding-left: 56px; }
 }
 
 /* ---------------------------------------------------------------
  submenu padrão (menu de 2º nível)
- (entregas.html, linhas 1918-1944)
+ (entregas.html, linhas 1933-1959)
  --------------------------------------------------------------- */
 /* ---------- submenu (menu de 2º nível) ---------- */
 /* O submenu padrão de todos os apps: a barrinha de categorias no alto do
@@ -1045,7 +1060,7 @@ body:has(.gaveta:not([hidden])) { overflow: hidden; }
 
 /* ---------------------------------------------------------------
  painel "Perguntar à IA" (nilma-extras.js)
- (entregas.html, linhas 2494-2590)
+ (entregas.html, linhas 2511-2607)
  --------------------------------------------------------------- */
 /* A consulta abre como uma barra de pesquisa aberta (o "Ask" do GitHub):
    no PC, uma caixa ancorada na barra de cima, cobrindo a caixa "Perguntar

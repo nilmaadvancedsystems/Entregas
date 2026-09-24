@@ -684,30 +684,45 @@
     color: var(--ink); font-size: var(--t-base); line-height: 1.45;
   }
   .aviso-faixa > .ph { color: var(--warning-forte); font-size: 1.1rem; flex: none; margin-top: 1px; }
-  /* --- PC: as abas do módulo viram barra lateral fixa ---
-     Duas barras laterais, como pediu a Nilma: esta, fixa, com as abas do
-     módulo; e o ☰, que abre por cima com módulos e ferramentas. No celular
-     as abas continuam sublinhadas logo abaixo da barra de cima. */
+  /* --- casca N1 (design-n1): coluna lateral com as SEÇÕES do sistema ---
+     Entregas, Clientes, Contábil, Fiscal, Pendências — sempre as mesmas, a
+     atual marcada. As abas do módulo ficam na horizontal, embaixo do
+     cabeçalho (o .tabs acima, sem mudança). "Ocultar barra lateral" deixa
+     só os ícones e fica lembrado no navegador. No celular a coluna some: as
+     seções ficam no ☰, como antes. */
+  .secoes { display: none; }
   @media (min-width: 900px) {
-    .tabs {
+    .secoes {
       position: fixed; top: var(--topo-total); left: 0; bottom: 0; z-index: var(--z-fixo);
-      width: var(--lateral); min-height: 0; flex-direction: column; align-items: stretch; gap: 2px;
-      padding: var(--esp-3) var(--esp-2); border-bottom: 0; border-right: 1px solid var(--border);
+      width: var(--lateral); display: flex; flex-direction: column; gap: 2px;
+      padding: var(--esp-3) var(--esp-2); background: var(--bg); border-right: 1px solid var(--border);
       overflow-x: hidden; overflow-y: auto;
     }
-    .tab {
-      position: relative; justify-content: flex-start; min-height: var(--alvo); padding: 0 var(--esp-3);
-      margin: 0; border-bottom: 0; border-radius: var(--r-sm);
+    .secoes-itens { display: flex; flex-direction: column; gap: 2px; }
+    .secoes-pe { margin-top: auto; padding-top: var(--esp-2); border-top: 1px solid var(--border); }
+    .secao-item {
+      position: relative; display: flex; align-items: center; gap: var(--esp-3); width: 100%;
+      min-height: 36px; padding: 0 var(--esp-3); border: 0; border-radius: var(--r-sm);
+      background: none; color: var(--ink-soft); font: inherit; font-size: var(--t-base);
+      text-align: left; text-decoration: none; cursor: pointer; white-space: nowrap;
     }
-    .tab:hover { background: var(--surface-2); }
-    .tab:hover .tab-label { background: none; }
-    .tab-label { flex: 1; min-width: 0; padding: 0; margin: 0; text-align: left; overflow: hidden; text-overflow: ellipsis; }
-    .tab.active { background: var(--surface-2); }
-    .tab.active::before {
+    .secao-item > .ph { flex: none; width: 20px; text-align: center; font-size: 1.1rem; color: var(--ink-faint); }
+    .secao-item > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+    .secao-item:hover { background: var(--surface-2); color: var(--ink); }
+    .secao-item[aria-current="page"] { background: var(--surface-2); color: var(--ink); font-weight: 600; }
+    .secao-item[aria-current="page"] > .ph { color: var(--accent-forte); }
+    .secao-item[aria-current="page"]::before {
       content: ''; position: absolute; left: calc(-1 * var(--esp-2)); top: 6px; bottom: 6px;
       width: 3px; border-radius: var(--r-pill); background: var(--accent);
     }
-    body:has(> .tabs:not([hidden])) { padding-left: var(--lateral); }
+    .secoes-ocultar { color: var(--ink-faint); font-size: var(--t-sm); }
+    #topo[hidden] + .secoes { display: none; }
+    body:has(> #topo:not([hidden]) + .secoes) { padding-left: var(--lateral); }
+    html.secoes-ocultas .secoes { width: 56px; }
+    html.secoes-ocultas .secao-item { justify-content: center; padding: 0; }
+    html.secoes-ocultas .secao-item > span { display: none; }
+    html.secoes-ocultas .secoes-ocultar > .ph { transform: scaleX(-1); }
+    html.secoes-ocultas body:has(> #topo:not([hidden]) + .secoes) { padding-left: 56px; }
   }
   /* ---------- fim da casca GitHub ---------- */
 
@@ -1471,7 +1486,7 @@
     border-radius: var(--r-sm); padding: 11px 13px; font-size: var(--t-base); font-weight: 400;
   }
   .offline-banner { margin-bottom: var(--esp-4); line-height: 1.4; }
-  html.publico main, html.publico #tabsNav, html.publico #topo, html.publico .topbar, html.publico .gaveta, html.publico .gaveta-veu { display: none !important; }
+  html.publico main, html.publico #tabsNav, html.publico #secoesNav, html.publico #topo, html.publico .topbar, html.publico .gaveta, html.publico .gaveta-veu { display: none !important; }
   html.publico body { padding-top: 0; padding-left: 0; }
   /* nas telas de tela cheia (login, assinar, rota) o aviso ficava ATRÁS delas:
      "link copiado" e os erros nunca apareciam */
@@ -2309,7 +2324,7 @@
       --border: #BBBBBB; --border-forte: #999999; --shadow: none;
     }
     body { padding: 0 !important; background: #fff; }
-    .topbar, #topo, #tabsNav, .gaveta, .gaveta-veu, .aviso-faixa, .toast, .auth-gate,
+    .topbar, #topo, #tabsNav, #secoesNav, .gaveta, .gaveta-veu, .aviso-faixa, .toast, .auth-gate,
     .busca-global, .cq-painel,
     .filters, .modal-close, .btn, .btn-chip, .link-btn, .icon-btn,
     .mode-toggle, .dash-strip, .offline-banner, .tela-acoes, .card-ferramentas, .linha-acoes, .menu-linha { display: none !important; }
@@ -2344,7 +2359,7 @@
 
     /* ---------- modo ferramenta (Contábil) ----------
        A ferramenta (iframe) traz o próprio conteúdo: some o título da tela e
-       o iframe ocupa tudo à direita da barra lateral e abaixo da de cima. */
+       o iframe ocupa tudo à direita da coluna de seções e abaixo da de cima. */
     body.modo-secundario .tela-cabecalho { display: none; }
     body.modo-secundario main { padding: 0; }
     /* !important só porque o tamanho do iframe está no style da própria
@@ -2352,9 +2367,11 @@
     body.modo-secundario #frameConciliador,
     body.modo-secundario #frameCheque {
       /* altura explícita: iframe não estica com top+bottom como uma div */
-      position: fixed; top: var(--topo-total); left: 0; right: 0;
-      width: 100% !important; height: calc(100vh - var(--topo-total)) !important; border-radius: 0 !important;
+      position: fixed; top: var(--topo-total); left: var(--lateral); right: 0;
+      width: calc(100% - var(--lateral)) !important; height: calc(100vh - var(--topo-total)) !important; border-radius: 0 !important;
     }
+    html.secoes-ocultas body.modo-secundario #frameConciliador,
+    html.secoes-ocultas body.modo-secundario #frameCheque { left: 56px; width: calc(100% - 56px) !important; }
 
     main { max-width: none; margin: 0; padding: var(--esp-5) var(--esp-5) var(--esp-6); }
     .page-title { font-size: var(--t-xl); }
@@ -2597,7 +2614,7 @@
      código inteiro depende delas; esta camada, no fim da folha, só troca o
      visual. Onde o N1 e o app divergem de propósito, está dito.
      ========================================================================== */
-  :root {
+  :root { /* botões do N1 (esta linha não pode ser igual à do :root do topo: é âncora do monta-folha) */
     --btn-bg: var(--surface-2);
     --btn-hover: var(--surface-3);
     --btn-border: var(--border);
