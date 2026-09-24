@@ -1075,6 +1075,10 @@
   .doc-linha .vl-label { font-weight: 600; }
   .doc-sem-valor { color: var(--ink-faint); font-size: var(--t-sm); margin-left: auto; }
   .docs-add { position: relative; }
+  .protocolos-marcar { padding: 4px 0 8px; }
+  .protocolo-dia { font-size: var(--t-sm); font-weight: 600; color: var(--ink-soft); padding: 10px 0 4px; border-bottom: 1px solid var(--border); }
+  .protocolo-linha { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: var(--esp-2); align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); }
+  .protocolo-linha .er-nome { overflow-wrap: anywhere; }
   .docs-add-menu { position: absolute; left: 0; top: calc(100% + 4px); z-index: var(--z-suspenso, 40); min-width: 240px; max-width: min(92vw, 360px); max-height: 300px; overflow: auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md, 8px); box-shadow: var(--shadow); padding: 4px; }
   .valor-row { display: flex; align-items: center; justify-content: space-between; gap: var(--esp-2); }
   .valor-row .vl-label { font-size: var(--t-base); color: var(--ink-soft); flex: 1; min-width: 0; }
@@ -2761,6 +2765,36 @@
         <h2><i class="ph ph-clock-countdown" aria-hidden="true"></i> Vencendo</h2>
       </div>
       <div id="vencimentosList"></div>
+    </div>
+    <!-- Protocolos: consulta própria (pedido do escritório). Busca entregas
+         feitas num período e imprime o protocolo de papel de quantas quiser. -->
+    <div class="card caixa" id="protocolosCard">
+      <div class="card-head-row">
+        <h2><i class="ph ph-printer" aria-hidden="true"></i> Protocolos <span class="contagem" id="protocolosContador"></span></h2>
+        <button type="button" class="btn-chip accent" id="protocolosImprimirBtn" disabled><i class="ph ph-printer" aria-hidden="true"></i> Imprimir selecionados</button>
+      </div>
+      <div class="filters">
+        <div class="filtro">
+          <label for="protocolosDe">De</label>
+          <input class="input" id="protocolosDe" type="date">
+        </div>
+        <div class="filtro">
+          <label for="protocolosAte">Até</label>
+          <input class="input" id="protocolosAte" type="date">
+        </div>
+        <div class="filtro">
+          <label for="protocolosBusca">Cliente</label>
+          <input class="input" id="protocolosBusca" type="text" enterkeyhint="search" placeholder="Nome, código ou CNPJ">
+        </div>
+        <div class="filtro">
+          <label for="protocolosPessoa">Quem entregou</label>
+          <select class="input" id="protocolosPessoa"><option value="">Todas as pessoas</option></select>
+        </div>
+      </div>
+      <div class="protocolos-marcar" id="protocolosMarcarLinha" hidden>
+        <label class="avulso-toggle"><input type="checkbox" id="protocolosMarcarTodos"> Marcar todas da lista</label>
+      </div>
+      <div id="protocolosList"><div class="empty-state">Escolha o período.</div></div>
     </div>
     <div class="card caixa" id="atestadosCard" hidden>
       <div class="card-head-row">
@@ -5428,7 +5462,8 @@
     rota: [
       { id: 'paradas', rotulo: 'Paradas', icone: 'ph-path', els: ['rotaCard', 'vencimentosCard', 'atestadosCard', 'obrigacoesCard'] },
       // A ordem fixa mora na Rota agora (antes: Ajustes do app › Rota).
-      { id: 'ordem', rotulo: 'Ordem fixa', icone: 'ph-list-numbers', els: ['rotaFixaCard'] }
+      { id: 'ordem', rotulo: 'Ordem fixa', icone: 'ph-list-numbers', els: ['rotaFixaCard'] },
+      { id: 'protocolos', rotulo: 'Protocolos', icone: 'ph-printer', els: ['protocolosCard'] }
     ],
     painel: [
       { id: 'entregas', rotulo: 'Entregas', icone: 'ph-chart-bar', els: ['painelCard', 'alertaSemEntregaCard'] },
@@ -5475,6 +5510,7 @@
     secao.querySelectorAll(':scope > .aba-subnav .mode-btn').forEach(function (b) { b.classList.toggle('active', b.dataset.grupo === grupo); });
     secao.querySelectorAll(':scope > .card-grupo').forEach(function (g) { g.hidden = g.dataset.grupo !== grupo; });
     mostrarAcaoDaTela_(aba);
+    if (aba === 'rota' && grupo === 'protocolos') abrirProtocolos_();
     if (aba === 'painel' && grupo === 'numeros' && painelMap) setTimeout(function () { painelMap.invalidateSize(); }, 50);
   }
   // Esconde categoria sem nada visível (e o submenu todo quando sobra uma).
@@ -7358,6 +7394,121 @@
     this.hidden = true;
     $('rotaFiltroZonaBtn').setAttribute('aria-expanded', 'false');
     $('rotaFiltroZonaBtn').focus();
+  });
+
+  // ---------- Protocolos: consulta própria ----------
+  // Entregas feitas (confirmadas ou não realizadas) num período, com busca
+  // por cliente e por quem entregou. Marca as que quiser e imprime o mesmo
+  // protocolo de papel de sempre (abrirProtocoloDeEntregas_).
+  var protocolos_ = { lista: [], marcadas: {}, carregadoDe: '', carregadoAte: '', pronto: false };
+  function hojeIsoLocal_() {
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function abrirProtocolos_() {
+    if (!protocolos_.pronto) {
+      protocolos_.pronto = true;
+      $('protocolosDe').value = hojeIsoLocal_();
+      $('protocolosAte').value = hojeIsoLocal_();
+    }
+    carregarProtocolos_();
+  }
+  function carregarProtocolos_() {
+    var de = $('protocolosDe').value, ate = $('protocolosAte').value;
+    if (!de || !ate || !db) return;
+    if (de > ate) { var x = de; de = ate; ate = x; }
+    if (protocolos_.carregadoDe === de && protocolos_.carregadoAte === ate) { renderProtocolos_(); return; }
+    $('protocolosList').innerHTML = '<div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div>';
+    // confirmadoEm é ISO (UTC); o dia é o do escritório, então a janela vai
+    // da meia-noite local do "de" até a meia-noite local depois do "até".
+    var ini = new Date(de + 'T00:00:00').toISOString();
+    var fimD = new Date(ate + 'T00:00:00'); fimD.setDate(fimD.getDate() + 1);
+    db.collection('entregas').where('confirmadoEm', '>=', ini).where('confirmadoEm', '<', fimD.toISOString())
+      .orderBy('confirmadoEm').limit(800).get().then(function (snap) {
+        protocolos_.lista = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); })
+          .filter(function (e) { return e.status === 'confirmada' || e.status === 'falha'; });
+        protocolos_.carregadoDe = de; protocolos_.carregadoAte = ate;
+        protocolos_.marcadas = {};
+        renderProtocolos_();
+      }).catch(function (err) {
+        $('protocolosList').innerHTML = '<div class="empty-state">' + escapeHtml_(errMsg(err, 'Não foi possível buscar as entregas.')) + '</div>';
+      });
+  }
+  function protocolosVisiveis_() {
+    var busca = normalizarTexto_($('protocolosBusca').value.trim());
+    var pessoa = $('protocolosPessoa').value;
+    return protocolos_.lista.filter(function (e) {
+      if (pessoa && (e.entregadoPorNome || e.entregadoPor) !== pessoa) return false;
+      if (!busca) return true;
+      var c = e.clienteId ? clientesCache.get(e.clienteId) : null;
+      var alvo = normalizarTexto_([e.clienteNome, c && c.codigoOrigem, c && c.cnpj, c && c.documento].filter(Boolean).join(' '));
+      return alvo.indexOf(busca) !== -1;
+    });
+  }
+  function renderProtocolos_() {
+    var sel = $('protocolosPessoa'), atual = sel.value;
+    var pessoas = Array.from(new Set(protocolos_.lista.map(function (e) { return e.entregadoPorNome || e.entregadoPor; }).filter(Boolean)))
+      .sort(function (a, b) { return a.localeCompare(b, 'pt-BR'); });
+    sel.innerHTML = '<option value="">Todas as pessoas</option>' + pessoas.map(function (p) { return '<option value="' + escapeHtml_(p) + '">' + escapeHtml_(p) + '</option>'; }).join('');
+    sel.value = pessoas.indexOf(atual) !== -1 ? atual : '';
+
+    var lista = protocolosVisiveis_();
+    var el = $('protocolosList');
+    el.innerHTML = '';
+    $('protocolosContador').textContent = lista.length ? String(lista.length) : '';
+    $('protocolosMarcarLinha').hidden = !lista.length;
+    if (!lista.length) {
+      el.innerHTML = '<div class="empty-state">Nenhuma entrega feita nesse período' + ($('protocolosBusca').value.trim() || sel.value ? ' com esse filtro' : '') + '.</div>';
+      atualizarBotaoProtocolos_();
+      return;
+    }
+    var diaAtual = '';
+    lista.forEach(function (e) {
+      var quando = new Date(e.confirmadoEm);
+      var dia = quando.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' });
+      if (dia !== diaAtual) { diaAtual = dia; el.appendChild(Object.assign(document.createElement('div'), { className: 'protocolo-dia', textContent: dia })); }
+      var row = document.createElement('div');
+      row.className = 'protocolo-linha';
+      var itens = (e.itens || []).map(function (i) { return typeof i === 'string' ? i : (i && i.tipo) || ''; }).filter(Boolean).join(', ');
+      row.innerHTML = '<input type="checkbox" aria-label="Incluir no protocolo">' +
+        '<div><div class="er-nome"></div><div class="er-sub"></div></div>' +
+        '<button type="button" class="btn-chip"><i class="ph ph-printer" aria-hidden="true"></i> Imprimir</button>';
+      row.querySelector('.er-nome').textContent = e.clienteNome || 'sem cliente';
+      row.querySelector('.er-sub').textContent = quando.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) +
+        (e.status === 'falha' ? ' · não entregue' : '') + (itens ? ' · ' + itens : '') +
+        ((e.entregadoPorNome || e.entregadoPor) ? ' · ' + (e.entregadoPorNome || e.entregadoPor) : '');
+      var chk = row.querySelector('input');
+      chk.checked = !!protocolos_.marcadas[e.id];
+      chk.addEventListener('change', function () {
+        if (chk.checked) protocolos_.marcadas[e.id] = true; else delete protocolos_.marcadas[e.id];
+        atualizarBotaoProtocolos_();
+      });
+      row.querySelector('.btn-chip').addEventListener('click', function () { abrirProtocoloDeEntregas_(e.clienteNome || 'Protocolo', [e]); });
+      el.appendChild(row);
+    });
+    atualizarBotaoProtocolos_();
+  }
+  function atualizarBotaoProtocolos_() {
+    var visiveis = protocolosVisiveis_();
+    var n = visiveis.filter(function (e) { return protocolos_.marcadas[e.id]; }).length;
+    var b = $('protocolosImprimirBtn');
+    b.disabled = !n;
+    b.lastChild.textContent = n ? ' Imprimir ' + n + (n === 1 ? ' selecionada' : ' selecionadas') : ' Imprimir selecionados';
+    $('protocolosMarcarTodos').checked = !!visiveis.length && n === visiveis.length;
+  }
+  $('protocolosDe').addEventListener('change', carregarProtocolos_);
+  $('protocolosAte').addEventListener('change', carregarProtocolos_);
+  $('protocolosBusca').addEventListener('input', aoParar(renderProtocolos_));
+  $('protocolosPessoa').addEventListener('change', renderProtocolos_);
+  $('protocolosMarcarTodos').addEventListener('change', function () {
+    var marcar = this.checked;
+    protocolosVisiveis_().forEach(function (e) { if (marcar) protocolos_.marcadas[e.id] = true; else delete protocolos_.marcadas[e.id]; });
+    renderProtocolos_();
+  });
+  $('protocolosImprimirBtn').addEventListener('click', function () {
+    var escolhidas = protocolosVisiveis_().filter(function (e) { return protocolos_.marcadas[e.id]; });
+    var de = protocolos_.carregadoDe.split('-').reverse().join('/'), ate = protocolos_.carregadoAte.split('-').reverse().join('/');
+    abrirProtocoloDeEntregas_('Entregas de ' + de + (ate !== de ? ' a ' + ate : ''), escolhidas);
   });
 
   // O papel do dia: o que ainda falta entregar e o que já foi entregue hoje,
