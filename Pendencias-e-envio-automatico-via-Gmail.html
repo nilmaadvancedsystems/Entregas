@@ -649,6 +649,54 @@
   .exp-nome .onde { display: block; font-size: 12px; color: var(--ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .exp-meta { font-size: 12px; color: var(--ink-muted); white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
   .exp-vazio { padding: 24px 16px; font-size: 14px; color: var(--ink-muted); text-align: center; }
+  /* seleção: caixinha à esquerda de cada linha, barra de ações acima */
+  .exp-lista li:has(> .exp-marca) { display: flex; align-items: stretch; }
+  .exp-lista li > .exp-item { flex: 1; min-width: 0; }
+  .exp-marca { display: flex; align-items: center; padding: 0 0 0 16px; cursor: pointer; }
+  .exp-marca input { width: 16px; height: 16px; margin: 0; accent-color: var(--tab-active, var(--accent)); cursor: pointer; }
+  .exp-lista li:has(> .exp-marca) > .exp-item { padding-left: 12px; }
+  .exp-lista li.marcado { background: var(--hover-bg); }
+  .exp-acoes {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .exp-acoes[hidden], .exp-acoes [hidden] { display: none; }
+  .exp-sel-texto { font-size: 12px; font-weight: 600; }
+  .exp-baixar-pasta { margin-left: auto; }
+  /* aviso fixo do download (um por pedido, empilhados) */
+  .aviso-download {
+    position: fixed; right: 16px; bottom: 16px; z-index: calc(var(--z-gaveta, 45) + 2);
+    display: flex; flex-direction: column; gap: 6px; max-width: min(420px, calc(100vw - 32px));
+  }
+  .aviso-download[hidden] { display: none; }
+  .aviso-download-linha {
+    display: flex; align-items: center; gap: 8px; padding: 10px 14px; font-size: 13px;
+    background: var(--surface); color: var(--ink); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow-lg);
+  }
+  .girando { animation: spin 1s linear infinite; }
+  /* painel lateral largo que abre pela direita (Execuções; e-mail do robô) */
+  .gaveta.gaveta-painel {
+    left: auto; right: 0; width: min(720px, 100vw); max-width: 100vw; padding: 0;
+    border-radius: 12px 0 0 12px; background: var(--bg, var(--surface));
+    animation: painelEntra .22s cubic-bezier(.33, 1, .68, 1) both;
+  }
+  .gaveta.gaveta-painel.gaveta-saindo { animation: painelSai .18s ease-in forwards; }
+  @keyframes painelEntra { from { transform: translateX(100%); } }
+  @keyframes painelSai { to { transform: translateX(100%); } }
+  .painel-cabeca {
+    position: sticky; top: 0; z-index: 1; margin: 0; padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 12px;
+    background: inherit; border-bottom: 1px solid var(--border);
+  }
+  .painel-cabeca > .ph { font-size: 18px; color: var(--ink-muted); }
+  .painel-titulo { flex: 1; min-width: 0; font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .painel-fechar { margin-left: auto; border-color: transparent; }
+  .painel-corpo { flex: 1 0 auto; display: flex; flex-direction: column; gap: 16px; padding: 16px; }
+  .painel-corpo #arqPedido:empty { display: none; }
+  /* pontinho "organizando agora" no botão Execuções */
+  .arq-rodando { display: inline-block; width: 8px; height: 8px; margin-left: 2px; border-radius: 50%; background: var(--warning, #d29922); animation: pulsar 1.4s ease-in-out infinite; }
+  .arq-rodando[hidden] { display: none; }
+  @keyframes pulsar { 50% { opacity: .35; } }
+  @media (prefers-reduced-motion: reduce) { .girando, .arq-rodando { animation: none; } }
   #painelPasta { border: 1px solid var(--border); border-radius: 6px; background: var(--surface); overflow: clip; }
   #painelPasta:empty { display: none; }
   @media (max-width: 640px) {
@@ -1345,22 +1393,34 @@
           <div class="robo-vigia" id="arqVigia" aria-live="polite"></div>
         </div>
         <div class="robo-acoes">
+          <button type="button" class="btn btn-secondary" id="btnArqExecucoes" aria-controls="arqPainel"><i class="ph ph-clock-counter-clockwise" aria-hidden="true"></i> Execuções <span class="arq-rodando" id="arqRodando" hidden title="Organizando agora"></span></button>
           <button type="button" class="btn btn-secondary" id="btnArquivar"><i class="ph ph-archive" aria-hidden="true"></i> Arquivar agora</button>
         </div>
       </div>
-      <div id="arqPedido" aria-live="polite"></div>
-      <nav class="cliente-menu" role="tablist" aria-label="Seções do arquivo" id="arqAbas">
-        <button type="button" class="secao-btn" role="tab" data-arq="pastas" aria-selected="true"><i class="ph ph-folders" aria-hidden="true"></i><span>Pastas</span></button>
-        <button type="button" class="secao-btn" role="tab" data-arq="execucoes" aria-selected="false"><i class="ph ph-clock-counter-clockwise" aria-hidden="true"></i><span>Execuções</span></button>
-      </nav>
+      <!-- Só a pasta do ano fica na tela. Pedido, andamento, execuções e a
+           mensagem final do Claude moram no painel "Execuções". -->
       <section class="caixa-p" id="arqPastas"></section>
-      <section class="caixa-p" id="arqExecucoes" hidden>
-        <div class="caixa-cab"><h2><i class="ph ph-clock-counter-clockwise" aria-hidden="true"></i> Execuções</h2><span class="cont" id="arqN"></span></div>
-        <div class="arq-busca"><div class="n1-busca"><i class="ph ph-magnifying-glass" aria-hidden="true"></i><input type="search" id="arqBusca" placeholder="Filtrar por cliente ou código" aria-label="Filtrar execuções por cliente ou código"></div></div>
-        <div class="tab-rolagem"><table class="tab-simples arq-tabela" id="tabArquivo"></table></div>
-        <div id="arquivoVazio" class="vazio" hidden></div>
-      </section>
     </div>
+
+    <!-- Painel lateral das execuções do arquivamento (abre pelo botão
+         "Execuções" e sozinho quando alguém pede "Arquivar agora"). Usa a
+         gaveta da casca: Esc, véu e foco preso vêm de NilmaShell. -->
+    <aside class="gaveta gaveta-painel" id="arqPainel" hidden role="dialog" aria-modal="true" aria-labelledby="arqPainelTitulo" tabindex="-1">
+      <div class="gaveta-cabeca painel-cabeca">
+        <i class="ph ph-clock-counter-clockwise" aria-hidden="true"></i>
+        <span class="painel-titulo" id="arqPainelTitulo">Execuções do arquivamento</span>
+        <button type="button" class="topo-btn painel-fechar" aria-label="Fechar"><i class="ph ph-x" aria-hidden="true"></i></button>
+      </div>
+      <div class="painel-corpo">
+        <div id="arqPedido" aria-live="polite"></div>
+        <section class="caixa-p" id="arqExecucoes">
+          <div class="caixa-cab"><h2><i class="ph ph-list-checks" aria-hidden="true"></i> Execuções</h2><span class="cont" id="arqN"></span></div>
+          <div class="arq-busca"><div class="n1-busca"><i class="ph ph-magnifying-glass" aria-hidden="true"></i><input type="search" id="arqBusca" placeholder="Filtrar por cliente ou código" aria-label="Filtrar execuções por cliente ou código"></div></div>
+          <div class="tab-rolagem"><table class="tab-simples arq-tabela" id="tabArquivo"></table></div>
+          <div id="arquivoVazio" class="vazio" hidden></div>
+        </section>
+      </div>
+    </aside>
 
     <!-- ================= PÁGINA: ROBÔ DO GMAIL ================= -->
     <div id="viewRobo" hidden>
@@ -2406,7 +2466,11 @@
     { campo: 'densidade', padrao: 'confortavel', rotulo: 'Espaçamento', dica: 'Compacto mostra mais linhas por tela.',
       opcoes: [['confortavel', 'Confortável'], ['compacto', 'Compacto']] },
     { campo: 'animacao', padrao: 'completa', rotulo: 'Animações',
-      opcoes: [['completa', 'Normais'], ['reduzida', 'Reduzidas']] }
+      opcoes: [['completa', 'Normais'], ['reduzida', 'Reduzidas']] },
+    // Arquivo › pasta do ano: o PDF abre numa aba do navegador, ou vem como
+    // download e o computador abre no programa de PDF dele.
+    { campo: 'abrirPdf', padrao: 'navegador', rotulo: 'Abrir PDFs do Drive', dica: 'No leitor do computador, o PDF é baixado e abre no seu programa de PDF.',
+      opcoes: [['navegador', 'No navegador'], ['leitor', 'No leitor do computador']] }
   ];
   function aplicarPaleta(paleta) {
     var root = document.documentElement;
@@ -6651,9 +6715,78 @@
     return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear();
   }
 
+  // ---------- baixar do Drive (um arquivo, vários num .zip, ou a pasta) ----------
+  // Mesmo pedido do "abrir" (aberturasDrive), com modo 'baixar' ou 'zip'. O
+  // robô da nuvem devolve um link que já vem como download; aqui só mostramos
+  // o andamento num aviso fixo e disparamos o download quando fica pronto.
+  function ehPdf(it) { return /\.pdf$/i.test(it.n || '') || /pdf/.test(it.x || ''); }
+  function abrirPdfNoLeitor() {
+    try { return localStorage.getItem('nilma_abrirPdf') === 'leitor'; } catch (e) { return false; }
+  }
+  function dispararDownload(url) {
+    var a = document.createElement('a');
+    a.href = url; a.rel = 'noopener';
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+  function avisoDownload() {
+    var av = $('avisoDownload');
+    if (!av) {
+      av = el('div', 'aviso-download'); av.id = 'avisoDownload';
+      av.setAttribute('role', 'status'); av.setAttribute('aria-live', 'polite');
+      document.body.appendChild(av);
+    }
+    return av;
+  }
+  function pedirDownload(pedido, rotulo) {
+    var zip = pedido.modo === 'zip';
+    var av = avisoDownload();
+    var linhaAv = el('div', 'aviso-download-linha');
+    linhaAv.appendChild(ico('ph-spinner-gap girando'));
+    var txt = el('span', null, (zip ? 'Preparando o .zip de ' : 'Buscando ') + rotulo + '…');
+    linhaAv.appendChild(txt);
+    av.appendChild(linhaAv);
+    av.hidden = false;
+    function terminar(msg, tipo) {
+      linhaAv.remove();
+      if (!av.children.length) av.hidden = true;
+      if (msg) toast(msg, tipo);
+    }
+    db.collection('aberturasDrive').add(Object.assign({
+      status: 'pendente', criadoEm: new Date().toISOString(), criadoPor: quemSou(), criadoPorUid: auth.currentUser.uid
+    }, pedido)).then(function (ref) {
+      // o .zip de uma pasta grande leva minutos: o prazo recomeça a cada
+      // avanço que o robô informa
+      var prazo = zip ? 3 * 60000 : 90000, fim = null;
+      function relogio() {
+        clearTimeout(fim);
+        fim = setTimeout(function () { parar(); terminar('O robô não respondeu a tempo. Confira se ele está online e tente de novo.', 'erro'); }, prazo);
+      }
+      relogio();
+      var ultimo = '';
+      var parar = ref.onSnapshot(function (d) {
+        var p = d.data() || {};
+        if (p.progresso && p.progresso !== ultimo) { ultimo = p.progresso; txt.textContent = (zip ? 'Preparando o .zip de ' : 'Buscando ') + rotulo + ': ' + p.progresso; relogio(); }
+        if (p.status === 'pronto' && p.url) {
+          clearTimeout(fim); parar();
+          dispararDownload(p.url);
+          terminar(zip ? 'Download pronto: ' + plural(p.arquivos || 0, 'arquivo', 'arquivos') + ' (' + tamanhoLegivel(p.tamanho) + ').' : '', 'ok');
+        } else if (p.status === 'erro') {
+          clearTimeout(fim); parar();
+          terminar('Não consegui baixar: ' + (p.erro || 'erro'), 'erro');
+        }
+      }, function () {});
+    }).catch(function (err) { terminar('Não consegui pedir o download: ' + err.message, 'erro'); });
+  }
+
   // Abre o arquivo: a janela nasce no clique (senão o navegador bloqueia) e
-  // recebe o endereço quando o robô terminar de buscar.
+  // recebe o endereço quando o robô terminar de buscar. Com a preferência
+  // "PDF no leitor do computador", o PDF vem como download e o computador
+  // abre no programa de PDF dele.
   function abrirArquivoDoDrive(it) {
+    if (ehPdf(it) && abrirPdfNoLeitor()) {
+      pedirDownload({ modo: 'baixar', fileId: it.i, nome: it.n }, '"' + it.n + '"');
+      return;
+    }
     var janela = window.open('', '_blank');
     if (janela) {
       try {
@@ -6710,7 +6843,58 @@
     topo.appendChild(trilha); topo.appendChild(buscaBox);
     var info = el('div', 'exp-info');
     var lista = el('ul', 'exp-lista');
-    caixa.appendChild(topo); caixa.appendChild(info); caixa.appendChild(lista);
+
+    // Barra de ações: seleção (Baixar · Limpar) e "Baixar pasta". A seleção
+    // vale entre pastas: dá pra marcar arquivos de lugares diferentes.
+    est.sel = {};
+    var acoes = el('div', 'exp-acoes');
+    var selTexto = el('span', 'exp-sel-texto');
+    var btnBaixarSel = el('button', 'btn btn-sm btn-secondary'); btnBaixarSel.type = 'button';
+    btnBaixarSel.appendChild(ico('ph-download-simple')); btnBaixarSel.appendChild(document.createTextNode(' Baixar'));
+    var btnLimparSel = el('button', 'btn btn-sm btn-secondary', 'Limpar'); btnLimparSel.type = 'button';
+    var btnBaixarPasta = el('button', 'btn btn-sm btn-secondary exp-baixar-pasta'); btnBaixarPasta.type = 'button';
+    btnBaixarPasta.appendChild(ico('ph-file-zip')); btnBaixarPasta.appendChild(document.createTextNode(' Baixar pasta'));
+    acoes.appendChild(selTexto); acoes.appendChild(btnBaixarSel); acoes.appendChild(btnLimparSel); acoes.appendChild(btnBaixarPasta);
+    caixa.appendChild(topo); caixa.appendChild(acoes); caixa.appendChild(info); caixa.appendChild(lista);
+
+    function atualizarAcoes() {
+      var itens = Object.keys(est.sel).map(function (k) { return est.sel[k]; });
+      var n = itens.length;
+      selTexto.hidden = btnBaixarSel.hidden = btnLimparSel.hidden = !n;
+      if (n) {
+        var nP = itens.filter(function (i) { return i.t === 'd'; }).length;
+        selTexto.textContent = [nP ? plural(nP, 'pasta', 'pastas') : '', n - nP ? plural(n - nP, 'arquivo', 'arquivos') : ''].filter(Boolean).join(' e ') + (n === 1 ? ' selecionado' : ' selecionados');
+        btnBaixarSel.title = n === 1 && !nP ? 'Baixar o arquivo' : 'Baixar tudo num .zip';
+      }
+      var dentro = est.caminho.length > 0;
+      btnBaixarPasta.hidden = !dentro;
+      if (dentro) btnBaixarPasta.title = 'Baixar "' + est.caminho[est.caminho.length - 1].nome + '" inteira num .zip';
+      acoes.hidden = !n && !dentro;
+    }
+    btnLimparSel.addEventListener('click', function () {
+      est.sel = {};
+      lista.querySelectorAll('.exp-marca input').forEach(function (c) { c.checked = false; });
+      lista.querySelectorAll('li.marcado').forEach(function (li) { li.classList.remove('marcado'); });
+      atualizarAcoes();
+    });
+    btnBaixarSel.addEventListener('click', function () {
+      var itens = Object.keys(est.sel).map(function (k) { return est.sel[k]; });
+      if (!itens.length) return;
+      if (itens.length === 1 && itens[0].t !== 'd') {
+        pedirDownload({ modo: 'baixar', fileId: itens[0].i, nome: itens[0].n }, '"' + itens[0].n + '"');
+      } else {
+        var nome = itens.length === 1 ? itens[0].n
+          : (est.caminho.length ? est.caminho[est.caminho.length - 1].nome + ' - seleção' : 'Arquivos ' + dataCurta(new Date().toISOString()).replace(/\//g, '-'));
+        pedirDownload({ modo: 'zip', fileId: itens[0].i, fileIds: itens.map(function (i) { return i.i; }), nomeZip: nome, nome: nome },
+          plural(itens.length, 'item', 'itens'));
+      }
+      btnLimparSel.click();
+    });
+    btnBaixarPasta.addEventListener('click', function () {
+      var atual = est.caminho[est.caminho.length - 1];
+      if (!atual) return;
+      pedirDownload({ modo: 'zip', fileId: atual.id, pastaId: atual.id, nomeZip: atual.nome, nome: atual.nome }, '"' + atual.nome + '"');
+    });
     var buscaTimer = null;
     busca.addEventListener('input', function () {
       clearTimeout(buscaTimer);
@@ -6721,8 +6905,24 @@
 
     function ir(caminho) { est.caminho = caminho; est.busca = ''; busca.value = ''; desenhar(); caixa.scrollIntoView({ block: 'nearest' }); }
 
-    function linha(icone, nome, onde, meta, data, acao, rotulo) {
+    function linha(icone, nome, onde, meta, data, acao, rotulo, item) {
       var li = el('li');
+      if (item) {
+        // caixinha de seleção (arquivo ou pasta inteira)
+        var marca = el('label', 'exp-marca');
+        var cx = el('input'); cx.type = 'checkbox';
+        cx.setAttribute('aria-label', 'Selecionar ' + nome);
+        cx.checked = !!est.sel[item.i];
+        li.classList.toggle('marcado', cx.checked);
+        cx.addEventListener('change', function () {
+          if (cx.checked) est.sel[item.i] = { i: item.i, n: item.n || nome, t: item.t };
+          else delete est.sel[item.i];
+          li.classList.toggle('marcado', cx.checked);
+          atualizarAcoes();
+        });
+        marca.appendChild(cx);
+        li.appendChild(marca);
+      }
       var b = el('button', 'exp-item'); b.type = 'button';
       b.appendChild(ico(icone));
       var n = el('span', 'exp-nome', nome);
@@ -6752,6 +6952,7 @@
 
     function desenhar() {
       desenharTrilha();
+      atualizarAcoes();
       lista.innerHTML = '';
       var raiz = indiceDrive.raiz;
       if (!raiz) { info.textContent = 'Carregando o mapa do Drive…'; return; }
@@ -6766,9 +6967,10 @@
         info.textContent = plural(cl.length, 'pasta de cliente', 'pastas de cliente') + (raiz.atualizadoEm ? ' · mapa atualizado ' + dataHora(raiz.atualizadoEm) : '');
         if (!cl.length) lista.appendChild(el('li', 'exp-vazio', 'Nenhuma pasta com esse nome ou código.'));
         cl.forEach(function (c) {
-          lista.appendChild(linha('ph-folder-simple-user', c.nomePasta || ((c.codigo ? c.codigo + ' - ' : '') + c.nome), null,
+          var nomeCli = c.nomePasta || ((c.codigo ? c.codigo + ' - ' : '') + c.nome);
+          lista.appendChild(linha('ph-folder-simple-user', nomeCli, null,
             plural(c.arquivos || 0, 'arquivo', 'arquivos'), dataCurta(c.mod),
-            function () { ir([{ id: c.id, nome: c.nomePasta || c.nome, cliente: c.id }]); }));
+            function () { ir([{ id: c.id, nome: c.nomePasta || c.nome, cliente: c.id }]); }, null, { i: c.id, n: nomeCli, t: 'd' }));
         });
         return;
       }
@@ -6817,10 +7019,10 @@
           if (it.t === 'd') {
             var n = (dados.filhos[it.i] || []).length;
             lista.appendChild(linha('ph-folder', it.n, onde, plural(n, 'item', 'itens'), dataCurta(it.m),
-              function () { ir(caminhoCompleto(it)); }));
+              function () { ir(caminhoCompleto(it)); }, null, it));
           } else {
             lista.appendChild(linha(iconeDoArquivo(it), it.n, onde, tamanhoLegivel(it.s), dataCurta(it.m),
-              function () { abrirArquivoDoDrive(it); }, 'Abrir ' + it.n));
+              function () { abrirArquivoDoDrive(it); }, 'Abrir ' + it.n, it));
           }
         });
         if (itens.length > 1500) lista.appendChild(el('li', 'exp-vazio', 'Mostrando 1.500 de ' + itens.length + '. Use a busca pra achar o que precisa.'));
@@ -6861,15 +7063,20 @@
     montar();
   }
 
-  // Aba Arquivo: Pastas | Execuções.
+  // Aba Arquivo: na tela só a pasta do ano; as execuções abrem num painel
+  // lateral (gaveta da casca: Esc, véu e foco preso vêm do NilmaShell).
   var expArquivo = null;
-  document.querySelectorAll('#arqAbas [data-arq]').forEach(function (b) {
-    b.addEventListener('click', function () {
-      document.querySelectorAll('#arqAbas [data-arq]').forEach(function (x) { x.setAttribute('aria-selected', String(x === b)); });
-      $('arqPastas').hidden = b.dataset.arq !== 'pastas';
-      $('arqExecucoes').hidden = b.dataset.arq !== 'execucoes';
-    });
-  });
+  function abrirPainelExecucoes(quemAbriu) {
+    if (window.NilmaShell && NilmaShell.abrirGaveta) NilmaShell.abrirGaveta('arqPainel', quemAbriu);
+    else $('arqPainel').hidden = false;
+    if (typeof renderArquivo === 'function' && arq.ligado) renderArquivo();
+  }
+  function fecharPainel() {
+    if (window.NilmaShell && NilmaShell.fecharGaveta) NilmaShell.fecharGaveta();
+    else document.querySelectorAll('.gaveta-painel').forEach(function (g) { g.hidden = true; });
+  }
+  $('btnArqExecucoes').addEventListener('click', function () { abrirPainelExecucoes(this); });
+  document.querySelectorAll('.gaveta-painel .painel-fechar').forEach(function (b) { b.addEventListener('click', fecharPainel); });
 
   // ==========================================================================
   // Arquivo: a rotina "Claudio Secretario". Esta página pede ("Arquivar
@@ -6957,6 +7164,8 @@
     b.classList.toggle('ocupado', !!aberto);
     b.lastChild.textContent = aberto ? (aberto.status === 'processando' ? ' Organizando...' : ' Arquivamento pedido...') : ' Arquivar agora';
     b.title = ligado ? 'Organiza agora a pasta Claudio Secretario, como a organização das 9h' : 'O PC do arquivador está desligado: o pedido fica guardado e sai quando ele ligar';
+    // pontinho no botão "Execuções" enquanto há arquivamento pedido ou rodando
+    $('arqRodando').hidden = !aberto;
 
     var alvo = $('arqPedido');
     alvo.innerHTML = '';
@@ -7039,6 +7248,8 @@
       criadoPorUid: auth.currentUser.uid
     }).then(function () {
       toast(arquivadorLigado() ? 'Arquivamento pedido. O PC do arquivador vai começar.' : 'Arquivamento pedido. O PC do arquivador está desligado: começa quando ele ligar.', 'ok');
+      // o andamento aparece no painel das execuções
+      abrirPainelExecucoes($('btnArqExecucoes'));
     }).catch(function (err) {
       b.disabled = false;
       toast('Não consegui pedir o arquivamento: ' + err.message, 'erro');

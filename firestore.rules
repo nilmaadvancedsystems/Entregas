@@ -622,7 +622,13 @@ service cloud.firestore {
         && request.resource.data.status == 'pendente'
         && request.resource.data.criadoPorUid == request.auth.uid
         && request.resource.data.fileId is string
-        && request.resource.data.keys().hasOnly(['status', 'fileId', 'nome', 'criadoEm', 'criadoPor', 'criadoPorUid']);
+        && request.resource.data.keys().hasOnly(['status', 'fileId', 'nome', 'criadoEm', 'criadoPor', 'criadoPorUid', 'modo', 'fileIds', 'pastaId', 'nomeZip'])
+        // modo: abrir no navegador (padrão), baixar (PDF abre no leitor do
+        // computador) ou zip (vários arquivos, ou uma pasta inteira).
+        && request.resource.data.get('modo', 'abrir') in ['abrir', 'baixar', 'zip']
+        && (!('fileIds' in request.resource.data) || (request.resource.data.fileIds is list && request.resource.data.fileIds.size() <= 500))
+        && (!('pastaId' in request.resource.data) || request.resource.data.pastaId is string)
+        && (!('nomeZip' in request.resource.data) || (request.resource.data.nomeZip is string && request.resource.data.nomeZip.size() <= 200));
       allow update, delete: if false;
     }
 
