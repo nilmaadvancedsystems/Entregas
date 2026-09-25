@@ -4,23 +4,36 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Política de Privacidade | Nilma Contabilidade</title>
+<meta name="color-scheme" content="light dark">
+<link rel="stylesheet" href="nilma-ui.css?v=343">
 <style>
-  :root { --fundo: #f7f7f5; --texto: #1f2328; --suave: #59636e; --linha: #d8dee4; --acento: #1a5fb4; }
-  @media (prefers-color-scheme: dark) {
-    :root { --fundo: #16181c; --texto: #e6e8eb; --suave: #9aa4af; --linha: #30363d; --acento: #6ea8fe; }
-  }
-  body { margin: 0; background: var(--fundo); color: var(--texto); font: 1rem/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", system-ui, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji"; }
-  main { max-width: 44rem; margin: 0 auto; padding: 2.5rem 1rem 4rem; }
-  h1 { font-size: 1.75rem; line-height: 1.25; margin: 0 0 .25rem; }
-  h2 { font-size: 1.125rem; margin: 2rem 0 .5rem; }
-  h1, h2, strong { font-weight: 600; }
-  p, li { color: var(--texto); }
-  .data { color: var(--suave); margin: 0 0 2rem; }
-  a { color: var(--acento); }
-  footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--linha); color: var(--suave); font-size: .875rem; }
+  /* Texto de leitura no visual da Conferência (design-n1): tokens e
+     cabeçalho .gh-header vêm do nilma-ui.css. */
+  .gh-header-top { max-width: 784px; margin: 0 auto; }
+  .gh-crumb:last-child { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  main { max-width: 784px; margin: 0 auto; padding: 24px 32px 64px; }
+  @media (max-width: 768px) { main { padding: 16px 16px 48px; } }
+  h1 { font-size: 20px; font-weight: 600; line-height: 1.25; }
+  .data { margin: 4px 0 24px; color: var(--ink-muted); }
+  h2 { font-size: 16px; font-weight: 600; line-height: 1.25; margin: 32px 0 8px; padding-top: 16px; border-top: 1px solid var(--border); }
+  p + p, ul + p, p + ul { margin-top: 12px; }
+  ul { margin: 12px 0 0; padding-left: 20px; }
+  li + li { margin-top: 6px; }
+  a { color: var(--accent); overflow-wrap: anywhere; }
+  footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 12px; color: var(--ink-muted); }
 </style>
 </head>
 <body>
+<header class="gh-header">
+  <div class="gh-header-top">
+    <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 720 1176" focusable="false"><defs><linearGradient id="pvRed" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8F2429"/><stop offset=".45" stop-color="#D8323A"/><stop offset="1" stop-color="#93262B"/></linearGradient><linearGradient id="pvSilver" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6E6E73"/><stop offset=".5" stop-color="#D4D4D8"/><stop offset="1" stop-color="#7A7A7F"/></linearGradient></defs><path fill="url(#pvRed)" d="M2,40 C2,0 18,5 40,30 L490,482 C508,498 515,505 515,522 L515,640 C515,662 510,668 490,648 L165,322 C140,295 120,270 118,292 L118,738 C118,758 122,764 140,780 L218,858 C228,868 230,872 230,890 L230,1010 C230,1032 222,1030 200,1008 L12,818 C4,810 2,806 2,792 Z"/><path fill="url(#pvSilver)" transform="rotate(180 360 588)" d="M2,40 C2,0 18,5 40,30 L490,482 C508,498 515,505 515,522 L515,640 C515,662 510,668 490,648 L165,322 C140,295 120,270 118,292 L118,738 C118,758 122,764 140,780 L218,858 C228,868 230,872 230,890 L230,1010 C230,1032 222,1030 200,1008 L12,818 C4,810 2,806 2,792 Z"/></svg></span>
+    <div class="gh-crumbs">
+      <span class="gh-crumb">Nilma Contabilidade</span>
+      <span class="gh-sep" aria-hidden="true">/</span>
+      <span class="gh-crumb">Privacidade</span>
+    </div>
+  </div>
+</header>
 <main>
   <h1>Política de Privacidade</h1>
   <p class="data">Nilma Contabilidade. Atualizada em 23 de setembro de 2026.</p>

@@ -14,313 +14,307 @@
 <script src="nilma-ui.js?v=343"></script>
 <link rel="stylesheet" href="nilma-ui.css?v=343">
 <style>
-/* Tokens, base e componentes (botão, cartão, campo, chip, selo, aviso) vêm de
-   nilma-ui.css, gerado do entregas.html. Aqui fica só o que é do LCDPR:
-   a tabela de lançamentos, a área de arrastar arquivo e as etiquetas.
-   Fonte é a do sistema (vem da folha): nada de letter-spacing nem peso 500
-   — Segoe UI não tem 500, a hierarquia é só 400 e 600. */
-h2 { font-size: var(--t-lg); line-height: var(--lh); margin: 0 0 var(--esp-2); }
-h3 { font-size: var(--t-md); margin: 0 0 var(--esp-2); }
-a { color: var(--accent-forte); }
+/* Importador LCDPR — só o que é desta página. Tokens, casca, caixa (.card,
+   .card.caixa), botões, campos, tabela, selos, dobra, janela e aviso vêm de
+   nilma-ui.css (visual da Conferência Contábil). */
 
-.registro-import { margin-bottom: var(--esp-4); }
-.registro-tab td { padding: 6px 8px; }
-/* Nome de arquivo vem sem espaço (Relatorio_Detalhamento_..._fazenda.xlsx):
-   sem quebrar em qualquer ponto ele empurra a página pro lado no celular. */
+/* ---------- área de conteúdo (= main.main > .content da Conferência) ---------- */
+.lcdpr-conteudo { min-width: 0; padding: 0 32px 64px; }
+.screen { max-width: 1216px; margin: 0 auto; }
+@media (max-width: 767px) { .lcdpr-conteudo { padding: 0 16px 48px; } }
+/* com submenu, o título é o do grupo; o de cada categoria some */
+.screen.com-submenu > section > .nilma-topo { display: none; }
+
+.small { font-size: 12px; line-height: 1.5; color: var(--ink-muted); }
+.truncate { display: block; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------- portão de acesso (= entrada da Conferência) ---------- */
+.gate {
+  position: fixed; inset: 0; z-index: var(--z-tela); overflow-y: auto;
+  display: flex; justify-content: center; align-items: flex-start;
+  padding: 40px 16px; background: var(--bg);
+}
+.gate-box { width: 100%; max-width: 340px; text-align: center; }
+.gate-logo svg { display: block; height: 48px; width: auto; margin: 0 auto 20px; }
+.gate-box h1 { font-size: 24px; font-weight: 400; line-height: 1.25; color: var(--ink); margin: 0 0 20px; }
+.gate-card {
+  padding: 16px; text-align: left; background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: 6px;
+}
+.gate-card #gateMsg { margin: 0; font-size: 14px; line-height: 1.5; color: var(--ink); }
+.gate-card #gateAction { margin: 0; }
+.gate-card #gateAction:not(:empty) { margin-top: 12px; }
+.gate-card #gateAction .btn { width: 100%; }
+
+/* ---------- importação (= card "Importar …" da Conferência) ---------- */
+.lcdpr-import .dropzone { width: 100%; min-height: 40px; color: var(--ink-muted); transition: border-color .12s ease, background-color .12s ease, color .12s ease; }
+.lcdpr-import .dropzone .ph { font-size: 16px; flex: none; }
+.lcdpr-import .dropzone .big { color: inherit; }
+.lcdpr-import .dropzone:hover .big, .lcdpr-import .dropzone.drag .big { color: inherit; }
+.lcdpr-import .dropzone.drag { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-ink); }
+.lcdpr-import .dropzone.lendo { opacity: .7; pointer-events: none; }
+.lcdpr-import .dropzone.carregando { cursor: default; opacity: .7; }
+.lcdpr-import .dropzone.carregando:hover { border-color: var(--border-strong); color: var(--ink-muted); }
+.lcdpr-import .dropzone .btn-spinner { width: 14px; height: 14px; }
+.lcdpr-import > .hint { margin: 8px 0 0; }
+
+/* ---------- caixa recolhível (arquivos lidos, backup e limpeza) ---------- */
+details.card.caixa > summary.card-head-row { list-style: none; cursor: pointer; user-select: none; }
+details.card.caixa > summary.card-head-row::-webkit-details-marker { display: none; }
+details.card.caixa > summary.card-head-row::after {
+  content: ""; flex: none; width: 6px; height: 6px; margin: 0 4px 3px 0;
+  border-right: 1.5px solid var(--ink-muted); border-bottom: 1.5px solid var(--ink-muted);
+  transform: rotate(45deg); transition: transform .12s ease;
+}
+details.card.caixa[open] > summary.card-head-row::after { transform: rotate(-135deg); margin-bottom: -3px; }
+details.card.caixa > summary.card-head-row:hover { background: var(--hover-bg); }
+details.card.caixa:not([open]) > summary.card-head-row { border-bottom: none; border-radius: 6px; }
+
+/* arquivos lidos nesta sessão (resumo em lista da Conferência) */
 .registro-tab td:first-child { overflow-wrap: anywhere; }
-.badge-erro { color: var(--danger); font-weight: 600; }
-.dropzone.lendo { opacity: .7; pointer-events: none; }
+.registro-tab td:nth-child(2) { color: var(--ink-muted); white-space: nowrap; }
+.registro-tab td:last-child { text-align: right; white-space: nowrap; width: 1%; }
+.registro-tab .small { font-size: 14px; }
+.badge-erro { color: var(--destructive); }
 
-/* No celular, 8 colunas não cabem: a linha vira cartão e o rótulo da coluna
-   vem junto do dado. Os alvos sobem pra 44px — é dedo, não mouse. */
-@media (max-width: 800px) {
-  .tablewrap { overflow-x: visible; }
-  /* Tabela e tbody viram bloco: senão a tabela mede a largura mínima pela
-     opção mais comprida do select e o cartão passa da borda (sem rolagem,
-     porque o body corta o que sobra) — some a seta do select e a borda. */
-  table.t, table.t tbody { display: block; }
-  table.t thead { display: none; }
-  table.t tr { display: block; padding: var(--esp-3) 0; border-bottom: 1px solid var(--border); }
-  table.t td { display: flex; gap: var(--esp-2); align-items: center; padding: 3px 0; border: none; text-align: left !important; }
-  table.t td[data-rot]::before { content: attr(data-rot); flex: none; min-width: 96px; font-size: var(--t-xs); color: var(--ink-faint); }
-  table.t td select, table.t td .tbl-input { width: 100%; min-width: 0; min-height: 44px; }
-  table.t td > .truncate { flex: 1; min-width: 0; max-width: none; }
-  .chev { min-width: 44px; min-height: 44px; }
-  .bulkbar select { min-width: 0; width: 100%; min-height: 44px; }
-  /* "table.t td" acima pesa mais que ".row-detail td": sem o table.t aqui o
-     detalhe aberto virava flex e espremia Histórico/Produto ao lado da grade. */
-  table.t .row-detail td { display: block; }
+/* ---------- caixa dos lançamentos ---------- */
+.lanc-caixa > .progresso-lcdpr,
+.lanc-caixa > .toolbar,
+.lanc-caixa > .bulkbar { margin: 0; padding: 8px 16px; border-bottom: 1px solid var(--border); }
+/* sem lançamento: só o cabeçalho e o vazio */
+.lanc-caixa.vazia > .toolbar, .lanc-caixa.vazia > .bulkbar,
+.lanc-caixa.vazia #toggleRevisar, .lanc-caixa.vazia thead { display: none; }
+
+/* progresso: "dá pra exportar?" */
+.progresso-lcdpr { padding-top: 12px !important; padding-bottom: 12px !important; }
+.progresso-topo {
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 12px;
+  font-size: 14px; font-weight: 600; line-height: 20px; margin-bottom: 8px;
 }
+.progresso-valor { color: var(--ink-muted); font-weight: 400; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.progresso-lcdpr .barra { height: 8px; border-radius: 6px; background: var(--surface-3); overflow: hidden; }
+.progresso-lcdpr .barra span { display: block; height: 100%; border-radius: inherit; background: var(--accent); transition: width .15s ease; }
+.progresso-pe { margin: 8px 0 0; }
+.progresso-pe strong { color: var(--danger); }
 
-/* pendências agrupadas: uma decisão para as notas que são a mesma coisa */
-.grupos-revisar { margin-bottom: var(--esp-4); }
+.toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.toolbar input[type=search] { flex: 1 1 320px; max-width: 480px; }
+.bulkbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; font-size: 14px; color: var(--ink-muted); }
+.bulkbar > span:first-child { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bulkbar select { width: 240px; max-width: 100%; }
+.bulkbar label.small { font-size: 14px; color: var(--ink); cursor: pointer; white-space: nowrap; }
+
+/* pendências agrupadas: uma decisão para notas que são a mesma coisa */
+.lanc-caixa > .grupos-revisar { border-bottom: 1px solid var(--border); }
 .grupo-revisar {
-  display: flex; gap: var(--esp-3); align-items: center; flex-wrap: wrap;
-  padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--r-sm);
-  background: var(--surface); margin-bottom: var(--esp-2);
+  display: flex; gap: 8px 16px; align-items: center; flex-wrap: wrap;
+  padding: 8px 16px; border-top: 1px solid var(--border-muted);
 }
-.grupo-topo { flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.grupo-topo .small { color: var(--ink-faint); }
-.grupo-revisar select { flex: 0 1 260px; }
+.grupo-revisar:first-child { border-top: none; }
+.grupo-revisar:hover { background: var(--surface-2); }
+.grupo-topo { flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; }
+.grupo-topo strong { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.grupo-revisar select { flex: 0 1 280px; width: 280px; }
 
-/* progresso da revisão: a pergunta é "dá pra exportar?", não "quantos são?" */
-.progresso-lcdpr { margin: var(--esp-4) 0; }
-.progresso-topo { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 var(--esp-3); font-size: var(--t-md); font-weight: 600; margin-bottom: 6px; }
-.progresso-valor { color: var(--ink-soft); font-weight: 400; font-variant-numeric: tabular-nums; white-space: nowrap; } /* "R$" não se separa do valor no celular */
-.progresso-lcdpr .barra { height: 8px; border-radius: var(--r-pill); background: var(--surface-2); overflow: hidden; }
-.progresso-lcdpr .barra span { display: block; height: 100%; background: var(--accent); border-radius: inherit; transition: width var(--dur) var(--ease); }
-.progresso-pe { margin: 6px 0 0; color: var(--ink-soft); }
+/* ---------- tabela (moram numa .card.caixa: a borda é a da caixa) ---------- */
+.tablewrap { overflow-x: auto; -webkit-overflow-scrolling: touch; background: var(--surface); }
+.card.caixa > .tablewrap:last-child { border-radius: 0 0 6px 6px; }
+.lanc-caixa > .tablewrap { max-height: 560px; overflow: auto; }
+table.t { width: 100%; }
+table.t th:first-child, table.t td:first-child { padding-left: 16px; }
+table.t th:last-child, table.t td:last-child { padding-right: 16px; }
 
-/* área de arrastar os relatórios do SIEG */
-.dropzone {
-  border: 1px dashed var(--border-forte); border-radius: var(--r-md); background: var(--surface);
-  padding: var(--esp-6) var(--esp-4); text-align: center; color: var(--ink-faint); cursor: pointer;
-  margin-bottom: var(--esp-4); transition: border-color var(--dur) var(--ease), background-color var(--dur) var(--ease);
+/* lançamentos: linha de 40px (célula 4px + campo 32px) */
+.lanc-caixa table.t thead th { padding: 8px 12px; position: sticky; top: 0; z-index: 1; }
+.lanc-caixa table.t tbody td { padding: 4px 12px; height: 40px; }
+.lanc-caixa table.t td:first-child, .lanc-caixa table.t th:first-child { width: 1%; padding-right: 4px; }
+.lanc-caixa table.t td[data-rot="Categoria"] select { min-width: 200px; }
+.lanc-caixa table.t td[data-rot="Data"] { color: var(--ink-muted); }
+table.t tbody tr.revisar { background: var(--danger-soft); }
+table.t tbody tr.lanc-vazio:hover { background: none; }
+.lanc-caixa table.t tbody tr.lanc-vazio > td { width: auto; height: auto; padding: 24px 16px; }
+.status-cell { display: flex; flex-wrap: nowrap; gap: 4px; align-items: center; white-space: nowrap; }
+
+/* etiquetas = .badge (pílula de contorno) */
+.tag {
+  display: inline-block; font-size: 12px; font-weight: 500; line-height: 18px; padding: 0 7px;
+  border: 1px solid var(--border); border-radius: 2em; white-space: nowrap; color: var(--ink-muted); background: none;
 }
-.dropzone:hover, .dropzone.drag { border-color: var(--accent); background: var(--accent-soft); color: var(--ink-soft); }
-.dropzone .big { font-size: var(--t-md); color: var(--ink); font-weight: 600; margin-bottom: 4px; }
+.tag-warn { color: var(--danger); border-color: var(--danger); }
+.tag-ncm { color: var(--success); border-color: var(--success); }
 
-/* números do topo: sem caixa dentro de caixa, só uma régua de 1px entre eles */
-.stats { display: flex; flex-wrap: wrap; gap: var(--esp-5); padding: 0 0 var(--esp-4); margin-bottom: var(--esp-4); border-bottom: 1px solid var(--border); }
-/* número de contagem é sans com dígitos de mesma largura; mono fica pra CNPJ */
-.stat b { display: block; font-size: var(--t-2xl); font-weight: 600; font-variant-numeric: tabular-nums; line-height: var(--lh-tight); }
-.stat span { font-size: var(--t-sm); color: var(--ink-faint); }
-
-.toolbar { display: flex; gap: var(--esp-2); flex-wrap: wrap; align-items: center; margin-bottom: var(--esp-3); }
-.toolbar input[type=search] { min-width: 260px; flex: 1 1 260px; }
-.bulkbar {
-  display: flex; gap: var(--esp-2); flex-wrap: wrap; align-items: center; margin-bottom: var(--esp-3);
-  padding: 8px 12px; background: var(--surface-2); border-radius: var(--r-md); font-size: var(--t-base); color: var(--ink-soft);
-}
-.bulkbar select { min-height: 34px; padding: 4px 8px; width: auto; min-width: 220px; max-width: 100%; }
-
-/* tabela de lançamentos */
-.tablewrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--r-md); }
-table.t { width: 100%; border-collapse: collapse; font-size: var(--t-base); }
-table.t th {
-  text-align: left; font-size: var(--t-sm); font-weight: 600; line-height: var(--lh-pill); color: var(--ink-soft); padding: 9px 10px;
-  border-bottom: 1px solid var(--border); white-space: nowrap; position: sticky; top: 0; background: var(--surface); z-index: 1;
-}
-table.t td { padding: 7px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
-table.t tbody tr:last-child td { border-bottom: 0; }
-table.t tbody tr:hover { background: var(--surface-2); }
-table.t tbody tr.revisar { background: var(--warning-soft); }
-.tbl-input { width: 100%; min-width: 70px; background: transparent; border: 1px solid transparent; padding: 4px 6px; border-radius: var(--r-xs); min-height: 32px; }
-.tbl-input:hover { border-color: var(--border); }
-.tbl-input:focus { background: var(--surface); border-color: var(--accent); box-shadow: none; }
-textarea.tbl-input { resize: vertical; min-height: 38px; font-family: inherit; }
-tr.row-detail td { background: var(--surface-2); padding: var(--esp-4); }
-tr.row-detail-hidden { display: none; }
-/* Coluna mínima em rem (cresce com "Texto maior") e larga o bastante pro
-   CPF/CNPJ de 18 caracteres em mono: com 150px ele saía "12.345.678/000".
-   O min(100%…) deixa uma coluna só no celular estreito. */
-.detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); gap: var(--esp-3); margin-bottom: var(--esp-3); }
-.detail-field label { display: block; font-size: var(--t-sm); font-weight: 600; color: var(--ink-soft); margin-bottom: 4px; }
-.detail-field input, .detail-field textarea { width: 100%; }
-.status-cell { display: flex; flex-direction: column; gap: 3px; align-items: flex-start; }
-
-/* etiquetas: o mesmo formato do selo de situação do Entregas */
-.tag { display: inline-flex; align-items: center; font-size: var(--t-xs); line-height: var(--lh-pill); padding: 1px 8px; border-radius: var(--r-pill); font-weight: 600; }
-.tag-nf { background: var(--accent-soft); color: var(--accent-forte); }
-.tag-cte { background: var(--accent-2-soft); color: var(--accent-2-forte, var(--accent-2)); }
-.tag-warn { background: var(--warning-soft); color: var(--warning-forte); }
-.tag-ncm { background: var(--success-soft); color: var(--success-forte); }
-.tag-palavra { background: var(--accent-soft); color: var(--accent-forte); }
-.tag-manual { background: var(--accent-2-soft); color: var(--accent-2-forte, var(--accent-2)); }
-.tag-neutro { background: var(--surface-2); color: var(--ink-faint); }
-
-.small { font-size: var(--t-sm); color: var(--ink-faint); }
-/* mono só pro que se lê dígito a dígito: CPF/CNPJ e códigos. Data e valor usam .num */
-.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
-.twocol { display: grid; grid-template-columns: 1fr 1fr; gap: 0 var(--esp-5); }
-@media (max-width: 900px) { .twocol { grid-template-columns: 1fr; } }
-/* rótulo de campo: 14/600 na cor do texto, igual ao do Entregas */
-.field label { display: block; font-size: var(--t-base); font-weight: 600; color: var(--ink); margin-bottom: 5px; }
-.field input, .field select { width: 100%; }
+/* abrir detalhes */
 .chev {
-  width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center;
-  border-radius: var(--r-sm); background: none; border: 1px solid transparent; color: var(--ink-faint); cursor: pointer;
+  width: 28px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center;
+  border: none; border-radius: 6px; background: none; color: var(--ink-muted); cursor: pointer;
 }
+.chev .ph { font-size: 16px; transition: transform .12s ease; }
+.chev:hover { background: var(--hover-bg); color: var(--ink); }
+.chev.open .ph { transform: rotate(90deg); }
+.chev.open { color: var(--ink); }
 
-/* ---------- telas de cadastro (Classificação e Configuração geral) ----------
-   Mesmo desenho das configurações do Entregas: formulário é seção plana com
-   "subhead" (título + régua), lista comprida é caixa do GitHub (.card.caixa,
-   de nilma-ui.css) com contador e o "+ Novo" no cabeçalho. */
-.subhead {
-  display: flex; align-items: center; gap: var(--esp-2); font-size: var(--t-lg); font-weight: 600; line-height: var(--lh-tight);
-  margin: var(--esp-5) 0 var(--esp-3); padding-bottom: var(--esp-2); border-bottom: 1px solid var(--border);
-}
-.nilma-topo + .subhead { margin-top: 0; }
-/* campos lado a lado no PC, um por linha no celular; sem esticar até 1180px */
-.cfg-campos { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr)); gap: var(--esp-3) var(--esp-4); max-width: 46rem; }
-/* imóvel e tipo de lançamento têm nomes compridos: na meia largura cortavam */
-.cfg-campos .largo { grid-column: 1 / -1; }
-/* Uma seta só para os selects dos ajustes (formulário e tabelas): o Chromium
-   desenha setas diferentes conforme o fundo do campo, e o mesmo componente
-   parecia dois. A seta usa a cor do texto, então vale no modo escuro. */
-.cfg-tela select, table.t-cfg select.tbl-input {
-  appearance: none; -webkit-appearance: none; padding-right: 30px;
-  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
-  background-position: calc(100% - 17px) 50%, calc(100% - 12px) 50%;
-  background-size: 5px 5px, 5px 5px; background-repeat: no-repeat;
-  text-overflow: ellipsis;
-}
-/* o que se usa uma vez na vida (backup, limpar) fica dobrado no pé */
-.cfg-raro { margin-top: var(--esp-6); padding-top: var(--esp-2); border-top: 1px solid var(--border); }
-.cfg-raro > summary { min-height: var(--alvo); }
-.cfg-raro-acoes { display: flex; flex-wrap: wrap; gap: var(--esp-2); align-items: center; margin-top: var(--esp-2); }
-.cfg-raro-acoes .sep { flex: 1; }
-/* mesma altura dos botões do cabeçalho das caixas; 44px de toque no celular */
-@media (min-width: 801px) { .cfg-raro-acoes .btn-chip { min-height: 32px; } }
-/* Configuração geral: coluna de formulário, não a largura toda do monitor */
-.cfg-tela > :not(.nilma-topo) { max-width: 46rem; }
+tr.row-detail > td { background: var(--surface-2); padding: 16px !important; height: auto; border-top: 1px solid var(--border-muted); }
+table.t tbody tr.row-detail:hover { background: none; }
+.lanc-caixa table.t tbody tr.row-detail > td { width: auto; }
+.detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); gap: 12px 16px; margin-bottom: 12px; }
+.detail-field label { display: block; font-size: 14px; font-weight: 600; line-height: 20px; color: var(--ink); margin-bottom: 6px; }
 
-/* a tabela mora dentro da caixa: a borda é a da caixa */
-.card.caixa > .tablewrap { border: 0; border-radius: 0 0 var(--r-md) var(--r-md); }
-.card.caixa > .card-head-row .input { width: auto; flex: 0 1 16rem; min-height: 32px; padding: 4px 8px; font-size: var(--t-base); }
-.card.caixa > .card-head-row .btn-chip { min-height: 32px; }
-/* variáveis do histórico sempre à vista, como as do modelo de e-mail das Pendências */
+/* campo dentro de tabela: o desenho (também sem type e com .mono) é da fundação */
+.tbl-input { min-width: 64px; margin: 0; transition: border-color .12s ease, box-shadow .12s ease, background-color .12s ease; }
+textarea.tbl-input { display: block; resize: vertical; min-height: 56px; }
+.tbl-input:not(:focus) { box-shadow: none; }
+
+/* ---------- cadastros (Classificação e Tabelas de apoio) ---------- */
+.card.caixa > .card-head-row .input {
+  width: auto; flex: 0 1 16rem; min-height: 28px; padding: 3px 8px; font-size: 12px; line-height: 20px;
+}
+/* variáveis do histórico sempre à vista */
 .caixa-vars {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: var(--esp-2) var(--esp-3);
-  border-bottom: 1px solid var(--border); font-size: var(--t-sm); color: var(--ink-faint);
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; padding: 8px 16px;
+  border-bottom: 1px solid var(--border); font-size: 12px; color: var(--ink-muted);
 }
 .caixa-vars code {
-  font-family: var(--font-mono); font-size: var(--t-sm); color: var(--ink); background: var(--surface-2);
-  border: 1px solid var(--border); border-radius: var(--r-xs); padding: 0 6px;
+  font-size: 12px; line-height: 18px; color: var(--ink); background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: 6px; padding: 0 6px;
 }
-.tabelas-apoio { align-items: start; }
-
-/* Linha de ~40px: td 3px + campo 32px. O campo parece texto até passar o
-   mouse na linha ou focar — 125 linhas com borda viram uma grade de caixas.
-   O th começa onde começa o texto do campo (8px + borda + 6px). */
-table.t-cfg th { padding: 6px 8px 6px 15px; background: var(--surface); }
-table.t-cfg td { padding: 3px 8px; }
-table.t-cfg .tbl-input { min-height: 32px; padding: 4px 6px; font-size: var(--t-base); }
-table.t-cfg select.tbl-input { width: 100%; background-color: transparent; }
-/* texto longo quebra a linha e cresce com o texto; com uma linha só fica da
-   altura dos outros campos (32px) e a linha continua com ~40px */
+/* a tabela de cadastro cresce com a página: o cabeçalho gruda sob a barra de cima */
+.card.caixa > .tablewrap:has(> table.t-cfg) { overflow: visible; }
+table.t-cfg thead th { position: sticky; top: var(--topo-total); z-index: 1; padding: 8px 8px 8px 21px; }
+table.t-cfg thead th:first-child { padding-left: 29px; }
+table.t-cfg tbody td { padding: 4px 8px; }
+/* o campo parece texto até passar o mouse na linha ou focar */
+table.t-cfg .tbl-input { background-color: transparent; border-color: transparent; padding: 5px 12px; }
+table.t-cfg select.tbl-input { padding-right: 32px; text-overflow: ellipsis; }
+table.t-cfg tbody tr:hover .tbl-input { border-color: var(--border); background-color: var(--surface); }
+table.t-cfg .tbl-input:focus { background-color: var(--surface); }
 table.t-cfg textarea.tbl-longo {
-  display: block; resize: none; overflow: hidden; field-sizing: content;
-  min-height: 32px; line-height: 22px; padding: 4px 6px; font-family: inherit;
+  display: block; resize: none; overflow: hidden; field-sizing: content; min-height: 32px;
 }
-table.t-cfg tbody tr:hover .tbl-input { border-color: var(--border); }
-/* o filtro esconde a linha com [hidden]; a grade do celular venceria o display do navegador */
 table.t-cfg tr[hidden] { display: none !important; }
 table.t-cfg .c-cod { width: 6rem; }
 table.t-cfg .c-conta { width: 5.5rem; }
 table.t-cfg .c-hist { width: 6.5rem; }
 table.t-cfg .c-nome { width: 16rem; }
 table.t-cfg .c-clas { width: 10rem; }
-table.t-cfg .c-tipo { width: 8.5rem; }
+table.t-cfg .c-tipo { width: 9rem; }
 table.t-cfg .c-ie { width: 10rem; }
-table.t-cfg .c-del { width: 3rem; text-align: center; }
+table.t-cfg .c-del { width: 48px; text-align: center; padding-left: 0 !important; }
+/* × só se destaca ao passar o mouse (lista de itens da Conferência) */
 table.t-cfg .del {
-  width: 28px; height: 28px; display: inline-grid; place-items: center; border: 1px solid var(--border); border-radius: var(--r-sm);
-  background: var(--surface); color: var(--ink-soft); cursor: pointer; font-size: var(--t-sm);
+  width: 28px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center;
+  border: none; border-radius: 6px; background: none; color: var(--ink-muted); cursor: pointer;
 }
-table.t-cfg .del:hover { color: var(--danger-forte); border-color: var(--danger); background: var(--danger-soft); }
-table.t-cfg .vazio td { text-align: center; color: var(--ink-faint); padding: var(--esp-4); }
+table.t-cfg .del .ph { font-size: 14px; }
+table.t-cfg .del:hover { background: var(--destructive-soft); color: var(--destructive); }
+table.t-cfg tr.vazio > td { text-align: center; color: var(--ink-muted); padding: 24px 16px; }
 table.t-cfg tbody tr.vazio:hover { background: none; }
-/* Larguras fixas por coluna e o histórico/nome com o resto: sem isso, em
-   1024px com texto maior a tabela passava da caixa e o ✕ só aparecia
-   rolando de lado. */
 @media (min-width: 801px) { table.t-cfg { table-layout: fixed; } }
-/* notebook e texto maior: o histórico quebra a linha e precisa da sobra —
-   com 11rem de nome ele ficava com ~200px e partia palavra no meio */
 @media (min-width: 801px) and (max-width: 1100px) {
   table.t-cfg .c-nome { width: 9rem; }
   table.t-cfg .c-conta { width: 4.5rem; }
   table.t-cfg .c-hist { width: 5.5rem; }
 }
-/* nome da categoria é o que identifica a linha: 16rem quebrava "Adubos,
-   Defensivos e Fertilizantes"; mais que 18rem tirava espaço do histórico */
 @media (min-width: 1101px) { table.t-cfg.t-cat .c-nome { width: 18rem; } }
 
-/* Celular: cada linha vira uma grade de 2–3 faixas (em vez de uma linha por
-   célula, que dava 320px por regra). O cabeçalho some: na grade ele virava
-   uma pilha de rótulos soltos; quem nomeia o campo é o rótulo de 12px em
-   cima dele (data-rot da célula) — preenchido, "805 | 91011" não dizia qual
-   era a conta e qual o cód. hist. */
-@media (max-width: 800px) {
-  table.t.t-cfg thead { display: none; }
-  /* topo: rótulos na mesma altura mesmo com a descrição em 3 linhas; o ✕
-     desce 18px (o rótulo) pra alinhar com o 1º campo da faixa */
-  table.t.t-cfg tr { display: grid; gap: 6px 8px; padding: 6px 12px; border-bottom: 1px solid var(--border); align-items: start; }
-  table.t.t-cfg td[data-rot]::before { display: block; min-width: 0; margin-bottom: 2px; font-size: var(--t-xs); line-height: 16px; color: var(--ink-soft); }
-  table.t.t-cfg tbody tr:last-child { border-bottom: 0; }
-  table.t.t-cfg td { display: block; padding: 0; border: 0; min-width: 0; width: auto; }
-  table.t.t-cfg td.c-del { justify-self: end; padding-top: 18px; }
-  table.t.t-cfg .vazio { display: block; }
-  table.t.t-cfg .vazio td { padding: var(--esp-3) 0; }
-  table.t.t-cfg .tbl-input { min-height: 44px; width: 100%; border-color: var(--border); background-color: var(--surface-2); font-size: var(--t-md); }
-  table.t.t-cfg textarea.tbl-longo { padding: 10px 8px; }
-  table.t.t-cfg .del { width: 44px; height: 44px; }
-  .card.caixa > .card-head-row .input { order: 3; flex: 1 1 100%; min-height: 44px; font-size: var(--t-md); }
-  .card.caixa > .card-head-row .btn-chip { min-height: 44px; }
-  /* Colunas só em fração (nada de rem fixo): com 4rem/7.5rem/9rem, em 320px
-     e texto maior, o nome da conta e o select do imóvel ficavam com 0px. */
-  table.t.t-2 tr { grid-template-columns: 3.5rem minmax(0,1fr) 44px; }
-  /* IE tem 12–14 dígitos: ganha a linha de cima inteira, o imóvel vai embaixo */
-  table.t.t-ie tr { grid-template-columns: minmax(0,1fr) 44px; grid-template-areas: "a e" "b b"; }
-  table.t.t-ncm tr, table.t.t-cat tr { grid-template-columns: minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 44px; }
-  /* plano: o nome (o que identifica a conta) e o ✕ em cima, com a linha
-     toda; código curto, classificação e tipo embaixo */
-  table.t.t-plano tr { grid-template-columns: minmax(0,2fr) minmax(0,3fr) minmax(0,3fr) 44px; grid-template-areas: "b b b e" "a c d d"; }
-  /* em 320px não cabem código, "Disponível" e "Analítica" lado a lado: o
-     tipo desce pra uma linha própria e código/classificação dividem a do meio */
-  @media (max-width: 360px) { table.t.t-plano tr { grid-template-areas: "b b b e" "a a c c" "d d d d"; } }
-  /* NCM, conta e cód. hist. em cima (o cód. hist. de 5 dígitos leva a sobra);
-     histórico e ✕ embaixo */
-  table.t.t-ncm tr { grid-template-areas: "a b c c" "d d d e"; }
-  /* conta e cód. hist. dividem a linha do meio (com 1/4 cada, o cód. hist.
-     de 5 dígitos cortava em 320px com texto maior) */
-  table.t.t-cat tr { grid-template-areas: "a a a e" "b b c c" "d d d d"; }
-  :is(table.t.t-plano, table.t.t-ncm, table.t.t-cat, table.t.t-ie) :is(th, td):nth-child(1) { grid-area: a; }
-  :is(table.t.t-plano, table.t.t-ncm, table.t.t-cat, table.t.t-ie) :is(th, td):nth-child(2) { grid-area: b; }
-  :is(table.t.t-plano, table.t.t-ncm, table.t.t-cat) :is(th, td):nth-child(3) { grid-area: c; }
-  :is(table.t.t-plano, table.t.t-ncm, table.t.t-cat) :is(th, td):nth-child(4) { grid-area: d; }
-  :is(table.t.t-plano, table.t.t-ncm, table.t.t-cat) :is(th, td):nth-child(5), table.t.t-ie :is(th, td):nth-child(3) { grid-area: e; }
-  :is(table.t.t-plano, table.t.t-ncm, table.t.t-cat, table.t.t-ie) .vazio td { grid-area: auto; }
-}
-.chev:hover { background: var(--surface-2); color: var(--ink); }
-.chev.open { transform: rotate(90deg); }
-.badge-count { background: var(--accent); color: var(--accent-ink); font-size: var(--t-xs); font-weight: 600; line-height: var(--lh-pill); font-variant-numeric: tabular-nums; border-radius: var(--r-pill); padding: 0 6px; margin-left: 6px; }
-.truncate { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
-.toast { right: 20px; left: auto; bottom: 20px; transform: none; max-width: 360px; }
-.toast.show { transform: none; pointer-events: auto; }  /* o "Desfazer" precisa receber o clique */
-/* botão do aviso na cor do texto do aviso: vale no claro (fundo escuro) e no escuro */
-.toast-acao {
-  margin-left: 10px; min-height: 32px; padding: 4px 10px; border: 1px solid currentColor; border-radius: var(--r-sm);
-  background: transparent; color: inherit; font-weight: 600; cursor: pointer;
-}
-.toast-acao:hover { text-decoration: underline; }
-@media (max-width: 800px) { .toast-acao { min-height: 44px; } }
+.twocol { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 16px; align-items: start; }
+@media (max-width: 1100px) { .twocol { grid-template-columns: minmax(0, 1fr); } }
 
-/* porta de entrada (sem login ainda) */
-.gate { position: fixed; inset: 0; z-index: 200; display: flex; align-items: center; justify-content: center; background: var(--bg); padding: 20px; }
-.gate[hidden], #app[hidden] { display: none; }
-.gate-box { max-width: 380px; text-align: center; }
-.gate-box h1 { font-size: var(--t-xl); margin-bottom: 6px; }
-.gate-box p { color: var(--ink-soft); font-size: var(--t-base); margin: 0 0 var(--esp-2); }
-/* Moldura comum (nilma-shell.js): barra de cima + abas. As abas do LCDPR têm
-   rótulos de grupo e, no pé, o estado da nuvem (só no PC). */
-.tabs-grupo { font-size: var(--t-sm); font-weight: 600; line-height: var(--lh-pill); color: var(--ink-soft); padding: var(--esp-4) 12px 4px; }
-.tabs-grupo:first-child { padding-top: var(--esp-2); }
-.tabs-pe { margin-top: auto; padding: var(--esp-3) 12px; font-size: var(--t-xs); color: var(--ink-faint); border-top: 1px solid var(--border); }
-@media (max-width: 899px) { .tabs-grupo, .tabs-pe { display: none; } }
-/* com submenu, o título é o do menu; o de cada categoria some */
-.screen.com-submenu > section > .nilma-topo { display: none; }
-.lcdpr-conteudo { max-width: 1180px; margin: 0 auto; padding: var(--esp-5) var(--esp-4) var(--esp-6); }
-@media (min-width: 900px) { .lcdpr-conteudo { padding: var(--esp-5) var(--esp-6) var(--esp-6); } }
+/* ---------- Configuração geral ---------- */
+.cfg-campos { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr)); gap: 16px; max-width: 46rem; }
+.cfg-campos .largo { grid-column: 1 / -1; }
+.cfg-campos .field { margin: 0; }
+.cfg-raro-acoes { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 16px; }
+.cfg-raro-acoes .sep { flex: 1; }
+
+/* ---------- aviso com "Desfazer" (toast da folha, canto de baixo à esquerda) ---------- */
+.toast-acao {
+  margin: -4px -8px -4px 8px; min-height: 28px; padding: 3px 8px; vertical-align: baseline;
+  border: none; border-radius: 6px; background: none; color: var(--accent);
+  font: inherit; font-size: 14px; font-weight: 500; cursor: pointer;
+}
+.toast-acao:hover { background: var(--hover-bg); }
+
+/* ---------- celular ---------- */
+@media (max-width: 800px) {
+  /* lançamentos: cada linha vira um bloco; o rótulo da coluna vem junto do dado */
+  .lanc-caixa > .tablewrap { max-height: none; overflow: visible; }
+  .lanc-caixa table.t, .lanc-caixa table.t tbody { display: block; }
+  .lanc-caixa table.t thead { display: none; }
+  .lanc-caixa table.t tbody tr:not(.row-detail):not(.lanc-vazio) {
+    display: grid; grid-template-columns: 24px minmax(0, 1fr) 28px; gap: 4px 8px; align-items: center;
+    padding: 12px 16px; border-top: 1px solid var(--border-muted);
+  }
+  .lanc-caixa table.t tbody tr:first-child { border-top: none; }
+  .lanc-caixa table.t tbody td { display: block; height: auto; padding: 0 !important; border: none; width: auto; }
+  .lanc-caixa table.t tbody td:nth-child(1) { grid-column: 1; grid-row: 1; }
+  .lanc-caixa table.t tbody td:nth-child(2) { grid-column: 2; grid-row: 1; }
+  .lanc-caixa table.t tbody td:nth-child(8) { grid-column: 3; grid-row: 1; }
+  .lanc-caixa table.t tbody td[data-rot] {
+    grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; text-align: left !important;
+  }
+  .lanc-caixa table.t td[data-rot]::before {
+    content: attr(data-rot); flex: none; width: 88px; font-size: 12px; color: var(--ink-muted);
+  }
+  .lanc-caixa table.t td[data-rot] > select, .lanc-caixa table.t td[data-rot] > .truncate { flex: 1; min-width: 0; max-width: none; }
+  .lanc-caixa table.t td[data-rot="Categoria"] select { min-width: 0; width: 100%; }
+  .lanc-caixa table.t tr.row-detail, .lanc-caixa table.t tr.row-detail > td,
+  .lanc-caixa table.t tr.lanc-vazio, .lanc-caixa table.t tr.lanc-vazio > td { display: block; }
+  .lanc-caixa table.t tr.row-detail > td { padding: 12px 16px !important; }
+  .lanc-caixa table.t tbody tr.lanc-vazio > td { padding: 24px 16px !important; }
+  .toolbar input[type=search] { max-width: none; }
+  .bulkbar select { flex: 1 1 100%; min-width: 0; }
+  .grupo-revisar select { flex: 1 1 100%; width: 100%; }
+
+  /* arquivos lidos: nome em cima, o resto embaixo */
+  .registro-tab thead { display: none; }
+  .registro-tab, .registro-tab tbody { display: block; }
+  .registro-tab tbody tr { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 8px 16px; border-top: 1px solid var(--border-muted); }
+  .registro-tab tbody tr:first-child { border-top: none; }
+  .registro-tab tbody td { display: block; padding: 0 !important; border: none; }
+  .registro-tab td:first-child { flex: 1 1 100%; }
+  .registro-tab td:last-child { margin-left: auto; width: auto; }
+
+  /* cadastros: cada linha vira uma grade de 2–3 faixas, com o rótulo de
+     12px em cima de cada campo (data-rot) e os campos sempre desenhados */
+  .card.caixa > .card-head-row .input { order: 3; flex: 1 1 100%; }
+  table.t.t-cfg, table.t.t-cfg tbody { display: block; }
+  table.t.t-cfg thead { display: none; }
+  table.t.t-cfg tbody tr { display: grid; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--border-muted); align-items: start; }
+  table.t.t-cfg tbody tr:first-child { border-top: none; }
+  table.t.t-cfg td { display: block; padding: 0 !important; border: none; min-width: 0; width: auto; }
+  table.t.t-cfg td[data-rot]::before {
+    content: attr(data-rot); display: block; margin-bottom: 4px; font-size: 12px; line-height: 16px; color: var(--ink-muted);
+  }
+  table.t.t-cfg td.c-del { justify-self: end; padding-top: 22px !important; }
+  table.t.t-cfg .del { width: 32px; height: 32px; }
+  table.t.t-cfg .tbl-input { border-color: var(--border); background-color: var(--surface); }
+  table.t.t-cfg tr.vazio { display: block; }
+  table.t.t-2 tr { grid-template-columns: 4rem minmax(0, 1fr) 32px; }
+  table.t.t-ie tr { grid-template-columns: minmax(0, 1fr) 32px; grid-template-areas: "a e" "b b"; }
+  table.t.t-ncm tr, table.t.t-cat tr { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) 32px; }
+  table.t.t-plano tr { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) minmax(0, 3fr) 32px; grid-template-areas: "b b b e" "a c d d"; }
+  @media (max-width: 360px) { table.t.t-plano tr { grid-template-areas: "b b b e" "a a c c" "d d d d"; } }
+  table.t.t-ncm tr { grid-template-areas: "a b c c" "d d d e"; }
+  table.t.t-cat tr { grid-template-areas: "a a a e" "b b c c" "d d d d"; }
+  :is(table.t.t-plano, table.t.t-ncm, table.t.t-cat, table.t.t-ie) td:nth-child(1) { grid-area: a; }
+  :is(table.t.t-plano, table.t.t-ncm, table.t.t-cat, table.t.t-ie) td:nth-child(2) { grid-area: b; }
+  :is(table.t.t-plano, table.t.t-ncm, table.t.t-cat) td:nth-child(3) { grid-area: c; }
+  :is(table.t.t-plano, table.t.t-ncm, table.t.t-cat) td:nth-child(4) { grid-area: d; }
+  :is(table.t.t-plano, table.t.t-ncm, table.t.t-cat) td:nth-child(5), table.t.t-ie td:nth-child(3) { grid-area: e; }
+  :is(table.t.t-plano, table.t.t-ncm, table.t.t-cat, table.t.t-ie) tr.vazio td { grid-area: auto; }
+  table.t.t-ncm td.c-del, table.t.t-2 td.c-del { padding-top: 22px !important; }
+}
 </style>
 </head>
 <body>
 <div class="gate" id="gate" hidden>
   <div class="gate-box">
-    <div class="nilma-marca" style="justify-content:center;padding:0 0 var(--esp-4)"><div class="nilma-marca-sigla">N</div></div>
+    <span class="gate-logo" aria-hidden="true"><svg viewBox="0 0 720 1176"><use href="#nshLogo"/></svg></span>
     <h1 id="gateTitle">Conectando…</h1>
-    <p id="gateMsg">Só um instante.</p>
-    <p id="gateAction"></p>
+    <div class="gate-card">
+      <p id="gateMsg">Só um instante.</p>
+      <p id="gateAction"></p>
+    </div>
   </div>
 </div>
 <!-- Casca comum (barra de cima, menu ☰ e menu da conta): nilma-shell.js.
@@ -683,7 +677,7 @@ function startAccessCheck(){
   auth.onAuthStateChanged(async function(user){
     if(!user){
       showGate('Faça login', 'Entre pelo Entregas pra acessar o Importador LCDPR.',
-        '<a class="btn btn-secondary" href="entregas.html">Ir para o login →</a>');
+        '<a class="btn btn-primary" href="entregas.html">Ir para o login</a>');
       return;
     }
     try{
@@ -711,7 +705,7 @@ function startAccessCheck(){
         showAppAndStart();
       }else{
         showGate('Sem permissão', 'Sua conta não tem acesso ao Importador LCDPR. Peça pra um admin liberar o cargo Fiscal.',
-          '<a class="btn btn-secondary" href="entregas.html">Voltar ao Entregas →</a>');
+          '<a class="btn btn-secondary" href="entregas.html">Voltar ao Entregas</a>');
       }
     }catch(e){
       console.warn('Falha ao checar permissão', e);
@@ -1236,16 +1230,40 @@ function screenImportar(){
       <div>
         <h1>Importar relatórios do SIEG</h1>
       </div>
+      <div class="nilma-topo-acoes">
+        <button class="btn ${revisar || !total ? 'btn-secondary' : 'btn-primary'}" id="btnExport" ${total===0?'disabled':''}><i class="ph ph-download-simple" aria-hidden="true"></i>Baixar planilha .xls</button>
+      </div>
     </div>
 
-    ${!cloudReady ? `<div class="dropzone" style="cursor:default;opacity:.6">
-      <div class="big">Carregando dados da nuvem…</div>
-      <div class="small">Só um instante — evita perder algo que já foi importado em outro computador.</div>
-    </div>` : `<div class="dropzone" id="dropzone">
-      <div class="big">Clique para escolher os arquivos, ou arraste aqui</div>
-      <div class="small">.xlsx do Relatório de Detalhamento de Produtos e/ou do Relatório de CT-e (SIEG)</div>
-      <input type="file" id="fileInput" accept=".xlsx,.xls" multiple style="display:none">
-    </div>`}
+    <div class="card lcdpr-import">
+      <h3><span class="import-card-ico"><i class="ph ph-file-xls" aria-hidden="true"></i></span>Importar relatórios</h3>
+      ${!cloudReady ? `<div class="dropzone file-picker carregando">
+        <span class="btn-spinner" aria-hidden="true"></span><span class="big file-picker-name">Carregando dados da nuvem…</span>
+      </div>
+      <p class="hint">Só um instante — evita perder algo que já foi importado em outro computador.</p>` : `<div class="dropzone file-picker" id="dropzone">
+        <i class="ph ph-upload-simple" aria-hidden="true"></i><span class="big file-picker-name">Clique para escolher os arquivos, ou arraste aqui</span>
+        <input type="file" id="fileInput" accept=".xlsx,.xls" multiple style="display:none">
+      </div>
+      <p class="hint">.xlsx do Relatório de Detalhamento de Produtos e/ou do Relatório de CT-e (SIEG)</p>`}
+    </div>
+
+    ${(state.importacoes||[]).length ? `<details class="card caixa registro-import">
+      <summary class="card-head-row"><h2>Arquivos lidos nesta sessão <span class="contagem">${state.importacoes.length}</span></h2></summary>
+      <div class="tablewrap"><table class="t registro-tab">
+        <thead><tr><th>Arquivo</th><th>Lido em</th><th>Resultado</th><th></th></tr></thead>
+        <tbody>${state.importacoes.map(i=>`<tr>
+        <td>${esc(i.arquivo)}</td>
+        <td class="small">${new Date(i.em).toLocaleString('pt-BR')}</td>
+        <td class="small">${i.erro ? '<span class="badge-erro">'+esc(i.erro)+'</span>' : i.quantos + ' lançamento(s)'}</td>
+        <td>${i.ids && i.ids.length ? `<button class="btn btn-sm btn-danger" data-desfazer="${i.id}">Desfazer</button>` : (i.desfeita ? '<span class="small">desfeita</span>' : '')}</td>
+      </tr>`).join('')}</tbody></table></div>
+    </details>` : ''}
+
+    <div class="card caixa lanc-caixa${total ? '' : ' vazia'}">
+    <div class="card-head-row">
+      <h2>Lançamentos <span class="contagem">${total}</span></h2>
+      <button type="button" class="btn-chip${state.ui.showOnlyRevisar ? ' ativo' : ''}" id="toggleRevisar"><i class="ph ph-funnel" aria-hidden="true"></i>${state.ui.showOnlyRevisar? 'Mostrar todos' : 'Mostrar só REVISAR'}</button>
+    </div>
 
     <!-- Quanto falta revisar era um número solto. Agora é barra, que é o
          que responde "dá pra exportar?" sem a pessoa fazer conta. -->
@@ -1262,9 +1280,6 @@ function screenImportar(){
 
     <div class="toolbar">
       <input type="search" id="searchBox" placeholder="Buscar por fornecedor, documento, histórico…" value="${esc(state.ui.search)}">
-      <span style="flex:1"></span>
-      <button class="btn btn-secondary" id="toggleRevisar">${state.ui.showOnlyRevisar? 'Mostrar todos' : 'Mostrar só REVISAR'}</button>
-      <button class="btn ${revisar ? 'btn-secondary' : 'btn-primary'}" id="btnExport" ${total===0?'disabled':''}>Baixar planilha .xls</button>
     </div>
 
     <div class="bulkbar">
@@ -1285,25 +1300,17 @@ function screenImportar(){
         <select data-grupo="${esc(g.chave)}">${catOptions}</select>
       </div>`).join('')}
     </div>` : ''}
-    ${(state.importacoes||[]).length ? `<details class="dobra registro-import">
-      <summary>Arquivos lidos nesta sessão (${state.importacoes.length})</summary>
-      <table class="t registro-tab"><tbody>${state.importacoes.map(i=>`<tr>
-        <td>${esc(i.arquivo)}</td>
-        <td class="small">${new Date(i.em).toLocaleString('pt-BR')}</td>
-        <td class="small">${i.erro ? '<span class="badge-erro">'+esc(i.erro)+'</span>' : i.quantos + ' lançamento(s)'}</td>
-        <td>${i.ids && i.ids.length ? `<button class="btn btn-ghost" data-desfazer="${i.id}">Desfazer</button>` : (i.desfeita ? '<span class="small">desfeita</span>' : '')}</td>
-      </tr>`).join('')}</tbody></table>
-    </details>` : ''}
     <div class="tablewrap">
       <table class="t">
         <thead><tr>
-          <th></th><th style="width:110px">Status</th><th style="min-width:200px">Categoria rápida</th><th>Data</th>
-          <th style="min-width:170px">Fornecedor</th><th>Documento</th><th style="text-align:right">Valor</th><th style="width:34px"></th>
+          <th></th><th>Status</th><th>Categoria rápida</th><th>Data</th>
+          <th>Fornecedor</th><th>Documento</th><th class="num">Valor</th><th></th>
         </tr></thead>
         <tbody>
-        ${list.length? list.map(r=>rowHtml(r)).join('') : `<tr><td colspan="8" style="text-align:center;color:var(--ink-faint);padding:24px">Nenhum lançamento ainda. Importe um relatório acima.</td></tr>`}
+        ${list.length? list.map(r=>rowHtml(r)).join('') : `<tr class="lanc-vazio"><td colspan="8" class="empty">Nenhum lançamento ainda. Importe um relatório acima.</td></tr>`}
         </tbody>
       </table>
+    </div>
     </div>
   </section>`;
 }
@@ -1329,7 +1336,7 @@ function rowHtml(r){
     <td data-rot="Fornecedor"><span class="truncate" title="${esc(r.fornecedor)}">${esc(r.fornecedor)}</span></td>
     <td data-rot="Documento" style="white-space:nowrap">${esc(r.documento)}</td>
     <td data-rot="Valor" style="text-align:right;white-space:nowrap" class="num">${fmtMoney(r.valor)}</td>
-    <td style="text-align:center"><button class="chev${open?' open':''}" data-expand="${r.id}" title="Ver/editar detalhes">▸</button></td>
+    <td style="text-align:center"><button class="chev${open?' open':''}" data-expand="${r.id}" title="Ver/editar detalhes" aria-label="Ver/editar detalhes" aria-expanded="${open?'true':'false'}"><i class="ph ph-caret-right" aria-hidden="true"></i></button></td>
   </tr>`;
   if(!open) return compact;
   const detail = `<tr class="row-detail" data-row-detail="${r.id}"><td colspan="8">
@@ -1412,13 +1419,13 @@ function celTab(arr, i, f, v, rot, op){
   return `<td data-rot="${(op&&op.ph)||rot}">${campoTab(arr, i, f, v, rot, op)}</td>`;
 }
 function botaoRemover(arr, i){
-  return `<button type="button" class="del" data-del="${arr}" data-i="${i}" aria-label="Remover" title="Remover">✕</button>`;
+  return `<button type="button" class="del" data-del="${arr}" data-i="${i}" aria-label="Remover" title="Remover"><i class="ph ph-x" aria-hidden="true"></i></button>`;
 }
 function linhaVazia(cols, txt){ return `<tr class="vazio"><td colspan="${cols}">${txt}</td></tr>`; }
 function caixaCadastro(titulo, n, extraHead, addArr, addTxt, addRot, corpo){
   return `<div class="card caixa">
     <div class="card-head-row"><h2>${titulo} <span class="contagem">${n}</span></h2>${extraHead||''}` +
-    `<button type="button" class="btn-chip" data-add="${addArr}" aria-label="${addRot}">+ ${addTxt}</button></div>
+    `<button type="button" class="btn-chip" data-add="${addArr}" aria-label="${addRot}"><i class="ph ph-plus" aria-hidden="true"></i>${addTxt}</button></div>
     ${corpo}</div>`;
 }
 function tabelaCadastro(tipo, ths, linhas){
@@ -1571,12 +1578,13 @@ function screenConfig(){
   return `<section class="cfg-tela">
     <div class="nilma-topo"><div><h1>Configuração geral</h1></div></div>
 
-    <h2 class="subhead">Produtor</h2>
+    <div class="card"><h2>Produtor</h2>
     <div class="cfg-campos">
       <div class="field"><label for="cfgCpf">CPF/CNPJ</label><input type="text" id="cfgCpf" class="mono" inputmode="numeric" value="${esc(c.cpfProdutor)}"></div>
     </div>
+    </div>
 
-    <h2 class="subhead">Padrões do lançamento</h2>
+    <div class="card"><h2>Padrões do lançamento</h2>
     <div class="cfg-campos">
       <div class="field"><label for="cfgContaCred">Conta credora</label><input type="text" id="cfgContaCred" class="mono" value="${esc(c.contaCredoraPadrao)}"></div>
       <div class="field"><label for="cfgTipoDoc">Tipo de documento</label><select id="cfgTipoDoc">${opcoes(state.tipoDoc, c.tipoDocPadrao)}</select></div>
@@ -1584,15 +1592,16 @@ function screenConfig(){
       <div class="field largo"><label for="cfgTipoLanc">Tipo de lançamento</label><select id="cfgTipoLanc">${opcoes(state.tipoLanc, c.tipoLancPadrao)}</select></div>
       <div class="field"><label for="cfgCatFretes">Categoria do CT-e (frete)</label><select id="cfgCatFretes">${catOptions}</select></div>
     </div>
+    </div>
 
-    <details class="dobra cfg-raro" id="cfgRaro"${backupAberto?' open':''}>
-      <summary>Backup e limpeza</summary>
+    <details class="card caixa cfg-raro" id="cfgRaro"${backupAberto?' open':''}>
+      <summary class="card-head-row"><h2>Backup e limpeza</h2></summary>
       <div class="cfg-raro-acoes">
-        <button type="button" class="btn-chip" id="btnBackupExport">Exportar backup</button>
-        <button type="button" class="btn-chip" id="btnBackupImport">Importar backup</button>
+        <button type="button" class="btn" id="btnBackupExport"><i class="ph ph-download-simple" aria-hidden="true"></i>Exportar backup</button>
+        <button type="button" class="btn" id="btnBackupImport"><i class="ph ph-upload-simple" aria-hidden="true"></i>Importar backup</button>
         <input type="file" id="backupFile" accept=".json" hidden>
         <span class="sep"></span>
-        <button type="button" class="btn-chip danger" id="btnResetData">Limpar lançamentos importados</button>
+        <button type="button" class="btn btn-danger" id="btnResetData"><i class="ph ph-trash" aria-hidden="true"></i>Limpar lançamentos importados</button>
       </div>
     </details>
   </section>`;

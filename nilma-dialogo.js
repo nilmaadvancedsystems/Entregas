@@ -24,8 +24,9 @@
 
    Fecha com Voltar, Esc ou clique fora (= não). O foco vai pro Voltar
    quando é de apagar (Enter à toa não apaga) e volta pro botão que abriu.
-   O visual (.n1-dialogo*) está na camada design-n1 do entregas.html, que o
-   monta-folha.js leva pro nilma-ui.css.
+   O visual (.n1-dialogo*) está no nilma-ui.css (parte 5): o modal da
+   Conferência. Voltar = botão cinza; a ação = .btn-primary, ou .btn-perigo
+   (= .btn-danger, vermelho --destructive) quando é de apagar.
    ========================================================================== */
 (function () {
   'use strict';
