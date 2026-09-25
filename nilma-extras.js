@@ -4,8 +4,8 @@
    O Entregas tem os dois embutidos. As outras telas (Pendências, Fiscal)
    usam este arquivo para ficar com o MESMO desenho:
 
-   - Conta: janela com foto de perfil e troca de senha. Grava no mesmo lugar
-     que o Entregas (usuarios/{uid}.fotoPerfil e a senha do Firebase Auth).
+   - Conta: a janela de Configurações comum (nilma-config.js, carregado
+     antes deste arquivo) recebe as mesmas opções e abre em "Minha conta".
    - Perguntar à IA: o painel abre ancorado na caixa da barra de cima
      (#topoBusca, da casca nilma-shell.js), como uma pesquisa aberta. A
      pergunta vai pelo mesmo caminho do Entregas: conversasIA/{id}/mensagens,
@@ -14,7 +14,7 @@
      A página pode passar um "responder" próprio (resposta rápida, sem IA).
 
    Visual da Conferência (design-n1). O painel (.cq-*) vem de nilma-ui.css
-   (parte 5). Aqui só vão a janela da conta e o aviso de reserva.
+   (parte 5).
 
    Uso:
      NilmaExtras.ligar({ db, auth, firebase, usuario: () => ({nome, foto}),
@@ -25,6 +25,7 @@
    ========================================================================== */
 (function () {
   'use strict';
+  var janela = window;
   var doc = document;
   var o = {};
   function $(id) { return doc.getElementById(id); }
@@ -34,157 +35,18 @@
     });
   }
   function msgErro(err, padrao) { return (err && (err.message || err.code)) || padrao; }
-  function avisar(texto, tipo) {
-    if (typeof o.toast === 'function') { o.toast(texto, tipo); return; }
-    var t = doc.createElement('div');
-    t.className = 'nx-toast' + (tipo === 'error' ? ' nx-toast-erro' : '');
-    t.textContent = texto;
-    doc.body.appendChild(t);
-    setTimeout(function () { t.remove(); }, 3200);
-  }
 
   // Visual no desenho da Conferência (design-n1). O painel da IA (.cq-*),
   // o seletor de modo (.mode-toggle) e o botão de ícone (.icon-btn) vêm do
-  // nilma-ui.css; aqui só a janela da Conta (= modal da Conferência: 448px,
-  // cantos de 12px, título de 14px com fio embaixo) e o aviso de reserva
-  // (= toast da Conferência), para quando a página não passa o próprio.
+  // nilma-ui.css; aqui só dois acertos do painel.
   var CSS =
     '.cq-painel textarea.cq-campo{box-shadow:none}' +
-    '.cq-painel .cq-enviar{display:inline-flex;align-items:center;justify-content:center}' +
-    /* janela da conta */
-    'dialog.nx-conta{border:none;border-radius:12px;padding:0;width:min(448px,calc(100vw - 32px));background:var(--surface);color:var(--ink);box-shadow:var(--shadow-lg);overflow:hidden;animation:popIn .18s ease-out both}' +
-    'dialog.nx-conta::backdrop{background:#1F232866}' +
-    ':root[data-theme="dark"] dialog.nx-conta::backdrop{background:#01040999}' +
-    '@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) dialog.nx-conta::backdrop{background:#01040999}}' +
-    '.nx-conta-cab{display:flex;align-items:center;gap:8px;min-height:52px;padding:10px 10px 10px 16px;border-bottom:1px solid var(--border)}' +
-    '.nx-conta-cab h2{margin:0 auto 0 0;font-size:14px;font-weight:600;line-height:20px}' +
-    '.nx-conta-cab button{width:32px;height:32px;padding:0;border:0;background:none;border-radius:6px;color:var(--ink-muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:16px}' +
-    '.nx-conta-cab button:hover{background:var(--hover-bg);color:var(--ink)}' +
-    '.nx-conta-corpo{padding:16px}' +
-    '.nx-conta-sec+.nx-conta-sec{margin-top:16px;padding-top:16px;border-top:1px solid var(--border)}' +
-    '.nx-conta-sec h3{margin:0 0 12px;font-size:14px;font-weight:600}' +
-    '.nx-foto-linha{display:flex;align-items:center;gap:12px;flex-wrap:wrap}' +
-    '.nx-foto{width:64px;height:64px;border-radius:50%;flex:none;display:grid;place-items:center;background:var(--surface-3) center/cover no-repeat;color:var(--ink);font-weight:600;font-size:20px;border:1px solid var(--border)}' +
-    '.nx-conta label.nx-rot{display:block;font-size:14px;font-weight:600;color:var(--ink);margin:0 0 6px}' +
-    '.nx-conta input[type=password]{width:100%;min-height:32px;padding:5px 12px;margin-bottom:12px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--ink);font:inherit;font-size:14px;line-height:20px;box-shadow:inset 0 1px 0 #D1D9E033}' +
-    '.nx-conta input[type=password]:focus{outline:none;border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}' +
-    '.nx-conta .nx-botao{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:32px;padding:5px 16px;border:1px solid var(--btn-border);border-radius:6px;background:var(--btn-bg);color:var(--ink);font-family:inherit;font-size:14px;font-weight:500;line-height:20px;cursor:pointer;box-shadow:var(--shadow-xs);white-space:nowrap}' +
-    '.nx-conta .nx-botao .ph{font-size:16px;color:var(--ink-muted)}' +
-    '.nx-conta .nx-botao:hover{background:var(--btn-hover)}' +
-    '.nx-conta .nx-botao:disabled{opacity:.55;cursor:not-allowed}' +
-    '.nx-conta .nx-botao.primario{background:var(--btn-primary);border-color:var(--btn-primary-border);color:#FFFFFF}' +
-    '.nx-conta .nx-botao.primario:hover:not(:disabled){background:var(--btn-primary-hover)}' +
-    '.nx-conta .nx-botao.leve{border-color:transparent;background:none;box-shadow:none;color:var(--ink-muted)}' +
-    '.nx-conta .nx-botao.leve:hover{background:var(--hover-bg);color:var(--ink)}' +
-    '.nx-conta .nx-erro{color:var(--destructive);font-size:12px;margin:-4px 0 8px;min-height:0}' +
-    '.nx-conta .nx-erro:empty{display:none}' +
-    '.nx-conta .nx-arquivo{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}' +
-    /* aviso de reserva = toast da Conferência */
-    '.nx-toast{position:fixed;left:16px;bottom:16px;z-index:9999;max-width:min(420px,calc(100% - 32px));background:var(--surface);color:var(--ink);border:1px solid var(--border);border-left:4px solid var(--accent);border-radius:6px;padding:12px 16px;font-size:14px;line-height:20px;box-shadow:var(--shadow-lg);animation:popIn .2s ease-out both}' +
-    '.nx-toast-erro{border-left-color:var(--destructive)}';
+    '.cq-painel .cq-enviar{display:inline-flex;align-items:center;justify-content:center}';
 
   // ---------------------------------------------------------------- conta
-  function iniciais(nome) {
-    var p = String(nome || '').trim().split(/[\s.@]+/).filter(Boolean);
-    return p.length ? (p[0][0] + (p.length > 1 ? p[p.length - 1][0] : '')).toUpperCase() : '';
-  }
-  function reduzirImagem(arquivo, lado, qualidade) {
-    return new Promise(function (ok, falha) {
-      var leitor = new FileReader();
-      leitor.onerror = falha;
-      leitor.onload = function () {
-        var img = new Image();
-        img.onerror = falha;
-        img.onload = function () {
-          var escala = Math.min(1, lado / Math.max(img.width, img.height));
-          var c = doc.createElement('canvas');
-          c.width = Math.round(img.width * escala); c.height = Math.round(img.height * escala);
-          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-          ok(c.toDataURL('image/jpeg', qualidade));
-        };
-        img.src = leitor.result;
-      };
-      leitor.readAsDataURL(arquivo);
-    });
-  }
-  function montarConta() {
-    if ($('nxConta')) return $('nxConta');
-    var d = doc.createElement('dialog');
-    d.className = 'nx-conta'; d.id = 'nxConta';
-    d.setAttribute('aria-labelledby', 'nxContaTitulo');
-    d.innerHTML =
-      '<div class="nx-conta-cab"><h2 id="nxContaTitulo">Conta</h2>' +
-        '<button type="button" id="nxContaFechar" aria-label="Fechar"><i class="ph ph-x" aria-hidden="true"></i></button></div>' +
-      '<div class="nx-conta-corpo">' +
-        '<section class="nx-conta-sec"><h3>Foto de perfil</h3>' +
-          '<div class="nx-foto-linha"><span class="nx-foto" id="nxFoto"></span>' +
-            '<input type="file" accept="image/*" id="nxFotoArquivo" class="nx-arquivo">' +
-            '<label class="nx-botao" for="nxFotoArquivo"><i class="ph ph-camera" aria-hidden="true"></i> Escolher foto</label>' +
-            '<button type="button" class="nx-botao leve" id="nxFotoRemover" hidden>Remover</button></div>' +
-        '</section>' +
-        '<form class="nx-conta-sec" id="nxSenhaForm" novalidate><h3>Trocar senha</h3>' +
-          '<label class="nx-rot" for="nxSenhaAtual">Senha atual</label>' +
-          '<input id="nxSenhaAtual" type="password" autocomplete="current-password" required>' +
-          '<label class="nx-rot" for="nxSenhaNova">Nova senha</label>' +
-          '<input id="nxSenhaNova" type="password" autocomplete="new-password" placeholder="Mínimo 6 caracteres" required>' +
-          '<div class="nx-erro" id="nxSenhaErro"></div>' +
-          '<button type="submit" class="nx-botao primario">Salvar nova senha</button>' +
-        '</form>' +
-      '</div>';
-    doc.body.appendChild(d);
-    $('nxContaFechar').addEventListener('click', function () { d.close(); });
-    d.addEventListener('click', function (ev) { if (ev.target === d) d.close(); });
-    $('nxFotoArquivo').addEventListener('change', function (ev) {
-      var f = ev.target.files && ev.target.files[0];
-      ev.target.value = '';
-      if (!f) return;
-      reduzirImagem(f, 256, 0.82).then(salvarFoto).catch(function () { avisar('Não foi possível processar a foto.', 'error'); });
-    });
-    $('nxFotoRemover').addEventListener('click', function () { salvarFoto(''); });
-    $('nxSenhaForm').addEventListener('submit', function (ev) {
-      ev.preventDefault();
-      var atual = $('nxSenhaAtual').value, nova = $('nxSenhaNova').value, erro = $('nxSenhaErro');
-      erro.textContent = '';
-      if (nova.length < 6) { erro.textContent = 'A nova senha precisa ter ao menos 6 caracteres.'; return; }
-      var u = o.auth && o.auth.currentUser;
-      if (!u || !o.firebase) { erro.textContent = 'Sem conexão com a conta agora.'; return; }
-      var botao = ev.target.querySelector('button[type=submit]');
-      botao.disabled = true;
-      var cred = o.firebase.auth.EmailAuthProvider.credential(u.email, atual);
-      u.reauthenticateWithCredential(cred)
-        .then(function () { return u.updatePassword(nova); })
-        .then(function () { avisar('Senha alterada.'); d.close(); })
-        .catch(function (err) { erro.textContent = err && err.code === 'auth/wrong-password' ? 'Senha atual incorreta.' : msgErro(err, 'Não foi possível trocar a senha.'); })
-        .then(function () { botao.disabled = false; });
-    });
-    return d;
-  }
-  var fotoAtual = '';
-  function pintarFoto() {
-    var el = $('nxFoto');
-    if (!el) return;
-    var u = typeof o.usuario === 'function' ? (o.usuario() || {}) : {};
-    el.style.backgroundImage = fotoAtual ? 'url("' + fotoAtual + '")' : '';
-    el.textContent = fotoAtual ? '' : iniciais(u.nome);
-    $('nxFotoRemover').hidden = !fotoAtual;
-  }
-  function salvarFoto(dataUrl) {
-    var u = o.auth && o.auth.currentUser;
-    if (!u || !o.db) return;
-    fotoAtual = dataUrl || '';
-    pintarFoto();
-    if (typeof o.aoMudarFoto === 'function') o.aoMudarFoto(fotoAtual);
-    o.db.collection('usuarios').doc(u.uid).update({ fotoPerfil: fotoAtual })
-      .then(function () { avisar(dataUrl ? 'Foto de perfil atualizada.' : 'Foto de perfil removida.'); })
-      .catch(function (err) { avisar(msgErro(err, 'Não foi possível salvar a foto.'), 'error'); });
-  }
+  // Foto, senha e o resto: a janela de Configurações (nilma-config.js).
   function abrirConta() {
-    var d = montarConta();
-    var u = typeof o.usuario === 'function' ? (o.usuario() || {}) : {};
-    fotoAtual = u.foto || '';
-    $('nxSenhaAtual').value = ''; $('nxSenhaNova').value = ''; $('nxSenhaErro').textContent = '';
-    pintarFoto();
-    if (!d.open) d.showModal();
+    if (janela.NilmaConfig) janela.NilmaConfig.abrir('conta');
   }
 
   // ---------------------------------------------------------------- IA
@@ -487,6 +349,8 @@
       s.id = 'nxEstilo'; s.textContent = CSS;
       doc.head.appendChild(s);
     }
+    // Configurações: as mesmas opções (db, auth, usuário, foto, aviso).
+    if (janela.NilmaConfig) janela.NilmaConfig.ligar(o);
     if (typeof NilmaShell !== 'undefined') {
       NilmaShell.ao('busca', abrirIA);
       NilmaShell.ao('conta', abrirConta);
@@ -498,7 +362,7 @@
     historico = [];
     soltarConversa();
     fecharIA();
-    var d = $('nxConta'); if (d && d.open) d.close();
+    if (janela.NilmaConfig) janela.NilmaConfig.fechar();
   }
 
   window.NilmaExtras = { ligar: ligar, abrirIA: abrirIA, fecharIA: fecharIA, abrirConta: abrirConta, sair: sair };

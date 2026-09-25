@@ -321,10 +321,11 @@ table.t-cfg tbody tr.vazio:hover { background: none; }
      As telas do LCDPR são as abas (fixas à esquerda no PC, sublinhadas no
      celular); renderNav() monta os botões dentro de #navlist. -->
 <script src="nilma-dialogo.js?v=345"></script>
-<script src="nilma-shell.js?v=345"></script>
-<script src="nilma-extras.js"></script>
+<script src="nilma-shell.js?v=346"></script>
+<script src="nilma-config.js?v=346"></script>
+<script src="nilma-extras.js?v=346"></script>
 <script>
-  NilmaShell.montar({ modulo: 'Fiscal', moduloId: 'fiscal', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false, versao: '2.345 · 25/09/2026' });
+  NilmaShell.montar({ modulo: 'Fiscal', moduloId: 'fiscal', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false, versao: '2.346 · 25/09/2026' });
   // o LCDPR é um submódulo do Fiscal: "Nilma / Fiscal / Importador LCDPR"
   NilmaShell.definirSubmodulo('fiscal/lcdpr', 'Importador LCDPR');
   document.getElementById('topo').hidden = true;
@@ -686,7 +687,7 @@ function startAccessCheck(){
       const nome = (snap.exists && snap.data().nome) || user.displayName || user.email || '';
       const partes = String(nome).trim().split(/[\s.@]+/).filter(Boolean);
       const iniciais = partes.length ? (partes[0][0] + (partes.length > 1 ? partes[partes.length - 1][0] : '')).toUpperCase() : '';
-      contaAtual = { nome: nome, foto: (snap.exists && snap.data().fotoPerfil) || '', iniciais: iniciais };
+      contaAtual = { nome: nome, foto: (snap.exists && snap.data().fotoPerfil) || '', iniciais: iniciais, cargos: roles };
       NilmaShell.definirUsuario({
         nome: nome,
         iniciais: iniciais,
@@ -714,8 +715,9 @@ function startAccessCheck(){
   });
 }
 
-// Aparência e Sair ficam no menu da conta (avatar, no alto à direita).
-NilmaShell.ao('aparencia', function(){ if (window.NilmaUI) window.NilmaUI.abrirAparencia(); });
+// Configurações e Sair ficam no menu da conta (avatar, no alto à direita).
+// A janela é a comum (nilma-config.js), a mesma do Entregas e da Pendências.
+NilmaShell.ao('aparencia', function(){ NilmaConfig.abrir('preferencias'); });
 NilmaShell.ao('sair', function(){ if (auth) auth.signOut().then(function(){ location.href = 'entregas.html'; }); else location.href = 'entregas.html'; });
 // Fiscal é esta mesma página: tocar nele no menu ☰ só fecha o menu.
 NilmaShell.ao('modulo', function(id){ return id === 'fiscal' || id === 'fiscal/lcdpr'; });
@@ -729,6 +731,9 @@ NilmaExtras.ligar({
     NilmaShell.definirUsuario({ nome: contaAtual.nome, iniciais: contaAtual.iniciais, foto: foto });
   },
   toast: function(msg){ toast(msg); },
+  cargos: function(){ return contaAtual.cargos || []; },
+  sair: function(){ if (auth) auth.signOut().then(function(){ location.href = 'entregas.html'; }); },
+  versao: '2.346 · 25/09/2026',
   exemplosIA: ['Quais clientes têm mais pendências este mês?', 'Resuma as entregas do mês passado']
 });
 

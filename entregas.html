@@ -51,14 +51,15 @@
 <link rel="stylesheet" href="nilma-ui.css?v=345">
 <link rel="stylesheet" href="n1-entregas-a.css?v=345">
 <link rel="stylesheet" href="n1-entregas-b.css?v=345">
-<link rel="stylesheet" href="n1-entregas-c.css?v=345">
+<link rel="stylesheet" href="n1-entregas-c.css?v=346">
 </head>
 <body>
 <!-- Casca no estilo do GitHub: barra de cima (☰ · Nilma / módulo · consulta
      rápida · anotações · avatar) e as duas gavetas. Nasce aqui, antes do
      resto, porque os scripts do app procuram #notasBtn, #topo etc. -->
 <script src="nilma-dialogo.js?v=345"></script>
-<script src="nilma-shell.js?v=345"></script>
+<script src="nilma-shell.js?v=346"></script>
+<script src="nilma-config.js?v=346"></script>
 <script>NilmaShell.montar({ modulo: 'Entregas', moduloId: 'entregas', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle' });</script>
 <!-- Abas do módulo, sublinhadas, logo abaixo da barra. -->
 <nav class="tabs" id="tabsNav" role="tablist">
@@ -11818,233 +11819,31 @@
     }
   }
 
+  var VERSAO_APP_ = '2.346 · 25/09/2026';
+  // Configurações do usuário: a janela comum (nilma-config.js), a mesma da
+  // Pendências e do Fiscal. 'conta' abre em Minha conta; o resto, em
+  // Preferências.
   function abrirConfiguracoes(abaInicial) {
-    var root = $('modalRoot');
-    var temaAtual = document.documentElement.dataset.theme === 'light' ? 'claro' : (document.documentElement.dataset.theme === 'dark' ? 'escuro' : 'auto');
-    var paletaAtual = document.documentElement.dataset.paleta || 'padrao';
-    var paletaNomeAtual = (PALETAS.filter(function (p) { return p.key === paletaAtual; })[0] || PALETAS[0]).label;
-    // Cada ajuste é UMA linha "rótulo ........ controle" (.cfg-linha), em
-    // dois grupos com título (Aparência, Aplicativo). Empilhado "rótulo em
-    // cima, controle embaixo", eram 7 blocos que rolavam até no PC.
-    root.innerHTML =
-      '<div class="modal-overlay" id="overlay">' +
-        '<div class="modal modal-config" id="modalInner" role="dialog" aria-modal="true" aria-labelledby="configTitulo">' +
-          '<div class="modal-head">' +
-            '<div><h2 id="configTitulo">Configurações</h2></div>' +
-            '<button class="modal-close" id="modalClose" aria-label="Fechar"><i class="ph ph-x" aria-hidden="true"></i></button>' +
-          '</div>' +
-          '<div class="mode-toggle config-abas" id="configAbas">' +
-            '<button type="button" class="mode-btn active" data-painel="personalizacao"><i class="ph ph-paint-brush" aria-hidden="true"></i> Personalização</button>' +
-            '<button type="button" class="mode-btn" data-painel="conta"><i class="ph ph-user-circle" aria-hidden="true"></i> Conta</button>' +
-          '</div>' +
-          '<div class="config-painel" id="painel-personalizacao">' +
-          '<div class="subhead"><h3>Aparência</h3></div>' +
-          '<div class="cfg-linha"><span class="cfg-rotulo" id="temaRotulo">Tema</span>' +
-            '<div class="mode-toggle" id="temaToggle" role="group" aria-labelledby="temaRotulo">' +
-              '<button type="button" class="mode-btn" data-tema="claro"><i class="ph ph-sun" aria-hidden="true"></i> Claro</button>' +
-              '<button type="button" class="mode-btn" data-tema="escuro"><i class="ph ph-moon" aria-hidden="true"></i> Escuro</button>' +
-              '<button type="button" class="mode-btn" data-tema="auto"><i class="ph ph-desktop" aria-hidden="true"></i> Automático</button>' +
-            '</div>' +
-          '</div>' +
-          // Cor: só as amostras; o nome da escolhida aparece ao lado do
-          // rótulo (e cada amostra diz o próprio nome no title/aria-label).
-          '<div class="cfg-linha"><span class="cfg-rotulo" id="paletaRotulo">Cor <span class="contagem" id="paletaNome">' + escapeHtml_(paletaNomeAtual) + '</span></span>' +
-            '<div class="paleta-grid" id="paletaGrid" role="group" aria-labelledby="paletaRotulo">' +
-              PALETAS.map(function (p) {
-                return '<button type="button" class="paleta-btn" data-paleta="' + p.key + '" data-nome="' + escapeHtml_(p.label) + '" title="' + escapeHtml_(p.label) + '" aria-label="' + escapeHtml_(p.label) + '">' +
-                  '<span class="paleta-swatch" style="background:' + p.cor + '"></span></button>';
-              }).join('') +
-            '</div>' +
-          '</div>' +
-          PREFERENCIAS.map(function (pref) {
-            var atual = document.documentElement.dataset[pref.atributo] || pref.padrao;
-            return '<div class="cfg-linha"><span class="cfg-rotulo" id="prefRotulo-' + pref.campo + '">' + pref.rotulo + '</span>' +
-              '<div class="mode-toggle pref-toggle" data-campo="' + pref.campo + '" role="group" aria-labelledby="prefRotulo-' + pref.campo + '">' +
-                pref.opcoes.map(function (o) {
-                  return '<button type="button" class="mode-btn' + (o.valor === atual ? ' active' : '') +
-                    '" data-valor="' + o.valor + '">' + o.rotulo + '</button>';
-                }).join('') +
-              '</div>' +
-            '</div>';
-          }).join('') +
-          '<div class="subhead"><h3>Aplicativo</h3></div>' +
-          '<div class="cfg-linha"><label class="cfg-rotulo" for="abaInicialSelect">Abrir o app em</label>' +
-            '<select class="input" id="abaInicialSelect">' +
-              [['nova', 'Nova entrega'], ['rota', 'Rota'], ['painel', 'Painel'],
-               ['solicitacoes', 'Solicitações'], ['clientes', 'Clientes e ajustes']]
-                .concat((temPapel('admin') || temPapel('office_boy')) ? [['honorarios', 'Honorários']] : [])
-                .map(function (o) { return '<option value="' + o[0] + '">' + o[1] + '</option>'; }).join('') +
-            '</select>' +
-          '</div>' +
-          // Instalar só aparece quando dá pra instalar (ou já está instalado);
-          // sem isso, a linha inteira some — nada de parágrafo de instrução.
-          '<div class="cfg-linha" id="instalarAppLinha" hidden><span class="cfg-rotulo">Instalar na tela inicial</span>' +
-            '<button type="button" class="btn-chip" id="instalarAppBtn" hidden><i class="ph ph-device-mobile" aria-hidden="true"></i> Instalar</button>' +
-            '<span class="cfg-estado" id="instalarAppDica"></span>' +
-          '</div>' +
-          '</div>' +
-          '<div class="config-painel" id="painel-conta" hidden>' +
-          '<div class="subhead"><h3>Foto de perfil</h3></div>' +
-          '<div class="cfg-linha foto-perfil-row">' +
-            '<span class="foto-perfil-preview" id="fotoPerfilPreview"></span>' +
-            '<div class="foto-perfil-acoes">' +
-              '<input type="file" accept="image/*" id="fotoPerfilInput" class="foto-file-input">' +
-              '<label class="btn-chip foto-label" for="fotoPerfilInput"><i class="ph ph-camera" aria-hidden="true"></i> Escolher foto</label>' +
-              '<button type="button" class="btn-chip danger" id="fotoPerfilRemover" hidden>Remover</button>' +
-            '</div>' +
-          '</div>' +
-          // O Salvar é o próprio submit do form, no título da seção (o
-          // handler acha o botão por type=submit dentro do form).
-          '<form id="form-senha" novalidate>' +
-            '<div class="subhead"><h3>Senha</h3><button type="submit" class="btn-chip accent">Salvar</button></div>' +
-            '<div class="senha-grade">' +
-              '<label><span class="sub-rotulo">Senha atual</span>' +
-                '<input class="input" id="senhaAtual" type="password" autocomplete="current-password" required></label>' +
-              '<label><span class="sub-rotulo">Nova senha</span>' +
-                '<input class="input" id="senhaNova" type="password" autocomplete="new-password" placeholder="Mínimo 6 caracteres" required></label>' +
-            '</div>' +
-            '<div class="field-error" id="err-senha" role="alert"></div>' +
-          '</form>' +
-          '</div>' +
-        '</div>' +
-      '</div>';
-    $('overlay').addEventListener('click', function (e) { if (e.target.id === 'overlay') closeModal(); });
-    $('modalClose').addEventListener('click', closeModal);
-
-    // Instalar na tela inicial: o Chrome só libera depois de guardar o evento
-    // beforeinstallprompt. Instalado, a linha diz "Instalado"; sem o evento
-    // (iPhone, Windows sem suporte) a linha inteira fica escondida — o
-    // parágrafo de instrução que aparecia no lugar era texto sem ação.
-    (function () {
-      var linha = $('instalarAppLinha');
-      var btn = $('instalarAppBtn');
-      var dica = $('instalarAppDica');
-      var standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
-      if (standalone) {
-        linha.hidden = false;
-        dica.textContent = 'Instalado';
-        return;
-      }
-      linha.hidden = !promptInstalar;
-      btn.hidden = !promptInstalar;
-      // o evento pode chegar com a janela já aberta (ver beforeinstallprompt
-      // lá embaixo), então o clique confere promptInstalar na hora
-      btn.addEventListener('click', function () {
-        if (!promptInstalar) return;
-        promptInstalar.prompt();
-        promptInstalar.userChoice.then(function (escolha) {
-          if (escolha.outcome === 'accepted') { promptInstalar = null; btn.hidden = true; dica.textContent = 'Instalado'; }
-        });
-      });
-    })();
-
-    function pintarPreviewFoto() {
-      var prev = $('fotoPerfilPreview');
-      if (fotoPerfilAtual) {
-        prev.style.backgroundImage = 'url("' + fotoPerfilAtual + '")';
-        prev.textContent = '';
-      } else {
-        prev.style.backgroundImage = '';
-        prev.textContent = iniciaisDe_(currentUserNome);
-      }
-      $('fotoPerfilRemover').hidden = !fotoPerfilAtual;
-    }
-    // Guarda a foto no próprio documento do usuário (mesmo lugar do tema e da
-    // cor). Reduzida a 256px porque documento do Firestore tem teto de 1 MB e
-    // o crachá é exibido com 32px.
-    function salvarFotoPerfil(dataUrl) {
-      fotoPerfilAtual = dataUrl || '';
-      aplicarFotoPerfil(fotoPerfilAtual);
-      pintarPreviewFoto();
-      if (!auth.currentUser) return;
-      db.collection('usuarios').doc(auth.currentUser.uid)
-        .update({ fotoPerfil: fotoPerfilAtual })
-        .then(function () { showToast(dataUrl ? 'Foto de perfil atualizada.' : 'Foto de perfil removida.'); })
-        .catch(function (err) { showToast(errMsg(err, 'Não foi possível salvar a foto.'), 'error'); });
-    }
-    pintarPreviewFoto();
-    $('fotoPerfilInput').addEventListener('change', function (e) {
-      var file = e.target.files && e.target.files[0];
-      if (!file) return;
-      compressImage(file, 256, 0.82)
-        .then(salvarFotoPerfil)
-        .catch(function () { showToast('Não foi possível processar a foto.', 'error'); });
-    });
-    $('fotoPerfilRemover').addEventListener('click', function () { salvarFotoPerfil(''); });
-    $('temaToggle').querySelectorAll('.mode-btn').forEach(function (btn) {
-      btn.classList.toggle('active', btn.dataset.tema === temaAtual);
-      btn.addEventListener('click', function () {
-        $('temaToggle').querySelectorAll('.mode-btn').forEach(function (b) { b.classList.remove('active'); });
-        btn.classList.add('active');
-            salvarTema(btn.dataset.tema);
-      });
-    });
-    // abas do próprio modal: personalização e conta
-    $('configAbas').querySelectorAll('.mode-btn').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        $('configAbas').querySelectorAll('.mode-btn').forEach(function (b) { b.classList.remove('active'); });
-        btn.classList.add('active');
-        ['personalizacao', 'conta'].forEach(function (nome) {
-          $('painel-' + nome).hidden = nome !== btn.dataset.painel;
-        });
-        $('modalInner').scrollTop = 0;
-      });
-    });
-
-    // preferências de aparência (tamanho do texto, espaçamento, animações)
-    document.querySelectorAll('.pref-toggle').forEach(function (grupo) {
-      grupo.querySelectorAll('.mode-btn').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-          grupo.querySelectorAll('.mode-btn').forEach(function (b) { b.classList.remove('active'); });
-          btn.classList.add('active');
-          salvarPreferencia(grupo.dataset.campo, btn.dataset.valor);
-        });
-      });
-    });
-    var seletorAba = $('abaInicialSelect');
-    try { seletorAba.value = localStorage.getItem('nilma_aba_inicial') || 'nova'; } catch (e) {}
-    seletorAba.addEventListener('change', function () { salvarAbaInicial(this.value); });
-
-    $('paletaGrid').querySelectorAll('.paleta-btn').forEach(function (btn) {
-      btn.classList.toggle('active', btn.dataset.paleta === paletaAtual);
-      btn.setAttribute('aria-pressed', btn.dataset.paleta === paletaAtual ? 'true' : 'false');
-      btn.addEventListener('click', function () {
-        $('paletaGrid').querySelectorAll('.paleta-btn').forEach(function (b) { b.classList.remove('active'); b.setAttribute('aria-pressed', 'false'); });
-        btn.classList.add('active');
-        btn.setAttribute('aria-pressed', 'true');
-        $('paletaNome').textContent = btn.dataset.nome;
-        salvarPaleta(btn.dataset.paleta);
-      });
-    });
-    $('form-senha').addEventListener('submit', function (e) {
-      e.preventDefault();
-      var atual = $('senhaAtual').value;
-      var nova = $('senhaNova').value;
-      var errEl = $('err-senha');
-      errEl.textContent = '';
-      if (nova.length < 6) { errEl.textContent = 'A nova senha precisa ter ao menos 6 caracteres.'; return; }
-      var btn = e.target.querySelector('button[type="submit"]');
-      botaoOcupado_(btn);
-      var cred = firebase.auth.EmailAuthProvider.credential(auth.currentUser.email, atual);
-      auth.currentUser.reauthenticateWithCredential(cred)
-        .then(function () { return auth.currentUser.updatePassword(nova); })
-        .then(function () {
-          showToast('Senha alterada com sucesso.');
-          closeModal();
-        })
-        .catch(function (err) {
-          errEl.textContent = err.code === 'auth/wrong-password' ? 'Senha atual incorreta.' : errMsg(err, 'Não foi possível trocar a senha.');
-        })
-        .finally(function () {
-          botaoLivre_(btn);
-        });
-    });
-    // O painel da conta (avatar) abre direto em Aparência ou em Conta.
-    if (abaInicial === 'conta') {
-      var abaConta = document.querySelector('#configAbas .mode-btn[data-painel="conta"]');
-      if (abaConta) abaConta.click();
-    }
+    NilmaConfig.abrir(abaInicial === 'conta' ? 'conta' : 'preferencias');
   }
+  NilmaConfig.ligar({
+    db: db, auth: auth, firebase: firebase,
+    usuario: function () { return { nome: currentUserNome, foto: fotoPerfilAtual }; },
+    cargos: function () { return currentUserRoles; },
+    aoMudarFoto: function (foto) { fotoPerfilAtual = foto; aplicarFotoPerfil(foto); },
+    // tema e aba inicial têm gravação própria aqui (aplicam e vão pra conta)
+    salvar: function (campo, valor) {
+      if (campo === 'tema') { salvarTema(valor); return true; }
+      if (campo === 'abaInicial') { salvarAbaInicial(valor); return true; }
+      return false;
+    },
+    aplicar: function (campo, valor) { aplicarPreferencia(campo, valor); },
+    toast: function (msg, tipo) { showToast(msg, tipo); },
+    notificacoes: { ativar: function () { ativarNotificacoesSolicitacoes(); } },
+    instalar: { pode: function () { return !!promptInstalar; }, fazer: function () { instalarApp_(); } },
+    sair: function () { auth.signOut(); },
+    versao: VERSAO_APP_
+  });
 
   // ---------- notas pessoais (acesso rápido, não fica dentro de Configurações) ----------
   var unsubNotas = null;
@@ -12899,20 +12698,11 @@
   window.addEventListener('beforeinstallprompt', function (ev) {
     ev.preventDefault();
     promptInstalar = ev;
-    var btn = document.getElementById('instalarAppBtn');
-    if (btn) btn.hidden = false;
-    // a linha de Configurações só existe (e só aparece) com a janela aberta
-    var linha = document.getElementById('instalarAppLinha');
-    if (linha) linha.hidden = false;
     if (window.NilmaShell) NilmaShell.mostrarInstalar(true);
   });
 
   window.addEventListener('appinstalled', function () {
     promptInstalar = null;
-    var btn = document.getElementById('instalarAppBtn');
-    if (btn) btn.hidden = true;
-    var dica = document.getElementById('instalarAppDica');
-    if (dica) dica.textContent = 'Instalado';
     if (window.NilmaShell) NilmaShell.mostrarInstalar(false);
   });
 
@@ -13961,7 +13751,7 @@
   NilmaShell.ao('conta', function () { abrirConfiguracoes('conta'); });
   NilmaShell.ao('instalar', function () { instalarApp_(); });
   NilmaShell.ao('sair', function () { auth.signOut(); });
-  NilmaShell.versao('2.345 · 25/09/2026');
+  NilmaShell.versao(VERSAO_APP_);
   // a mesma versão no rodapé da tela de entrada, como na Conferência
   (function () { var a = $('authVersao'), m = $('menuAppVersao'); if (a && m) a.textContent = m.textContent.replace(/^versão/, 'Versão:'); })();
 

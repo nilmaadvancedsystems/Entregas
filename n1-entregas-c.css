@@ -349,59 +349,8 @@ body.modo-clientes #qualidadeRotaCard { display: none !important; }
 #competenciaFecharInput { width: auto; flex: 1 1 140px; max-width: 200px; min-width: 0; }
 .card.caixa .competencia-nome { font-size: 14px; font-weight: 400; font-variant-numeric: tabular-nums; }
 
-/* ---------- janela de Configurações (Aparência e Conta) ---------- */
-.config-abas { margin-bottom: 16px; }
-@media (min-width: 640px) {
-  /* presa no alto: as duas abas têm alturas diferentes e, centrada, a
-     janela pulava a cada troca */
-  .modal-overlay > .modal-config { align-self: flex-start; margin-top: 8vh; max-height: 84vh; }
-}
-/* Tema é a única preferência de aparência da Conferência: cor, tamanho do
-   texto, densidade e animação continuam gravadas pelo JS, mas não mudam
-   nada na tela — as linhas somem. */
-.modal-config .cfg-linha:has(#paletaGrid),
-.modal-config .cfg-linha:has(> .pref-toggle) { display: none; }
-.subhead {
-  display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
-  margin: 24px 0 0; padding: 0 0 8px; border-bottom: 1px solid var(--border);
-}
-.config-painel > .subhead:first-child, .config-painel > form:first-child > .subhead:first-child { margin-top: 0; }
-.subhead > h3 { margin: 0 auto 0 0; min-width: 0; font-size: 16px; font-weight: 600; line-height: 1.25; color: var(--ink); }
-.subhead > .btn-chip { flex: none; }
-.cfg-linha {
-  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px;
-  min-height: 48px; padding: 8px 0; border-bottom: 1px solid var(--border-muted);
-}
-.cfg-linha[hidden] { display: none; }
-.cfg-rotulo { display: inline-flex; align-items: baseline; gap: 6px; margin: 0; font-size: 14px; font-weight: 600; color: var(--ink); }
-.cfg-estado { font-size: 14px; color: var(--ink-muted); }
-.cfg-estado:empty { display: none; }
-.cfg-linha .mode-toggle { margin: 0; flex-wrap: nowrap; }
-.cfg-linha select.input { width: auto; min-width: 180px; max-width: 100%; }
-@media (max-width: 480px) {
-  .cfg-linha:not(.foto-perfil-row) { flex-direction: column; align-items: stretch; justify-content: flex-start; }
-  .cfg-linha:not(.foto-perfil-row) > .btn-chip { align-self: flex-start; }
-  .cfg-linha .mode-toggle { display: flex; width: 100%; }
-  .cfg-linha .mode-btn { flex: 1 1 auto; min-width: 0; padding: 4px 8px; }
-  .cfg-linha select.input { width: 100%; min-width: 0; }
-}
-@media (max-width: 420px) { #temaToggle .ph { display: none; } }
-
-/* foto: avatar redondo e os dois botões na mesma linha */
-.cfg-linha.foto-perfil-row { justify-content: flex-start; gap: 12px; border-bottom: none; }
-.foto-perfil-preview {
-  flex: none; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center;
-  background: var(--surface-3) center / cover no-repeat; border: 1px solid var(--border);
-  color: var(--ink); font-size: 14px; font-weight: 600;
-}
-.foto-perfil-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+/* campo de arquivo escondido atrás de um rótulo-botão */
 .foto-file-input { display: none; }
-.foto-perfil-acoes .foto-label { margin: 0; width: auto; }
-.senha-grade { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; margin-top: 16px; }
-@media (min-width: 600px) { .senha-grade { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
-.senha-grade label { display: block; min-width: 0; }
-/* o handler só escreve o texto do erro; com texto, ele aparece */
-#err-senha:not(:empty) { max-height: 8em; margin-top: 8px; opacity: 1; visibility: visible; transition-delay: 0s; }
 .notas-btn { position: relative; }
 .sig-fullscreen-btn { flex: none; }
 

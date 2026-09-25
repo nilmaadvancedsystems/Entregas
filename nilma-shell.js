@@ -163,8 +163,10 @@
           // Solicitações moram aqui (pedido do escritório): escondido por
           // padrão, a página que tem Solicitações mostra e ouve 'solicitacoes'.
           '<button type="button" class="gaveta-item" id="menuSolicitacoesBtn" hidden><i class="ph ph-envelope-simple" aria-hidden="true"></i><span>Solicitações</span><span class="tab-badge" id="menuSolicitacoesBadge" hidden>0</span></button>' +
-          '<button type="button" class="gaveta-item" id="menuAparenciaBtn"><i class="ph ph-paint-brush" aria-hidden="true"></i><span>Aparência</span></button>' +
-          '<button type="button" class="gaveta-item" id="menuContaBtn"><i class="ph ph-user-circle" aria-hidden="true"></i><span>Conta</span></button>' +
+          // As duas abrem a mesma janela de Configurações (nilma-config.js),
+          // uma em Minha conta e a outra em Preferências.
+          '<button type="button" class="gaveta-item" id="menuContaBtn"><i class="ph ph-user-circle" aria-hidden="true"></i><span>Minha conta</span></button>' +
+          '<button type="button" class="gaveta-item" id="menuAparenciaBtn"><i class="ph ph-gear-six" aria-hidden="true"></i><span>Configurações</span></button>' +
           '<div class="gaveta-fio" role="separator"></div>' +
           '<button type="button" class="gaveta-item perigo" id="menuSairBtn"><i class="ph ph-sign-out" aria-hidden="true"></i><span>Sair da conta</span></button>' +
         '</nav>' +

@@ -1092,7 +1092,7 @@
   .lista-tipos { display: flex; gap: 6px; flex-wrap: wrap; margin: 0; }
   .modelos-cobranca { display: flex; flex-wrap: wrap; gap: 8px; }
 
-  /* ---------- janela de cobrança e de aparência (<dialog>) ---------- */
+  /* ---------- janela de cobrança (<dialog>) ---------- */
   dialog.modal {
     padding: 0; border: none; width: min(640px, calc(100vw - 32px)); max-width: none; max-height: calc(100vh - 32px);
     overflow: hidden; background: var(--surface); color: var(--ink); border-radius: 12px; box-shadow: var(--shadow-lg);
@@ -1100,7 +1100,6 @@
   dialog.modal::backdrop { background: #1F232866; animation: fadeIn .15s ease both; }
   :root[data-theme="dark"] dialog.modal::backdrop { background: #01040999; }
   @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) dialog.modal::backdrop { background: #01040999; } }
-  dialog#modalAparencia { width: min(448px, calc(100vw - 32px)); }
   .modal-cab {
     display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 52px;
     padding: 10px 10px 10px 16px; border-bottom: 1px solid var(--border);
@@ -1118,17 +1117,6 @@
   .modal-pe #modalAbrirGmail { order: 2; }
   .modal-pe #modalEnviar { order: 3; }
   @media (max-width: 480px) { .modal-pe .btn { flex: 1 1 auto; } .modal-pe #modalWhats { margin-right: 0; } }
-  /* aparência: só o tema, no seletor da Conferência (o resto não existe mais no visual) */
-  #aparenciaCorpo { display: none; }
-  .ap-tema { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-  .ap-tema .ap-rotulo { margin: 0; font-size: 14px; font-weight: 600; }
-  .tema-seg { display: inline-flex; align-items: center; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-3); }
-  .tema-seg button {
-    width: 32px; height: 28px; margin: -1px; padding: 0; display: flex; align-items: center; justify-content: center;
-    border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--ink-muted); cursor: pointer; font-size: 16px;
-  }
-  .tema-seg button:hover { color: var(--ink); }
-  .tema-seg button[aria-pressed="true"] { background: var(--surface); border-color: var(--border-strong); color: var(--ink); }
 
   /* ---------- robô: resumo do e-mail na lista e painel do e-mail ---------- */
   /* Nomes com email-painel-*: .painel-titulo já é da ficha do cliente. */
@@ -1211,10 +1199,12 @@
 <body>
 <!-- Casca comum (barra de cima, menu ☰ e menu da conta): nilma-shell.js -->
 <script src="nilma-dialogo.js?v=345"></script>
-<script src="nilma-shell.js?v=345"></script>
-<script src="nilma-extras.js"></script>
+<script src="nilma-shell.js?v=346"></script>
+<script src="nilma-config.js?v=346"></script>
+<script src="nilma-extras.js?v=346"></script>
 <script>
-  NilmaShell.montar({ modulo: 'Pendências', moduloId: 'pendencias', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false, versao: '2.345 · 25/09/2026' });
+  var VERSAO_APP = '2.346 · 25/09/2026';
+  NilmaShell.montar({ modulo: 'Pendências', moduloId: 'pendencias', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false, versao: VERSAO_APP });
   // antes do login só a tela de entrada; a barra aparece junto com o app
   document.getElementById('topo').hidden = true;
 </script>
@@ -1953,26 +1943,6 @@
   </div>
 </div>
 
-<!-- Modal de cobrança: monta a mensagem, abre no Gmail e registra o envio. -->
-<!-- Aparência: as mesmas opções (e as mesmas chaves) da engrenagem do
-     Entregas, pra quem passa o dia nesta tela não precisar ir lá mudar. -->
-<dialog class="modal" id="modalAparencia" aria-labelledby="aparenciaTitulo">
-  <div class="modal-cab">
-    <div><h2 id="aparenciaTitulo">Aparência</h2></div>
-    <button type="button" class="btn btn-icone" id="aparenciaFechar" aria-label="Fechar"><i class="ph ph-x" aria-hidden="true"></i></button>
-  </div>
-  <div class="modal-corpo">
-    <div class="ap-tema"><span class="ap-rotulo">Tema</span>
-      <div class="tema-seg" role="group" aria-label="Tema">
-        <button type="button" data-tema="claro" title="Tema claro" aria-label="Tema claro" aria-pressed="false"><i class="ph ph-sun" aria-hidden="true"></i></button>
-        <button type="button" data-tema="escuro" title="Tema escuro" aria-label="Tema escuro" aria-pressed="false"><i class="ph ph-moon" aria-hidden="true"></i></button>
-        <button type="button" data-tema="auto" title="Seguir o sistema" aria-label="Seguir o sistema" aria-pressed="false"><i class="ph ph-circle-half" aria-hidden="true"></i></button>
-      </div>
-    </div>
-    <div id="aparenciaCorpo"></div>
-  </div>
-</dialog>
-
 <!-- Painel do e-mail (Robô do Gmail): abre ao tocar numa linha da lista.
      O texto completo vem na hora pelo robô da nuvem (leiturasGmail). -->
 <dialog class="email-painel" id="painelEmail" aria-labelledby="emailPainelAssunto">
@@ -1986,6 +1956,7 @@
   <div class="email-painel-texto" id="emailPainelTexto"></div>
 </dialog>
 
+<!-- Modal de cobrança: monta a mensagem, abre no Gmail e registra o envio. -->
 <dialog class="modal" id="modalCobrar" aria-labelledby="modalTitulo">
   <form method="dialog" id="formCobrar">
     <div class="modal-cab">
@@ -2569,32 +2540,15 @@
     if (tema === 'claro') root.dataset.theme = 'light';
     else if (tema === 'escuro') root.dataset.theme = 'dark';
     else { delete root.dataset.theme; tema = 'auto'; }
-    document.querySelectorAll('.tema-seg button').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.tema === tema)); });
   }
   function temaSalvo() {
     try { return localStorage.getItem('nilma_tema') || 'auto'; } catch (e) { return 'auto'; }
   }
-  document.querySelectorAll('.tema-seg button').forEach(function (b) {
-    b.addEventListener('click', function () {
-      aplicarTema(b.dataset.tema, true);
-      guardar('tema', b.dataset.tema);
-    });
-  });
   aplicarTema(temaSalvo(), false);
 
-  // Cor, texto, espaçamento e animação: as mesmas opções, chaves e valores do
-  // Entregas (lá é a engrenagem; aqui, "Aparência" no pé do menu). Quem muda
-  // num lado muda no outro — no aparelho pelo armazenamento local, e em
-  // qualquer aparelho pelo documento da conta.
-  var PALETAS = [
-    { key: 'padrao', label: 'Padrão', cor: '#9A2B24' },
-    { key: 'azul', label: 'Azul', cor: '#1A3D63' },
-    { key: 'ardosia', label: 'Ardósia', cor: '#57707A' },
-    { key: 'nogueira', label: 'Nogueira', cor: '#5E4B43' },
-    { key: 'verde', label: 'Verde', cor: '#235347' },
-    { key: 'vermelho', label: 'Vermelho', cor: '#DF2531' },
-    { key: 'laranja', label: 'Laranja', cor: '#804012' }
-  ];
+  // Cor, texto, espaçamento, animação e PDF: as mesmas chaves e valores do
+  // Entregas. Quem muda é a janela de Configurações comum (nilma-config.js),
+  // que grava no aparelho e na conta; aqui só se aplica.
   var PREFERENCIAS = [
     { campo: 'texto', padrao: 'normal', rotulo: 'Tamanho do texto',
       opcoes: [['normal', 'Padrão'], ['grande', 'Grande'], ['maior', 'Maior']] },
@@ -2619,46 +2573,9 @@
     if (valor && valor !== pref.padrao) root.dataset[campo] = valor;
     else delete root.dataset[campo];
   }
-  function aplicarTexto(texto) { aplicarPreferencia('texto', texto); }
-  function guardar(chave, valor, campoNaConta) {
-    try { localStorage.setItem('nilma_' + chave, valor); } catch (e) {}
-    if (auth.currentUser) {
-      var dados = {};
-      dados[campoNaConta || chave] = valor;
-      db.collection('usuarios').doc(auth.currentUser.uid).update(dados).catch(function () {});
-    }
-  }
-  function renderAparencia() {
-    var corpo = $('aparenciaCorpo');
-    var paletaAtual = document.documentElement.dataset.paleta || 'padrao';
-    corpo.innerHTML =
-      '<div class="aparencia-grupo"><div class="aparencia-rotulo">Cor</div><div class="aparencia-cores" role="group" aria-label="Cor">' +
-        PALETAS.map(function (p) {
-          return '<button type="button" data-paleta="' + p.key + '" title="' + p.label + '" aria-label="' + p.label + '"' +
-            ' aria-pressed="' + (p.key === paletaAtual) + '" style="background:' + p.cor + '"></button>';
-        }).join('') + '</div></div>' +
-      PREFERENCIAS.map(function (pref) {
-        var atual = document.documentElement.dataset[pref.campo] || pref.padrao;
-        return '<div class="aparencia-grupo"><div class="aparencia-rotulo">' + pref.rotulo + '</div>' +
-          (pref.dica ? '<div class="dica" style="margin-bottom:6px">' + pref.dica + '</div>' : '') +
-          '<div class="aparencia-opcoes" role="group" aria-label="' + pref.rotulo + '">' +
-            pref.opcoes.map(function (o) {
-              return '<button type="button" data-pref="' + pref.campo + '" data-valor="' + o[0] + '" aria-pressed="' + (o[0] === atual) + '">' + o[1] + '</button>';
-            }).join('') + '</div></div>';
-      }).join('');
-    corpo.querySelectorAll('[data-paleta]').forEach(function (b) {
-      b.addEventListener('click', function () { aplicarPaleta(b.dataset.paleta); guardar('paleta', b.dataset.paleta); renderAparencia(); });
-    });
-    corpo.querySelectorAll('[data-pref]').forEach(function (b) {
-      b.addEventListener('click', function () {
-        aplicarPreferencia(b.dataset.pref, b.dataset.valor);
-        guardar(b.dataset.pref, b.dataset.valor);
-        renderAparencia();
-      });
-    });
-  }
-  // Aparência e Sair ficam no menu da conta (avatar, no alto à direita).
-  NilmaShell.ao('aparencia', function () { renderAparencia(); $('modalAparencia').showModal(); });
+  // Configurações e Sair ficam no menu da conta (avatar, no alto à direita).
+  // A janela é a comum (nilma-config.js), a mesma do Entregas e do Fiscal.
+  NilmaShell.ao('aparencia', function () { NilmaConfig.abrir('preferencias'); });
   NilmaShell.ao('sair', function () { auth.signOut(); });
   // Pendências é esta mesma página: tocar nela no menu ☰ só fecha o menu.
   NilmaShell.ao('modulo', function (id) { return id === 'pendencias'; });
@@ -2740,7 +2657,12 @@
     exemplos: ['Quem não mandou extrato esse mês?', 'Quem está com pendência?'],
     exemplosIA: ['Quais clientes estão há mais meses sem mandar extrato?', 'Quem tem pendência e ainda não tem e-mail cadastrado?']
   });
-  $('aparenciaFechar').addEventListener('click', function () { $('modalAparencia').close(); });
+  NilmaConfig.ligar({
+    cargos: function () { return rolesAtuais; },
+    aplicar: function (campo, valor) { if (campo === 'tema') aplicarTema(valor, true); else aplicarPreferencia(campo, valor); },
+    sair: function () { auth.signOut(); },
+    versao: VERSAO_APP
+  });
   function iniciaisDe(nome) {
     var partes = String(nome || '').trim().split(/[\s.]+/).filter(Boolean);
     if (!partes.length) return '';
@@ -2768,7 +2690,6 @@
     if (ev.key === 'nilma_texto') aplicarPreferencia('texto', ev.newValue);
     if (ev.key === 'nilma_densidade') aplicarPreferencia('densidade', ev.newValue);
     if (ev.key === 'nilma_animacao') aplicarPreferencia('animacao', ev.newValue);
-    if ($('modalAparencia').open) renderAparencia();
   });
 
   // ---------- menu principal ----------

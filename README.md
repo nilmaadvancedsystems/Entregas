@@ -5,6 +5,19 @@ https://nilmaadvancedsystems.github.io/Entregas/entregas.html
 
 Para testar sem gravar nada no banco, abra com `?demo=1` no fim do link.
 
+## Configurações no estilo do Notion (versão 2.346)
+
+O menu da foto (canto de cima) tem **Minha conta** e **Configurações**. As
+duas abrem a mesma janela, igual no Entregas, na Pendências e no Fiscal
+(`nilma-config.js`): tópicos à esquerda, com busca, e as opções à direita, no
+desenho da ficha do cliente.
+
+- **Minha conta**: foto, nome, e-mail, cargos, trocar senha e sair.
+- **Preferências**: tema, onde o Entregas abre e como abrir os PDFs do Drive.
+- **Notificações**: se os avisos estão ligados neste aparelho.
+- **Aplicativo**: instalar, versão e "Buscar a versão mais nova".
+- **Integrações** (só admin): se o robô, o Gmail e a IA estão no ar.
+
 ## Visual N1 no ar (25/09/2026)
 
 A versão que estava em teste (`teste/`, visual N1) passou a ser o sistema do
