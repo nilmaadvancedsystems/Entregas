@@ -675,24 +675,26 @@
     background: var(--surface); color: var(--ink); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow-lg);
   }
   .girando { animation: spin 1s linear infinite; }
-  /* painel lateral largo que abre pela direita (Execuções; e-mail do robô) */
-  .gaveta.gaveta-painel {
-    left: auto; right: 0; width: min(720px, 100vw); max-width: 100vw; padding: 0;
-    border-radius: 12px 0 0 12px; background: var(--bg, var(--surface));
-    animation: painelEntra .22s cubic-bezier(.33, 1, .68, 1) both;
+  /* página Execuções do arquivamento (formato da ficha do cliente) */
+  /* números no alto: caixa dividida em células, como o Relatório da Conferência */
+  #viewExecucoes .kpis {
+    display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 0 0 16px;
+    border: 1px solid var(--border); border-radius: 8px; background: var(--surface); overflow: hidden;
   }
-  .gaveta.gaveta-painel.gaveta-saindo { animation: painelSai .18s ease-in forwards; }
-  @keyframes painelEntra { from { transform: translateX(100%); } }
-  @keyframes painelSai { to { transform: translateX(100%); } }
-  .painel-cabeca {
-    position: sticky; top: 0; z-index: 1; margin: 0; padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 12px;
-    background: inherit; border-bottom: 1px solid var(--border);
+  #viewExecucoes .kpi { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 14px 16px; }
+  #viewExecucoes .kpi + .kpi { border-left: 1px solid var(--border); }
+  #viewExecucoes .kpi-rotulo { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-muted); }
+  #viewExecucoes .kpi-valor { font-size: 24px; font-weight: 600; line-height: 1.2; font-variant-numeric: tabular-nums; }
+  #viewExecucoes .kpi-valor.pend { color: var(--warning, #d29922); }
+  #viewExecucoes .kpi-sub { font-size: 12px; color: var(--ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  @media (max-width: 768px) {
+    #viewExecucoes .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    #viewExecucoes .kpi:nth-child(3) { border-left: 0; }
+    #viewExecucoes .kpi:nth-child(n+3) { border-top: 1px solid var(--border); }
   }
-  .painel-cabeca > .ph { font-size: 18px; color: var(--ink-muted); }
-  .painel-titulo { flex: 1; min-width: 0; font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .painel-fechar { margin-left: auto; border-color: transparent; }
-  .painel-corpo { flex: 1 0 auto; display: flex; flex-direction: column; gap: 16px; padding: 16px; }
-  .painel-corpo #arqPedido:empty { display: none; }
+  #viewExecucoes .cliente-menu { margin-bottom: 16px; }
+  #execPainelAndamento #arqPedido:empty { display: none; }
+  #execPainelLista .caixa-p { margin: 0; }
   /* pontinho "organizando agora" no botão Execuções */
   .arq-rodando { display: inline-block; width: 8px; height: 8px; margin-left: 2px; border-radius: 50%; background: var(--warning, #d29922); animation: pulsar 1.4s ease-in-out infinite; }
   .arq-rodando[hidden] { display: none; }
@@ -1394,7 +1396,7 @@
           <div class="robo-vigia" id="arqVigia" aria-live="polite"></div>
         </div>
         <div class="robo-acoes">
-          <button type="button" class="btn btn-secondary" id="btnArqExecucoes" aria-controls="arqPainel"><i class="ph ph-clock-counter-clockwise" aria-hidden="true"></i> Execuções <span class="arq-rodando" id="arqRodando" hidden title="Organizando agora"></span></button>
+          <button type="button" class="btn btn-secondary" id="btnArqExecucoes" aria-controls="viewExecucoes"><i class="ph ph-clock-counter-clockwise" aria-hidden="true"></i> Execuções <span class="arq-rodando" id="arqRodando" hidden title="Organizando agora"></span></button>
           <button type="button" class="btn btn-secondary" id="btnArquivar"><i class="ph ph-archive" aria-hidden="true"></i> Arquivar agora</button>
         </div>
       </div>
@@ -1403,25 +1405,53 @@
       <section class="caixa-p" id="arqPastas"></section>
     </div>
 
-    <!-- Painel lateral das execuções do arquivamento (abre pelo botão
-         "Execuções" e sozinho quando alguém pede "Arquivar agora"). Usa a
-         gaveta da casca: Esc, véu e foco preso vêm de NilmaShell. -->
-    <aside class="gaveta gaveta-painel" id="arqPainel" hidden role="dialog" aria-modal="true" aria-labelledby="arqPainelTitulo" tabindex="-1">
-      <div class="gaveta-cabeca painel-cabeca">
-        <i class="ph ph-clock-counter-clockwise" aria-hidden="true"></i>
-        <span class="painel-titulo" id="arqPainelTitulo">Execuções do arquivamento</span>
-        <button type="button" class="topo-btn painel-fechar" aria-label="Fechar"><i class="ph ph-x" aria-hidden="true"></i></button>
+    <!-- ============ TELA: EXECUÇÕES DO ARQUIVAMENTO ============ -->
+    <!-- Página própria, no formato da ficha do cliente: volta pro Arquivo,
+         números no alto, menu de seções à esquerda. Abre pelo botão
+         "Execuções" do Arquivo e sozinha quando alguém pede "Arquivar agora". -->
+    <div id="viewExecucoes" hidden>
+      <div class="cliente-topo">
+        <button type="button" class="btn btn-secondary" id="execVoltar"><i class="ph ph-arrow-left" aria-hidden="true"></i> Arquivo</button>
+        <div class="cliente-identidade">
+          <div class="cliente-nome-linha"><h1 class="cliente-nome">Execuções do arquivamento</h1></div>
+          <div class="cliente-meta"><span class="robo-vigia" id="execVigia" aria-live="polite"></span></div>
+        </div>
+        <div class="cliente-acoes">
+          <button type="button" class="btn btn-secondary" id="execArquivar"><i class="ph ph-archive" aria-hidden="true"></i> Arquivar agora</button>
+        </div>
       </div>
-      <div class="painel-corpo">
-        <div id="arqPedido" aria-live="polite"></div>
-        <section class="caixa-p" id="arqExecucoes">
-          <div class="caixa-cab"><h2><i class="ph ph-list-checks" aria-hidden="true"></i> Execuções</h2><span class="cont" id="arqN"></span></div>
-          <div class="arq-busca"><div class="n1-busca"><i class="ph ph-magnifying-glass" aria-hidden="true"></i><input type="search" id="arqBusca" placeholder="Filtrar por cliente ou código" aria-label="Filtrar execuções por cliente ou código"></div></div>
-          <div class="tab-rolagem"><table class="tab-simples arq-tabela" id="tabArquivo"></table></div>
-          <div id="arquivoVazio" class="vazio" hidden></div>
-        </section>
+
+      <div class="kpis" role="group" aria-label="Resumo das execuções">
+        <div class="kpi"><span class="kpi-rotulo"><i class="ph ph-list-checks" aria-hidden="true"></i>Execuções</span><span class="kpi-valor" id="execKTotal">–</span><span class="kpi-sub" id="execKTotalSub"></span></div>
+        <div class="kpi"><span class="kpi-rotulo"><i class="ph ph-archive" aria-hidden="true"></i>Arquivados</span><span class="kpi-valor" id="execKArquivados">–</span><span class="kpi-sub">nas execuções listadas</span></div>
+        <div class="kpi"><span class="kpi-rotulo"><i class="ph ph-warning-circle" aria-hidden="true"></i>Não identificados</span><span class="kpi-valor pend" id="execKNaoId">–</span><span class="kpi-sub">ficaram na pasta de entrada</span></div>
+        <div class="kpi"><span class="kpi-rotulo"><i class="ph ph-clock-counter-clockwise" aria-hidden="true"></i>Última execução</span><span class="kpi-valor" id="execKUltima" style="font-size:var(--t-lg)">–</span><span class="kpi-sub" id="execKUltimaSub"></span></div>
       </div>
-    </aside>
+
+      <div class="cliente-corpo">
+        <nav class="cliente-menu" role="tablist" aria-label="Seções das execuções" id="execAbas">
+          <button type="button" class="secao-btn" role="tab" id="execAbaAndamento" data-painel="execPainelAndamento" aria-selected="true">
+            <i class="ph ph-spinner-gap" aria-hidden="true"></i><span>Andamento</span>
+          </button>
+          <button type="button" class="secao-btn" role="tab" id="execAbaLista" data-painel="execPainelLista" aria-selected="false">
+            <i class="ph ph-list-checks" aria-hidden="true"></i><span>Execuções</span><span class="cont" id="arqN"></span>
+          </button>
+        </nav>
+        <div class="cliente-conteudo">
+          <div id="execPainelAndamento" role="tabpanel" aria-labelledby="execAbaAndamento">
+            <div id="arqPedido" aria-live="polite"></div>
+            <div class="vazio" id="execSemPedido" hidden>Nenhum arquivamento pedido nas últimas 24 horas. A organização das 9h aparece na seção Execuções.</div>
+          </div>
+          <div id="execPainelLista" role="tabpanel" aria-labelledby="execAbaLista" hidden>
+            <section class="caixa-p" id="arqExecucoes">
+              <div class="arq-busca"><div class="n1-busca"><i class="ph ph-magnifying-glass" aria-hidden="true"></i><input type="search" id="arqBusca" placeholder="Filtrar por cliente ou código" aria-label="Filtrar execuções por cliente ou código"></div></div>
+              <div class="tab-rolagem"><table class="tab-simples arq-tabela" id="tabArquivo"></table></div>
+              <div id="arquivoVazio" class="vazio" hidden></div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- ================= PÁGINA: ROBÔ DO GMAIL ================= -->
     <div id="viewRobo" hidden>
@@ -1963,6 +1993,7 @@
   var MESES_NO_GRAFICO = 6;
   var modoVisao = 'lista';        // 'lista' | 'cartoes'
   var telaCliente = false;
+  var telaExecucoes = false;   // Arquivo › página "Execuções do arquivamento"
   var paginaAtual = 'hoje';       // hoje | clientes | anual | cobrancas | robo | config
   var anualAno = new Date().getFullYear();
   var hojePulados = [];           // clientes "pulados" no cartão de foco (só nesta sessão)
@@ -3717,7 +3748,9 @@
     if (paginaAtual === 'config' && !telaCliente && typeof renderConfig === 'function') renderConfig();
     $('viewHoje').hidden = telaCliente || paginaAtual !== 'hoje';
     $('viewAnual').hidden = telaCliente || paginaAtual !== 'anual';
-    $('viewArquivo').hidden = telaCliente || paginaAtual !== 'arquivo';
+    if (paginaAtual !== 'arquivo') telaExecucoes = false;   // saiu do Arquivo: volta pra pasta do ano
+    $('viewArquivo').hidden = telaCliente || paginaAtual !== 'arquivo' || telaExecucoes;
+    $('viewExecucoes').hidden = telaCliente || paginaAtual !== 'arquivo' || !telaExecucoes;
     if (paginaAtual === 'arquivo' && !telaCliente) abrirArquivo();
     if (paginaAtual === 'anual' && !telaCliente) carregarAnual();
     $('viewCliente').hidden = !telaCliente;
@@ -7064,20 +7097,36 @@
     montar();
   }
 
-  // Aba Arquivo: na tela só a pasta do ano; as execuções abrem num painel
-  // lateral (gaveta da casca: Esc, véu e foco preso vêm do NilmaShell).
+  // Aba Arquivo: na tela só a pasta do ano. As execuções têm página própria
+  // (viewExecucoes), no formato da ficha do cliente.
   var expArquivo = null;
-  function abrirPainelExecucoes(quemAbriu) {
-    if (window.NilmaShell && NilmaShell.abrirGaveta) NilmaShell.abrirGaveta('arqPainel', quemAbriu);
-    else $('arqPainel').hidden = false;
-    if (typeof renderArquivo === 'function' && arq.ligado) renderArquivo();
+  function abrirTelaExecucoes(secao) {
+    telaExecucoes = true;
+    aplicarLayout();
+    if (arq.ligado) renderArquivo();
+    // sem arquivamento pedido nas últimas 24 h, abre direto na lista
+    selecionarSecaoExecucoes(secao || ($('execSemPedido').hidden ? 'execAbaAndamento' : 'execAbaLista'));
+    window.scrollTo(0, 0);
+    $('execVoltar').focus();
   }
-  function fecharPainel() {
-    if (window.NilmaShell && NilmaShell.fecharGaveta) NilmaShell.fecharGaveta();
-    else document.querySelectorAll('.gaveta-painel').forEach(function (g) { g.hidden = true; });
+  function voltarAoArquivo() {
+    telaExecucoes = false;
+    aplicarLayout();
+    $('btnArqExecucoes').focus();
   }
-  $('btnArqExecucoes').addEventListener('click', function () { abrirPainelExecucoes(this); });
-  document.querySelectorAll('.gaveta-painel .painel-fechar').forEach(function (b) { b.addEventListener('click', fecharPainel); });
+  var SECOES_EXEC = ['execAbaAndamento', 'execAbaLista'];
+  function selecionarSecaoExecucoes(idAba) {
+    SECOES_EXEC.forEach(function (id) {
+      var aba = $(id), ativa = id === idAba;
+      aba.setAttribute('aria-selected', String(ativa));
+      aba.tabIndex = ativa ? 0 : -1;
+      $(aba.dataset.painel).hidden = !ativa;
+    });
+  }
+  SECOES_EXEC.forEach(function (id) { $(id).addEventListener('click', function () { selecionarSecaoExecucoes(id); }); });
+  $('btnArqExecucoes').addEventListener('click', function () { abrirTelaExecucoes(); });
+  $('execVoltar').addEventListener('click', voltarAoArquivo);
+  $('execArquivar').addEventListener('click', function () { $('btnArquivar').click(); });
 
   // ==========================================================================
   // Arquivo: a rotina "Claudio Secretario". Esta página pede ("Arquivar
@@ -7108,7 +7157,9 @@
 
   function textoRecolhido(chave, titulo, texto) {
     var det = el('details', 'arq-relatorio');
-    det.open = !!arq.textosAbertos[chave];
+    // a mensagem final do Claude já vem aberta (é o assunto da seção
+    // Andamento); o resto começa recolhido
+    det.open = chave in arq.textosAbertos ? !!arq.textosAbertos[chave] : /^pedido:/.test(chave);
     det.appendChild(el('summary', null, titulo));
     det.appendChild(el('pre', null, texto));
     det.addEventListener('toggle', function () { arq.textosAbertos[chave] = det.open; });
@@ -7167,14 +7218,18 @@
     b.title = ligado ? 'Organiza agora a pasta Claudio Secretario, como a organização das 9h' : 'O PC do arquivador está desligado: o pedido fica guardado e sai quando ele ligar';
     // pontinho no botão "Execuções" enquanto há arquivamento pedido ou rodando
     $('arqRodando').hidden = !aberto;
+    // a página das execuções repete o estado do PC e o botão
+    var ev = $('execVigia'); ev.className = caixa.className; ev.innerHTML = caixa.innerHTML;
+    var eb = $('execArquivar'); eb.disabled = b.disabled; eb.classList.toggle('ocupado', !!aberto); eb.lastChild.textContent = b.lastChild.textContent; eb.title = b.title;
+    $('execSemPedido').hidden = true;
 
     var alvo = $('arqPedido');
     alvo.innerHTML = '';
     var p = aberto || arq.pedidos[0];
-    if (!p) return;
+    if (!p) { $('execSemPedido').hidden = false; return; }
     var recente = p.status === 'concluido' || p.status === 'erro' || p.status === 'cancelado'
       ? Date.now() - new Date(p.concluidoEm || p.erroEm || p.canceladoEm || p.criadoEm) < 24 * 36e5 : true;
-    if (!recente) return;
+    if (!recente) { $('execSemPedido').hidden = false; return; }
     var box = el('div', 'arq-pedido ' + p.status);
     var icone = { pendente: 'ph-hourglass', aguardando: 'ph-clock', processando: 'ph-spinner-gap', concluido: 'ph-check-circle', erro: 'ph-warning-circle', cancelado: 'ph-x-circle' }[p.status] || 'ph-info';
     box.appendChild(ico(icone));
@@ -7249,8 +7304,8 @@
       criadoPorUid: auth.currentUser.uid
     }).then(function () {
       toast(arquivadorLigado() ? 'Arquivamento pedido. O PC do arquivador vai começar.' : 'Arquivamento pedido. O PC do arquivador está desligado: começa quando ele ligar.', 'ok');
-      // o andamento aparece no painel das execuções
-      abrirPainelExecucoes($('btnArqExecucoes'));
+      // o andamento aparece na página das execuções
+      abrirTelaExecucoes('execAbaAndamento');
     }).catch(function (err) {
       b.disabled = false;
       toast('Não consegui pedir o arquivamento: ' + err.message, 'erro');
@@ -7270,6 +7325,16 @@
       .reduce(function (s, x) { return s + (x.arquivados || 0); }, 0);
     $('menuNumArquivo').textContent = deHoje ? deHoje : '';
     $('arqN').textContent = lista.length || '';
+    // faixa de números da página das execuções (sobre as listadas: as 60 últimas)
+    var todas = arq.execucoes;
+    var soma = function (campo) { return todas.reduce(function (s, x) { return s + (x[campo] || 0); }, 0); };
+    $('execKTotal').textContent = todas.length;
+    $('execKTotalSub').textContent = deHoje ? plural(deHoje, 'arquivo arquivado hoje', 'arquivos arquivados hoje') : 'nenhum arquivo hoje';
+    $('execKArquivados').textContent = soma('arquivados');
+    $('execKNaoId').textContent = soma('naoIdentificados');
+    var ultima = todas[0];
+    $('execKUltima').textContent = ultima ? dataHora(ultima.em) : '–';
+    $('execKUltimaSub').textContent = ultima ? (MODO_ROTULO[ultima.modo] || ultima.modo || '') + ' · ' + plural(ultima.arquivados || 0, 'arquivado', 'arquivados') : '';
     var t = $('tabArquivo');
     t.innerHTML = '';
     var vazio = $('arquivoVazio');
