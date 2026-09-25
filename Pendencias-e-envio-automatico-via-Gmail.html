@@ -573,7 +573,7 @@
   .andamento-titulo strong { font-size: 14px; }
   .andamento-sub { font-size: 12px; color: var(--ink-muted); }
   .andamento-pct { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
-  .andamento-barra { position: relative; height: 6px; margin: 10px 0 6px; border-radius: 99px; background: var(--surface-2); overflow: hidden; }
+  .andamento-barra { position: relative; height: 6px; margin: 10px 0 6px; border-radius: 99px; background: var(--border); overflow: hidden; }
   .andamento-cheio { height: 100%; width: 0; border-radius: inherit; background: var(--ink); transition: width .6s ease; }
   .andamento-robo.ok .andamento-cheio { background: var(--success, #2da44e); }
   .andamento-barra.indeterminada .andamento-cheio { width: 30%; animation: indeterminada 1.4s ease-in-out infinite; }
@@ -725,6 +725,17 @@
   /* pontinho "organizando agora" no botão Execuções */
   .arq-rodando { display: inline-block; width: 8px; height: 8px; margin-left: 2px; border-radius: 50%; background: var(--warning, #d29922); animation: pulsar 1.4s ease-in-out infinite; }
   .arq-rodando[hidden] { display: none; }
+  .arq-pct { margin-left: 2px; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .arq-pct[hidden] { display: none; }
+  /* % do arquivamento (lista de etapas do Claude) */
+  .arq-prog-cab { display: flex; align-items: baseline; gap: 12px; margin-top: 8px; }
+  .arq-prog-texto { flex: 1; min-width: 0; font-size: 14px; overflow-wrap: anywhere; }
+  .arq-etapas { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+  .arq-etapas li { display: flex; align-items: flex-start; gap: 8px; color: var(--ink-muted); }
+  .arq-etapas li > .ph { flex: none; margin-top: 2px; }
+  .arq-etapas li.etapa-completed { color: var(--ink); }
+  .arq-etapas li.etapa-completed > .ph { color: var(--success, #2da44e); }
+  .arq-etapas li.etapa-in_progress { color: var(--ink); font-weight: 600; }
   @keyframes pulsar { 50% { opacity: .35; } }
   @media (prefers-reduced-motion: reduce) { .girando, .arq-rodando { animation: none; } }
   #painelPasta { border: 1px solid var(--border); border-radius: 6px; background: var(--surface); overflow: clip; }
@@ -1258,6 +1269,7 @@
             <button type="button" class="chip" data-tipo="aplicacao" aria-pressed="false"><i class="ph ph-chart-line-up" aria-hidden="true"></i>Aplicação</button>
             <button type="button" class="chip" id="chipAtrasados" aria-pressed="false" hidden><i class="ph ph-calendar-x" aria-hidden="true"></i>Após o prazo</button>
             <button type="button" class="chip" id="chipCostume" aria-pressed="false" title="Pendentes que já passaram do dia em que costumam enviar"><i class="ph ph-clock-countdown" aria-hidden="true"></i>Fora do costume</button>
+            <button type="button" class="chip" id="chipMovimento" aria-pressed="false" title="Só empresas com algum documento (extrato, comprovante ou aplicação) em algum mês do ano"><i class="ph ph-calendar-check" aria-hidden="true"></i>Com movimento no ano</button>
             <select class="select select-ordem" id="filtroZona" style="height:28px;min-width:0;font-size:var(--t-sm)"><option value="">Zona: todas</option></select>
             <select class="select select-ordem" id="filtroEnq" style="height:28px;min-width:0;font-size:var(--t-sm)"><option value="">Enquadramento: todos</option></select>
             <button type="button" class="chip" id="limparFiltros" hidden><i class="ph ph-x" aria-hidden="true"></i>Limpar filtros</button>
@@ -1423,7 +1435,7 @@
           <div class="robo-vigia" id="arqVigia" aria-live="polite"></div>
         </div>
         <div class="robo-acoes">
-          <button type="button" class="btn btn-secondary" id="btnArqExecucoes" aria-controls="viewExecucoes"><i class="ph ph-clock-counter-clockwise" aria-hidden="true"></i> Execuções <span class="arq-rodando" id="arqRodando" hidden title="Organizando agora"></span></button>
+          <button type="button" class="btn btn-secondary" id="btnArqExecucoes" aria-controls="viewExecucoes"><i class="ph ph-clock-counter-clockwise" aria-hidden="true"></i> Execuções <span class="arq-rodando" id="arqRodando" hidden title="Organizando agora"></span><span class="arq-pct" id="arqPct" hidden></span></button>
           <button type="button" class="btn btn-secondary" id="btnArquivar"><i class="ph ph-archive" aria-hidden="true"></i> Arquivar agora</button>
         </div>
       </div>
@@ -2014,6 +2026,7 @@
   var filtroStatus = 'todos';     // todos | pendentes | completos | semEmail
   var filtroTipos = new Set();    // chaves de documento que precisam estar EM FALTA
   var filtroCostume = false;
+  var filtroMovimento = false;   // só quem teve algum documento no ano (anualCache do ano atual)
   var ordem = 'nome';
   var ordemDesc = false;
   var clienteSelecionadoId = null;
@@ -2784,11 +2797,51 @@
   });
   $('limparFiltros').addEventListener('click', function () {
     filtroTipos.clear(); filtroStatus = 'todos'; termoBusca = ''; $('busca').value = ''; $('buscaLimpar').hidden = true;
-    filtroPrazo = false; filtroCostume = false; filtroZona = ''; filtroEnq = ''; $('filtroZona').value = ''; $('filtroEnq').value = '';
+    filtroPrazo = false; filtroCostume = false; filtroMovimento = false; filtroZona = ''; filtroEnq = ''; $('filtroZona').value = ''; $('filtroEnq').value = '';
     aplicarFiltros();
   });
   $('chipAtrasados').addEventListener('click', function () { filtroPrazo = !filtroPrazo; aplicarFiltros(); });
   $('chipCostume').addEventListener('click', function () { filtroCostume = !filtroCostume; aplicarFiltros(); });
+  // Movimento no ano: precisa dos 12 meses do ano (a mesma leitura da Visão
+  // anual, guardada em anualCache). Lê uma vez, na primeira vez que liga.
+  $('chipMovimento').addEventListener('click', function () {
+    filtroMovimento = !filtroMovimento;
+    if (filtroMovimento && !anualCache.has(anoDoMovimento())) {
+      var b = this; b.disabled = true;
+      carregarAnoDoMovimento().then(function () { b.disabled = false; aplicarFiltros(); })
+        .catch(function (err) { b.disabled = false; filtroMovimento = false; aplicarFiltros(); toast('Não consegui ler o ano: ' + err.message, 'erro'); });
+      return;
+    }
+    aplicarFiltros();
+  });
+  function anoDoMovimento() { return (competenciaAtual instanceof Date ? competenciaAtual : new Date()).getFullYear(); }
+  function carregarAnoDoMovimento() {
+    var ano = anoDoMovimento(), comps = compsDoAno(ano);
+    return Promise.all([
+      db.collection('documentosMensal').where('competencia', 'in', comps.slice(0, 6)).get(),
+      db.collection('documentosMensal').where('competencia', 'in', comps.slice(6)).get()
+    ]).then(function (snaps) {
+      var mapa = new Map();
+      snaps.forEach(function (snap) { snap.docs.forEach(function (d) {
+        var dado = d.data(); var porComp = mapa.get(dado.clienteId); if (!porComp) { porComp = {}; mapa.set(dado.clienteId, porComp); } porComp[dado.competencia] = dado;
+      }); });
+      anualCache.set(ano, mapa);
+    });
+  }
+  function teveMovimentoNoAno(clienteId) {
+    var mapa = anualCache.get(anoDoMovimento());
+    if (!mapa) {
+      // trocou pra um mês de outro ano: carrega esse ano e, enquanto isso, não esconde ninguém
+      if (!teveMovimentoNoAno.carregando) {
+        teveMovimentoNoAno.carregando = true;
+        carregarAnoDoMovimento().catch(function () {}).then(function () { teveMovimentoNoAno.carregando = false; aplicarFiltros(); });
+      }
+      return true;
+    }
+    var porComp = mapa.get(clienteId);
+    if (!porComp) return false;
+    return Object.keys(porComp).some(function (k) { var x = porComp[k]; return !!(x && (x.extrato || x.comprovante || x.aplicacao)); });
+  }
   $('filtroZona').addEventListener('change', function () { filtroZona = $('filtroZona').value; aplicarFiltros(); });
   $('filtroEnq').addEventListener('change', function () { filtroEnq = $('filtroEnq').value; aplicarFiltros(); });
   function preencherSelectsDeFiltro() {
@@ -3580,6 +3633,7 @@
   function passaExtras(cliente) {
     if (filtroPrazo && !atrasadoNoPrazo(cliente.id)) return false;
     if (filtroCostume && !foraDoCostume(cliente.id)) return false;
+    if (filtroMovimento && !teveMovimentoNoAno(cliente.id)) return false;
     if (filtroZona && (cliente.zona || '').trim() !== filtroZona) return false;
     if (filtroEnq && (cliente.enquadramento || '').trim() !== filtroEnq) return false;
     return true;
@@ -3656,8 +3710,9 @@
     });
     $('chipAtrasados').setAttribute('aria-pressed', String(filtroPrazo));
     $('chipCostume').setAttribute('aria-pressed', String(filtroCostume));
-    var filtrando = filtroTipos.size > 0 || filtroStatus !== 'todos' || !!termoBusca || filtroPrazo || filtroCostume || !!filtroZona || !!filtroEnq;
-    var nFiltros = filtroTipos.size + (filtroPrazo ? 1 : 0) + (filtroCostume ? 1 : 0) + (filtroZona ? 1 : 0) + (filtroEnq ? 1 : 0);
+    $('chipMovimento').setAttribute('aria-pressed', String(filtroMovimento));
+    var filtrando = filtroTipos.size > 0 || filtroStatus !== 'todos' || !!termoBusca || filtroPrazo || filtroCostume || filtroMovimento || !!filtroZona || !!filtroEnq;
+    var nFiltros = filtroTipos.size + (filtroPrazo ? 1 : 0) + (filtroCostume ? 1 : 0) + (filtroMovimento ? 1 : 0) + (filtroZona ? 1 : 0) + (filtroEnq ? 1 : 0);
     $('filtrosAtivos').textContent = nFiltros || '';
     // Filtro ligado sem o painel aberto some da vista: abre uma vez pra mostrar
     // de onde vem o corte na lista.
@@ -5149,7 +5204,11 @@
     tabela.innerHTML = '';
     var thead = el('thead'); var trh = el('tr');
     trh.appendChild(el('th', null, 'Mês'));
-    TIPOS.forEach(function (t) { trh.appendChild(el('th', null, t.curto)); });
+    // Só as colunas dos documentos que o cliente tem: o que "não se aplica"
+    // (aplicação de quem não aplica, p.ex.) nem aparece na grade.
+    var tiposGrade = tiposExigidos(cliente.id);
+    if (!tiposGrade.length) tiposGrade = TIPOS;
+    tiposGrade.forEach(function (t) { trh.appendChild(el('th', null, t.curto)); });
     trh.appendChild(el('th', null, 'Total'));
     thead.appendChild(trh); tabela.appendChild(thead);
     var tbody = el('tbody');
@@ -5163,7 +5222,7 @@
       tr.appendChild(tdMes);
       var n = 0;
       var exigNoMes = tiposExigidos(cliente.id).length;
-      TIPOS.forEach(function (t) {
+      tiposGrade.forEach(function (t) {
         var td = el('td');
         var p = el('span', 'ponto');
         if (naoSeAplica(cliente.id, t.chave)) {
@@ -7320,6 +7379,19 @@
 
   function renderArquivo() { renderArquivoTopo(); renderArquivoLista(); }
 
+  // % do arquivamento pela lista de etapas do Claude (p.progresso, gravado pelo
+  // arquivador). Etapa em andamento conta meia. Estimativa pelo ritmo até aqui.
+  function progressoDoArquivamento(p) {
+    var g = p && p.progresso;
+    if (!g || !g.total) return null;
+    var andando = (g.nomes || []).some(function (n) { return n.status === 'in_progress'; }) ? 0.5 : 0;
+    var pct = Math.min(99, Math.round((g.feitas + andando) / g.total * 100));
+    var eta = '';
+    var desde = Date.parse(p.processandoEm || '');
+    if (!isNaN(desde) && pct >= 10) eta = duracaoCurta((Date.now() - desde) / pct * (100 - pct));
+    return { pct: pct, feitas: g.feitas, total: g.total, atual: g.atual, nomes: g.nomes || [], eta: eta };
+  }
+
   function renderArquivoTopo() {
     var ligado = arquivadorLigado();
     var caixa = $('arqVigia');
@@ -7337,8 +7409,12 @@
     b.classList.toggle('ocupado', !!aberto);
     b.lastChild.textContent = aberto ? (aberto.status === 'processando' ? ' Organizando...' : ' Arquivamento pedido...') : ' Arquivar agora';
     b.title = ligado ? 'Organiza agora a pasta Claudio Secretario, como a organização das 9h' : 'O PC do arquivador está desligado: o pedido fica guardado e sai quando ele ligar';
-    // pontinho no botão "Execuções" enquanto há arquivamento pedido ou rodando
+    // pontinho no botão "Execuções" enquanto há arquivamento pedido ou rodando,
+    // e a % quando o Claude já montou a lista de etapas
     $('arqRodando').hidden = !aberto;
+    var progAberto = aberto && aberto.status === 'processando' ? progressoDoArquivamento(aberto) : null;
+    $('arqPct').hidden = !progAberto;
+    $('arqPct').textContent = progAberto ? progAberto.pct + '%' : '';
     // a página das execuções repete o estado do PC e o botão
     var ev = $('execVigia'); ev.className = caixa.className; ev.innerHTML = caixa.innerHTML;
     var eb = $('execArquivar'); eb.disabled = b.disabled; eb.classList.toggle('ocupado', !!aberto); eb.lastChild.textContent = b.lastChild.textContent; eb.title = b.title;
@@ -7381,6 +7457,30 @@
     // Transcrição ao vivo: o que o Claude está fazendo, passo a passo
     // (o arquivador manda as últimas linhas a cada ~8 s).
     var linhasAnd = Array.isArray(p.andamento) ? p.andamento : [];
+    // Quanto falta: a lista de etapas que o Claude mantém enquanto organiza.
+    var prog = p.status === 'processando' ? progressoDoArquivamento(p) : null;
+    if (prog) {
+      var linhaPct = el('div', 'arq-prog-cab');
+      linhaPct.appendChild(el('span', 'arq-prog-texto', 'Etapa ' + Math.min(prog.feitas + 1, prog.total) + ' de ' + prog.total + (prog.atual ? ': ' + prog.atual : '')));
+      linhaPct.appendChild(el('strong', 'andamento-pct', prog.pct + '%'));
+      corpo.appendChild(linhaPct);
+      var barraA = el('div', 'andamento-barra');
+      barraA.setAttribute('role', 'progressbar'); barraA.setAttribute('aria-label', 'Andamento do arquivamento');
+      barraA.setAttribute('aria-valuemin', '0'); barraA.setAttribute('aria-valuemax', '100'); barraA.setAttribute('aria-valuenow', String(prog.pct));
+      var cheioA = el('div', 'andamento-cheio'); cheioA.style.width = prog.pct + '%';
+      barraA.appendChild(cheioA); corpo.appendChild(barraA);
+      corpo.appendChild(el('div', 'andamento-info', ['faltam ' + (100 - prog.pct) + '%', prog.eta ? 'cerca de ' + prog.eta + ' pra terminar' : ''].filter(Boolean).join(' · ')));
+      if (prog.nomes.length) {
+        var ule = el('ol', 'arq-etapas');
+        prog.nomes.forEach(function (n) {
+          var li = el('li', 'etapa-' + (n.status || 'pending'));
+          li.appendChild(ico(n.status === 'completed' ? 'ph-check-circle' : n.status === 'in_progress' ? 'ph-spinner-gap girando' : 'ph-circle'));
+          li.appendChild(el('span', null, n.nome));
+          ule.appendChild(li);
+        });
+        corpo.appendChild(ule);
+      }
+    }
     if (p.status === 'processando' && linhasAnd.length) {
       var ao = el('ol', 'arq-andamento');
       ao.setAttribute('aria-label', 'Andamento da organização');

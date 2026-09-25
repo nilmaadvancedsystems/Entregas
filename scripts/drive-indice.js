@@ -27,6 +27,7 @@
 // dizer documento recebido naquele mês. Ver marcarPeloIndice.
 const { google } = require('googleapis');
 const { getAuth } = require('./gmail-client');
+const { FieldValue } = require('firebase-admin/firestore');
 
 const PASTA_ANO = process.env.DRIVE_PASTA_ANO || '2026';
 const COLECAO = 'driveIndice';
@@ -78,22 +79,43 @@ function caminhos(itens, raizId) {
 // propósito: não é o "Extrato Bancário" que o Pendências cobra.
 const TIPO_POR_PASTA = { BANCARIOS: 'extrato', COMPROVANTES: 'comprovante', APLICACOES: 'aplicacao' };
 
-// Quais documentos a pasta de um cliente prova que chegaram:
-// Map("2026-06|extrato" -> [{ id, nome }])
+// Nome da pasta do banco (CONTÁBIL/EXTRATOS/AAAA/MM/BANCÁRIOS/<BANCO>) -> id do
+// banco no app (bancos-nilma.js). A rotina de arquivamento usa sempre o nome
+// curto; o que não está aqui passa pelo reconhecedor de texto dos PDFs. Pasta
+// de banco que o app não conhece (INFINITEPAY, BIGCARD) fica sem banco.
+const BANCO_POR_PASTA = {
+  'BANCO DO BRASIL': 'bb', BB: 'bb', SICOOB: 'sicoob', BANCOOB: 'sicoob', BRADESCO: 'bradesco', NUBANK: 'nubank',
+  CAIXA: 'caixa', CEF: 'caixa', 'CAIXA ECONOMICA': 'caixa', 'CAIXA ECONOMICA FEDERAL': 'caixa',
+  ITAU: 'itau', 'ITAU UNIBANCO': 'itau', SANTANDER: 'santander', BNB: 'bnb', 'BANCO DO NORDESTE': 'bnb',
+  INTER: 'inter', 'BANCO INTER': 'inter', 'MERCADO PAGO': 'mercadopago', MERCADOPAGO: 'mercadopago',
+  CORA: 'cora', PAGBANK: 'pagbank', PAGSEGURO: 'pagbank', C6: 'c6', 'C6 BANK': 'c6', STONE: 'stone',
+  SICREDI: 'sicredi', CRESOL: 'cresol', BTG: 'btg', 'BTG PACTUAL': 'btg', SAFRA: 'safra', BANRISUL: 'banrisul',
+};
+function bancoDaPasta(nome) {
+  const k = chaveDeNome(nome);
+  if (!k) return null;
+  if (BANCO_POR_PASTA[k]) return BANCO_POR_PASTA[k];
+  try { return require('./bancos').bancosDoTexto(nome)[0] || null; } catch (e) { return null; }
+}
+
+// Quais documentos a pasta de um cliente prova que chegaram, e de que banco:
+// Map("2026-06|extrato" -> [{ id, nome, banco }])
 function documentosNaPasta(itens, raizId) {
   const cam = caminhos(itens, raizId);
   const achados = new Map();
   itens.forEach(it => {
     if (it.t === 'd') return;
-    const c = (cam.get(it.i) || []).map(chaveDeNome);
-    // CONTÁBIL / EXTRATOS / AAAA / MM / BANCÁRIOS / ... / arquivo
+    const original = cam.get(it.i) || [];
+    const c = original.map(chaveDeNome);
+    // CONTÁBIL / EXTRATOS / AAAA / MM / BANCÁRIOS / <BANCO> / ... / arquivo
     if (c.length < 6 || c[0] !== 'CONTABIL' || c[1] !== 'EXTRATOS') return;
     if (!/^\d{4}$/.test(c[2]) || !/^(0[1-9]|1[0-2])$/.test(c[3])) return;
     const tipo = TIPO_POR_PASTA[c[4]];
     if (!tipo) return;
     const chave = c[2] + '-' + c[3] + '|' + tipo;
     if (!achados.has(chave)) achados.set(chave, []);
-    achados.get(chave).push({ id: it.i, nome: it.n });
+    // a pasta logo abaixo do tipo é o banco (só quando o arquivo está dentro dela)
+    achados.get(chave).push({ id: it.i, nome: it.n, banco: c.length >= 7 ? bancoDaPasta(original[5]) : null });
   });
   return achados;
 }
@@ -222,16 +244,98 @@ async function marcarPeloIndice(db, cliente, achados, log, soEnsaio) {
       pasta: { [tipo]: Array.from(vistos).concat(novos.map(x => x.id)).slice(-500) },
       atualizadoEm: agora,
     };
+    // De que banco(s) veio o documento do mês (a pasta do banco na rotina):
+    // é o que a tela usa pra contar o mês banco a banco.
+    const bancos = Array.from(new Set(novos.map(x => x.banco).filter(Boolean)));
+    if (bancos.length && !soEnsaio) patch.bancosPorTipo = { [tipo]: FieldValue.arrayUnion(...bancos) };
     if (d[tipo] !== true) {
       if (soEnsaio) { marcados++; continue; }       // só conta o que marcaria
       patch[tipo] = true;
-      patch.detalhes = { [tipo]: { origem: 'pasta', em: agora, arquivos: novos.slice(0, 20).map(x => x.nome) } };
+      patch.detalhes = { [tipo]: Object.assign({ origem: 'pasta', em: agora, arquivos: novos.slice(0, 20).map(x => x.nome) }, bancos.length ? { bancos } : {}) };
       marcados++;
       log('pasta do cliente:', (cliente.nome || cliente.id) + ',', tipo, competencia, 'marcado como recebido');
     }
     await ref.set(patch, { merge: true });
   }
   return marcados;
+}
+
+// ---------- o cadastro do cliente pela pasta ----------
+// Duas coisas que a pasta ensina sobre o cliente, com os mesmos cuidados do
+// robô do Gmail (download-attachments.js, aprenderBancos):
+//
+// 1. Bancos: o banco da pasta do extrato e da aplicação vai pro cadastro
+//    (clientes.bancos, e bancosPeloRobo pra saber quem pôs). Banco que alguém
+//    tirou do cadastro (bancosRecusados) não volta. Comprovante não ensina
+//    banco: pode ser o banco de quem recebeu o pagamento.
+//
+// 2. "Não se aplica" automático (pedido do escritório em 25/09/2026): cliente
+//    com movimento no ano (documento em pelo menos MESES_PRA_CONCLUIR meses)
+//    e NENHUM extrato, ou NENHUMA aplicação, no ano inteiro — nem na pasta,
+//    nem marcado por outro caminho — não tem esse documento: ele entra em
+//    documentosNaoAplicaveis e some da cobrança e da tela. O robô anota o que
+//    ele mesmo pôs em naoAplicavelAuto:
+//      - se o documento aparecer depois, ele tira;
+//      - se alguém tirar à mão, ele não põe de novo (a pessoa sabe mais).
+const MESES_PRA_CONCLUIR = 3;
+const TIPOS_QUE_PODEM_NAO_SE_APLICAR = ['extrato', 'aplicacao'];
+
+async function ajustarCadastroPeloIndice(db, cliente, achados, log) {
+  if (!cliente) return;
+  const ano = String(new Date().getFullYear());
+  const tiposNoAno = new Set();
+  const mesesComMovimento = new Set();
+  const bancos = new Set();
+  for (const [chave, arquivos] of achados) {
+    const [competencia, tipo] = chave.split('|');
+    if (tipo !== 'comprovante') arquivos.forEach(x => { if (x.banco) bancos.add(x.banco); });
+    if (competencia.slice(0, 4) !== ano) continue;
+    tiposNoAno.add(tipo);
+    mesesComMovimento.add(competencia);
+  }
+  // o que já está marcado no ano por qualquer caminho (Gmail, link, à mão)
+  const docs = await db.collection('documentosMensal').where('clienteId', '==', cliente.id).get();
+  docs.forEach(d => {
+    const x = d.data();
+    if (String(x.competencia || '').slice(0, 4) !== ano) return;
+    ['extrato', 'comprovante', 'aplicacao'].forEach(t => { if (x[t] === true) { tiposNoAno.add(t); mesesComMovimento.add(x.competencia); } });
+  });
+
+  const atualizacao = {};
+  const tem = new Set([].concat(cliente.bancos || [], cliente.bancosRecusados || []));
+  const bancosNovos = Array.from(bancos).filter(b => !tem.has(b));
+  if (bancosNovos.length) {
+    atualizacao.bancos = FieldValue.arrayUnion(...bancosNovos);
+    atualizacao.bancosPeloRobo = FieldValue.arrayUnion(...bancosNovos);
+  }
+
+  const na = new Set(cliente.documentosNaoAplicaveis || []);
+  const auto = new Set(cliente.naoAplicavelAuto || []);
+  const por = [], tirar = [];
+  if (mesesComMovimento.size >= MESES_PRA_CONCLUIR) {
+    TIPOS_QUE_PODEM_NAO_SE_APLICAR.forEach(t => {
+      if (!tiposNoAno.has(t) && !na.has(t) && !auto.has(t)) por.push(t);
+    });
+  }
+  TIPOS_QUE_PODEM_NAO_SE_APLICAR.forEach(t => {
+    if (tiposNoAno.has(t) && auto.has(t) && na.has(t)) tirar.push(t);
+  });
+  if (por.length) {
+    atualizacao.documentosNaoAplicaveis = FieldValue.arrayUnion(...por);
+    atualizacao.naoAplicavelAuto = FieldValue.arrayUnion(...por);
+  }
+  if (tirar.length && !por.length) {
+    // (um só arrayRemove por campo numa atualização; pôr e tirar o mesmo
+    // tipo na mesma volta não acontece, porque dependem de tiposNoAno)
+    atualizacao.documentosNaoAplicaveis = FieldValue.arrayRemove(...tirar);
+    atualizacao.naoAplicavelAuto = FieldValue.arrayRemove(...tirar);
+  }
+  if (!Object.keys(atualizacao).length) return;
+  await db.collection('clientes').doc(cliente.id).update(atualizacao);
+  const nome = cliente.nome || cliente.id;
+  if (bancosNovos.length) { log('pasta do cliente:', nome + ', banco(s) no cadastro:', bancosNovos.join(', ')); cliente.bancos = (cliente.bancos || []).concat(bancosNovos); }
+  if (por.length) log('pasta do cliente:', nome + ', não se aplica (sem nenhum no ano):', por.join(', '));
+  if (tirar.length && !por.length) log('pasta do cliente:', nome + ', voltou a se aplicar:', tirar.join(', '));
 }
 
 // ---------- varredura completa ----------
@@ -255,7 +359,13 @@ async function releituraDoCliente(db, pasta, porCodigo, log, soEnsaio) {
   const itens = await varrerPasta(pasta.id);
   const resumo = await gravarCliente(db, { id: pasta.id, name: pasta.name }, itens);
   const cliente = resumo.codigo ? porCodigo.get(resumo.codigo) : null;
-  const marcados = await marcarPeloIndice(db, cliente, documentosNaPasta(itens, pasta.id), log, soEnsaio);
+  const achados = documentosNaPasta(itens, pasta.id);
+  const marcados = await marcarPeloIndice(db, cliente, achados, log, soEnsaio);
+  // cadastro (bancos, "não se aplica") só com a marcação ligada
+  if (!soEnsaio) {
+    try { await ajustarCadastroPeloIndice(db, cliente, achados, log); }
+    catch (err) { log('pasta do cliente:', (cliente && cliente.nome) || pasta.name, '- cadastro não atualizou:', err.message); }
+  }
   return { resumo, marcados, itens };
 }
 
@@ -412,5 +522,7 @@ function iniciarIndiceDrive(db, log) {
 module.exports = {
   iniciarIndiceDrive, varreduraCompleta, conferirMudancas, pastaDoClienteDe, getDrive,
   // puras, pro teste
-  codigoDaPasta, chaveDeNome, caminhos, documentosNaPasta, totais, TIPO_POR_PASTA,
+  codigoDaPasta, chaveDeNome, caminhos, documentosNaPasta, totais, TIPO_POR_PASTA, bancoDaPasta,
+  // cadastro pela pasta (bancos, "não se aplica"): exposta pra aplicar/testar fora do robô
+  ajustarCadastroPeloIndice, marcarPeloIndice,
 };

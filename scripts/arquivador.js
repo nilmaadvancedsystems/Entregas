@@ -189,6 +189,22 @@ function descreverPasso(item) {
   }
 }
 
+// A lista de etapas que o Claude mantém (TodoWrite) é o termômetro do
+// arquivamento: quantas já foram, quantas são e qual está andando. Só a do
+// Claude principal — a de um subagente é o plano de um pedaço, não do todo.
+function etapasDe(c, sub) {
+  if (c.name !== 'TodoWrite' || sub) return {};
+  const lista = Array.isArray((c.input || {}).todos) ? c.input.todos : [];
+  if (!lista.length) return {};
+  const atual = lista.find(x => x.status === 'in_progress');
+  return { etapas: {
+    feitas: lista.filter(x => x.status === 'completed').length,
+    total: lista.length,
+    atual: atual ? String(atual.activeForm || atual.content || '').slice(0, 160) : null,
+    nomes: lista.map(x => ({ nome: String(x.content || '').slice(0, 120), status: x.status })).slice(0, 30),
+  } };
+}
+
 function rodarRotina(modo, aoAndar) {
   return new Promise(resolve => {
     const erros = [];
@@ -212,7 +228,7 @@ function rodarRotina(modo, aoAndar) {
         if (ev.type === 'assistant' && ev.message && Array.isArray(ev.message.content)) {
           for (const c of ev.message.content) {
             if (c.type === 'text' && c.text && c.text.trim()) aoAndar({ texto: c.text.trim().replace(/\s+/g, ' ').slice(0, 300), sub, tipo: 'fala' });
-            if (c.type === 'tool_use') aoAndar({ texto: descreverPasso(c), sub, tipo: c.name === 'TodoWrite' ? 'etapa' : 'passo' });
+            if (c.type === 'tool_use') aoAndar(Object.assign({ texto: descreverPasso(c), sub, tipo: c.name === 'TodoWrite' ? 'etapa' : 'passo' }, etapasDe(c, sub)));
           }
         }
         if (ev.type === 'result') {
@@ -274,14 +290,16 @@ async function atenderFila() {
       // (não a cada linha, pra não gastar gravação à toa).
       const andamento = [];
       let passos = 0, sujo = false, ultimaEscrita = 0;
+      let progresso = null;   // { feitas, total, atual, nomes, em } — vira a % da tela
       const gravarAndamento = forcar => {
         if (!sujo || (!forcar && Date.now() - ultimaEscrita < 8000)) return;
         sujo = false; ultimaEscrita = Date.now();
-        doc.ref.update({ andamento: andamento.slice(-40), passos, ultimoPassoEm: agora() }).catch(() => {});
+        doc.ref.update(Object.assign({ andamento: andamento.slice(-40), passos, ultimoPassoEm: agora() }, progresso ? { progresso } : {})).catch(() => {});
       };
       const timerAndamento = setInterval(() => gravarAndamento(false), 4000);
       const r = await rodarRotina(modo, linha => {
         passos++;
+        if (linha.etapas) { progresso = Object.assign({ em: agora() }, linha.etapas); delete linha.etapas; }
         andamento.push(Object.assign({ em: agora() }, linha));
         if (andamento.length > 200) andamento.shift();
         sujo = true;
