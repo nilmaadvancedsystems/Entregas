@@ -47,18 +47,18 @@
 })();
 </script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<link rel="stylesheet" href="nilma-icones.css?v=343">
-<link rel="stylesheet" href="nilma-ui.css?v=343">
-<link rel="stylesheet" href="n1-entregas-a.css">
-<link rel="stylesheet" href="n1-entregas-b.css">
-<link rel="stylesheet" href="n1-entregas-c.css">
+<link rel="stylesheet" href="nilma-icones.css?v=345">
+<link rel="stylesheet" href="nilma-ui.css?v=345">
+<link rel="stylesheet" href="n1-entregas-a.css?v=345">
+<link rel="stylesheet" href="n1-entregas-b.css?v=345">
+<link rel="stylesheet" href="n1-entregas-c.css?v=345">
 </head>
 <body>
 <!-- Casca no estilo do GitHub: barra de cima (☰ · Nilma / módulo · consulta
      rápida · anotações · avatar) e as duas gavetas. Nasce aqui, antes do
      resto, porque os scripts do app procuram #notasBtn, #topo etc. -->
-<script src="nilma-dialogo.js?v=343"></script>
-<script src="nilma-shell.js?v=343"></script>
+<script src="nilma-dialogo.js?v=345"></script>
+<script src="nilma-shell.js?v=345"></script>
 <script>NilmaShell.montar({ modulo: 'Entregas', moduloId: 'entregas', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle' });</script>
 <!-- Abas do módulo, sublinhadas, logo abaixo da barra. -->
 <nav class="tabs" id="tabsNav" role="tablist">
@@ -13919,7 +13919,7 @@
   NilmaShell.ao('conta', function () { abrirConfiguracoes('conta'); });
   NilmaShell.ao('instalar', function () { instalarApp_(); });
   NilmaShell.ao('sair', function () { auth.signOut(); });
-  NilmaShell.versao('2.343 · 24/09/2026');
+  NilmaShell.versao('2.345 · 25/09/2026');
   // a mesma versão no rodapé da tela de entrada, como na Conferência
   (function () { var a = $('authVersao'), m = $('menuAppVersao'); if (a && m) a.textContent = m.textContent.replace(/^versão/, 'Versão:'); })();
 
