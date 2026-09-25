@@ -560,6 +560,33 @@
   /* ---------- Robô e Arquivo ---------- */
   .robo-acoes { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .robo-vigia { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 4px; font-size: 14px; color: var(--ink-muted); }
+  /* andamento do robô: barra com %, passo atual e últimos passos */
+  #roboAndamento { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+  #roboAndamento[hidden] { display: none; }
+  .andamento-robo { padding: 14px 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+  .andamento-robo.erro { border-color: var(--destructive, #cf222e); }
+  .andamento-cab { display: flex; align-items: center; gap: 10px; }
+  .andamento-cab > .ph { font-size: 20px; color: var(--ink-muted); flex: none; }
+  .andamento-robo.ok .andamento-cab > .ph { color: var(--success, #2da44e); }
+  .andamento-robo.erro .andamento-cab > .ph { color: var(--destructive, #cf222e); }
+  .andamento-titulo { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .andamento-titulo strong { font-size: 14px; }
+  .andamento-sub { font-size: 12px; color: var(--ink-muted); }
+  .andamento-pct { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .andamento-barra { position: relative; height: 6px; margin: 10px 0 6px; border-radius: 99px; background: var(--surface-2); overflow: hidden; }
+  .andamento-cheio { height: 100%; width: 0; border-radius: inherit; background: var(--ink); transition: width .6s ease; }
+  .andamento-robo.ok .andamento-cheio { background: var(--success, #2da44e); }
+  .andamento-barra.indeterminada .andamento-cheio { width: 30%; animation: indeterminada 1.4s ease-in-out infinite; }
+  @keyframes indeterminada { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
+  .andamento-info { font-size: 12px; color: var(--ink-muted); font-variant-numeric: tabular-nums; }
+  .andamento-agora { margin-top: 8px; font-size: 14px; overflow-wrap: anywhere; }
+  .andamento-passos { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--ink-muted); }
+  .andamento-passos li { display: flex; gap: 8px; min-width: 0; }
+  .andamento-passos li > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .andamento-passos .hora { flex: none; font-variant-numeric: tabular-nums; }
+  .andamento-passos li.destaque { color: var(--success, #2da44e); }
+  .andamento-fila { display: flex; align-items: center; gap: 8px; padding: 8px 12px; font-size: 13px; border: 1px dashed var(--border); border-radius: 8px; color: var(--ink-muted); }
+  @media (prefers-reduced-motion: reduce) { .andamento-barra.indeterminada .andamento-cheio { animation: none; width: 100%; opacity: .4; } .andamento-cheio { transition: none; } }
   .robo-vigia:empty { display: none; }
   .robo-vigia .ponto { width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--ink-muted); }
   .robo-vigia.ligado .ponto { background: var(--success); }
@@ -1468,6 +1495,9 @@
         </div>
       </div>
       <div id="roboAviso"></div>
+      <!-- O que o robô está fazendo agora e quanto falta (robo/estado.andamento
+           e .filaAndamento, gravados pelo vigia com freio de 2 s). -->
+      <div id="roboAndamento" aria-live="polite" hidden></div>
       <!-- Submenu padrão: o que pede ação, o que o robô marcou e o histórico.
            Categoria sem nada dentro some (atualizarSubmenuRobo). -->
       <nav class="cliente-menu" role="tablist" aria-label="Seções do robô" id="roboAbas">
@@ -2849,6 +2879,7 @@
         (configRobo.execucoes || []).length, Object.keys(configRobo.salvos || {}).length, (configRobo.spam || []).length].join('|');
       if (clientesCarregados && marca !== subscribeRobo.marca) { subscribeRobo.marca = marca; renderPaginas(); }
       renderVigia();
+      renderAndamentoRobo();
     }, function () {});
   }
   // Dias úteis entre duas datas (sem feriados: bom o bastante pra alarme).
@@ -5973,6 +6004,96 @@
         renderVigia();
       }, function () {});
   }
+
+  // ---------- andamento do robô: o que ele faz agora e quanto falta ----------
+  var FASE_ROTULO = {
+    'começando': 'Começando', preparando: 'Carregando os clientes', listando: 'Procurando e-mails',
+    lendo: 'Lendo os e-mails', finalizando: 'Juntando o que foi lido', spam: 'Conferindo o spam', gravando: 'Guardando o resumo'
+  };
+  function duracaoCurta(ms) {
+    var s = Math.max(0, Math.round(ms / 1000));
+    if (s < 60) return s + ' s';
+    var m = Math.floor(s / 60);
+    return m < 60 ? m + ' min' + (s % 60 && m < 10 ? ' ' + (s % 60) + ' s' : '') : Math.floor(m / 60) + ' h ' + (m % 60) + ' min';
+  }
+  function renderAndamentoRobo() {
+    var box = $('roboAndamento');
+    if (!box) return;
+    var a = configRobo.andamento || null, f = configRobo.filaAndamento || null;
+    var agoraMs = Date.now();
+    var idade = function (iso) { var t = Date.parse(iso || ''); return isNaN(t) ? Infinity : agoraMs - t; };
+    // "ativo" sem notícia há mais de 10 min é robô que caiu no meio: não finge que está lendo
+    var ativo = !!(a && a.ativo && idade(a.em) < 10 * 60000);
+    var acabouAgora = !!(a && !a.ativo && idade(a.fim) < 5 * 60000);
+    var filaAtiva = !!(f && f.ativo && idade(f.em) < 30 * 60000);
+    box.innerHTML = '';
+    box.hidden = !ativo && !acabouAgora && !filaAtiva;
+    if (box.hidden) return;
+
+    if (ativo || acabouAgora) {
+      var erro = a.fase === 'erro';
+      var card = el('section', 'andamento-robo' + (ativo ? ' ativo' : erro ? ' erro' : ' ok'));
+      var cab = el('div', 'andamento-cab');
+      cab.appendChild(ico(ativo ? 'ph-spinner-gap girando' : erro ? 'ph-warning-circle' : 'ph-check-circle'));
+      var tit = el('div', 'andamento-titulo');
+      tit.appendChild(el('strong', null, ativo ? 'Lendo o Gmail' : erro ? 'A leitura deu erro' : 'Leitura concluída'));
+      var sub = [];
+      if (a.motivo) sub.push(a.motivo);
+      if (a.inicio) sub.push(ativo ? 'há ' + duracaoCurta(agoraMs - Date.parse(a.inicio)) : 'levou ' + duracaoCurta(Date.parse(a.fim) - Date.parse(a.inicio)));
+      tit.appendChild(el('span', 'andamento-sub', sub.join(' · ')));
+      cab.appendChild(tit);
+      var total = Number(a.total) || 0, feito = Math.min(Number(a.feito) || 0, total);
+      var pct = total ? Math.round(feito / total * 100) : (ativo ? null : 100);
+      if (pct != null) cab.appendChild(el('span', 'andamento-pct', pct + '%'));
+      card.appendChild(cab);
+
+      var barra = el('div', 'andamento-barra' + (pct == null ? ' indeterminada' : ''));
+      barra.setAttribute('role', 'progressbar');
+      barra.setAttribute('aria-label', 'Andamento da leitura do Gmail');
+      if (pct != null) { barra.setAttribute('aria-valuemin', '0'); barra.setAttribute('aria-valuemax', '100'); barra.setAttribute('aria-valuenow', String(pct)); }
+      var cheio = el('div', 'andamento-cheio');
+      if (pct != null) cheio.style.width = pct + '%';
+      barra.appendChild(cheio);
+      card.appendChild(barra);
+
+      var info = [];
+      if (ativo) info.push(FASE_ROTULO[a.fase] || a.fase || '');
+      if (total) info.push('e-mail ' + feito + ' de ' + total);
+      if (ativo && pct != null && pct < 100) info.push('faltam ' + (100 - pct) + '%');
+      if (ativo && total && feito >= 5 && feito < total && a.inicio) {
+        var gasto = agoraMs - Date.parse(a.inicio);
+        info.push('cerca de ' + duracaoCurta(gasto / feito * (total - feito)) + ' pra terminar');
+      }
+      card.appendChild(el('div', 'andamento-info', info.filter(Boolean).join(' · ')));
+
+      var recentes = (a.recentes || []).slice(-5).reverse();
+      if (recentes.length) {
+        card.appendChild(el('div', 'andamento-agora', recentes[0].texto));
+        if (recentes.length > 1) {
+          var ul = el('ul', 'andamento-passos');
+          recentes.slice(1).forEach(function (r) {
+            var li = el('li', r.destaque ? 'destaque' : null);
+            li.appendChild(el('span', 'hora', horaCurta(r.em)));
+            li.appendChild(el('span', null, r.texto));
+            ul.appendChild(li);
+          });
+          card.appendChild(ul);
+        }
+      }
+      box.appendChild(card);
+    }
+
+    if (filaAtiva) {
+      var fl = el('div', 'andamento-fila');
+      fl.appendChild(ico('ph-hourglass-medium'));
+      fl.appendChild(el('span', null, 'Atendendo: ' + (f.atual || 'pedido da tela') + ' · ' + plural(f.restantes || 1, 'pedido na fila', 'pedidos na fila')));
+      box.appendChild(fl);
+    }
+  }
+  // relógio da tela: o "há X min" e a estimativa andam sozinhos enquanto lê
+  setInterval(function () {
+    if (paginaAtual === 'robo' && configRobo.andamento && configRobo.andamento.ativo) renderAndamentoRobo();
+  }, 5000);
 
   function renderVigia() {
     var caixa = $('roboVigia');

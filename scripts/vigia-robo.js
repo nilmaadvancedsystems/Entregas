@@ -248,17 +248,61 @@ async function diasDesdeUltimaLeitura() {
   } catch (e) { return 3; }
 }
 
+// ---------- andamento pra tela (robo/estado.andamento) ----------
+// O que o robô está fazendo agora e quanto falta. A leitura escreve uma linha
+// "ANDAMENTO:{...}" por passo; aqui junta e grava com FREIO: no máximo uma
+// gravação a cada ANDAMENTO_A_CADA_MS. Sem isso, 40 e-mails dariam centenas de
+// gravações — e cada uma vira leitura em toda tela aberta (foi assim o pico
+// de 25/09 com a rota).
+const ANDAMENTO_A_CADA_MS = 2000;
+let andamentoAtual = null, andamentoTimer = null, andamentoGravadoEm = 0;
+function publicarAndamento(parcial, forcar) {
+  andamentoAtual = Object.assign({}, andamentoAtual || {}, parcial, { em: agora() });
+  if (parcial.texto) {
+    const recentes = (andamentoAtual.recentes || []).concat([{ em: agora(), texto: String(parcial.texto).slice(0, 200), destaque: !!parcial.destaque }]);
+    andamentoAtual.recentes = recentes.slice(-8);
+  }
+  delete andamentoAtual.destaque;
+  const gravar = () => {
+    andamentoTimer = null;
+    andamentoGravadoEm = Date.now();
+    roboRef.set({ andamento: andamentoAtual }, { merge: true }).catch(() => {});
+  };
+  if (forcar) { clearTimeout(andamentoTimer); gravar(); return; }
+  if (andamentoTimer) return;
+  andamentoTimer = setTimeout(gravar, Math.max(0, ANDAMENTO_A_CADA_MS - (Date.now() - andamentoGravadoEm)));
+}
+// Linha da saída da leitura: se for andamento, publica e some do registro.
+function lerLinhaDeAndamento(l) {
+  if (!l.startsWith('ANDAMENTO:')) return false;
+  try { publicarAndamento(JSON.parse(l.slice(10))); } catch (e) {}
+  return true;
+}
+
 function rodarRobo(dias, motivo) {
   return new Promise(resolve => {
     lendo = true;
     roboRef.set({ status: 'lendo', statusEm: agora(), statusMotivo: motivo }, { merge: true }).catch(() => {});
     log('lendo o Gmail (' + motivo + ')');
+    andamentoAtual = null;
+    publicarAndamento({ ativo: true, tipo: 'leitura', motivo, inicio: agora(), fase: 'começando', feito: 0, total: 0, texto: 'Começando a leitura do Gmail (' + motivo + ')' }, true);
     const saida = [];
     const filho = spawn(process.execPath, [ROBO, String(dias || 3)], { cwd: __dirname });
-    const guardar = b => { String(b).split(/\r?\n/).filter(Boolean).forEach(l => { saida.push(l); if (saida.length > 40) saida.shift(); }); };
-    filho.stdout.on('data', guardar);
-    filho.stderr.on('data', guardar);
-    filho.on('error', err => { lendo = false; log('não consegui iniciar a leitura:', err.message); resolve({ ok: false, resumo: '', erro: err.message }); });
+    // A saída chega em pedaços: uma linha pode vir partida ao meio. O resto
+    // sem quebra de linha espera o próximo pedaço.
+    const restos = { out: '', err: '' };
+    const guardarDe = qual => b => {
+      const linhas = (restos[qual] + String(b)).split(/\r?\n/);
+      restos[qual] = linhas.pop();
+      linhas.filter(Boolean).forEach(l => { if (lerLinhaDeAndamento(l)) return; saida.push(l); if (saida.length > 40) saida.shift(); });
+    };
+    filho.stdout.on('data', guardarDe('out'));
+    filho.stderr.on('data', guardarDe('err'));
+    filho.on('error', err => {
+      lendo = false; log('não consegui iniciar a leitura:', err.message);
+      publicarAndamento({ ativo: false, fim: agora(), fase: 'erro', texto: 'Não consegui começar a leitura: ' + err.message }, true);
+      resolve({ ok: false, resumo: '', erro: err.message });
+    });
     filho.on('close', async code => {
       lendo = false;
       const ultima = saida.filter(l => !/limite de uso/.test(l)).slice(-1)[0] || '';
@@ -270,6 +314,11 @@ function rodarRobo(dias, motivo) {
         statusMsg: ok ? (robo.ultimaExecucaoResumo || '') : traduzirErro({ message: ultima.replace(/^ERRO:\s*/, '') }),
       }, { merge: true }).catch(() => {});
       log(ok ? 'leitura terminou: ' + (robo.ultimaExecucaoResumo || '') : 'leitura falhou: ' + ultima);
+      publicarAndamento({
+        ativo: false, fim: agora(), fase: ok ? 'concluida' : 'erro',
+        feito: (andamentoAtual && andamentoAtual.total) || 0,
+        texto: ok ? 'Leitura concluída: ' + (robo.ultimaExecucaoResumo || 'nada novo') : 'A leitura deu erro: ' + traduzirErro({ message: ultima.replace(/^ERRO:\s*/, '') }),
+      }, true);
       // Leitura pedida pela tela já avisa por lá (e pelo alerta do pedido).
       if (!ok && /^automático/.test(motivo)) await alertar('a leitura automática do Gmail falhou', traduzirErro({ message: ultima.replace(/^ERRO:\s*/, '') }));
       resolve({ ok, resumo: robo.ultimaExecucaoResumo || '', erro: ok ? null : ultima });
@@ -468,6 +517,7 @@ async function atenderFila() {
   if (ocupado) return;
   ocupado = true;
   filaFalhou = false;
+  let atendeuAlgum = false;
   try {
     for (;;) {
       const snap = await fila.where('status', '==', 'pendente').get();
@@ -478,6 +528,16 @@ async function atenderFila() {
       // Marca antes de começar: se o vigia cair no meio, o pedido não é
       // reenviado sozinho ao voltar (e-mail duplicado é pior que um aviso).
       await doc.ref.update({ status: 'processando', processandoEm: agora(), pc: os.hostname() });
+      // Pra tela: qual pedido está sendo atendido e quantos faltam (uma
+      // gravação por pedido, não por passo).
+      const oqueAgora = {
+        um: 'Cobrança de ' + (p.clienteNome || p.para || 'um cliente'),
+        lote: 'Cobrança em lote' + (Array.isArray(p.clientes) ? ' (' + p.clientes.length + ' clientes)' : ''),
+        verificar: 'Leitura do Gmail pedida por ' + (p.criadoPor || 'alguém'),
+        salvar: 'Salvando no Drive um e-mail' + (p.clienteNome ? ' de ' + p.clienteNome : ''),
+      }[p.tipo] || 'Pedido da tela';
+      atendeuAlgum = true;
+      roboRef.set({ filaAndamento: { ativo: true, atual: oqueAgora, restantes: pendentes.length, desde: agora(), em: agora() } }, { merge: true }).catch(() => {});
       try {
         let resultado;
         if (p.tipo === 'um') resultado = await atenderUm(p);
@@ -508,6 +568,7 @@ async function atenderFila() {
     filaFalhou = true;
   } finally {
     ocupado = false;
+    if (atendeuAlgum) roboRef.set({ filaAndamento: { ativo: false, em: agora() } }, { merge: true }).catch(() => {});
   }
 }
 

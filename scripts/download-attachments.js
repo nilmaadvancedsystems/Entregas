@@ -48,6 +48,12 @@ const SIMULAR = ARGS.includes('--simular');
 const RELER = ARGS.includes('--reler');
 const valorDe = flag => { const i = ARGS.indexOf(flag); return i !== -1 ? ARGS[i + 1] : null; };
 const UMA_MENSAGEM = valorDe('--mensagem');
+// Andamento pra tela: uma linha 'ANDAMENTO:{json}' por passo. O vigia lê, junta
+// e grava em robo/estado.andamento com freio (no máximo a cada 2 s).
+function andamento(o) {
+  if (UMA_MENSAGEM) return;
+  try { process.stdout.write('ANDAMENTO:' + JSON.stringify(o) + '\n'); } catch (e) {}
+}
 const CLIENTE_FORCADO = valorDe('--cliente');
 const DIAS = parseInt(ARGS.find((a, i) => /^\d+$/.test(a) && !['--mensagem', '--cliente'].includes(ARGS[i - 1])), 10) || 10;
 const MAX_CAIXA = 150;                       // e-mails com anexo que a tela lista
@@ -434,6 +440,7 @@ async function main() {
   const db = getDb('entregas-2e5e2');
   const FV = FieldValue;
 
+  andamento({ fase: 'preparando', texto: 'Carregando os clientes' });
   // do arquivo que o vigia mantém, quando está fresco; senão, do banco
   const clientesSnap = await require('./clientes-cache').clientesAtivos(db, m => console.log(m));
   const { porEmail, porDominio } = montarIndices(clientesSnap);
@@ -456,7 +463,9 @@ async function main() {
   // o que for gravado daqui pra frente é sempre o estado de trabalho atual
   const estadoAgora = () => ({ processados: processados, semCliente: semCliente, tentativas: tentativas });
   const ehConhecido = email => porEmail.has(email) || porDominio.has(dominioDe(email));
+  andamento({ fase: 'listando', texto: 'Procurando e-mails de clientes dos últimos ' + DIAS + ' dias' });
   const ids = UMA_MENSAGEM ? [UMA_MENSAGEM] : await listarMensagens(gmail, porEmail, porDominio);
+  andamento({ fase: 'lendo', feito: 0, total: ids.length, texto: ids.length + ' e-mails na janela de ' + DIAS + ' dias' });
   if (!UMA_MENSAGEM) console.log(`E-mails na janela de ${DIAS} dias: ${ids.length}`);
   const clientesPorId = new Map();
   clientesSnap.forEach(d => clientesPorId.set(d.id, Object.assign({ id: d.id }, d.data())));
@@ -489,7 +498,10 @@ async function main() {
   };
   process.once('SIGINT', () => { guardarAndamento(); process.exit(130); });
 
-  for (const id of ids) {
+  for (let i = 0; i < ids.length; i++) {
+    const id = ids[i];
+    // os já lidos passam voando: avisa de 25 em 25 pra barra andar
+    if (i % 25 === 0) andamento({ feito: i, total: ids.length });
     if (desdeUltimoSalvo >= 20) { desdeUltimoSalvo = 0; guardarAndamento(); }
     if (!UMA_MENSAGEM) {
       if (processados.has(id)) continue;
@@ -511,11 +523,13 @@ async function main() {
       const em = new Date(Number(msg.data.internalDate)).toISOString();
       const trecho = decodificarEntidades(msg.data.snippet).slice(0, 240);
       const anexos = coletarAnexos(msg.data.payload, []);
+      andamento({ feito: i, total: ids.length, texto: 'Lendo e-mail de ' + (extrairNome(from) || remetente) + (assunto ? ' — ' + String(assunto).slice(0, 90) : '') + (anexos.length ? ' (' + anexos.length + (anexos.length === 1 ? ' anexo)' : ' anexos)') : '') });
 
       const forcado = CLIENTE_FORCADO ? clientesPorId.get(CLIENTE_FORCADO) : null;
       if (CLIENTE_FORCADO && !forcado) throw new Error('cliente ' + CLIENTE_FORCADO + ' não encontrado ou inativo');
       const candidatos = forcado ? [forcado] : (porEmail.get(remetente) || porDominio.get(dominioDe(remetente)) || []);
-      const resumoCaixa = { em, remetente, nome: extrairNome(from), assunto, arquivos: anexos.map(a => a.filename) };
+      // trecho: o começo do e-mail (~240 letras), pro resumo na lista da tela
+      const resumoCaixa = { em, remetente, nome: extrairNome(from), assunto, trecho, arquivos: anexos.map(a => a.filename) };
 
       if (!candidatos.length) {
         // Anexo de quem não é cliente não vai pro Drive: fica só em "remetentes
@@ -663,6 +677,7 @@ async function main() {
           await aprenderBancos(db, cliente, achados);
         }
         cont.marcados++;
+        andamento({ texto: cliente.nome + ': marcado ' + tipos.join(', ') + ' de ' + competencia.split('-').reverse().join('/'), destaque: true });
         // o link que mostra este cliente: o dele ou o da empresa principal do grupo
         [cliente, clientesPorId.get(cliente.grupoLocal)].forEach(dono => {
           if (dono && dono.portalToken) portaisATocar.set(dono.id, dono);
@@ -693,6 +708,7 @@ async function main() {
     }
   }
 
+  andamento({ fase: 'finalizando', feito: ids.length, total: ids.length, texto: portaisATocar.size ? 'Atualizando o painel de ' + portaisATocar.size + (portaisATocar.size === 1 ? ' cliente' : ' clientes') : 'Juntando o que foi lido' });
   for (const cliente of portaisATocar.values()) {
     try { await atualizarPortal(db, cliente, clientesPorId); }
     catch (err) { console.error('  portal de', cliente.nome, 'não atualizou -', err.message); }
@@ -723,6 +739,7 @@ async function main() {
   // Spam: só na leitura normal. Se falhar, não manda o campo e a tela continua
   // com a lista da leitura anterior.
   let spam = null;
+  andamento({ fase: 'spam', texto: 'Conferindo a pasta de spam' });
   try {
     spam = await lerSpam(gmail, porEmail, porDominio, ignorados, processados);
     console.log(`No spam: ${spam.length} (${spam.filter(s => s.clienteId).length} de clientes)`);
@@ -764,6 +781,7 @@ async function main() {
     cont.erros ? cont.erros + (cont.erros === 1 ? ' erro' : ' erros') : null,
   ].filter(Boolean).join(', ');
 
+  andamento({ fase: 'gravando', texto: 'Guardando o resumo: ' + resumo });
   if (!SIMULAR) {
     await roboRef.set(Object.assign({ ultimaExecucao: execucao.em, ultimaExecucaoResumo: resumo, naoReconhecidos, execucoes, caixa }, comSalvos(), spam ? { spam } : {}), { merge: true });
     await estadoRobo.salvar(db, estadoAgora());
