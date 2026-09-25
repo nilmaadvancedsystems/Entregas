@@ -1,33 +1,26 @@
 # Nilma Entregas
 
-## Versão de teste
-
-**Link de teste:** https://nilmaadvancedsystems.github.io/Entregas/teste/entregas.html
-
-**Para testar sem gravar nada no banco:** https://nilmaadvancedsystems.github.io/Entregas/teste/entregas.html?demo=1
-
-### O que não mudou
-
-- O sistema do escritório ([…/Entregas/entregas.html](https://nilmaadvancedsystems.github.io/Entregas/entregas.html)) continua **exatamente** como está, na versão de 24/09 às 17:54. Nenhum arquivo dele foi alterado: tudo o que é de teste fica dentro da pasta `teste/`.
-- **O banco não foi tocado.** As regras de permissão foram só lidas, sem gravar nada, e estão normais.
-
-### Sobre o bug de login e permissão
-
-- Entre a versão de 24/09 às 17:54 e as mais novas, **nenhuma linha de código de login, permissão ou conexão com o banco mudou**. As regras que estão no ar no Firebase também se comportam normalmente.
-- A causa mais provável é a **sessão de login no Safari**: o sistema tentou ler o banco sem que o login estivesse valendo.
-- Para confirmar, no link de teste:
-  1. Abra o link no Safari.
-  2. Se aparecer "Sem permissão", abra o menu ☰, toque em **Sair da conta** e entre de novo com nome e senha.
-  3. Se não funcionar, tire um print da tela inteira, com a barra de cima.
-
-### Como trabalhamos
-
-- As mudanças pedidas são feitas no branch [`teste`](https://github.com/nilmaadvancedsystems/Entregas/tree/teste) e copiadas para a pasta `teste/`, para conferir no link de teste.
-- O sistema do escritório só muda quando for dito **"pode colocar no ar"**.
-
----
-
-## Sistema do escritório
-
 Entregador de Entregas (Nilma Entregas)
 https://nilmaadvancedsystems.github.io/Entregas/entregas.html
+
+Para testar sem gravar nada no banco, abra com `?demo=1` no fim do link.
+
+## Visual N1 no ar (25/09/2026)
+
+A versão que estava em teste (`teste/`, visual N1) passou a ser o sistema do
+escritório, já com as correções do dia: fim do ciclo que regravava a rota do
+cliente sem parar, regras do banco só para a equipe, e a IA da Consulta
+respondida pelo Claude do PC do escritório.
+
+O cache do navegador subiu para `nilma-app-v10`: todo aparelho baixa os
+arquivos novos de uma vez, sem misturar com os da versão anterior.
+
+### Se aparecer "Sem permissão" ou a barra de cima sumir (Safari)
+
+Nenhuma linha de login, permissão ou conexão com o banco mudou entre as
+versões. A causa provável é a sessão de login do Safari ou arquivos antigos
+guardados pelo navegador:
+
+1. Feche a aba e abra o link de novo.
+2. Se continuar, abra o menu ☰, toque em **Sair da conta** e entre de novo.
+3. Se ainda assim não funcionar, tire um print da tela inteira, com a barra de cima.

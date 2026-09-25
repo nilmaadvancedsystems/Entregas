@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Minhas guias">
-<meta name="theme-color" content="#9A2B24">
+<meta name="theme-color" content="#B0262D">
 <!--
   Página do cliente. É o que abre no celular de quem recebe o link pelo
   WhatsApp: gente que não é de tecnologia, em aparelho simples e internet de
@@ -29,233 +29,71 @@
   visto, avisar e recebido, e o documento que ele envia (enviosDoPortal).
   Também confere protocolo impresso (?protocolo=CODIGO).
 -->
+<link rel="stylesheet" href="nilma-ui.css?v=345">
 <style>
-  :root {
-    --bg: #F6F6F6; --surface: #FFFFFF; --surface-2: #EFEFEF; --border: #DCDCDC;
-    --ink: #161616; --ink-soft: #4A4A4A; --ink-faint: #6A6A6A;
-    --accent: #9A2B24; --accent-ink: #FFFFFF;
-    --ok-bg: #E4F3EA; --ok: #17603A; --ruim-bg: #FBE7E5; --ruim: #94231C; --aviso-bg: #FFF3D6; --aviso: #6B4A00;
-    --r: 12px;
-    /* Fonte do próprio aparelho (a mesma lista do github.com e do app do
-       escritório): Roboto no Android, SF no iPhone, Segoe UI no Windows.
-       Nada baixado de fora, como o resto desta página. Mono só pro que se
-       lê dígito a dígito: linha digitável e PIX copia-e-cola. */
-    --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", system-ui, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
-    --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Roboto Mono", "Liberation Mono", monospace;
+  /* ==========================================================================
+     Página do cliente, no visual da Conferência (design-n1).
+     Tokens, campos, tabelas e o cabeçalho .gh-header vêm do nilma-ui.css.
+     Aqui fica só o que é desta página: a coluna central, as abas, as caixas
+     de cada seção e os cartões de guia. Sem casca de módulos: é pública.
+     ========================================================================== */
+  :root { --col: 880px; --pad: 16px; }
+  @media (max-width: 640px) { :root { --pad: 12px; } }
+
+  body { padding-bottom: env(safe-area-inset-bottom); }
+  /* ícones de traço do N1 (os do JS vêm sem atributos) */
+  svg[viewBox="0 0 24 24"] {
+    width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor;
+    stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round;
   }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #121212; --surface: #1B1B1B; --surface-2: #262626; --border: #333333;
-      --ink: #F2F2F2; --ink-soft: #C2C2C2; --ink-faint: #9A9A9A;
-      --accent: #E0796F; --accent-ink: #26100E;
-      --ok-bg: #16301F; --ok: #7FD3A0; --ruim-bg: #3A1B18; --ruim: #F0A39B; --aviso-bg: #33290F; --aviso: #EBCB7A;
-    }
-  }
-  * { box-sizing: border-box; }
-  html { -webkit-text-size-adjust: 100%; }
-  body {
-    margin: 0; background: var(--bg); color: var(--ink);
-    font: 16px/1.5 var(--font-body);
-    padding: max(20px, env(safe-area-inset-top)) 16px max(28px, env(safe-area-inset-bottom));
-  }
-  main { max-width: 560px; margin: 0 auto; }
-  /* Só 400 e 600: o negrito padrão do navegador (700) destoaria do resto nas respostas das dúvidas e no código. */
-  b, strong { font-weight: 600; }
-  h1 { font-size: 1.5rem; font-weight: 600; line-height: 1.25; margin: 0; text-wrap: balance; }
-  h2 { font-size: 1.25rem; font-weight: 600; margin: 28px 0 10px; }
-  p { margin: 0; }
-  .de { color: var(--ink-faint); font-size: .875rem; margin-bottom: 2px; }
-  .estado { margin-top: 18px; color: var(--ink-soft); }
-  [hidden] { display: none !important; }
 
-  .bloco { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 16px; margin-top: 12px; }
-  .bloco.aviso { background: var(--aviso-bg); border-color: transparent; color: var(--aviso); }
-  .bloco.aviso h2 { margin: 0 0 6px; color: inherit; }
-  .bloco.aviso ul { margin: 6px 0 0; padding-left: 20px; }
-  .bloco.aviso .mes { font-weight: 600; margin-top: 8px; }
-  /* O que falta: era uma parede amarela com dois meses de três itens iguais,
-     e dois botões lá embaixo servindo pros seis. Agora cada documento é uma
-     linha com o Enviar dele do lado, e o mês mais antigo vem primeiro. */
-  .bloco.pedido { border-color: var(--aviso); }
-  .pedido-topo { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
-  .pedido-topo h2 { margin: 0; }
-  .pedido-conta { font-size: .875rem; color: var(--ink-faint); white-space: nowrap; }
-  .pedido-mes { margin-bottom: 14px; }
-  .pm-cab { display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px; }
-  .pm-nome { font-weight: 600; font-size: 1rem; }
-  .pm-marca { font-size: .75rem; font-weight: 600; color: var(--aviso); }
-  .pedido-item {
-    display: flex; align-items: center; gap: 12px; min-height: 52px;
-    border-top: 1px solid var(--border);
-  }
-  .pedido-item:last-child { border-bottom: 1px solid var(--border); }
-  .pi-nome { flex: 1; min-width: 0; }
-  .pedido-item.ok .pi-nome { color: var(--ink-soft); }
-  .pi-estado { display: flex; align-items: center; gap: 6px; font-size: .875rem; color: var(--ok); flex: none; }
-  .pi-estado svg { width: 16px; height: 16px; }
-  /* botão da linha: alvo de dedo, sem competir com o resto da página */
-  .pi-enviar {
-    flex: none; width: auto; min-height: 44px; padding: 0 16px;
-    background: var(--surface-2); border-color: var(--border);
-  }
-  .pi-enviar svg { width: 18px; height: 18px; }
-  .pedido-pe { font-size: .875rem; color: var(--ink-soft); margin-top: 14px; }
-  .envio .menor { width: auto; background: none; border-color: transparent; color: var(--ink-soft); }
-
-  .tudo-certo { display: flex; gap: 8px; align-items: center; color: var(--ok); margin-top: 16px; font-size: 1rem; }
-
-  .guia { padding: 16px 0; border-top: 1px solid var(--border); }
-  .guia:first-child { border-top: 0; padding-top: 4px; }
-  .guia-topo { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
-  .empresa { font-size: .75rem; font-weight: 600; color: var(--ink-faint); }
-  .nome { font-weight: 600; }
-  .sub { color: var(--ink-soft); font-size: .875rem; margin-top: 2px; }
-  .prazo { font-weight: 600; }
-  .prazo.urgente { color: var(--ruim); }
-  .selo { flex: none; font-size: .75rem; font-weight: 600; padding: 3px 10px; border-radius: 999px; background: var(--surface-2); color: var(--ink-soft); white-space: nowrap; }
-  .selo.ok { background: var(--ok-bg); color: var(--ok); }
-  .selo.ruim { background: var(--ruim-bg); color: var(--ruim); }
-
-  .acoes { display: grid; gap: 8px; margin-top: 12px; }
-  button, .botao {
-    font: inherit; font-weight: 600; min-height: 48px; width: 100%; padding: 10px 14px; cursor: pointer;
-    border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--ink);
-    display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; text-align: center;
-  }
-  button:active, .botao:active { background: var(--surface-2); }
-  button.principal { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
-  button:disabled { opacity: .6; cursor: default; }
-  /* No botão principal o contorno era da mesma cor do fundo dele: quem anda
-     de teclado não via onde estava. */
-  button:focus-visible, .botao:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
-  button.principal:focus-visible { outline-color: var(--ink); }
-  svg { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-
-  label { display: block; font-weight: 600; font-size: 1rem; margin-bottom: 4px; }
-  input[type=text] {
-    font: inherit; width: 100%; min-height: 48px; padding: 10px 12px; border-radius: 10px;
-    border: 1px solid var(--border); background: var(--surface); color: var(--ink);
-  }
-  input[readonly] { font-family: var(--font-mono); font-size: .875rem; background: var(--surface-2); }
-  .erro { color: var(--ruim); font-size: .875rem; margin-top: 4px; }
-  /* segunda fileira: mesma altura de dedo, menos peso visual */
-  .acoes-menores { display: flex; flex-wrap: wrap; gap: 8px; }
-  .acoes-menores button { flex: 1 1 auto; min-width: 46%; font-size: 1rem; color: var(--ink-soft); }
-  .acoes-menores button svg { width: 18px; height: 18px; }
-  .dica { color: var(--ink-faint); font-size: .875rem; margin-top: 6px; }
-  .caixa-img img { display: block; width: 100%; background: #fff; border: 1px solid var(--border); border-radius: 8px; margin-top: 10px; }
-
-  details { border-top: 1px solid var(--border); }
-  details:first-of-type { border-top: 0; }
-  summary { cursor: pointer; padding: 14px 0; font-weight: 600; min-height: 48px; display: flex; justify-content: space-between; align-items: center; gap: 12px; list-style: none; }
-  summary::-webkit-details-marker { display: none; }
-  summary span { color: var(--ink-faint); font-weight: 400; font-size: .875rem; }
-
-  /* enviar documento pela página */
-  .envio { margin-top: 14px; padding-top: 14px; border-top: 1px solid color-mix(in srgb, currentColor 25%, transparent); }
-  .envio label { margin-top: 10px; }
-  .envio select, .envio input[type=file] {
-    font: inherit; width: 100%; min-height: 48px; padding: 10px 12px; border-radius: 10px;
-    border: 1px solid var(--border); background: var(--surface); color: var(--ink);
-  }
-  .envio .erro { color: var(--ruim); background: var(--surface); padding: 6px 10px; border-radius: 8px; margin-top: 8px; }
-  .enviado { font-size: .75rem; font-weight: 600; opacity: .85; }
-  .bloco.aviso .botao { background: transparent; color: inherit; border-color: color-mix(in srgb, currentColor 35%, transparent); }
-
-  /* guardar na tela inicial: uma faixa discreta, some quando a pessoa dispensa ou já guardou */
-  .instalar { display: flex; align-items: center; gap: 12px; margin-top: 16px; padding: 12px 12px 12px 14px; border-radius: var(--r); background: var(--surface-2); }
-  .instalar p { flex: 1; font-size: 1rem; color: var(--ink-soft); }
-  .instalar p b { color: var(--ink); font-weight: 600; }
-  .instalar button { width: auto; min-height: 40px; padding: 6px 14px; flex: none; }
-  .instalar .fechar { min-height: 40px; width: 40px; padding: 0; border: 0; background: transparent; color: var(--ink-faint); }
-
-  .pago { color: var(--ok); font-size: .875rem; font-weight: 600; margin-top: 8px; display: flex; gap: 6px; align-items: center; }
-  .fale { margin-top: 14px; }
-  .fale select, .fale textarea {
-    font: inherit; width: 100%; min-height: 48px; padding: 10px 12px; border-radius: 10px;
-    border: 1px solid var(--border); background: var(--surface); color: var(--ink);
-  }
-  .fale textarea { min-height: 84px; resize: vertical; }
-
-  /* dúvidas: o que o cliente pergunta no WhatsApp, respondido aqui */
-  .duvidas { margin-top: 28px; }
-  .duvidas h2 { margin-bottom: 4px; }
-  .duvidas details { border-top: 1px solid var(--border); }
-  .duvidas details:first-of-type { border-top: 0; }
-  .duvidas summary { font-size: 1rem; }
-  .duvidas p { color: var(--ink-soft); font-size: 1rem; line-height: 1.5; padding: 0 0 14px; }
-
-  footer { margin-top: 32px; color: var(--ink-faint); font-size: .875rem; }
-  footer p + p { margin-top: 8px; }
-  footer a { color: inherit; }
-
-
-  /* ---------- no computador ----------
-     A página nasceu pro celular: coluna de 560px e tudo com largura total.
-     Num monitor isso vira uma tira no meio de 900px de vazio, com botões de
-     meio metro. Aqui a coluna respira, o alvo encolhe (é mouse, não dedo) e
-     os botões passam a ter o tamanho do que escrevem. */
-  @media (min-width: 760px) {
-    main { max-width: 720px; }
-    h1 { font-size: 2rem; }
-    /* auto não basta: .botao é display:flex, e flex em bloco ocupa a linha */
-    button, .botao { width: fit-content; min-height: 40px; }
-    /* as ações de uma guia viram uma fileira, não uma pilha */
-    .acoes { display: flex; flex-wrap: wrap; align-items: center; }
-    .acoes-menores button { min-width: 0; flex: 0 0 auto; }
-    .pi-enviar { min-height: 40px; }
-    .pedido-item { min-height: 48px; }
-    input[type=text] { min-height: 42px; max-width: 460px; }
-    /* o campo do código de barras é pra copiar, não pra ler: cabe em uma linha */
-    input[readonly] { font-size: .875rem; max-width: none; }
-    .envio select, .envio input[type=file] { max-width: 460px; }
-    /* guardar na tela inicial é assunto de celular */
-    .instalar { display: none; }
-  }
-  /* ---------- desenho GitHub ----------
-     Barra de cima com "escritório / cliente", abas sublinhadas logo abaixo
-     (em qualquer largura) e cada seção numa caixa: cabeçalho cinza com o
-     título, corpo branco. */
-  :root { --r: 6px; }
-  body { padding: 0 0 max(28px, env(safe-area-inset-bottom)); }
-  main { padding: 20px 16px 0; }
-  .barra {
-    display: flex; align-items: center; gap: 8px; min-height: 56px;
-    padding: max(8px, env(safe-area-inset-top)) 16px 8px;
-    background: var(--surface-2); border-bottom: 1px solid var(--border);
-    font-size: 1rem; min-width: 0;
-  }
-  /* a logo da Nilma, redonda, no lugar do "N" */
-  .barra-marca { flex: none; width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border); }
-  .barra-escritorio { color: var(--ink-soft); white-space: nowrap; }
-  .barra-sep { color: var(--ink-faint); }
-  .barra-cliente { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* ---------- cabeçalho: logo + "Nilma Contabilidade / Cliente" ---------- */
+  .barra { padding-top: env(safe-area-inset-top); }
+  .barra .gh-header-top, .lado-lista { max-width: calc(var(--col) + 64px); margin: 0 auto; }
+  .barra .gh-crumbs { flex: 1; }
+  .barra-escritorio { flex: none; }
+  .barra-cliente { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  body.com-menu .barra-escritorio { font-weight: 400; }
   .barra-cliente:empty, .barra-sep:has(+ .barra-cliente:empty) { display: none; }
+  body:not(.com-menu) .barra-escritorio { font-weight: 600; }
   @media (max-width: 480px) { body.com-menu .barra-escritorio, body.com-menu .barra-sep { display: none; } }
 
-  .lado:not([hidden]) {
-    display: block; position: sticky; top: 0; z-index: 5;
-    background: var(--surface-2); border-bottom: 1px solid var(--border);
-  }
-  .lado-lista { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; padding: 0 12px; max-width: 880px; margin: 0 auto; }
+  /* ---------- abas das seções (= nav.menu da Conferência) ---------- */
+  .lado:not([hidden]) { display: block; }
+  .lado-lista { display: flex; align-items: center; gap: 8px; padding: 0 32px; overflow-x: auto; scrollbar-width: none; }
   .lado-lista::-webkit-scrollbar { display: none; }
   .lado-item {
-    flex: none; width: auto; min-height: 48px; padding: 0 10px; gap: 8px; border: 0; border-radius: 0;
-    background: none; color: var(--ink-soft); font-weight: 400; white-space: nowrap; position: relative;
+    position: relative; isolation: isolate; display: flex; align-items: center; gap: 8px; flex: none;
+    height: 48px; padding: 0 8px; border: 0; background: none; color: var(--ink); cursor: pointer;
+    font-size: 14px; font-weight: 400; white-space: nowrap;
   }
-  .lado-item svg { width: 16px; height: 16px; color: var(--ink-faint); }
-  .lado-item:active { background: none; }
-  .lado-item.ativa { color: var(--ink); font-weight: 600; }
-  .lado-item.ativa::after { content: ""; position: absolute; left: 6px; right: 6px; bottom: -1px; height: 2px; border-radius: 2px; background: var(--accent); }
+  .lado-item::before { content: ""; position: absolute; inset: 8px 0; border-radius: 6px; z-index: -1; transition: background .12s ease; }
+  .lado-item:hover::before { background: var(--hover-bg); }
+  .lado-item svg { color: var(--ink-muted); }
+  .lado-item.ativa { font-weight: 600; }
+  .lado-item.ativa::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; border-radius: 6px; background: var(--tab-active); }
   .lado-num {
-    min-width: 20px; padding: 0 6px; border-radius: 2em; line-height: 18px; text-align: center;
-    background: color-mix(in srgb, var(--ink) 9%, transparent); color: var(--ink-soft);
-    font-size: .75rem; font-weight: 600; font-variant-numeric: tabular-nums;
+    min-width: 20px; padding: 0 6px; border-radius: 2em; background: var(--hover-bg); color: var(--ink);
+    font-size: 12px; font-weight: 500; line-height: 18px; text-align: center; font-variant-numeric: tabular-nums;
   }
-  /* o nome do cliente já está na barra */
-  main > .de { display: none; }
-  body.com-menu main > h1 { display: none; }
-  body.com-menu .estado:empty { display: none; }
+  @media (max-width: 768px) { .lado-lista { padding: 0 16px; gap: 0; } }
+
+  /* ---------- coluna central ---------- */
+  main { max-width: calc(var(--col) + 64px); margin: 0 auto; padding: 24px 32px 64px; }
+  @media (max-width: 768px) { main { padding: 16px 16px 48px; } }
+  main > .de { display: none; }                   /* o escritório já está no cabeçalho */
+  #quem { font-size: 20px; font-weight: 600; line-height: 1.25; text-wrap: balance; overflow-wrap: anywhere; }
+  .estado { margin-top: 8px; color: var(--ink-muted); max-width: 70ch; }
+  body.com-menu main > h1 { display: none; }       /* o nome do cliente está no cabeçalho */
+  /* com as abas, o estado só aparece para dizer que algo falhou */
+  body.com-menu .estado {
+    margin: 0 0 16px; padding: 12px 16px; border-radius: 6px; color: var(--ink);
+    border: 1px solid color-mix(in srgb, var(--destructive) 40%, transparent); background: var(--destructive-soft);
+  }
+  #conteudo:not([hidden]) { display: flex; flex-direction: column; gap: 16px; }
+  #quem + .estado + #conteudo { margin-top: 16px; }
+  body.com-menu #quem + .estado + #conteudo { margin-top: 0; }
+
   /* uma seção por vez: a aba ativa mora no <body> */
   body[data-aba="rota"] [data-aba]:not([data-aba="rota"]),
   body[data-aba="pagar"] [data-aba]:not([data-aba="pagar"]),
@@ -264,104 +102,221 @@
   body[data-aba="duvidas"] [data-aba]:not([data-aba="duvidas"]),
   body[data-aba="fale"] [data-aba]:not([data-aba="fale"]) { display: none; }
 
-  /* caixas: o h2 da seção vira o cabeçalho da caixa que vem logo depois */
-  #conteudo > section + section, #conteudo > section + .instalar { margin-top: 16px; }
-  #conteudo > section > h2:first-child {
-    margin: 0; padding: 12px 16px; font-size: 1rem;
-    background: var(--surface-2); border: 1px solid var(--border); border-bottom: 0;
-    border-radius: var(--r) var(--r) 0 0;
+  /* ---------- caixa (= .card da Conferência) ---------- */
+  .bloco { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: var(--pad); min-width: 0; }
+  /* o h2 da seção é a faixa cinza de cabeçalho da caixa que vem logo depois */
+  #conteudo > section > h2:first-child, .pedido-topo {
+    margin: 0; padding: 12px var(--pad); background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 6px 6px 0 0; font-size: 14px; font-weight: 600; line-height: 20px;
   }
-  #conteudo > section > h2:first-child + .bloco { margin-top: 0; border-radius: 0 0 var(--r) var(--r); }
-  #conteudo .bloco { border-radius: var(--r); }
-  .duvidas { margin-top: 0; }
-  .duvidas .bloco { padding: 0 16px; }
-  .fale { margin-top: 0; }
-  /* o que falta: o topo da caixa é o cabeçalho cinza */
-  .bloco.pedido { padding: 0; border-color: var(--border); overflow: hidden; }
-  .bloco.pedido > .pedido-topo { margin: 0; padding: 12px 16px; background: var(--surface-2); border-bottom: 1px solid var(--border); align-items: center; }
-  .bloco.pedido > .pedido-topo h2 { font-size: 1rem; }
-  .pedido-conta { font-size: .75rem; font-weight: 600; padding: 0 8px; line-height: 20px; border-radius: 2em; background: color-mix(in srgb, var(--ink) 9%, transparent); color: var(--ink-soft); }
-  .bloco.pedido > .pedido-mes { margin: 0; padding: 12px 16px 0; }
-  .bloco.pedido > .pedido-mes:last-of-type { padding-bottom: 12px; }
-  .bloco.pedido > .pedido-pe, .bloco.pedido > .envio { margin: 0 16px 14px; }
-  .bloco.pedido > .pedido-pe { padding-top: 12px; border-top: 1px solid var(--border); margin-top: 0; }
-  .pedido-item:last-child { border-bottom: 0; }
-  .pm-marca { padding: 0 8px; line-height: 20px; border-radius: 2em; background: var(--aviso-bg); }
-  /* botões e campos no raio do GitHub */
-  button, .botao, input[type=text], .envio select, .envio input[type=file], .fale select, .fale textarea { border-radius: var(--r); }
-  .selo { border-radius: 2em; font-size: .75rem; padding: 2px 8px; border: 1px solid transparent; }
-  .selo:not(.ok):not(.ruim) { background: none; border-color: var(--border); }
-  /* guias do mês: lista com linha entre elas, como as linhas de uma caixa */
-  #guias { padding: 0 16px; }
-  #guias details > summary { font-size: 1rem; }
-  #aPagar .guia:first-child { padding-top: 0; }
-  footer { border-top: 1px solid var(--border); padding-top: 16px; }
+  #conteudo > section > h2:first-child { border-bottom: 0; }
+  #conteudo > section > h2:first-child + .bloco { border-radius: 0 0 6px 6px; }
+  @media (max-width: 640px) { #conteudo > section > h2:first-child, .pedido-topo { padding-top: 10px; padding-bottom: 10px; } }
+  /* caixa que é lista: as linhas vão de borda a borda */
+  .bloco:has(> .guia), .bloco:has(> details), .bloco.pedido { padding: 0; }
 
-  /* entrega de hoje: quantas empresas faltam até a sua */
+  /* textos */
+  .sub { color: var(--ink-muted); margin-top: 2px; }
+  .dica { font-size: 12px; color: var(--ink-muted); margin-top: 8px; }
+  .dica:empty { display: none; }
+  .erro { font-size: 12px; color: var(--destructive); margin-top: 4px; }
+  main label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+  main select + label, main input + label, main textarea + label { margin-top: 16px; }
+  input[readonly] { font-family: var(--font-num); font-size: 12px; }
+  /* no celular, campo com menos de 16px faz o iPhone dar zoom ao tocar */
+  @media (max-width: 768px) and (pointer: coarse) { main input, main select, main textarea { font-size: 16px; } }
+  input[type="file"] { padding: 3px 8px 3px 3px; cursor: pointer; }
+  input[type="file"]::file-selector-button {
+    font: inherit; font-size: 12px; font-weight: 500; line-height: 18px; margin-right: 8px; padding: 2px 12px;
+    border: 1px solid var(--btn-border); border-radius: 6px; background: var(--btn-bg); color: var(--ink); cursor: pointer;
+  }
+  input[type="file"]::file-selector-button:hover { background: var(--btn-hover); }
+
+  /* ---------- botões (= .btn / .btn-primary da Conferência) ---------- */
+  main button, .botao {
+    appearance: none; cursor: pointer; font: inherit; font-size: 14px; font-weight: 500; line-height: 20px;
+    min-height: 32px; max-width: 100%; padding: 5px 16px; border-radius: 6px;
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-align: left; text-decoration: none;
+    background: var(--btn-bg); color: var(--ink); border: 1px solid var(--btn-border); box-shadow: var(--shadow-xs);
+    transition: background .12s ease, border-color .12s ease, color .12s ease;
+  }
+  main button svg, .botao svg { color: var(--ink-muted); }
+  main button:hover:not(:disabled), .botao:hover { background: var(--btn-hover); }
+  main button:disabled { opacity: .55; cursor: not-allowed; }
+  main button.principal { background: var(--btn-primary); color: #FFFFFF; border-color: var(--btn-primary-border); }
+  main button.principal svg { color: inherit; }
+  main button.principal:hover:not(:disabled) { background: var(--btn-primary-hover); }
+  main button.principal:focus-visible { outline-offset: 2px; }
+  .acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
+  .acoes > div:not(.acoes-menores), .acoes > p, .acoes > [data-caixa] { flex: 1 0 100%; min-width: 0; }
+  .acoes-menores { display: contents; }
+
+  /* ---------- guia (linha da caixa "Para pagar", "Suas guias" e do protocolo) ---------- */
+  .guia { padding: var(--pad); border-top: 1px solid var(--border-muted); }
+  .guia:first-child { border-top: 0; }
+  .guia-topo { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+  .guia-topo > div:first-child { min-width: 0; }
+  .empresa { font-size: 12px; font-weight: 600; color: var(--ink-muted); }
+  .nome { font-weight: 600; overflow-wrap: anywhere; }
+  .prazo { color: var(--ink); font-weight: 600; }
+  .prazo.urgente { color: var(--danger); }
+  /* selo = .badge da Conferência */
+  .selo {
+    flex: none; display: inline-block; margin-top: 1px; padding: 0 7px; border: 1px solid var(--border); border-radius: 2em;
+    font-size: 12px; font-weight: 500; line-height: 18px; white-space: nowrap; color: var(--ink-muted);
+  }
+  .selo.ok { color: var(--success); border-color: var(--success); }
+  .selo.ruim { color: var(--destructive); border-color: var(--destructive); }
+  .pago { display: flex; align-items: center; gap: 8px; margin-top: 8px; color: var(--success); }
+  .guia > .dica { margin-top: 8px; }
+  /* confirmar o recebimento: um quadro à parte dentro da guia */
+  .acoes:has([data-acao="recebi"]) {
+    padding: var(--pad); border: 1px solid var(--border); border-radius: 6px; background: var(--surface-2);
+  }
+  .acoes:has([data-acao="recebi"]) input { background: var(--surface); }
+  /* campo de formulário não precisa da largura toda no computador */
+  [data-campo="nome"], .envio select, .envio input, .fale select, .fale textarea { max-width: 480px; }
+  [data-caixa="codigo"] { margin-top: 4px; }
+  .caixa-img:empty { display: none; }
+  .caixa-img img { display: block; max-width: 100%; margin-top: 4px; background: #FFFFFF; border: 1px solid var(--border); border-radius: 6px; }
+  .caixa-img > button { margin-top: 8px; }
+
+  /* ---------- guias do mês (recolhíveis) e dúvidas ---------- */
+  .bloco > details + details { border-top: 1px solid var(--border); }
+  .bloco > details > summary {
+    list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px;
+    min-height: 48px; padding: 12px var(--pad); font-weight: 600;
+  }
+  .bloco > details > summary::-webkit-details-marker { display: none; }
+  .bloco > details > summary::before {
+    content: ""; flex: none; width: 6px; height: 6px; margin: 0 4px 0 2px; border-right: 1.5px solid var(--ink-muted);
+    border-bottom: 1.5px solid var(--ink-muted); transform: rotate(-45deg); transition: transform .12s ease;
+  }
+  .bloco > details[open] > summary::before { transform: rotate(45deg); }
+  .bloco > details > summary:hover { background: var(--surface-2); }
+  .bloco > details:last-child:not([open]) > summary { border-radius: 0 0 6px 6px; }
+  #guias summary h3 { font-size: 14px; font-weight: 600; }
+  /* quantas guias no mês = .gh-counter */
+  #guias summary > span {
+    min-width: 20px; padding: 0 6px; border-radius: 2em; background: var(--surface-3); color: var(--ink);
+    font-size: 12px; font-weight: 500; line-height: 18px; text-align: center;
+  }
+  #guias details > .guia { border-top: 1px solid var(--border-muted); }
+  .duvidas details > p { color: var(--ink-muted); padding: 0 var(--pad) var(--pad) calc(var(--pad) + 20px); max-width: 80ch; }
+
+  /* ---------- entrega de hoje ---------- */
   .rota-pos { text-align: center; padding: 8px 0 16px; }
-  .rota-num { font-size: 3rem; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
-  .rota-pos.proxima .rota-num, .rota-pos.feita .rota-num { color: var(--ok); }
-  .rota-texto { color: var(--ink-soft); margin-top: 6px; }
-  .rota-estimativa { display: inline-block; margin-top: 10px; padding: 2px 10px; border-radius: 2em; background: var(--surface-2); font-size: .875rem; color: var(--ink-soft); }
-  .rota-antes { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--border); }
-  .rota-antes li { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 1rem; }
-  .rota-antes li span:first-child { flex: none; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-2); font-size: .75rem; font-weight: 600; color: var(--ink-soft); }
-  .rota-atualizado { display: flex; align-items: center; gap: 6px; margin-top: 12px; font-size: .875rem; color: var(--ink-faint); }
-  .rota-atualizado::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--ok); }
+  .rota-num { font-size: 40px; font-weight: 600; line-height: 1.2; font-variant-numeric: tabular-nums; display: flex; justify-content: center; }
+  .rota-pos.proxima .rota-num, .rota-pos.feita .rota-num { color: var(--success); }
+  .rota-texto { color: var(--ink-muted); margin-top: 4px; }
+  .rota-estimativa {
+    display: inline-block; margin-top: 12px; padding: 0 7px; border: 1px solid var(--border); border-radius: 2em;
+    font-size: 12px; font-weight: 500; line-height: 18px; color: var(--ink-muted);
+  }
+  .rota-antes { list-style: none; margin: 0 calc(var(--pad) * -1); padding: 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .rota-antes li { display: flex; align-items: center; gap: 12px; min-height: 40px; padding: 8px var(--pad); }
+  .rota-antes li + li { border-top: 1px solid var(--border-muted); }
+  .rota-antes li span:first-child {
+    flex: none; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center;
+    background: var(--surface-3); color: var(--ink-muted); font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums;
+  }
+  .rota-atualizado { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 12px; color: var(--ink-muted); }
+  .rota-atualizado::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--success); }
 
-  @media (min-width: 760px) {
-    main { max-width: 880px; padding: 28px 24px 0; }
-    .barra { padding-left: 24px; padding-right: 24px; }
-    .lado-lista { padding: 0 16px; }
-    .lado-item { min-height: 48px; }
+  /* ---------- documentos que faltam ---------- */
+  .bloco.pedido { overflow: hidden; }
+  .pedido-topo { display: flex; align-items: center; justify-content: space-between; gap: 8px; border: 0; border-bottom: 1px solid var(--border); border-radius: 0; }
+  .pedido-topo h2 { font-size: 14px; font-weight: 600; line-height: 20px; }
+  .pedido-conta {                                   /* = .gh-counter */
+    min-width: 20px; padding: 0 6px; border-radius: 2em; background: var(--surface-3); color: var(--ink);
+    font-size: 12px; font-weight: 500; line-height: 18px; white-space: nowrap; font-variant-numeric: tabular-nums;
   }
-  /* mesma barra de cima dos apps: fundo da página, linha embaixo */
-  .barra, .lado:not([hidden]) { background: var(--bg); }
-  /* PC: igual aos apps do escritório — barra de cima fixa e as seções numa
-     barra lateral fixa à esquerda (232px), a seção ativa com o traço azul */
-  @media (min-width: 900px) {
-    .barra { position: fixed; top: 0; left: 0; right: 0; z-index: 20; height: 56px; min-height: 0; box-sizing: border-box; padding: 0 16px; }
-    body { padding-top: 56px; }
-    body.com-menu { padding-left: 232px; }
-    .lado:not([hidden]) {
-      position: fixed; top: 56px; left: 0; bottom: 0; width: 232px; z-index: 10;
-      border-bottom: 0; border-right: 1px solid var(--border); overflow-y: auto;
-    }
-    .lado-lista { flex-direction: column; gap: 2px; max-width: none; margin: 0; padding: 12px 8px; overflow: visible; }
-    .lado-item {
-      width: 100%; min-height: 40px; padding: 0 12px; border-radius: var(--r);
-      justify-content: flex-start; white-space: normal; text-align: left;
-    }
-    .lado-item:hover { background: var(--surface-2); color: var(--ink); }
-    .lado-item.ativa { background: var(--surface-2); }
-    .lado-item.ativa svg { color: var(--accent); }
-    .lado-item.ativa::after { left: -8px; right: auto; top: 8px; bottom: 8px; width: 3px; height: auto; }
-    .lado-rot { flex: 1; min-width: 0; }
-    main { max-width: 880px; padding: 28px 32px 0; }
-    footer { max-width: 880px; }
+  .pedido-mes + .pedido-mes { border-top: 1px solid var(--border); }
+  .pm-cab { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 12px var(--pad) 8px; }
+  .pm-nome { font-weight: 600; }
+  .pm-marca {                                       /* = .badge-bad */
+    padding: 0 7px; border: 1px solid var(--danger); border-radius: 2em; color: var(--danger);
+    font-size: 12px; font-weight: 500; line-height: 18px; white-space: nowrap;
   }
+  .pedido-item { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 8px var(--pad); border-top: 1px solid var(--border-muted); }
+  .pi-nome { flex: 1; min-width: 0; }
+  .pedido-item.ok .pi-nome { color: var(--ink-muted); }
+  .pi-estado {                                      /* = .badge-ok */
+    flex: none; display: inline-flex; align-items: center; gap: 4px; padding: 0 7px; border: 1px solid var(--success);
+    border-radius: 2em; color: var(--success); font-size: 12px; font-weight: 500; line-height: 18px;
+  }
+  .pi-estado svg { width: 12px; height: 12px; }
+  main button.pi-enviar { flex: none; min-height: 28px; padding: 3px 12px; font-size: 12px; }   /* = .btn-sm */
+  main button.pi-enviar svg { width: 14px; height: 14px; }
+  .pedido-pe { padding: 12px var(--pad); border-top: 1px solid var(--border); font-size: 12px; color: var(--ink-muted); }
+  .envio { padding: var(--pad); border-top: 1px solid var(--border); background: var(--surface-2); }
+  .envio select, .envio input { background-color: var(--surface); }
+  .tudo-certo {                                     /* = .parity */
+    display: flex; align-items: center; gap: 8px; padding: 12px 16px; border: 1px solid var(--success); border-radius: 6px;
+    background: var(--success-soft); color: var(--ink);
+  }
+  .tudo-certo svg { color: var(--success); }
+  .bloco + .tudo-certo { margin-top: 16px; }
+
+  /* ---------- me avise / honorário / falar ---------- */
+  #faleOk {                                         /* recado recebido = .parity */
+    margin-top: 12px; padding: 12px 16px; border: 1px solid var(--success); border-radius: 6px;
+    background: var(--success-soft); color: var(--ink); font-size: 14px;
+  }
+
+  /* ---------- guardar na tela inicial (assunto de celular) ---------- */
+  .instalar {
+    display: flex; align-items: center; gap: 12px; padding: 8px 8px 8px 16px;
+    border: 1px solid var(--border); border-radius: 6px; background: var(--surface-2);
+  }
+  .instalar p { flex: 1; color: var(--ink-muted); }
+  .instalar p b { color: var(--ink); }
+  main .instalar .fechar { width: 32px; padding: 0; border-color: transparent; background: none; box-shadow: none; }
+  main .instalar .fechar:hover { background: var(--hover-bg); }
+  @media (min-width: 760px) { .instalar { display: none; } }
+
+  /* ---------- rodapé ---------- */
+  footer { margin-top: 8px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 12px; color: var(--ink-muted); }
+  footer p + p { margin-top: 8px; }
+  #pe-zap { margin-top: 12px; }
+
+  /* ---------- aviso (código de protocolo não encontrado) = .alert ---------- */
+  .bloco.aviso { border-color: color-mix(in srgb, var(--warn) 40%, transparent); background: var(--warn-soft); padding: 12px 16px; }
+  .bloco.aviso h2 { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+
+  /* ---------- conferir protocolo ---------- */
+  #conferir:not([hidden]) { display: flex; flex-direction: column; gap: 16px; margin-top: 16px; }
+  #conferirResultado:empty { display: none; }
+  #conferirResultado { display: flex; flex-direction: column; gap: 16px; }
+  #conferirResultado > .dica { margin-top: -8px; }
+  #conferirResultado .bloco > .sub:first-child { margin-top: 0; }
+  #conferirForm input { max-width: 320px; font-family: var(--font-num); letter-spacing: .04em; text-transform: uppercase; }
+  #conferirForm input::placeholder { letter-spacing: normal; }
 </style>
 </head>
 <body>
-<!-- Barra de cima e abas no desenho do GitHub (o mesmo dos apps do
-     escritório): "Nilma Contabilidade / Cliente" e, embaixo, uma aba por seção,
-     em qualquer largura. -->
-<header class="barra">
-  <img class="barra-marca" alt="" aria-hidden="true" width="32" height="32" src="data:image/jpeg;base64,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">
-  <span class="barra-escritorio">Nilma Contabilidade</span>
-  <span class="barra-sep" aria-hidden="true">/</span>
-  <strong class="barra-cliente" id="ladoCliente"></strong>
-</header>
-<nav class="lado" id="lado" aria-label="Seções" hidden>
-  <div class="lado-lista">
-    <button type="button" class="lado-item" data-ir="rota"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7"/><circle cx="7" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/></svg><span class="lado-rot">Entrega de hoje</span><span class="lado-num" data-num="rota"></span></button>
-    <button type="button" class="lado-item" data-ir="pagar"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h4"/></svg><span class="lado-rot">Para pagar</span><span class="lado-num" data-num="pagar"></span></button>
-    <button type="button" class="lado-item" data-ir="docs"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M8 8l4-4 4 4M5 14v5h14v-5"/></svg><span class="lado-rot">Documentos</span><span class="lado-num" data-num="docs"></span></button>
-    <button type="button" class="lado-item" data-ir="guias"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/></svg><span class="lado-rot">Guias</span><span class="lado-num" data-num="guias"></span></button>
-    <button type="button" class="lado-item" data-ir="duvidas"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 1-1 1.7M12 17h.01"/></svg><span class="lado-rot">Dúvidas</span><span class="lado-num" data-num="duvidas"></span></button>
-    <button type="button" class="lado-item" data-ir="fale"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5a8.5 8.5 0 0 1-12.6 7.4L3 20.5l1.7-5.2A8.5 8.5 0 1 1 21 11.5z"/></svg><span class="lado-rot">Falar com o escritório</span><span class="lado-num" data-num="fale"></span></button>
+<!-- Cabeçalho da Conferência (design-n1): logo da Nilma e a trilha
+     "Nilma Contabilidade / Cliente"; embaixo, uma aba por seção. -->
+<header class="gh-header barra">
+  <div class="gh-header-top">
+    <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 720 1176" focusable="false"><defs><linearGradient id="clRed" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8F2429"/><stop offset=".45" stop-color="#D8323A"/><stop offset="1" stop-color="#93262B"/></linearGradient><linearGradient id="clSilver" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6E6E73"/><stop offset=".5" stop-color="#D4D4D8"/><stop offset="1" stop-color="#7A7A7F"/></linearGradient></defs><path fill="url(#clRed)" d="M2,40 C2,0 18,5 40,30 L490,482 C508,498 515,505 515,522 L515,640 C515,662 510,668 490,648 L165,322 C140,295 120,270 118,292 L118,738 C118,758 122,764 140,780 L218,858 C228,868 230,872 230,890 L230,1010 C230,1032 222,1030 200,1008 L12,818 C4,810 2,806 2,792 Z"/><path fill="url(#clSilver)" transform="rotate(180 360 588)" d="M2,40 C2,0 18,5 40,30 L490,482 C508,498 515,505 515,522 L515,640 C515,662 510,668 490,648 L165,322 C140,295 120,270 118,292 L118,738 C118,758 122,764 140,780 L218,858 C228,868 230,872 230,890 L230,1010 C230,1032 222,1030 200,1008 L12,818 C4,810 2,806 2,792 Z"/></svg></span>
+    <div class="gh-crumbs">
+      <span class="gh-crumb barra-escritorio">Nilma Contabilidade</span>
+      <span class="gh-sep barra-sep" aria-hidden="true">/</span>
+      <strong class="gh-crumb barra-cliente" id="ladoCliente"></strong>
+    </div>
   </div>
-</nav>
+  <nav class="lado" id="lado" aria-label="Seções" hidden>
+    <div class="lado-lista">
+      <button type="button" class="lado-item" data-ir="rota"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg><span class="lado-rot">Entrega de hoje</span><span class="lado-num" data-num="rota"></span></button>
+      <button type="button" class="lado-item" data-ir="pagar"><svg viewBox="0 0 24 24" aria-hidden="true"><rect width="20" height="14" x="2" y="5" rx="2"/><path d="M2 10h20"/><path d="M6 14h2"/></svg><span class="lado-rot">Para pagar</span><span class="lado-num" data-num="pagar"></span></button>
+      <button type="button" class="lado-item" data-ir="docs"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4"/><path d="m7 9 5-5 5 5"/><path d="M5 15v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3"/></svg><span class="lado-rot">Documentos</span><span class="lado-num" data-num="docs"></span></button>
+      <button type="button" class="lado-item" data-ir="guias"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"/><path d="M14 3v5h5"/></svg><span class="lado-rot">Guias</span><span class="lado-num" data-num="guias"></span></button>
+      <button type="button" class="lado-item" data-ir="duvidas"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg><span class="lado-rot">Dúvidas</span><span class="lado-num" data-num="duvidas"></span></button>
+      <button type="button" class="lado-item" data-ir="fale"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 17a2 2 0 0 1-2 2H6.8a2 2 0 0 0-1.4.6l-2.2 2.2a.7.7 0 0 1-1.2-.5V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z"/><path d="M7 11h10"/><path d="M7 15h6"/><path d="M7 7h8"/></svg><span class="lado-rot">Falar com o escritório</span><span class="lado-num" data-num="fale"></span></button>
+    </div>
+  </nav>
+</header>
 <main>
   <p class="de" id="de">Nilma Contabilidade</p>
   <h1 id="quem">Abrindo…</h1>
@@ -446,7 +401,7 @@
           <option value="duvida">Tenho uma dúvida</option>
           <option value="outro">Outro assunto</option>
         </select>
-        <label for="faleTexto" style="margin-top:10px">Escreva aqui</label>
+        <label for="faleTexto">Escreva aqui</label>
         <textarea id="faleTexto" maxlength="400" placeholder="Ex.: perdi a guia do DAS de agosto"></textarea>
         <p class="erro" id="faleErro" hidden></p>
         <div class="acoes"><button type="button" class="principal" id="faleBtn">Enviar pro escritório</button></div>
@@ -458,7 +413,7 @@
       <p id="instalarTexto"><b>Guarde esta página</b> na tela inicial e abra suas guias como um aplicativo.</p>
       <button type="button" id="instalarBtn" hidden>Guardar</button>
       <button type="button" class="fechar" id="instalarFechar" aria-label="Agora não">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
       </button>
     </div>
 
@@ -520,13 +475,14 @@ const nomeDaGuia = e => (e.itens || []).map(i => i.tipo + (i.valor != null ? ' �
 const valorDaGuia = e => (e.itens || []).reduce((s, i) => s + (Number(i.valor) || 0), 0);
 
 const ICO = {
-  copiar: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>',
-  guia: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/></svg>',
-  agenda: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4M12 13v4M10 15h4"/></svg>',
-  sino: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 17V11a6 6 0 0 1 12 0v6l2 2H4zM10 21h4"/></svg>',
-  enviar: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M8 8l4-4 4 4M5 14v5h14v-5"/></svg>',
-  certo: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>',
-  zap: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5a8.5 8.5 0 0 1-12.6 7.4L3 20.5l1.7-5.2A8.5 8.5 0 1 1 21 11.5z"/><path d="M8.8 9c.4 2.8 3.4 5.8 6.2 6.2l1.3-1.6-2-1-.9 1a6.6 6.6 0 0 1-3-3l1-.9-1-2z"/></svg>',
+  copiar: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>',
+  guia: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"/><path d="M14 3v5h5"/></svg>',
+  agenda: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9.5h18"/><path d="M8 2.5v4"/><path d="M16 2.5v4"/></svg>',
+  sino: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/></svg>',
+  enviar: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4"/><path d="m7 9 5-5 5 5"/><path d="M5 15v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3"/></svg>',
+  certo: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>',
+  assinatura: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 17-2.156-1.868A.5.5 0 0 0 18 15.5v.5a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1c0-2.545-3.991-3.97-8.5-4a1 1 0 0 0 0 5c4.153 0 4.745-11.295 5.708-13.5a2.5 2.5 0 1 1 3.31 3.284"/><path d="M3 21h18"/></svg>',
+  zap: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719"/></svg>',
 };
 
 // ---------- estado ----------
@@ -653,7 +609,7 @@ function cartaoDaGuia(e, recebidos, comMes) {
     if (!pago && !ehEquipe && e.pagamento && e.pagamento.codigo) {
       menos += '<button type="button" class="menor" data-acao="paguei">' + ICO.certo + '<span>Já paguei</span></button>';
     }
-    if (entregue && e.temAssinatura) menos += '<button type="button" class="menor" data-acao="assinatura" aria-expanded="false">' + ICO.certo + '<span>Ver quem recebeu</span></button>';
+    if (entregue && e.temAssinatura) menos += '<button type="button" class="menor" data-acao="assinatura" aria-expanded="false">' + ICO.assinatura + '<span>Ver quem recebeu</span></button>';
     if (menos) h += '<div class="acoes-menores">' + menos + '</div>';
     if (entregue && e.temAssinatura) h += '<div class="caixa-img" data-caixa="assinatura"></div>';
     h += '</div>';
@@ -738,7 +694,7 @@ function desenharDocumentos(docs) {
       '<p class="erro" id="envioErro" hidden></p>' +
       '<div class="acoes"><button type="submit" class="principal" id="envioBtn">Enviar</button>' +
       '<button type="button" class="menor" id="envioCancelar">Cancelar</button></div>' +
-      '<p class="dica" style="color:inherit">Um arquivo por vez, até 700 KB. Foto é diminuída sozinha. Extrato grande em PDF vai melhor por e-mail.</p></form>';
+      '<p class="dica">Um arquivo por vez, até 700 KB. Foto é diminuída sozinha. Extrato grande em PDF vai melhor por e-mail.</p></form>';
   }
   sec.innerHTML = h + '</div>';
   if (!ehEquipe) prepararEnvio(opcoes);
@@ -852,7 +808,7 @@ function desenharGuias(todas, recebidos) {
   // o mês mais novo abre sozinho; os antigos ficam recolhidos pra lista não virar um rolo
   caixa.innerHTML = ordem.map((comp, i) => {
     const doMes = porMes.get(comp);
-    return '<details' + (i === 0 || abertos.has('mes:' + comp) ? ' open' : '') + ' data-mes="' + esc(comp) + '"><summary><h3 style="margin:0;font-size:1rem;font-weight:600">' + esc(mesPorExtenso(comp)) +
+    return '<details' + (i === 0 || abertos.has('mes:' + comp) ? ' open' : '') + ' data-mes="' + esc(comp) + '"><summary><h3>' + esc(mesPorExtenso(comp)) +
       '</h3><span>' + doMes.length + (doMes.length === 1 ? ' guia' : ' guias') + '</span></summary>' + doMes.map(e => cartaoDaGuia(e, recebidos, false)).join('') + '</details>';
   }).join('');
 }
@@ -1006,7 +962,7 @@ async function carregarRota() {
   if (mostrar) {
     let h;
     if (d.concluida) {
-      h = '<div class="rota-pos feita"><div class="rota-num">' + ICO.certo.replace('<svg', '<svg style="width:48px;height:48px"') + '</div>' +
+      h = '<div class="rota-pos feita"><div class="rota-num">' + ICO.certo.replace('<svg', '<svg style="width:40px;height:40px"') + '</div>' +
         '<div class="rota-texto">Entrega concluída. Obrigado!</div></div>';
     } else {
       const fila = Array.isArray(d.paradasAntes) ? d.paradasAntes : [];
@@ -1285,7 +1241,7 @@ function iconeDasGuias(lado) {
   const c = document.createElement('canvas');
   c.width = c.height = lado;
   const x = c.getContext('2d');
-  x.fillStyle = '#9A2B24';
+  x.fillStyle = '#B0262D';
   x.fillRect(0, 0, lado, lado);
   // o desenho ocupa o miolo: o Android recorta o ícone em círculo
   x.translate(lado * 0.25, lado * 0.25);
@@ -1303,7 +1259,7 @@ function montarManifesto() {
   const inicio = location.origin + location.pathname + '?portal=' + encodeURIComponent(token);
   const m = {
     name: 'Minhas guias', short_name: 'Minhas guias', id: inicio, start_url: inicio, scope: pasta,
-    display: 'standalone', lang: 'pt-BR', background_color: '#F6F6F6', theme_color: '#9A2B24',
+    display: 'standalone', lang: 'pt-BR', background_color: '#FFFFFF', theme_color: '#B0262D',
     icons: [
       { src: i192, sizes: '192x192', type: 'image/png', purpose: 'any' },
       { src: i512, sizes: '512x512', type: 'image/png', purpose: 'any' },

@@ -7,6 +7,12 @@
 // Carregue no <head>, ANTES da folha de estilo e sem defer: os atributos
 // precisam estar no <html> antes da primeira pintura, senão a tela pisca
 // no tema errado.
+//
+// Visual da Conferência (design-n1): só o TEMA muda a aparência (claro,
+// escuro ou o do sistema, em data-theme). Paleta, tamanho de texto,
+// espaçamento e animação continuam sendo lidos, gravados e aplicados como
+// atributos (data-paleta, data-texto...), mas o nilma-ui.css não reage a
+// eles: a aparência é fixa, igual à da Conferência.
 (function (janela) {
   var PADROES = { tema: 'auto', paleta: 'padrao', texto: 'normal', densidade: 'confortavel', animacao: 'completa' };
   var raiz = document.documentElement;
@@ -55,11 +61,13 @@
 })(window);
 
 // ---------- janela de Aparência ----------
-// As mesmas opções da engrenagem do Entregas e do "Aparência" do Pendências.
+// Como na Conferência, a janela só oferece o tema (claro / escuro / sistema),
+// num seletor segmentado. As outras opções não mudam mais nada na tela.
 // A tela que quiser oferecer isso chama NilmaUI.abrirAparencia() num botão; e,
 // se quiser guardar na conta também, define NilmaUI.aoSalvar = function (campo,
 // valor) { ... } depois do login.
 (function (janela) {
+  // paletas antigas: não aparecem mais na janela (o visual não muda com elas)
   var PALETAS = [
     ['padrao', 'Padrão', '#9A2B24'], ['azul', 'Azul', '#1A3D63'], ['ardosia', 'Ardósia', '#57707A'],
     ['nogueira', 'Nogueira', '#5E4B43'], ['verde', 'Verde', '#235347'], ['vermelho', 'Vermelho', '#DF2531'],
@@ -71,6 +79,8 @@
     { campo: 'densidade', rotulo: 'Espaçamento', padrao: 'confortavel', dica: 'Compacto mostra mais linhas por tela.', opcoes: [['confortavel', 'Confortável'], ['compacto', 'Compacto']] },
     { campo: 'animacao', rotulo: 'Animações', padrao: 'completa', opcoes: [['completa', 'Normais'], ['reduzida', 'Reduzidas']] }
   ];
+  // ícone de cada opção de tema (nilma-icones.css)
+  var ICONE_TEMA = { claro: 'ph-sun', escuro: 'ph-moon', auto: 'ph-desktop' };
   var esc = function (t) { return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]; }); };
   var caixa = null;
 
@@ -86,20 +96,15 @@
     if (typeof janela.NilmaUI.aoSalvar === 'function') janela.NilmaUI.aoSalvar(campo, valor);
   }
   function desenhar() {
-    var paletaAtual = document.documentElement.dataset.paleta || 'padrao';
     caixa.querySelector('.ap-corpo').innerHTML =
-      '<div class="ap-grupo"><div class="ap-rotulo">Cor</div><div class="ap-cores" role="group" aria-label="Cor">' +
-        PALETAS.map(function (p) {
-          return '<button type="button" data-paleta="' + p[0] + '" title="' + esc(p[1]) + '" aria-label="' + esc(p[1]) + '"' +
-            ' aria-pressed="' + (p[0] === paletaAtual) + '" style="background:' + p[2] + '"></button>';
-        }).join('') + '</div></div>' +
-      GRUPOS.map(function (g) {
+      GRUPOS.filter(function (g) { return g.campo === 'tema'; }).map(function (g) {
         var atual = valorAtual(g.campo, g.padrao);
         return '<div class="ap-grupo"><div class="ap-rotulo">' + esc(g.rotulo) + '</div>' +
           (g.dica ? '<div class="ap-dica">' + esc(g.dica) + '</div>' : '') +
           '<div class="ap-opcoes" role="group" aria-label="' + esc(g.rotulo) + '">' +
             g.opcoes.map(function (o) {
-              return '<button type="button" data-campo="' + g.campo + '" data-valor="' + o[0] + '" aria-pressed="' + (o[0] === atual) + '">' + esc(o[1]) + '</button>';
+              var ico = g.campo === 'tema' && ICONE_TEMA[o[0]] ? '<i class="ph ' + ICONE_TEMA[o[0]] + '" aria-hidden="true"></i>' : '';
+              return '<button type="button" data-campo="' + g.campo + '" data-valor="' + o[0] + '" aria-pressed="' + (o[0] === atual) + '">' + ico + esc(o[1]) + '</button>';
             }).join('') + '</div></div>';
       }).join('');
     caixa.querySelectorAll('[data-paleta]').forEach(function (b) {

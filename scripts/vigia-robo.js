@@ -43,7 +43,7 @@ const SO_VER_RESUMO = args.includes('--ver-resumo');   // imprime o resumo de ho
 // ---------- um vigia só ----------
 // Dois vigias atendendo a mesma fila podem mandar a mesma cobrança duas vezes.
 // A trava é um arquivo com o número do processo; se esse processo ainda existe,
-// este sai com código 3 (o iniciar-vigia.cmd entende e não fica reiniciando).
+// este sai com código 3.
 const fs = require('fs');
 const TRAVA = path.join(__dirname, 'vigia.lock');
 function processoVivo(pid) {
@@ -619,7 +619,7 @@ process.on('SIGINT', desligar);
 process.on('SIGTERM', desligar);
 
 // ---------- freio de reinício ----------
-// O vigia-tray.js religa o vigia 30s depois de qualquer queda. Cada partida lê
+// O serviço da nuvem (robo.service) religa o vigia 30s depois de qualquer queda. Cada partida lê
 // os clientes, os links e a rota (umas 450 leituras). Num dia de banco fora do
 // ar — cota do plano gratuito estourada, por exemplo — o vigia cai, religa, lê
 // tudo, cai de novo: 120 vezes por hora, o que sozinho acaba com a cota do dia

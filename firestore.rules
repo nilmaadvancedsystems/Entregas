@@ -639,8 +639,10 @@ service cloud.firestore {
 
     // ---------- reforço de IA da Consulta rápida ----------
     // A Consulta rápida responde sozinha no navegador o que ela conhece. O que
-    // ela não entende vai pra cá, e quem responde é o vigia no PC do
-    // escritório, pelo SDK de administrador (que não passa por estas regras).
+    // ela não entende vai pra cá, e quem responde é o Claude do PC do
+    // escritório (scripts/atendente-claude.js) ou, se escolhido, o Gemini do
+    // robô da nuvem — os dois pelo SDK de administrador, que não passa por
+    // estas regras.
     //
     // CONVERSA É COISA DE UM. Cada um lê e escreve só a sua. Não é sigilo
     // contra o escritório — é que a pergunta que alguém faz ("o Volponi está

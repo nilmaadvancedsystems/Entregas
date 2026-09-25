@@ -13,9 +13,8 @@
      (scripts/ia-atendente.js). O navegador nunca fala com o Gemini.
      A página pode passar um "responder" próprio (resposta rápida, sem IA).
 
-   O visual do painel (.cq-*) vem de nilma-ui.css, recortado do entregas.html
-   por scripts/monta-folha.js. Aqui só vão os poucos componentes que a folha
-   comum não tem (seletor de modo, botão de ícone, janela da conta).
+   Visual da Conferência (design-n1). O painel (.cq-*) vem de nilma-ui.css
+   (parte 5). Aqui só vão a janela da conta e o aviso de reserva.
 
    Uso:
      NilmaExtras.ligar({ db, auth, firebase, usuario: () => ({nome, foto}),
@@ -44,37 +43,45 @@
     setTimeout(function () { t.remove(); }, 3200);
   }
 
+  // Visual no desenho da Conferência (design-n1). O painel da IA (.cq-*),
+  // o seletor de modo (.mode-toggle) e o botão de ícone (.icon-btn) vêm do
+  // nilma-ui.css; aqui só a janela da Conta (= modal da Conferência: 448px,
+  // cantos de 12px, título de 14px com fio embaixo) e o aviso de reserva
+  // (= toast da Conferência), para quando a página não passa o próprio.
   var CSS =
-    '.cq-painel .mode-toggle{display:flex;gap:3px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r-sm);padding:3px}' +
-    '.cq-painel .mode-btn{flex:1;border:none;background:transparent;border-radius:var(--r-xs);font-weight:400;font-size:var(--t-base);color:var(--ink-soft);cursor:pointer;font-family:inherit}' +
-    '.cq-painel .mode-btn:hover{color:var(--ink)}' +
-    '.cq-painel .mode-btn.active{background:var(--surface);color:var(--accent-forte);font-weight:600;box-shadow:inset 0 0 0 1px var(--border-forte)}' +
-    '.cq-painel .icon-btn{border:1px solid var(--border);background:var(--surface);color:var(--ink-soft);font-size:.95rem;cursor:pointer;line-height:1;border-radius:var(--r-sm);display:inline-flex;align-items:center;justify-content:center;flex:none}' +
-    '.cq-painel .icon-btn:hover{background:var(--surface-2);color:var(--ink);border-color:var(--border-forte)}' +
     '.cq-painel textarea.cq-campo{box-shadow:none}' +
     '.cq-painel .cq-enviar{display:inline-flex;align-items:center;justify-content:center}' +
     /* janela da conta */
-    'dialog.nx-conta{border:1px solid var(--border-forte);border-radius:var(--r-md);padding:0;width:min(440px,calc(100vw - 32px));background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}' +
-    'dialog.nx-conta::backdrop{background:rgba(0,0,0,.35)}' +
-    '.nx-conta-cab{display:flex;align-items:center;gap:var(--esp-2);padding:var(--esp-3) var(--esp-4);border-bottom:1px solid var(--border);background:var(--surface-2)}' +
-    '.nx-conta-cab h2{margin:0 auto 0 0;font-size:var(--t-md);font-weight:600}' +
-    '.nx-conta-cab button{width:32px;height:32px;border:0;background:none;border-radius:var(--r-sm);color:var(--ink-soft);cursor:pointer;font-size:1.05rem}' +
-    '.nx-conta-cab button:hover{background:var(--surface);color:var(--ink)}' +
-    '.nx-conta-corpo{padding:var(--esp-4)}' +
-    '.nx-conta-sec+.nx-conta-sec{margin-top:var(--esp-5)}' +
-    '.nx-conta-sec h3{margin:0 0 var(--esp-3);padding-bottom:var(--esp-2);border-bottom:1px solid var(--border);font-size:var(--t-base);font-weight:600}' +
-    '.nx-foto-linha{display:flex;align-items:center;gap:var(--esp-3);flex-wrap:wrap}' +
-    '.nx-foto{width:64px;height:64px;border-radius:50%;flex:none;display:grid;place-items:center;background:var(--accent-soft,var(--surface-2)) center/cover no-repeat;color:var(--accent-forte);font-weight:600;font-size:1.2rem;border:1px solid var(--border)}' +
-    '.nx-conta label.nx-rot{display:block;font-size:var(--t-base);font-weight:600;color:var(--ink);margin:0 0 4px}' +
-    '.nx-conta input[type=password]{width:100%;height:38px;padding:0 10px;margin-bottom:var(--esp-3);border:1px solid var(--border);border-radius:var(--r-sm);background:var(--surface);color:var(--ink);font:inherit}' +
-    '.nx-conta .nx-botao{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--surface);color:var(--ink);font-family:inherit;font-size:var(--t-base);font-weight:600;line-height:1;cursor:pointer}' +
-    '.nx-conta .nx-botao:hover{background:var(--surface-2);border-color:var(--border-forte)}' +
-    '.nx-conta .nx-botao.primario{background:var(--accent);border-color:transparent;color:var(--accent-ink)}' +
-    '.nx-conta .nx-botao.leve{border-color:transparent;background:none;color:var(--ink-soft)}' +
-    '.nx-conta .nx-erro{color:var(--danger-forte,var(--danger));font-size:var(--t-sm);margin:-4px 0 var(--esp-2);min-height:0}' +
+    'dialog.nx-conta{border:none;border-radius:12px;padding:0;width:min(448px,calc(100vw - 32px));background:var(--surface);color:var(--ink);box-shadow:var(--shadow-lg);overflow:hidden;animation:popIn .18s ease-out both}' +
+    'dialog.nx-conta::backdrop{background:#1F232866}' +
+    ':root[data-theme="dark"] dialog.nx-conta::backdrop{background:#01040999}' +
+    '@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) dialog.nx-conta::backdrop{background:#01040999}}' +
+    '.nx-conta-cab{display:flex;align-items:center;gap:8px;min-height:52px;padding:10px 10px 10px 16px;border-bottom:1px solid var(--border)}' +
+    '.nx-conta-cab h2{margin:0 auto 0 0;font-size:14px;font-weight:600;line-height:20px}' +
+    '.nx-conta-cab button{width:32px;height:32px;padding:0;border:0;background:none;border-radius:6px;color:var(--ink-muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:16px}' +
+    '.nx-conta-cab button:hover{background:var(--hover-bg);color:var(--ink)}' +
+    '.nx-conta-corpo{padding:16px}' +
+    '.nx-conta-sec+.nx-conta-sec{margin-top:16px;padding-top:16px;border-top:1px solid var(--border)}' +
+    '.nx-conta-sec h3{margin:0 0 12px;font-size:14px;font-weight:600}' +
+    '.nx-foto-linha{display:flex;align-items:center;gap:12px;flex-wrap:wrap}' +
+    '.nx-foto{width:64px;height:64px;border-radius:50%;flex:none;display:grid;place-items:center;background:var(--surface-3) center/cover no-repeat;color:var(--ink);font-weight:600;font-size:20px;border:1px solid var(--border)}' +
+    '.nx-conta label.nx-rot{display:block;font-size:14px;font-weight:600;color:var(--ink);margin:0 0 6px}' +
+    '.nx-conta input[type=password]{width:100%;min-height:32px;padding:5px 12px;margin-bottom:12px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--ink);font:inherit;font-size:14px;line-height:20px;box-shadow:inset 0 1px 0 #D1D9E033}' +
+    '.nx-conta input[type=password]:focus{outline:none;border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}' +
+    '.nx-conta .nx-botao{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:32px;padding:5px 16px;border:1px solid var(--btn-border);border-radius:6px;background:var(--btn-bg);color:var(--ink);font-family:inherit;font-size:14px;font-weight:500;line-height:20px;cursor:pointer;box-shadow:var(--shadow-xs);white-space:nowrap}' +
+    '.nx-conta .nx-botao .ph{font-size:16px;color:var(--ink-muted)}' +
+    '.nx-conta .nx-botao:hover{background:var(--btn-hover)}' +
+    '.nx-conta .nx-botao:disabled{opacity:.55;cursor:not-allowed}' +
+    '.nx-conta .nx-botao.primario{background:var(--btn-primary);border-color:var(--btn-primary-border);color:#FFFFFF}' +
+    '.nx-conta .nx-botao.primario:hover:not(:disabled){background:var(--btn-primary-hover)}' +
+    '.nx-conta .nx-botao.leve{border-color:transparent;background:none;box-shadow:none;color:var(--ink-muted)}' +
+    '.nx-conta .nx-botao.leve:hover{background:var(--hover-bg);color:var(--ink)}' +
+    '.nx-conta .nx-erro{color:var(--destructive);font-size:12px;margin:-4px 0 8px;min-height:0}' +
+    '.nx-conta .nx-erro:empty{display:none}' +
     '.nx-conta .nx-arquivo{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}' +
-    '.nx-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:9999;background:var(--ink);color:var(--surface);padding:10px 16px;border-radius:var(--r-sm);font-size:var(--t-sm)}' +
-    '.nx-toast-erro{background:var(--danger-forte,#94231C);color:#fff}';
+    /* aviso de reserva = toast da Conferência */
+    '.nx-toast{position:fixed;left:16px;bottom:16px;z-index:9999;max-width:min(420px,calc(100% - 32px));background:var(--surface);color:var(--ink);border:1px solid var(--border);border-left:4px solid var(--accent);border-radius:6px;padding:12px 16px;font-size:14px;line-height:20px;box-shadow:var(--shadow-lg);animation:popIn .2s ease-out both}' +
+    '.nx-toast-erro{border-left-color:var(--destructive)}';
 
   // ---------------------------------------------------------------- conta
   function iniciais(nome) {
