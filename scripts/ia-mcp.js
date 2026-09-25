@@ -20,12 +20,14 @@ const { FERRAMENTAS_BANCO, executarBanco } = require('./ia-banco');
 const TODAS = FERRAMENTAS.concat(FERRAMENTAS_BANCO);
 const DO_BANCO = new Set(FERRAMENTAS_BANCO.map(f => f.name));
 
-// O firebase-admin leva segundos pra carregar, e o Claude espera a lista de
-// ferramentas antes de começar a pensar. Então o banco só é carregado na
-// primeira consulta de verdade — e já começa a carregar em segundo plano.
+// O firebase-admin leva ~1,5 s pra carregar e trava o processo enquanto
+// carrega. Se isso acontecesse na partida, o Claude esperava a resposta do
+// "initialize" e às vezes desistia ("status: failed", sem ferramentas).
+// Então o banco só começa a carregar DEPOIS de entregar a lista de
+// ferramentas — a tempo da primeira consulta, sem atrasar a conexão.
 let db = null;
 function banco() { return db || (db = require('./firestore-client').getDb('entregas-2e5e2')); }
-setImmediate(() => { try { banco(); } catch (e) {} });
+function carregarBancoDepois() { setTimeout(() => { try { banco(); } catch (e) {} }, 50); }
 
 function enviar(msg) { process.stdout.write(JSON.stringify(msg) + '\n'); }
 
@@ -41,6 +43,7 @@ async function atender(msg) {
     case 'ping':
       return {};
     case 'tools/list':
+      carregarBancoDepois();
       return {
         tools: TODAS.map(f => ({
           name: f.name,

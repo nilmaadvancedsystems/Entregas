@@ -86,32 +86,108 @@ function traduzirErro(texto) {
   return m.slice(0, 300) || 'o Claude terminou sem resposta';
 }
 
+// ---------- a conversa aquecida ----------
+// Ligar o Claude leva uns 5 s (carregar, conectar as consultas ao banco).
+// Por isso fica sempre UMA conversa já ligada esperando: ela recebe uma
+// mensagem curta de aquecimento e para. Quando chega uma pergunta, ela
+// responde em ~3 s em vez de ~10 s, e outra reserva é ligada na mesma hora.
+// Cada conversa atende UMA pergunta e é fechada: perguntas de pessoas
+// diferentes nunca se misturam. A reserva é renovada quando o dia vira
+// (as instruções levam a data de hoje) ou quando o modelo escolhido muda.
+const AQUECIMENTO = 'Aquecimento do sistema: responda só "OK", sem consultar nada.';
+const VALIDADE_RESERVA_MS = 6 * 3600000;
+let reserva = null;
+
+function abrirConversa(modelo, aquecer) {
+  fs.mkdirSync(PASTA_SESSAO, { recursive: true });
+  const args = ['-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--verbose', '--include-partial-messages',
+    '--model', modelo, '--system-prompt', instrucoesClaude(),
+    '--tools', '', '--strict-mcp-config', '--mcp-config', MCP, '--allowedTools', 'mcp__nilma',
+    '--permission-mode', 'dontAsk', '--no-session-persistence',
+    '--setting-sources', 'project', '--disable-slash-commands'];
+  const filho = spawn(CLAUDE, args, { cwd: PASTA_SESSAO, env: ambienteLimpo(), windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
+  const c = { filho, modelo, dia: new Date().toDateString(), criadaEm: Date.now(), estado: aquecer ? 'aquecendo' : 'pronta', aoEvento: null, erros: [] };
+  let resto = '';
+  filho.stdout.on('data', b => {
+    resto += String(b);
+    const linhas = resto.split(/\r?\n/);
+    resto = linhas.pop();
+    for (const l of linhas) {
+      if (!l.trim()) continue;
+      let ev;
+      try { ev = JSON.parse(l); } catch (e) { continue; }
+      if (c.estado === 'aquecendo') {
+        if (ev.type === 'result') c.estado = ev.is_error ? 'morta' : 'pronta';
+        continue;
+      }
+      if (c.aoEvento) c.aoEvento(ev);
+    }
+  });
+  filho.stderr.on('data', b => { c.erros.push(String(b)); if (c.erros.length > 20) c.erros.shift(); });
+  filho.on('error', err => { c.estado = 'morta'; if (c.aoEvento) c.aoEvento({ type: '__erro', erro: err }); });
+  filho.on('close', code => { c.estado = 'morta'; if (c.aoEvento) c.aoEvento({ type: '__fechou', code }); });
+  filho.stdin.on('error', () => {});
+  if (aquecer) mandar(c, AQUECIMENTO);
+  return c;
+}
+
+function mandar(c, texto) {
+  try { c.filho.stdin.write(JSON.stringify({ type: 'user', message: { role: 'user', content: texto } }) + '\n'); } catch (e) {}
+}
+
+function fechar(c) {
+  if (!c) return;
+  try { c.filho.stdin.end(); } catch (e) {}
+  setTimeout(() => { if (c.estado !== 'morta') try { c.filho.kill(); } catch (e) {} }, 5000);
+}
+
+function reservaServe(modelo) {
+  return reserva && reserva.estado === 'pronta' && reserva.modelo === modelo &&
+    reserva.dia === new Date().toDateString() && Date.now() - reserva.criadaEm < VALIDADE_RESERVA_MS;
+}
+
+// Deixa uma reserva aquecida pro modelo escolhido (troca a velha, se houver).
+function reporReserva(modelo) {
+  if (reserva && reserva.estado !== 'morta' && reserva.modelo === modelo &&
+      reserva.dia === new Date().toDateString() && Date.now() - reserva.criadaEm < VALIDADE_RESERVA_MS) return;
+  fechar(reserva);
+  reserva = abrirConversa(modelo, true);
+}
+
+function desligarReserva() { fechar(reserva); reserva = null; }
+
 // Uma pergunta, do começo ao fim. aoTexto recebe o texto da resposta
 // crescendo; aoFerramenta, o nome de cada consulta pedida.
 function perguntarAoClaude(pergunta, opcoes) {
   const aoTexto = opcoes.aoTexto || function () {};
   const aoFerramenta = opcoes.aoFerramenta || function () {};
-  return new Promise(resolve => {
-    fs.mkdirSync(PASTA_SESSAO, { recursive: true });
-    const args = ['-p', '--output-format', 'stream-json', '--verbose', '--include-partial-messages',
-      '--model', opcoes.modelo || MODELO_PADRAO, '--system-prompt', instrucoesClaude(),
-      '--tools', '', '--strict-mcp-config', '--mcp-config', MCP, '--allowedTools', 'mcp__nilma',
-      '--permission-mode', 'dontAsk', '--no-session-persistence',
-      '--setting-sources', 'project', '--disable-slash-commands'];
-    const filho = spawn(CLAUDE, args, { cwd: PASTA_SESSAO, env: ambienteLimpo(), windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
-    filho.stdin.end(pergunta);
+  const modeloPedido = opcoes.modelo || MODELO_PADRAO;
+  let conversa;
+  if (reservaServe(modeloPedido)) {
+    conversa = reserva;
+    reserva = null;
+  } else {
+    conversa = abrirConversa(modeloPedido, false);
+  }
+  // já liga a próxima reserva enquanto esta responde
+  if (opcoes.manterReserva !== false) setTimeout(() => reporReserva(modeloPedido), 0);
 
-    let resto = '', texto = '', final = null, erro = false, uso = null, modelo = null;
-    const erros = [];
+  return new Promise(resolve => {
+    let texto = '', final = null, erro = false, uso = null, modelo = null, terminou = false;
     const ferramentas = [];
-    filho.stdout.on('data', b => {
-      resto += String(b);
-      const linhas = resto.split(/\r?\n/);
-      resto = linhas.pop();
-      for (const l of linhas) {
-        if (!l.trim()) continue;
-        let ev;
-        try { ev = JSON.parse(l); } catch (e) { continue; }
+    let estourou = false;
+    const relogio = setTimeout(() => { estourou = true; try { conversa.filho.kill(); } catch (e) {} }, LIMITE_POR_PERGUNTA_MS);
+    const acabar = r => { if (terminou) return; terminou = true; clearTimeout(relogio); fechar(conversa); resolve(r); };
+
+    conversa.aoEvento = ev => {
+      if (ev.type === '__erro') return acabar({ ok: false, erro: traduzirErro(ev.erro.code || ev.erro.message) });
+      if (ev.type === '__fechou') {
+        if (estourou) return acabar({ ok: false, erro: traduzirErro('timeout') });
+        const resposta = (final != null ? final : texto).trim();
+        if (erro || !resposta) return acabar({ ok: false, erro: traduzirErro(resposta || conversa.erros.join('') || 'código ' + ev.code) });
+        return acabar({ ok: true, texto: resposta, ferramentas, uso, modelo });
+      }
+      {
         if (ev.type === 'system' && ev.subtype === 'init') modelo = ev.model || null;
         if (ev.type === 'stream_event' && ev.event) {
           // Cada mensagem nova do modelo (depois de uma consulta) recomeça o
@@ -133,25 +209,20 @@ function perguntarAoClaude(pergunta, opcoes) {
           }
         }
         if (ev.type === 'result') {
+          // A resposta da pergunta chegou: não precisa esperar o processo
+          // fechar (a conversa aquecida só fecha quando mandamos).
           final = String(ev.result || '');
           erro = ev.is_error === true || ev.subtype !== 'success';
           if (ev.usage) uso = { entrada: ev.usage.input_tokens || 0, saida: ev.usage.output_tokens || 0 };
+          const resposta = final.trim() || texto.trim();
+          if (erro || !resposta) return acabar({ ok: false, erro: traduzirErro(resposta || conversa.erros.join('') || 'sem resposta') });
+          return acabar({ ok: true, texto: resposta, ferramentas, uso, modelo });
         }
       }
-    });
-    filho.stderr.on('data', b => { erros.push(String(b)); if (erros.length > 20) erros.shift(); });
-    let estourou = false;
-    const relogio = setTimeout(() => { estourou = true; try { filho.kill(); } catch (e) {} }, LIMITE_POR_PERGUNTA_MS);
-    filho.on('error', err => { clearTimeout(relogio); resolve({ ok: false, erro: traduzirErro(err.code || err.message) }); });
-    filho.on('close', code => {
-      clearTimeout(relogio);
-      if (estourou) return resolve({ ok: false, erro: traduzirErro('timeout') });
-      const resposta = (final != null ? final : texto).trim();
-      if (code !== 0 || erro || !resposta) {
-        return resolve({ ok: false, erro: traduzirErro(resposta || erros.join('') || 'código ' + code) });
-      }
-      resolve({ ok: true, texto: resposta, ferramentas, uso, modelo });
-    });
+    };
+    // conversa que morreu no aquecimento (ou antes de receber a pergunta)
+    if (conversa.estado === 'morta') return acabar({ ok: false, erro: traduzirErro(conversa.erros.join('') || 'o Claude fechou antes de responder') });
+    mandar(conversa, pergunta);
   });
 }
 
@@ -263,18 +334,28 @@ function iniciarAtendenteClaude(opcoes) {
     const d = snap.exists ? snap.data() : {};
     motor = String(d.iaMotor || MOTOR_PADRAO).trim();
     modelo = String(d.iaModeloClaude || '').trim() || MODELO_PADRAO;
-    if (motor === 'claude') { ligarFila(); baterPonto(); } else desligarFila();
+    if (motor === 'claude') { ligarFila(); baterPonto(); reporReserva(modelo); }
+    else { desligarFila(); desligarReserva(); }
   }, err => log('[ia] não consegui ler a escolha do motor:', err.message));
 
-  const timer = setInterval(baterPonto, PONTO_A_CADA_MS);
+  const timer = setInterval(() => {
+    baterPonto();
+    // reserva que morreu, venceu ou é de ontem: liga outra
+    if (motor === 'claude' && ativos === 0) reporReserva(modelo);
+  }, PONTO_A_CADA_MS);
 
   // Ao fechar: a tela deixa de oferecer a IA na hora.
   return function parar() {
     clearInterval(timer);
+    desligarReserva();
     if (pararFila) pararFila();
     if (motor !== 'claude') return Promise.resolve();
     return estadoRef.set({ ia: { ligado: false, motor: 'claude', em: new Date().toISOString() } }, { merge: true }).catch(() => {});
   };
 }
 
-module.exports = { iniciarAtendenteClaude, perguntarAoClaude, montarPergunta, traduzirErro, instrucoesClaude };
+module.exports = {
+  iniciarAtendenteClaude, perguntarAoClaude, montarPergunta, traduzirErro, instrucoesClaude,
+  // pro teste da reserva aquecida
+  reporReserva, desligarReserva, reservaServe,
+};
