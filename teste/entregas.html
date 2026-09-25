@@ -4894,6 +4894,8 @@
   // aberta, recalculando e gravando de novo a cada mudança na fila.
   var rotaLinksCache = [];
   var unsubRotaLinks = null;
+  var rotaLinkGravadoEm_ = {};
+  var rotaLinkRetentativa_ = null;
   // Sem a fila carregada, "não está na fila" vira "entrega concluída" pra
   // todo link aberto: nada é recalculado antes da primeira leitura.
   var pendentesCarregados_ = false;
@@ -4999,11 +5001,25 @@
       var paradasAntes = concluida ? [] : chaves.slice(0, idx).map(function (c) { return nomesPorChave[c]; });
       var estimativaMinutos = (!concluida && ritmo) ? Math.round(ritmo.minutos * paradasAntes.length) : null;
       // a fila não muda a cada segundo — só grava quando alguma coisa de
-      // fato mudou, pra não virar escrita constante no banco
+      // fato mudou, pra não virar escrita constante no banco.
+      // A ESTIMATIVA SOZINHA NÃO DISPARA GRAVAÇÃO: dois aparelhos abertos
+      // chegavam a números diferentes (0 e null) e ficavam corrigindo um ao
+      // outro sem parar (25/09/2026: ~50 gravações/s). Mesma correção do
+      // entregas.html de produção.
+      var estimativaGravada = typeof link.estimativaMinutos === 'number' ? link.estimativaMinutos : null;
       var mudou = concluida !== !!link.concluida
         || JSON.stringify(paradasAntes) !== JSON.stringify(link.paradasAntes || [])
-        || estimativaMinutos !== (typeof link.estimativaMinutos === 'number' ? link.estimativaMinutos : null);
+        || (estimativaGravada === null && estimativaMinutos !== null);
       if (!mudou) return;
+      var ultimaVez = rotaLinkGravadoEm_[link.id] || 0;
+      if (Date.now() - ultimaVez < 30000) {
+        if (!rotaLinkRetentativa_) {
+          rotaLinkRetentativa_ = setTimeout(function () { rotaLinkRetentativa_ = null; sincronizarRotaLinks_(); },
+            30000 - (Date.now() - ultimaVez) + 500);
+        }
+        return;
+      }
+      rotaLinkGravadoEm_[link.id] = Date.now();
       link.concluida = concluida;
       link.paradasAntes = paradasAntes;
       link.estimativaMinutos = estimativaMinutos;
@@ -12205,9 +12221,9 @@
     var email = emailFromNome(nome);
     var secondaryApp = firebase.initializeApp(firebaseConfig, 'secundario-' + Date.now());
     var secondaryAuth = secondaryApp.auth();
-    var secondaryDb = secondaryApp.firestore();
+    // cadastro gravado pela sessão do admin: a regra não deixa conta nova se cadastrar sozinha
     return secondaryAuth.createUserWithEmailAndPassword(email, senha).then(function (cred) {
-      return secondaryDb.collection('usuarios').doc(cred.user.uid).set({
+      return db.collection('usuarios').doc(cred.user.uid).set({
         nome: nome, email: email, roles: roles, criadoEm: new Date().toISOString()
       });
     }).then(function () {

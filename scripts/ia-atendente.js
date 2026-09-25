@@ -166,7 +166,7 @@ function traduzirErro(err) {
     return 'a cota do Gemini de hoje acabou; a busca rápida continua funcionando, e a IA volta amanhã';
   }
   if (/API key not valid|API_KEY_INVALID|401|403/i.test(m)) {
-    return 'a chave do Gemini foi recusada; confira scripts/gemini_key.json no PC do escritório';
+    return 'a chave do Gemini foi recusada; confira scripts/gemini_key.json na máquina do robô';
   }
   if (/not found|NOT_FOUND|404/i.test(m)) {
     return 'o modelo configurado não existe ou não está disponível na sua conta; troque em Perfil → Integrações';
@@ -400,56 +400,70 @@ function iniciarAtendenteIA(db) {
 
   // O modelo mora no Firestore pra trocar sem mexer em código nem reiniciar o
   // vigia: Perfil → Integrações grava, isto aqui escuta.
+  // No mesmo documento, `iaMotor` diz QUEM responde: 'claude' (padrão) é o
+  // Claude do PC do escritório (atendente-claude.js), e aí este arquivo fica
+  // parado; só com 'gemini' ele atende. Os dois nunca pegam a fila juntos.
   let modeloPadrao = MODELO_PADRAO;
+  let pararFila = null;
   db.doc('config/integracoes').onSnapshot(function (snap) {
-    const novo = (snap.exists && snap.data().iaModelo) || '';
+    const d = snap.exists ? snap.data() : {};
     const antes = modeloPadrao;
-    modeloPadrao = String(novo).trim() || MODELO_PADRAO;
+    modeloPadrao = String(d.iaModelo || '').trim() || MODELO_PADRAO;
     if (modeloPadrao !== antes) log('modelo agora é', modeloPadrao);
+    const motor = String(d.iaMotor || 'claude').trim();
+    if (motor === 'gemini') ligarFila();
+    else if (pararFila) { pararFila(); pararFila = null; log('reforço de IA parado: quem responde agora é o', motor); }
+    else log('reforço de IA (Gemini) em espera: quem responde é o', motor);
   }, function (err) { log('não consegui ler o modelo configurado:', err.message); });
 
-  log('reforço de IA ligado (modelo inicial:', modeloPadrao + ').');
+  function ligarFila() {
+    if (pararFila) return;
+    log('reforço de IA ligado (modelo:', modeloPadrao + ').');
 
-  // Avisa a tela que existe IA disponível. Sem isso ela não teria como saber
-  // a diferença entre "o PC está ligado mas ninguém configurou chave" e "o PC
-  // está ligado e a IA responde" — e ofereceria um botão que não funciona.
-  // Mesmo documento que o robô do Gmail já usa pro próprio "vigia.em" —
-  // robo/estado, não config/robo: config/* é lido por qualquer logado, e
-  // este documento carrega remetente/assunto de cliente (regra em
-  // firestore.rules restringe a admin/contábil).
-  db.collection('robo').doc('estado')
-    .set({ ia: { ligado: true, em: new Date().toISOString() } }, { merge: true })
-    .catch(function (err) { log('não consegui avisar a tela:', err.message); });
+    // Avisa a tela que existe IA disponível. Sem isso ela não teria como saber
+    // a diferença entre "o robô está ligado mas ninguém configurou chave" e
+    // "a IA responde" — e ofereceria um botão que não funciona.
+    // Mesmo documento que o robô do Gmail já usa pro próprio "vigia.em" —
+    // robo/estado, não config/robo: config/* é lido por qualquer logado, e
+    // este documento carrega remetente/assunto de cliente (regra em
+    // firestore.rules restringe a admin/contábil).
+    db.collection('robo').doc('estado')
+      .set({ ia: { ligado: true, motor: 'gemini', em: new Date().toISOString() } }, { merge: true })
+      .catch(function (err) { log('não consegui avisar a tela:', err.message); });
 
-  const parar = fila.where('estado', '==', 'pendente').limit(20).onSnapshot(function (snap) {
-    snap.docs.forEach(function (doc) {
-      if (emAndamento.has(doc.id)) return;
-      emAndamento.add(doc.id);
+    pararFila = escutarFila();
+  }
 
-      // A trava é em duas camadas: este Set impede o mesmo processo de pegar
-      // a conversa duas vezes (o onSnapshot dispara de novo a cada gravação
-      // que a gente mesmo faz), e a transação impede dois processos de
-      // atender a mesma conversa. O vigia já garante um processo só, mas a
-      // transação é barata e o dia em que alguém rodar dois é justamente o
-      // dia em que ninguém vai lembrar disso.
-      db.runTransaction(async function (t) {
-        const atual = await t.get(doc.ref);
-        if (!atual.exists || atual.data().estado !== 'pendente') return null;
-        t.update(doc.ref, { estado: 'gerando' });
-        return atual.data();
-      })
-        .then(function (dados) {
-          if (!dados) return null;
-          return atenderConversa(ai, db, doc.ref, dados, modeloPadrao);
+  function escutarFila() {
+    return fila.where('estado', '==', 'pendente').limit(20).onSnapshot(function (snap) {
+      snap.docs.forEach(function (doc) {
+        if (emAndamento.has(doc.id)) return;
+        emAndamento.add(doc.id);
+
+        // A trava é em duas camadas: este Set impede o mesmo processo de pegar
+        // a conversa duas vezes (o onSnapshot dispara de novo a cada gravação
+        // que a gente mesmo faz), e a transação impede dois processos de
+        // atender a mesma conversa — inclusive o Claude do PC, se um dia os
+        // dois ficarem ligados ao mesmo tempo por engano.
+        db.runTransaction(async function (t) {
+          const atual = await t.get(doc.ref);
+          if (!atual.exists || atual.data().estado !== 'pendente') return null;
+          t.update(doc.ref, { estado: 'gerando' });
+          return atual.data();
         })
-        .catch(function (err) { log('erro atendendo', doc.id + ':', err.message); })
-        .then(function () { emAndamento.delete(doc.id); });
+          .then(function (dados) {
+            if (!dados) return null;
+            return atenderConversa(ai, db, doc.ref, dados, modeloPadrao);
+          })
+          .catch(function (err) { log('erro atendendo', doc.id + ':', err.message); })
+          .then(function () { emAndamento.delete(doc.id); });
+      });
+    }, function (err) {
+      log('a escuta da fila caiu:', err.message);
     });
-  }, function (err) {
-    log('a escuta da fila caiu:', err.message);
-  });
+  }
 
-  return parar;
+  return function parar() { if (pararFila) { pararFila(); pararFila = null; } };
 }
 
 module.exports = {

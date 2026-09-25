@@ -183,14 +183,14 @@
   // ---------------------------------------------------------------- IA
   var historico = [];
   var ocupado = false, geracao = 0;
-  var iaLigada = false, vigiaLigado = false;
+  var iaLigada = false, vigiaLigado = false, iaClaude = false;
   var soltarRobo = null, soltarMensagens = null, conversaId = null;
   var CHAVE_MODO = 'nilma_cq_modo';
   var modoPreferido = 'rapida';
   try { if (localStorage.getItem(CHAVE_MODO) === 'ia') modoPreferido = 'ia'; } catch (e) {}
 
   function temRapida() { return typeof o.responder === 'function'; }
-  function iaDisponivel() { return iaLigada && vigiaLigado; }
+  function iaDisponivel() { return iaLigada && (iaClaude || vigiaLigado); }
   function modoAtual() {
     if (!temRapida()) return 'ia';
     return modoPreferido === 'ia' && iaDisponivel() ? 'ia' : 'rapida';
@@ -257,7 +257,11 @@
       var d = snap.exists ? snap.data() : {};
       var em = d.vigia && d.vigia.em ? Date.parse(d.vigia.em) : 0;
       vigiaLigado = !!em && (Date.now() - em) < 3 * 60 * 1000;
-      iaLigada = !!(d.ia && d.ia.ligado);
+      // O Claude roda no PC do escritório: não depende do robô da nuvem, e
+      // conta como ligado só com ponto de menos de 5 minutos.
+      iaClaude = !!(d.ia && d.ia.motor === 'claude');
+      var emIa = d.ia && d.ia.em ? Date.parse(d.ia.em) : 0;
+      iaLigada = !!(d.ia && d.ia.ligado) && (!iaClaude || (!!emIa && (Date.now() - emIa) < 5 * 60 * 1000));
       renderModo();
     }, function () { iaLigada = false; vigiaLigado = false; renderModo(); });
   }

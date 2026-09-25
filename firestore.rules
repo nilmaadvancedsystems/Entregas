@@ -44,6 +44,15 @@ service cloud.firestore {
       return temPapel('admin');
     }
 
+    // Da equipe = tem cadastro em `usuarios` com pelo menos um papel.
+    // `logado()` sozinho NÃO basta: a chave do app é pública (está no código
+    // da página) e qualquer pessoa na internet cria uma conta no Firebase com
+    // ela. Com `logado()` guardando os dados, essa conta lia clientes com
+    // CPF/CNPJ, entregas e pendências. Revisto em 25/09/2026.
+    function membro() {
+      return meusPapeis().size() > 0;
+    }
+
     // Campos que o dono do documento NÃO pode mexer em si mesmo.
     function naoMexeuEm(campos) {
       return !request.resource.data.diff(resource.data).affectedKeys().hasAny(campos);
@@ -66,19 +75,23 @@ service cloud.firestore {
       // Todo mundo do escritório enxerga a equipe: o app monta o filtro
       // "Pessoa" da rota e mostra quem entregou cada documento. É um app
       // interno de uma empresa só — a lista de colegas não é segredo.
-      allow get, list: if logado();
+      allow get, list: if membro();
+      // O próprio cadastro a pessoa sempre lê (é por ele que o app sabe se
+      // ela é da equipe).
+      allow get: if logado() && request.auth.uid == uid;
 
-      // Criar o próprio cadastro. NUNCA com papel escolhido pelo navegador:
-      // ou entra como 'staff', ou entra com exatamente os papéis que constam
-      // num convite válido, não usado e não vencido, cujo código a pessoa
-      // apresenta. O convite é a autorização; o navegador não inventa papel.
+      // Quem cria cadastro: o ADMIN (tela "Criar acesso"), ou a própria pessoa
+      // trazendo um convite válido, não usado e não vencido — e aí com
+      // exatamente os papéis do convite. Até 25/09/2026 qualquer conta se
+      // cadastrava sozinha como 'staff', o que, somado a qualquer um poder
+      // criar conta no Firebase, abria o banco inteiro pra estranhos.
       allow create: if logado()
-        && request.auth.uid == uid
         && request.resource.data.roles is list
         && (
-          request.resource.data.roles == ['staff']
+          ehAdmin()
           || (
-            request.resource.data.get('codigoConvite', '') != ''
+            request.auth.uid == uid
+            && request.resource.data.get('codigoConvite', '') != ''
             && exists(/databases/$(database)/documents/convites/$(request.resource.data.codigoConvite))
             && conviteValido(request.resource.data.codigoConvite)
             && request.resource.data.roles ==
@@ -89,7 +102,7 @@ service cloud.firestore {
       // O dono mexe nas próprias preferências — tema, paleta, nome, foto,
       // token de notificação. Em `roles`, não: nem no próprio, nem no dos
       // outros. Só admin muda papel.
-      allow update: if logado() && (
+      allow update: if membro() && (
         (request.auth.uid == uid && naoMexeuEm(['roles', 'email', 'criadoEm']))
         || ehAdmin()
       );
@@ -100,7 +113,7 @@ service cloud.firestore {
 
       // Anotações pessoais: só o dono vê, ponto. Nem o admin.
       match /notas/{nota} {
-        allow read, write: if logado() && request.auth.uid == uid;
+        allow read, write: if membro() && request.auth.uid == uid;
       }
     }
 
@@ -140,7 +153,7 @@ service cloud.firestore {
         );
       // Quem aceita o convite só pode carimbá-lo como usado. Não pode mudar
       // os papéis que ele concede, nem reabrir um convite já queimado.
-      allow update: if (logado() && so(['usado', 'usadoEm', 'nome']) && request.resource.data.usado == true)
+      allow update: if (membro() && so(['usado', 'usadoEm', 'nome']) && request.resource.data.usado == true)
         || ehAdmin();
       allow delete: if ehAdmin();
     }
@@ -154,22 +167,22 @@ service cloud.firestore {
     // porta pra reescrever CNPJ, telefone ou nome. `entrega` é a marca de
     // "cliente do Entregas", que o app põe sozinho na primeira entrega.
     match /clientes/{id} {
-      allow read: if logado();
+      allow read: if membro();
       allow create, delete: if ehAdmin();
       allow update: if ehAdmin() ||
         // 'ocorrencias' é anotação de atendimento (reclamou, elogiou,
         // combinou): quem atende registra, não é mexer no cadastro.
         // Em quais bancos o cliente tem conta ('bancos'/'bancosRecusados') é
         // cadastro, e cadastro é do admin — igual a nome, CNPJ e honorário.
-        (logado() && so(['geo', 'zona', 'grupoLocal', 'honorarioForma', 'honorarioDia', 'pontoReferencia', 'email', 'emails', 'entrega', 'ocorrencias']));
+        (membro() && so(['geo', 'zona', 'grupoLocal', 'honorarioForma', 'honorarioDia', 'pontoReferencia', 'email', 'emails', 'entrega', 'ocorrencias']));
     }
 
     // ---------- entregas ----------
     // O registro de entrega é o produto. Depois de criado, ele é prova.
     match /entregas/{id} {
-      allow read: if logado();
+      allow read: if membro();
 
-      allow create: if logado()
+      allow create: if membro()
         && request.resource.data.criadoEm is string
         // 'link' = guia publicada na página do cliente, esperando ele tocar em
         // "Recebi". Quem confirma depois é o PC do robô (Admin SDK).
@@ -182,7 +195,7 @@ service cloud.firestore {
       // ainda está na rota. Quem monta a rota nem sempre é quem entrega, e o
       // app grava em entregadoPor quem de fato entregou — então aqui a
       // autoria PODE mudar, mas só pra própria pessoa que está confirmando.
-      allow update: if logado()
+      allow update: if membro()
         && resource.data.status in ['pendente', 'link']
         && request.resource.data.status in ['confirmada', 'falha']
         && request.resource.data.entregadoPor == request.auth.token.email
@@ -191,7 +204,7 @@ service cloud.firestore {
       // Quem registrou corrige, mas não DESFAZ entrega concluída: se desse pra
       // voltar uma confirmada pra 'pendente', a regra de "tirar a própria parada
       // da rota", logo abaixo, viraria um jeito de apagar prova de entrega.
-      allow update: if logado()
+      allow update: if membro()
         && (resource.data.get('entregadoPor', '') == request.auth.token.email || ehAdmin())
         && naoMexeuEm(['criadoEm', 'entregadoPor'])
         && (ehAdmin()
@@ -201,43 +214,43 @@ service cloud.firestore {
       // Mudar a ordem da rota: quem monta a rota (admin, no PC) quase nunca é
       // quem anda com ela. Qualquer pessoa da equipe reordena parada pendente,
       // desde que não toque em mais nada.
-      allow update: if logado()
+      allow update: if membro()
         && resource.data.status == 'pendente'
         && so(['ordemRota']);
 
       // Entrega confirmada é prova e só admin apaga. Parada que ainda está na
       // rota não provou nada: quem a colocou pode tirar.
       allow delete: if ehAdmin()
-        || (logado()
+        || (membro()
           && resource.data.status in ['pendente', 'link']
           && resource.data.get('entregadoPor', '') == request.auth.token.email);
 
       match /anexos/{anexo} {
-        allow read: if logado();
-        allow create: if logado();
+        allow read: if membro();
+        allow create: if membro();
         allow update, delete: if ehAdmin();
         // Tirar a própria parada da rota leva o anexo junto, no mesmo lote
         // (get() ainda enxerga a entrega como estava antes do lote).
-        allow delete: if logado()
+        allow delete: if membro()
           && get(/databases/$(database)/documents/entregas/$(id)).data.status in ['pendente', 'link']
           && get(/databases/$(database)/documents/entregas/$(id)).data.get('entregadoPor', '') == request.auth.token.email;
         // A assinatura vai pro comprovante no mesmo lote que confirma a
         // entrega. Se a parada já tinha comprovante (guia em PDF anexada na
         // montagem da rota), isso vira update — e sem esta linha só o admin
         // conseguiria confirmar. No lote, get() ainda vê a entrega pendente.
-        allow update: if logado()
+        allow update: if membro()
           && get(/databases/$(database)/documents/entregas/$(id)).data.status in ['pendente', 'link'];
       }
     }
 
     // ---------- recados e solicitações ----------
     match /recados/{id} {
-      allow read: if logado();
-      allow create: if logado() && request.resource.data.texto is string
+      allow read: if membro();
+      allow create: if membro() && request.resource.data.texto is string
         && request.resource.data.texto.size() > 0
         && request.resource.data.texto.size() <= 500;
       allow update: if ehAdmin();
-      allow delete: if logado()
+      allow delete: if membro()
         && (resource.data.get('criadoPor', '') == request.auth.token.email || ehAdmin());
     }
 
@@ -248,13 +261,13 @@ service cloud.firestore {
     // outra pessoa e o "read" acima passaria a mostrar aquele documento pra
     // essa outra pessoa por engano.
     match /solicitacoes/{id} {
-      allow read: if logado() &&
+      allow read: if membro() &&
         (ehAdmin() || temPapel('office_boy') ||
          resource.data.get('criadoPor', '') == request.auth.token.email ||
          resource.data.get('concluidoPor', '') == request.auth.token.email);
-      allow create: if logado() &&
+      allow create: if membro() &&
         request.resource.data.criadoPor == request.auth.token.email;
-      allow update: if logado() &&
+      allow update: if membro() &&
         (ehAdmin() || temPapel('office_boy') || resource.data.get('criadoPor', '') == request.auth.token.email);
       allow delete: if ehAdmin();
     }
@@ -271,9 +284,9 @@ service cloud.firestore {
       // Sem `list`: com ele, qualquer pessoa varre a coleção e lê nome de
       // cliente, competência e documentos de todo mundo, sem login.
       allow get: if true;
-      allow list: if logado();
+      allow list: if membro();
 
-      allow create: if logado()
+      allow create: if membro()
         && request.resource.data.assinado == false
         && request.resource.data.expiraEm is timestamp;
 
@@ -312,14 +325,14 @@ service cloud.firestore {
     // quando some de verdade, então quem pegou registra e qualquer um da
     // equipe dá baixa; apagar é só do admin, pra não sumir o rastro.
     match /emprestimos/{id} {
-      allow read: if logado();
-      allow create: if logado()
+      allow read: if membro();
+      allow create: if membro()
         && request.resource.data.oque is string && request.resource.data.oque.size() <= 200
         && request.resource.data.clienteNome is string && request.resource.data.clienteNome.size() <= 200
         && request.resource.data.pegouEm is string
         && request.resource.data.pegouPor is string;
       // dar baixa (ou corrigir a descrição): o que não muda é quem pegou e quando
-      allow update: if logado() && naoMexeuEm(['pegouEm', 'pegouPor', 'clienteId']);
+      allow update: if membro() && naoMexeuEm(['pegouEm', 'pegouPor', 'clienteId']);
       allow delete: if ehAdmin();
     }
 
@@ -355,7 +368,7 @@ service cloud.firestore {
     match /protocolos/{codigo} {
       allow get: if codigo.matches('^[A-HJ-NP-Z2-9]{12}$');
       allow list: if false;
-      allow create: if logado()
+      allow create: if membro()
         && codigo.matches('^[A-HJ-NP-Z2-9]{12}$')
         && request.resource.data.keys().hasOnly(['clienteNome', 'documento', 'competencia', 'entregas', 'total', 'emitidoEm', 'emitidoPor', 'emitidoPorUid'])
         && request.resource.data.emitidoPorUid == request.auth.uid
@@ -372,7 +385,7 @@ service cloud.firestore {
     // nem o admin. Uma trilha que o admin consegue limpar não é trilha.
     match /auditoria/{id} {
       allow read: if ehAdmin();
-      allow create: if logado()
+      allow create: if membro()
         && request.resource.data.quando is string
         && request.resource.data.acao is string;
       allow update, delete: if false;
@@ -383,7 +396,7 @@ service cloud.firestore {
     // que tem poder de administrador sobre as contas. Leitura fica com quem
     // está logado porque o app precisa da URL; escrita, só admin.
     match /config/{doc} {
-      allow read: if logado();
+      allow read: if membro();
       allow write: if ehAdmin();
     }
 
@@ -395,12 +408,12 @@ service cloud.firestore {
     // "não conta como pendente este mês". Qualquer pessoa da equipe marca
     // e desmarca; não é ato de administração.
     match /honorarioNaoAplicavel/{id} {
-      allow read: if logado();
-      allow create: if logado()
+      allow read: if membro();
+      allow create: if membro()
         && request.resource.data.clienteId is string
         && request.resource.data.mesAno is string;
       allow update: if false;
-      allow delete: if logado();
+      allow delete: if membro();
     }
 
     // ---------- rotaLinks: acompanhamento de rota pro cliente (SEM LOGIN) ----------
@@ -414,18 +427,25 @@ service cloud.firestore {
       // Sem `list`: com ele, um estranho varria a coleção e lia nome de
       // cliente de todo mundo que já recebeu um link, sem login.
       allow get: if true;
-      allow list: if logado();
+      allow list: if membro();
 
-      allow create: if logado()
+      allow create: if membro()
         && request.resource.data.clienteChave is string
         && request.resource.data.expiraEm is string;
 
       // Só a projeção pode mudar depois de criado (nome do cliente e zona
       // são fixos desde a criação); e só quem está logado grava — o
       // cliente do outro lado do link não escreve nada, só lê.
-      allow update: if logado() && so(['paradasAntes', 'concluida', 'estimativaMinutos', 'atualizadoEm']);
+      // Trava contra ping-pong: regravar só a estimativa (sem a fila ter
+      // mudado) é recusado, a não ser pra preencher uma estimativa vazia.
+      // Em 25/09/2026 dois aparelhos com estimativas diferentes (0 e null)
+      // regravaram os mesmos 3 links ~50 vezes por segundo, o dia inteiro.
+      allow update: if membro() && so(['paradasAntes', 'concluida', 'estimativaMinutos', 'atualizadoEm'])
+        && (request.resource.data.get('concluida', false) != resource.data.get('concluida', false)
+          || request.resource.data.get('paradasAntes', []) != resource.data.get('paradasAntes', [])
+          || resource.data.get('estimativaMinutos', null) == null);
 
-      allow delete: if logado();
+      allow delete: if membro();
     }
 
     // ---------- portal do cliente (SEM LOGIN, link fixo) ----------
@@ -441,14 +461,14 @@ service cloud.firestore {
     // é apagado junto com as assinaturas.
     match /portais/{token} {
       allow get: if true;
-      allow list: if logado();
+      allow list: if membro();
 
       allow create: if ehAdmin()
         && request.resource.data.clienteId is string
         && request.resource.data.criadoEm is string;
 
       // A equipe só regrava a projeção. De quem é o portal não muda nunca.
-      allow update: if logado() && so(['clienteNome', 'entregas', 'documentos', 'escritorio']);
+      allow update: if membro() && so(['clienteNome', 'entregas', 'documentos', 'escritorio']);
 
       // Quem tem o link (sem login) grava DUAS coisas, e só nesse formato:
       //  - visto: quando abriu, quando copiou o código, quando viu a guia.
@@ -500,15 +520,15 @@ service cloud.firestore {
       // A assinatura de cada entrega, baixada só quando o cliente pede.
       match /comprovantes/{entregaId} {
         allow get: if true;
-        allow list: if logado();
-        allow create, update: if logado();
+        allow list: if membro();
+        allow create, update: if membro();
         allow delete: if ehAdmin();
       }
       // A página da guia (tirada do PDF), também só quando o cliente pede.
       match /guias/{entregaId} {
         allow get: if true;
-        allow list: if logado();
-        allow create, update: if logado();
+        allow list: if membro();
+        allow create, update: if membro();
         allow delete: if ehAdmin();
       }
     }
@@ -519,7 +539,7 @@ service cloud.firestore {
     // pela API antes disso existir, e nunca foi sincronizada de volta pro
     // repositório depois que o app ganhou o próprio portão de acesso.
     match /lcdpr/config {
-      allow read, write: if logado() && (ehAdmin() || temPapel('fiscal'));
+      allow read, write: if membro() && (ehAdmin() || temPapel('fiscal'));
     }
 
     // ---------- conciliações (Contábil: conciliador.html, cheque-especial.html) ----------
@@ -539,7 +559,7 @@ service cloud.firestore {
     // Nilma pediu em 2026-09-22 que a aba Pendências ficasse aberta pra
     // equipe inteira. Exclusão continua só com admin.
     match /solicitacoesEmail/{id} {
-      allow read, create, update: if logado();
+      allow read, create, update: if membro();
       allow delete: if ehAdmin();
     }
 
@@ -550,7 +570,7 @@ service cloud.firestore {
     // mostra — o que ficar desmarcado é o que entra na cobrança por e-mail.
     // Aberto pra equipe inteira desde 2026-09-22 (era só admin/contábil).
     match /documentosMensal/{id} {
-      allow read, create, update: if logado();
+      allow read, create, update: if membro();
       allow delete: if ehAdmin();
     }
 
@@ -634,12 +654,12 @@ service cloud.firestore {
     // alcance dele. Sem isso, qualquer pessoa logada forjaria uma resposta do
     // atendente no próprio histórico.
     function minhaConversa() {
-      return logado() && resource.data.criadoPor == request.auth.token.email;
+      return membro() && resource.data.criadoPor == request.auth.token.email;
     }
 
     match /conversasIA/{id} {
       allow read: if minhaConversa();
-      allow create: if logado()
+      allow create: if membro()
         && request.resource.data.criadoPor == request.auth.token.email
         && request.resource.data.estado in ['ocioso', 'pendente'];
       // Só dá pra empurrar a conversa pra fila e mexer no título. O estado
@@ -653,7 +673,7 @@ service cloud.firestore {
 
       match /mensagens/{msg} {
         function conversaEhMinha() {
-          return logado() && get(/databases/$(database)/documents/conversasIA/$(id)).data.criadoPor == request.auth.token.email;
+          return membro() && get(/databases/$(database)/documents/conversasIA/$(id)).data.criadoPor == request.auth.token.email;
         }
         allow read: if conversaEhMinha();
         // 'model' é papel do vigia, não do navegador: quem escreve pelo app só

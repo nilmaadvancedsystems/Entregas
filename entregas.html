@@ -3128,6 +3128,13 @@
         <button type="button" class="btn-chip accent" id="salvarIaModeloBtn"><i class="ph ph-floppy-disk" aria-hidden="true"></i> Salvar</button>
       </div>
       <label class="field">
+        <span>Quem responde</span>
+        <select class="input" id="iaMotorSelect">
+          <option value="claude">Claude (PC do escritório)</option>
+          <option value="gemini">Gemini (nuvem)</option>
+        </select>
+      </label>
+      <label class="field" id="iaModeloCampo" hidden>
         <span>Modelo</span>
         <input class="input" id="iaModeloInput" type="text" placeholder="gemini-flash-latest" autocomplete="off">
       </label>
@@ -7402,6 +7409,8 @@
   // aberta, recalculando e gravando de novo a cada mudança na fila.
   var rotaLinksCache = [];
   var unsubRotaLinks = null;
+  var rotaLinkGravadoEm_ = {};       // id do link -> quando ESTE aparelho gravou por último
+  var rotaLinkRetentativa_ = null;
   // Sem a fila carregada, "não está na fila" vira "entrega concluída" pra
   // todo link aberto: nada é recalculado antes da primeira leitura.
   var pendentesCarregados_ = false;
@@ -7507,11 +7516,31 @@
       var paradasAntes = concluida ? [] : chaves.slice(0, idx).map(function (c) { return nomesPorChave[c]; });
       var estimativaMinutos = (!concluida && ritmo) ? Math.round(ritmo.minutos * paradasAntes.length) : null;
       // a fila não muda a cada segundo — só grava quando alguma coisa de
-      // fato mudou, pra não virar escrita constante no banco
+      // fato mudou, pra não virar escrita constante no banco.
+      // A ESTIMATIVA SOZINHA NÃO DISPARA GRAVAÇÃO: cada aparelho mede o
+      // ritmo com as entregas que tem carregadas, e dois aparelhos abertos
+      // chegavam a números diferentes (um 0, outro null) e ficavam
+      // corrigindo um ao outro sem parar — em 25/09/2026 isso deu ~50
+      // gravações por segundo e 1 milhão de leituras por hora. Ela só é
+      // preenchida quando o banco ainda não tem nenhuma.
+      var estimativaGravada = typeof link.estimativaMinutos === 'number' ? link.estimativaMinutos : null;
       var mudou = concluida !== !!link.concluida
         || JSON.stringify(paradasAntes) !== JSON.stringify(link.paradasAntes || [])
-        || estimativaMinutos !== (typeof link.estimativaMinutos === 'number' ? link.estimativaMinutos : null);
+        || (estimativaGravada === null && estimativaMinutos !== null);
       if (!mudou) return;
+      // Freio: o mesmo link, pelo mesmo aparelho, no máximo uma vez a cada
+      // 30 s. Se ainda assim dois aparelhos discordarem, o custo fica em
+      // duas gravações por minuto, e não em dezenas por segundo.
+      var ultimaVez = rotaLinkGravadoEm_[link.id] || 0;
+      if (Date.now() - ultimaVez < 30000) {
+        // mudança de verdade dentro do prazo: tenta de novo quando ele acabar
+        if (!rotaLinkRetentativa_) {
+          rotaLinkRetentativa_ = setTimeout(function () { rotaLinkRetentativa_ = null; sincronizarRotaLinks_(); },
+            30000 - (Date.now() - ultimaVez) + 500);
+        }
+        return;
+      }
+      rotaLinkGravadoEm_[link.id] = Date.now();
       link.concluida = concluida;
       link.paradasAntes = paradasAntes;
       link.estimativaMinutos = estimativaMinutos;
@@ -14703,9 +14732,11 @@
     var email = emailFromNome(nome);
     var secondaryApp = firebase.initializeApp(firebaseConfig, 'secundario-' + Date.now());
     var secondaryAuth = secondaryApp.auth();
-    var secondaryDb = secondaryApp.firestore();
+    // O cadastro em `usuarios` é gravado pela sessão do ADMIN (db), não pela
+    // conta nova: a regra só deixa criar cadastro com papéis quem é admin ou
+    // quem traz um convite válido. Conta recém-criada sozinha não vira equipe.
     return secondaryAuth.createUserWithEmailAndPassword(email, senha).then(function (cred) {
-      return secondaryDb.collection('usuarios').doc(cred.user.uid).set({
+      return db.collection('usuarios').doc(cred.user.uid).set({
         nome: nome, email: email, roles: roles, criadoEm: new Date().toISOString()
       });
     }).then(function () {
@@ -14766,6 +14797,13 @@
       if ($('iaModeloInput') && document.activeElement !== $('iaModeloInput')) {
         $('iaModeloInput').value = modelo;
       }
+      // Quem responde: o Claude do PC (padrão) ou o Gemini da nuvem. O campo
+      // Modelo e o seletor da Consulta são só do Gemini.
+      cqMotorEscolhido = (snap.exists && snap.data().iaMotor) || 'claude';
+      if ($('iaMotorSelect')) $('iaMotorSelect').value = cqMotorEscolhido;
+      if ($('iaModeloCampo')) $('iaModeloCampo').hidden = cqMotorEscolhido !== 'gemini';
+      if ($('cqModeloSelect')) $('cqModeloSelect').hidden = !temPapel('admin') || cqMotorEscolhido !== 'gemini';
+      renderIaEstado_();
       // Se o valor salvo não é uma das opções da lista (foi digitado à mão
       // em Perfil), o seletor simplesmente cai pro Flash — ele não inventa
       // uma opção nova, só reflete o que dá pra escolher por aqui.
@@ -14819,6 +14857,14 @@
         .finally(function () { botaoLivre_(btn); });
     });
   }
+  if ($('iaMotorSelect')) {
+    $('iaMotorSelect').addEventListener('change', function () {
+      var motor = this.value;
+      db.doc('config/integracoes').set({ iaMotor: motor }, { merge: true })
+        .then(function () { showToast(motor === 'claude' ? 'Agora quem responde é o Claude do PC.' : 'Agora quem responde é o Gemini da nuvem.'); })
+        .catch(function (err) { showToast(errMsg(err, 'Não foi possível trocar.'), 'error'); });
+    });
+  }
   // Mesmo salvamento, exposto direto na Consulta rápida — troca vale na
   // hora pro escritório inteiro, sem precisar abrir Perfil.
   if ($('cqModeloSelect')) {
@@ -14837,7 +14883,11 @@
   function renderIaEstado_() {
     var el = $('iaEstado');
     if (!el) return;
-    var estado = cqIaDisponivel_()
+    var estado = cqMotorEscolhido === 'claude'
+      ? (cqIaDisponivel_()
+        ? ['entregue', 'No ar', 'O Claude do PC do escritório está respondendo.']
+        : ['neutro', 'PC desligado', 'Quem responde é o Claude do PC do escritório, e ele não dá sinal há mais de 5 minutos (PC desligado ou arquivador parado). A Consulta rápida funciona do mesmo jeito.'])
+      : cqIaDisponivel_()
       ? ['entregue', 'No ar', 'O robô está online na nuvem e com chave configurada.']
       : (cqVigiaLigado
         ? ['neutro', 'Sem chave', 'O robô está online na nuvem, mas sem chave da IA — veja INSTALACAO.md, seção "O reforço de IA". A Consulta rápida funciona do mesmo jeito.']
@@ -15216,7 +15266,7 @@
     $('competenciasCard').hidden = !temPapel('admin');
     $('integracaoCard').hidden = !temPapel('admin');
     $('iaCard').hidden = !temPapel('admin');
-    if ($('cqModeloSelect')) $('cqModeloSelect').hidden = !temPapel('admin');
+    if ($('cqModeloSelect')) $('cqModeloSelect').hidden = !temPapel('admin') || cqMotorEscolhido !== 'gemini';
     $('form-cliente').hidden = !temPapel('admin');
     $('importCard').hidden = !temPapel('admin');
     $('definirMetaBtn').hidden = !temPapel('admin');
@@ -17465,12 +17515,14 @@
   // realmente precisa dela.
   var cqIaLigada = false;
   var cqVigiaLigado = false;
+  var cqIaMotor = 'gemini';          // quem bateu o ponto em robo/estado.ia
+  var cqMotorEscolhido = 'claude';   // quem deve responder (config/integracoes.iaMotor)
   var unsubCqRobo = null;
   var cqConversaId = null;
   var unsubCqConversa = null;
   var unsubCqMensagens = null;
 
-  function cqIaDisponivel_() { return cqIaLigada && cqVigiaLigado; }
+  function cqIaDisponivel_() { return cqIaLigada && (cqIaMotor === 'claude' || cqVigiaLigado); }
 
   function cqEscutarRobo_() {
     if (unsubCqRobo) return;
@@ -17488,7 +17540,12 @@
     // 3 minutos: o vigia bate ponto a cada 1, então duas batidas perdidas
     // já é desligado de verdade, não lentidão de rede.
     cqVigiaLigado = !!em && (Date.now() - em) < 3 * 60 * 1000;
-    cqIaLigada = !!(d.ia && d.ia.ligado);
+    cqIaMotor = (d.ia && d.ia.motor) || 'gemini';
+    // O Claude roda no PC do escritório e bate o próprio ponto (a cada 2
+    // min): não depende do robô da nuvem, depende do PC estar ligado.
+    var emIa = d.ia && d.ia.em ? Date.parse(d.ia.em) : 0;
+    cqIaLigada = !!(d.ia && d.ia.ligado) &&
+      (cqIaMotor !== 'claude' || (!!emIa && (Date.now() - emIa) < 5 * 60 * 1000));
     renderIaEstado_();
     cqRenderModo_();
   }

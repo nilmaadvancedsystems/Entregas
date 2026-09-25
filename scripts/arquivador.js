@@ -338,11 +338,20 @@ async function iniciar() {
   // Pedido que está esperando a das 9h terminar: confere de 2 em 2 minutos.
   setInterval(() => { if (!ocupado) atenderFila(); }, 2 * 60000);
   log('arquivador ligado em', os.hostname(), '— rotina em', RAIZ);
+
+  // O atendente da Consulta rápida pega carona neste processo: também é o
+  // Claude deste PC, e assim liga no boot e volta sozinho junto com o
+  // arquivador. Uma falha nele não derruba o arquivamento.
+  try { pararIA = require('./atendente-claude').iniciarAtendenteClaude({ db, log }); }
+  catch (err) { log('atendente de IA desligado:', err.message); }
 }
 
+let pararIA = null;
 function desligar() {
-  estadoRef.set({ em: new Date(0).toISOString(), situacao: 'desligado', desligadoEm: agora() }, { merge: true })
-    .finally(() => process.exit(0));
+  Promise.all([
+    estadoRef.set({ em: new Date(0).toISOString(), situacao: 'desligado', desligadoEm: agora() }, { merge: true }),
+    pararIA ? pararIA() : null,
+  ]).catch(() => {}).finally(() => process.exit(0));
   setTimeout(() => process.exit(0), 3000);
 }
 process.on('SIGINT', desligar);
