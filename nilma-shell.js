@@ -4,10 +4,8 @@
 // tela pede — a barra de abas sublinhadas do módulo logo abaixo.
 //
 // A marcação nasce aqui, uma vez só, e cada página a liga nos próprios
-// comandos por NilmaShell.ao(...). O visual mora em nilma-ui.css (parte 4,
-// "Casca"), no desenho da Conferência Contábil (design-n1): cabeçalho com o
-// logo e a trilha "Módulo / Submódulo", abas sublinhadas no celular e barra
-// lateral no PC, gaveta ☰ de 320px e o menu da conta como popover.
+// comandos por NilmaShell.ao(...). O visual mora no entregas.html (bloco
+// "Casca GitHub") e sai pra nilma-ui.css por scripts/monta-folha.js.
 //
 // Carregue no começo do <body> (depois de nilma-ui.js, que precisa vir no
 // <head>) e chame NilmaShell.montar({...}) em seguida, sem defer: os
@@ -88,28 +86,17 @@
       (a.badge ? '<span class="tab-badge" id="' + escapar(a.badge) + '" hidden>0</span>' : '') +
       '</button>';
   }
-  // Logo da Nilma no desenho da Conferência (design-n1, #nlLogo). Os
-  // gradientes ficam num <svg> de 0x0 fora do cabeçalho: o cabeçalho pode
-  // estar escondido (hidden) e gradiente dentro de display:none some.
-  var LOGO_DEFS = '<svg class="nsh-defs" width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>' +
-    '<linearGradient id="nshRed" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8F2429"/><stop offset=".45" stop-color="#D8323A"/><stop offset="1" stop-color="#93262B"/></linearGradient>' +
-    '<linearGradient id="nshSilver" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6E6E73"/><stop offset=".5" stop-color="#D4D4D8"/><stop offset="1" stop-color="#7A7A7F"/></linearGradient>' +
-    '<g id="nshLogo"><path fill="url(#nshRed)" d="M2,40 C2,0 18,5 40,30 L490,482 C508,498 515,505 515,522 L515,640 C515,662 510,668 490,648 L165,322 C140,295 120,270 118,292 L118,738 C118,758 122,764 140,780 L218,858 C228,868 230,872 230,890 L230,1010 C230,1032 222,1030 200,1008 L12,818 C4,810 2,806 2,792 Z"/>' +
-    '<path fill="url(#nshSilver)" transform="rotate(180 360 588)" d="M2,40 C2,0 18,5 40,30 L490,482 C508,498 515,505 515,522 L515,640 C515,662 510,668 490,648 L165,322 C140,295 120,270 118,292 L118,738 C118,758 122,764 140,780 L218,858 C228,868 230,872 230,890 L230,1010 C230,1032 222,1030 200,1008 L12,818 C4,810 2,806 2,792 Z"/></g>' +
-    '</defs></svg>';
-  var LOGO = '<span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 720 1176"><use href="#nshLogo"/></svg></span>';
-
   function htmlCasca(o) {
     var listaModulos = o.modulos || MODULOS_PADRAO;
     var modulos = listaModulos.map(htmlModulo).join('');
     var submodulos = listaModulos.map(htmlSubmodulos).join('');
     var marcaHref = o.marcaHref || 'entregas.html';
-    return '' + LOGO_DEFS +
+    return '' +
       '<header class="gh-topo" id="topo">' +
         (o.semMenu ? '' :
         '<button type="button" class="topo-btn" id="menuAppBtn" title="Menu" aria-label="Abrir o menu" aria-controls="menuApp" aria-expanded="false" aria-haspopup="dialog">' +
           '<i class="ph ph-list" aria-hidden="true"></i></button>') +
-        '<a class="topo-marca" id="topoMarca" href="' + escapar(marcaHref) + '">' + LOGO +
+        '<a class="topo-marca" id="topoMarca" href="' + escapar(marcaHref) + '">' +
           '<img class="topo-logo" id="topoLogo" alt="" hidden><span class="topo-nome">' + escapar(o.marca || 'Nilma') + '</span></a>' +
         '<span class="topo-sep" aria-hidden="true">/</span>' +
         '<span class="topo-modulo" id="topoModulo">' + escapar(o.modulo || '') + '</span>' +
@@ -136,7 +123,6 @@
       '<aside class="gaveta" id="menuApp" hidden role="dialog" aria-modal="true" aria-labelledby="menuAppTitulo" tabindex="-1">' +
         '<div class="gaveta-cabeca">' +
           '<button type="button" class="topo-btn gaveta-voltar" id="menuAppVoltar" hidden aria-label="Voltar aos módulos"><i class="ph ph-arrow-left" aria-hidden="true"></i></button>' +
-          LOGO +
           '<span class="gaveta-titulo" id="menuAppTitulo">' + escapar(o.marca || 'Nilma') + '</span>' +
           '<button type="button" class="topo-btn gaveta-fechar" aria-label="Fechar o menu"><i class="ph ph-x" aria-hidden="true"></i></button>' +
         '</div>' +
