@@ -620,6 +620,9 @@ async function iniciar() {
   catch (err) { log('recados da página do cliente desligados:', err.message); }
   try { require('./envios-do-portal').iniciarEnviosDoPortal(db, log); }
   catch (err) { log('documentos pelo link desligados:', err.message); }
+  // Texto completo de um e-mail, aberto no painel da tela do Robô.
+  try { require('./leituras-gmail').iniciarLeiturasGmail(db, log, getGmail); }
+  catch (err) { log('texto completo do e-mail desligado:', err.message); }
   // Mapa da pasta do ano no Drive (explorador do Pendências, status pela
   // pasta) e "abrir arquivo" pelo app. Só onde o robô fala com o Drive pela
   // API — na nuvem. Ver drive-indice.js e abrir-do-drive.js.

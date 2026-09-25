@@ -309,7 +309,8 @@ function montarSpam(mensagens, porEmail, porDominio, ignorados) {
     const ms = Number(m.internalDate);
     return {
       mensagemId: m.id, em: ms ? new Date(ms).toISOString() : '', remetente, nome: extrairNome(from),
-      assunto: cabecalho(headers, 'Subject'), arquivos: coletarAnexos(m.payload, []).map(a => a.filename),
+      assunto: cabecalho(headers, 'Subject'), trecho: decodificarEntidades(m.snippet).slice(0, 240),
+      arquivos: coletarAnexos(m.payload, []).map(a => a.filename),
       clienteId: cliente ? String(cliente.id) : null, clienteNome: cliente ? (cliente.nome || cliente.nomeFantasia || '') : '',
     };
   })
@@ -541,7 +542,7 @@ async function main() {
           // remetente a um cliente na tela, a próxima leitura reconhece.
           semCliente[id] = remetente;
           naoReconhecidosNovos.push({
-            remetente, nome: extrairNome(from), assunto, data: em,
+            remetente, nome: extrairNome(from), assunto, trecho, data: em,
             arquivos: anexos.map(a => a.filename), mensagemId: id,
           });
         } else {

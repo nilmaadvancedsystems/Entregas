@@ -632,6 +632,21 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // Texto completo de um e-mail, aberto no painel do Robô do Gmail
+    // (scripts/leituras-gmail.js). Cada um lê só o próprio pedido: o texto do
+    // e-mail volta dentro dele e o robô apaga em 10 min. Quem grava o texto é
+    // o robô (Admin SDK); pela tela só se cria o pedido, nunca se altera.
+    match /leiturasGmail/{id} {
+      allow read: if (ehAdmin() || temPapel('contabil')) && resource.data.criadoPorUid == request.auth.uid;
+      allow create: if (ehAdmin() || temPapel('contabil'))
+        && request.resource.data.status == 'pendente'
+        && request.resource.data.criadoPorUid == request.auth.uid
+        && request.resource.data.mensagemId is string
+        && request.resource.data.mensagemId.matches('^[0-9a-fA-F]{10,32}$')
+        && request.resource.data.keys().hasOnly(['status', 'mensagemId', 'criadoEm', 'criadoPor', 'criadoPorUid']);
+      allow update, delete: if false;
+    }
+
     // O que foi arquivado: só leitura. Quem escreve é o arquivador, a partir
     // do manifesto da própria rotina.
     match /arquivamentos/{id} {

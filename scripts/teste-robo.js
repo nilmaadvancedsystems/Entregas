@@ -426,5 +426,19 @@ igual('código e nome saem do nome da pasta', di.codigoDaPasta('58 - TORNEARIA V
 igual('pasta sem código', di.codigoDaPasta('MODELOS').codigo, null);
 igual('totais contam arquivos e pastas', [di.totais(itensPasta).arquivos, di.totais(itensPasta).pastas], [5, 13]);
 
+// ---------- texto completo do e-mail (painel da tela do Robô) ----------
+const lg = require('./leituras-gmail');
+const b64url = t => Buffer.from(t).toString('base64').replace(/\+/g, '-').replace(/\//g, '_');
+igual('texto: prefere o text/plain e junta linhas em branco demais', lg.textoDoEmail({ mimeType: 'multipart/mixed', parts: [
+  { mimeType: 'multipart/alternative', parts: [
+    { mimeType: 'text/plain', body: { data: b64url('Olá Nilma,\r\nsegue o extrato.\r\n\r\n\r\n\r\nAbraço') } },
+    { mimeType: 'text/html', body: { data: b64url('<p>outro</p>') } }] },
+  { mimeType: 'text/plain', filename: 'nota.txt', body: { attachmentId: 'a1' } }] }), 'Olá Nilma,\nsegue o extrato.\n\nAbraço');
+igual('texto: e-mail em ISO-8859-1 não vira ???', lg.textoDoEmail({ mimeType: 'text/plain',
+  headers: [{ name: 'Content-Type', value: 'text/plain; charset=iso-8859-1' }],
+  body: { data: Buffer.from('Não, ação', 'latin1').toString('base64') } }), 'Não, ação');
+igual('texto: só HTML sai sem as marcas', lg.htmlParaTexto('<head><style>p{}</style></head><p>Bom dia&nbsp;&amp; tudo</p><div>Linha 2<br>Linha 3</div><ul><li>um</li></ul>&#233;'),
+  'Bom dia & tudo\nLinha 2\nLinha 3\n• um\né');
+
 console.log(falhas ? '\n' + falhas + ' de ' + total + ' testes FALHARAM' : total + ' testes, todos passaram');
 process.exit(falhas ? 1 : 0);

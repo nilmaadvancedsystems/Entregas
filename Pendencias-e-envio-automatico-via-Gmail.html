@@ -1130,6 +1130,48 @@
   .tema-seg button:hover { color: var(--ink); }
   .tema-seg button[aria-pressed="true"] { background: var(--surface); border-color: var(--border-strong); color: var(--ink); }
 
+  /* ---------- robô: resumo do e-mail na lista e painel do e-mail ---------- */
+  /* Nomes com email-painel-*: .painel-titulo já é da ficha do cliente. */
+  .tab-simples .email-trecho {
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    max-width: 52ch; margin-top: 2px; font-size: 12px; color: var(--ink-muted);
+  }
+  .tab-simples tr.email-abre { cursor: pointer; }
+  .tab-simples tr.email-abre:hover td { background: var(--hover-bg); }
+  .tab-simples tr.email-aberto td { background: var(--selected-bg, var(--hover-bg)); }
+  dialog.email-painel {
+    position: fixed; inset: calc(var(--topo-total, 56px) + 12px) 16px 16px auto; margin: 0;
+    width: min(560px, calc(100vw - 32px)); height: auto; max-height: none;
+    display: none; flex-direction: column; padding: 0; overflow: hidden;
+    border: 1px solid var(--border); border-radius: 12px; background: var(--surface); color: var(--ink);
+    box-shadow: var(--shadow-lg); z-index: calc(var(--z-gaveta, 45) + 1);
+  }
+  dialog.email-painel[open] { display: flex; animation: fadeIn .12s ease both; }
+  .email-painel-cab { display: flex; align-items: flex-start; gap: 8px; padding: 12px 10px 12px 16px; border-bottom: 1px solid var(--border); }
+  .email-painel-cab h2:focus { outline: none; }
+  .email-painel-cab h2 { flex: 1; min-width: 0; margin: 4px 0 0; font-size: 16px; font-weight: 600; line-height: 22px; overflow-wrap: anywhere; }
+  .email-painel-meta { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; padding: 12px 16px; font-size: 13px; border-bottom: 1px solid var(--border); }
+  .email-painel-meta dt { color: var(--ink-muted); }
+  .email-painel-meta dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+  .email-painel-meta .link { padding: 0; border: none; background: none; font: inherit; color: var(--accent); cursor: pointer; }
+  .email-painel-anexos { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px 16px 0; }
+  .email-painel-anexos:empty { display: none; }
+  .email-painel-anexo {
+    display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 4px 8px;
+    border: 1px solid var(--border); border-radius: 6px; background: var(--surface-2); font-size: 12px;
+  }
+  .email-painel-anexo span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .email-painel-anexo small { color: var(--ink-muted); }
+  .email-painel-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+  .email-painel-acoes .anexo-acao { display: contents; }
+  .email-painel-texto { flex: 1; min-height: 120px; overflow: auto; padding: 16px; font-size: 14px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .email-painel-texto .espera { display: flex; align-items: center; gap: 8px; color: var(--ink-muted); }
+  .email-painel-texto .espera + .previa { margin-top: 12px; color: var(--ink-muted); }
+  .email-painel-texto .aviso-fim { margin-top: 16px; font-size: 12px; color: var(--ink-muted); }
+  @media (max-width: 700px) {
+    dialog.email-painel { inset: calc(var(--topo-total, 56px) + 8px) 8px 8px 8px; width: auto; }
+  }
+
   /* ---------- aviso flutuante (a fundação desenha o .toast) ---------- */
   .toast { display: flex; align-items: center; gap: 8px; }
   .toast > .ph { flex: none; font-size: 16px; color: var(--accent); }
@@ -1514,6 +1556,7 @@
            Categoria sem nada dentro some (atualizarSubmenuRobo). -->
       <nav class="cliente-menu" role="tablist" aria-label="Seções do robô" id="roboAbas">
         <button type="button" class="secao-btn" role="tab" data-grupo="entrada" aria-selected="true"><i class="ph ph-tray" aria-hidden="true"></i><span>E-mails de clientes</span><span class="cont" id="roboAbaClientesN"></span></button>
+        <button type="button" class="secao-btn" role="tab" data-grupo="semcliente" aria-selected="false"><i class="ph ph-user-circle-plus" aria-hidden="true"></i><span>Sem cliente</span><span class="cont" id="roboAbaSemClienteN"></span></button>
         <button type="button" class="secao-btn" role="tab" data-grupo="spam" aria-selected="false"><i class="ph ph-warning-octagon" aria-hidden="true"></i><span>Spam</span><span class="cont" id="roboAbaSpamN"></span></button>
         <button type="button" class="secao-btn" role="tab" data-grupo="marcados" aria-selected="false"><i class="ph ph-check-square" aria-hidden="true"></i><span>Marcados</span></button>
         <button type="button" class="secao-btn" role="tab" data-grupo="historico" aria-selected="false"><i class="ph ph-clock-counter-clockwise" aria-hidden="true"></i><span>Histórico</span></button>
@@ -1530,14 +1573,18 @@
           </section>
           <section class="caixa-p robo-vazio-cat"><div class="lado-vazio">Nenhum e-mail de cliente com anexo.</div></section>
           </div>
+          <!-- Remetente com anexo que não é de nenhum cliente: fica aqui até
+               alguém vincular o e-mail a um cliente (ou marcar "É spam"). -->
+          <div class="card-grupo" data-grupo="semcliente" hidden>
+          <section class="caixa-p" id="roboNaoRecSecao" hidden>
+            <div class="caixa-cab"><h2><i class="ph ph-user-circle-plus" aria-hidden="true"></i> Remetentes sem cliente</h2><span class="cont" id="roboNaoRecN"></span></div>
+            <div class="tab-rolagem"><table class="tab-simples" id="tabNaoRec"></table></div>
+          </section>
+          </div>
           <div class="card-grupo" data-grupo="spam" data-sempre hidden>
           <section class="caixa-p" id="roboSpamSecao" hidden>
             <div class="caixa-cab"><h2><i class="ph ph-warning-octagon" aria-hidden="true"></i> No spam do Gmail</h2><span class="cont" id="roboSpamN"></span></div>
             <div class="tab-rolagem"><table class="tab-simples" id="tabSpam"></table></div>
-          </section>
-          <section class="caixa-p" id="roboNaoRecSecao" hidden>
-            <div class="caixa-cab"><h2><i class="ph ph-user-circle-plus" aria-hidden="true"></i> Remetentes sem cliente</h2><span class="cont" id="roboNaoRecN"></span></div>
-            <div class="tab-rolagem"><table class="tab-simples" id="tabNaoRec"></table></div>
           </section>
           <section class="caixa-p" id="roboIgnoradosSecao" hidden>
             <details class="robo-ignorados">
@@ -1924,6 +1971,19 @@
     </div>
     <div id="aparenciaCorpo"></div>
   </div>
+</dialog>
+
+<!-- Painel do e-mail (Robô do Gmail): abre ao tocar numa linha da lista.
+     O texto completo vem na hora pelo robô da nuvem (leiturasGmail). -->
+<dialog class="email-painel" id="painelEmail" aria-labelledby="emailPainelAssunto">
+  <div class="email-painel-cab">
+    <h2 id="emailPainelAssunto" tabindex="-1"></h2>
+    <button type="button" class="btn btn-icone" id="emailPainelFechar" aria-label="Fechar"><i class="ph ph-x" aria-hidden="true"></i></button>
+  </div>
+  <dl class="email-painel-meta" id="emailPainelMeta"></dl>
+  <div class="email-painel-anexos" id="emailPainelAnexos"></div>
+  <div class="email-painel-acoes" id="emailPainelAcoes"></div>
+  <div class="email-painel-texto" id="emailPainelTexto"></div>
 </dialog>
 
 <dialog class="modal" id="modalCobrar" aria-labelledby="modalTitulo">
@@ -2625,7 +2685,7 @@
     if (visiveis.indexOf(grupoRobo) === -1) mostrarGrupoRobo(visiveis[0] || 'marcados');
   }
   document.querySelectorAll('#roboAbas .secao-btn').forEach(function (b) {
-    b.addEventListener('click', function () { mostrarGrupoRobo(b.dataset.grupo); });
+    b.addEventListener('click', function () { fecharPainelEmail(); mostrarGrupoRobo(b.dataset.grupo); });
   });
   (function () {
     var obs = new MutationObserver(atualizarSubmenuRobo);
@@ -3830,6 +3890,7 @@
     $('viewLista').hidden = telaCliente || paginaAtual !== 'clientes';
     $('viewCobrancas').hidden = telaCliente || paginaAtual !== 'cobrancas';
     $('viewRobo').hidden = telaCliente || paginaAtual !== 'robo';
+    if ($('viewRobo').hidden && emailAberto) fecharPainelEmail();
     $('viewConfig').hidden = telaCliente || paginaAtual !== 'config';
     if (paginaAtual === 'config' && !telaCliente && typeof renderConfig === 'function') renderConfig();
     $('viewHoje').hidden = telaCliente || paginaAtual !== 'hoje';
@@ -4021,6 +4082,7 @@
     naoRec.sort(function (a, b) { return String(b.data || '').localeCompare(String(a.data || '')); });
     $('roboNaoRecSecao').hidden = naoRec.length === 0;
     $('roboNaoRecN').textContent = naoRec.length;
+    $('roboAbaSemClienteN').textContent = naoRec.length || '';
     $('menuNumRobo').textContent = naoRec.length ? naoRec.length : '';
     renderCaixaRobo();
     var tn = $('tabNaoRec');
@@ -4033,9 +4095,10 @@
       naoRec.slice(0, 40).forEach(function (r) {
         var linha = el('tr');
         var td1 = el('td'); td1.appendChild(el('div', null, r.remetente)); if (r.nome) td1.appendChild(el('div', 'sub', r.nome)); linha.appendChild(td1);
-        linha.appendChild(el('td', null, r.assunto || ''));
+        linha.appendChild(celulaAssunto(r));
         var tdA = el('td'); tdA.appendChild(el('span', null, (r.arquivos || []).join(', '))); tdA.style.fontSize = 'var(--t-sm)'; linha.appendChild(tdA);
         linha.appendChild(el('td', 'num', r.data ? dataSo(r.data) : ''));
+        abreEmail(linha, { mensagemId: r.mensagemId, em: r.data, remetente: r.remetente, nome: r.nome, assunto: r.assunto, trecho: r.trecho, arquivos: r.arquivos });
         var tdP = el('td');
         var parecido = clienteParecido(r);
         if (parecido) {
@@ -6242,7 +6305,7 @@
     candidatosDe(c).forEach(function (cli) { sel.appendChild(new Option(nomeExibicao(cli), cli.id)); });
     tdC.appendChild(sel); tdC.appendChild(el('div', 'sub', c.remetente || ''));
     linha.appendChild(tdC);
-    linha.appendChild(el('td', null, c.assunto || '(sem assunto)'));
+    linha.appendChild(celulaAssunto(c));
     var tdA = el('td'); tdA.appendChild(el('span', null, (c.arquivos || []).join(', '))); tdA.style.fontSize = 'var(--t-xs)';
     linha.appendChild(tdA);
     var tdB = el('td');
@@ -6251,7 +6314,193 @@
       if (sel.value) tdB.appendChild(acaoSalvar(c.mensagemId, sel.value));
     });
     linha.appendChild(tdB);
+    // o painel salva pro cliente escolhido aqui (sem escolha, não oferece salvar)
+    abreEmail(linha, c, { clienteDe: function () { return sel.value || null; } });
     return linha;
+  }
+
+  // ---------- painel do e-mail ----------
+  // Assunto com o resumo (trecho) embaixo; tocar na linha abre o painel com
+  // o texto completo. Botão, link e seleção dentro da linha continuam só deles.
+  function celulaAssunto(c) {
+    var td = el('td');
+    td.appendChild(el('div', null, c.assunto || '(sem assunto)'));
+    if (c.trecho) td.appendChild(el('div', 'email-trecho', c.trecho));
+    return td;
+  }
+  function abreEmail(linha, c, opcoes) {
+    if (!c || !c.mensagemId) return;
+    linha.classList.add('email-abre');
+    linha.dataset.mensagem = c.mensagemId;
+    if (emailAberto && emailAberto.item.mensagemId === c.mensagemId) linha.classList.add('email-aberto');
+    linha.addEventListener('click', function (ev) {
+      if (ev.target.closest('button, a, select, input, label, textarea')) return;
+      abrirPainelEmail(c, opcoes || {});
+    });
+  }
+
+  // Texto já lido nesta aba não é pedido de novo (freio: um pedido por e-mail,
+  // e no máximo um pedido novo a cada 2 s, por mais que se clique).
+  var textosEmail = {};          // mensagemId -> { status, texto, ... }
+  var pedindoEmail = {};         // mensagemId -> true enquanto o robô busca
+  var ultimoPedidoEmail = 0;
+  var emailAberto = null;        // { item, opcoes }
+
+  function marcarLinhaAberta() {
+    document.querySelectorAll('#viewRobo tr.email-abre').forEach(function (tr) {
+      tr.classList.toggle('email-aberto', !!emailAberto && tr.dataset.mensagem === emailAberto.item.mensagemId);
+    });
+  }
+  function tamanhoArquivo(b) {
+    if (!b) return '';
+    return b >= 1048576 ? (b / 1048576).toFixed(1).replace('.', ',') + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB';
+  }
+
+  function abrirPainelEmail(item, opcoes) {
+    emailAberto = { item: item, opcoes: opcoes };
+    desenharPainelEmail();
+    var dlg = $('painelEmail');
+    if (!dlg.open) { if (typeof dlg.show === 'function') dlg.show(); else dlg.setAttribute('open', ''); }
+    $('emailPainelAssunto').focus();
+    $('emailPainelTexto').scrollTop = 0;
+    marcarLinhaAberta();
+    pedirTextoEmail(item.mensagemId);
+  }
+  function fecharPainelEmail() {
+    emailAberto = null;
+    var dlg = $('painelEmail');
+    if (dlg.open) { if (typeof dlg.close === 'function') dlg.close(); else dlg.removeAttribute('open'); }
+    marcarLinhaAberta();
+  }
+  $('emailPainelFechar').addEventListener('click', fecharPainelEmail);
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape' && emailAberto && !document.querySelector('dialog.modal[open]')) fecharPainelEmail();
+  });
+
+  function desenharPainelEmail() {
+    if (!emailAberto) return;
+    var it = emailAberto.item, op = emailAberto.opcoes;
+    var lido = textosEmail[it.mensagemId];
+    var pronto = lido && lido.status === 'pronto';
+    var clienteId = op.clienteDe ? op.clienteDe() : op.clienteId;
+    var cli = clienteId ? clientesPorId.get(clienteId) : null;
+
+    $('emailPainelAssunto').textContent = (pronto && lido.assunto) || it.assunto || '(sem assunto)';
+
+    var meta = $('emailPainelMeta');
+    meta.innerHTML = '';
+    function linhaMeta(rotulo, valor) {
+      if (!valor) return;
+      meta.appendChild(el('dt', null, rotulo));
+      var dd = el('dd');
+      if (typeof valor === 'string') dd.textContent = valor; else dd.appendChild(valor);
+      meta.appendChild(dd);
+    }
+    linhaMeta('De', (pronto && lido.de) || ((it.nome ? it.nome + ' ' : '') + (it.remetente ? '<' + it.remetente + '>' : '')));
+    if (pronto) { linhaMeta('Para', lido.para); linhaMeta('Cc', lido.cc); }
+    var quando = (pronto && lido.em) || it.em || it.data;
+    linhaMeta('Quando', quando ? dataHora(quando) : '');
+    if (cli) {
+      var bC = el('button', 'link'); bC.type = 'button'; bC.textContent = nomeExibicao(cli);
+      bC.addEventListener('click', function () { fecharPainelEmail(); abrirDetalhe(cli.id, 'abaComunicacao'); });
+      linhaMeta('Cliente', bC);
+    } else {
+      linhaMeta('Cliente', op.clienteDe ? 'escolha na lista de qual cliente é' : 'nenhum cliente com este e-mail');
+    }
+    if (op.spam) linhaMeta('Pasta', 'Spam do Gmail');
+
+    var anexos = $('emailPainelAnexos');
+    anexos.innerHTML = '';
+    var lista = pronto && lido.anexos && lido.anexos.length ? lido.anexos : (it.arquivos || []).map(function (n) { return { nome: n }; });
+    lista.forEach(function (a) {
+      var ch = el('span', 'email-painel-anexo');
+      ch.appendChild(ico('ph-paperclip'));
+      ch.appendChild(el('span', null, a.nome));
+      if (a.tamanho) ch.appendChild(el('small', null, tamanhoArquivo(a.tamanho)));
+      ch.title = a.nome;
+      anexos.appendChild(ch);
+    });
+
+    desenharAcoesEmail();
+
+    var caixa = $('emailPainelTexto');
+    caixa.innerHTML = '';
+    if (pronto) {
+      caixa.textContent = lido.texto || '(e-mail sem texto)';
+      if (lido.truncado) caixa.appendChild(el('div', 'aviso-fim', 'O e-mail é longo e veio cortado. O resto está no Gmail.'));
+    } else {
+      var espera = el('div', 'espera');
+      if (!podeVerArquivo) {
+        espera.appendChild(ico('ph-lock'));
+        espera.appendChild(el('span', null, 'O texto completo aparece só para admin e contábil.'));
+      } else if (lido && lido.status === 'erro') {
+        espera.appendChild(ico('ph-warning-circle'));
+        espera.appendChild(el('span', null, 'Não consegui trazer o texto: ' + (lido.erro || 'erro') + '.'));
+        var tentar = el('button', 'btn btn-ghost btn-sm'); tentar.type = 'button'; tentar.textContent = 'Tentar de novo';
+        tentar.addEventListener('click', function () { delete textosEmail[it.mensagemId]; desenharPainelEmail(); pedirTextoEmail(it.mensagemId); });
+        espera.appendChild(tentar);
+      } else {
+        espera.appendChild(ico('ph-hourglass'));
+        espera.appendChild(el('span', null, 'Buscando o texto no Gmail…'));
+      }
+      caixa.appendChild(espera);
+      if (it.trecho) caixa.appendChild(el('div', 'previa', it.trecho));
+    }
+  }
+
+  // Só os botões: o robô grava o estado a cada 2 s enquanto lê o Gmail, e
+  // redesenhar o painel inteiro jogaria o texto de volta pro começo.
+  function desenharAcoesEmail() {
+    if (!emailAberto) return;
+    var it = emailAberto.item, op = emailAberto.opcoes;
+    var clienteId = op.clienteDe ? op.clienteDe() : op.clienteId;
+    var acoes = $('emailPainelAcoes');
+    acoes.innerHTML = '';
+    if (clienteId && clientesPorId.get(clienteId) && (it.arquivos || []).length) acoes.appendChild(acaoSalvar(it.mensagemId, clienteId));
+    // o "abrir no Gmail" que já vem no acaoSalvar sobra aqui
+    acoes.querySelectorAll('.anexo-acao > a').forEach(function (a) { a.remove(); });
+    var g = el('a', 'btn btn-secondary btn-sm');
+    g.href = op.spam ? linkGmailSpam(it.mensagemId) : linkGmail(it.mensagemId); g.target = '_blank'; g.rel = 'noopener';
+    g.appendChild(ico('ph-arrow-square-out')); g.appendChild(document.createTextNode(' Abrir no Gmail'));
+    acoes.appendChild(g);
+  }
+
+  function pedirTextoEmail(mensagemId) {
+    if (!podeVerArquivo || !auth.currentUser) return;
+    if (textosEmail[mensagemId] || pedindoEmail[mensagemId]) return;
+    var espera = ultimoPedidoEmail + 2000 - Date.now();
+    if (espera > 0) {
+      // clique em sequência: só o e-mail que ficar aberto é pedido
+      setTimeout(function () { if (emailAberto && emailAberto.item.mensagemId === mensagemId) pedirTextoEmail(mensagemId); }, espera);
+      return;
+    }
+    ultimoPedidoEmail = Date.now();
+    pedindoEmail[mensagemId] = true;
+    function terminar(resultado) {
+      delete pedindoEmail[mensagemId];
+      textosEmail[mensagemId] = resultado;
+      if (emailAberto && emailAberto.item.mensagemId === mensagemId) desenharPainelEmail();
+    }
+    db.collection('leiturasGmail').add({
+      status: 'pendente', mensagemId: String(mensagemId),
+      criadoEm: new Date().toISOString(), criadoPor: quemSou(), criadoPorUid: auth.currentUser.uid
+    }).then(function (ref) {
+      var fim = setTimeout(function () {
+        parar();
+        terminar({ status: 'erro', erro: 'o robô não respondeu a tempo; confira se ele está online' });
+      }, 90000);
+      var parar = ref.onSnapshot(function (d) {
+        var p = d.data();
+        if (!p || (p.status !== 'pronto' && p.status !== 'erro')) return;
+        clearTimeout(fim); parar();
+        terminar(p);
+      }, function (err) {
+        clearTimeout(fim);
+        terminar({ status: 'erro', erro: err.message });
+      });
+    }).catch(function (err) {
+      terminar({ status: 'erro', erro: err.message });
+    });
   }
 
   function linkGmailSpam(mensagemId) {
@@ -6290,9 +6539,10 @@
         }
         tdD.appendChild(el('div', 'sub', c.remetente || ''));
         linha.appendChild(tdD);
-        linha.appendChild(el('td', null, c.assunto || '(sem assunto)'));
+        linha.appendChild(celulaAssunto(c));
         var tdA = el('td'); tdA.appendChild(el('span', null, (c.arquivos || []).join(', '))); tdA.style.fontSize = 'var(--t-sm)';
         linha.appendChild(tdA);
+        abreEmail(linha, c, { spam: true, clienteId: c.cli ? c.cli.id : null });
         var tdB = el('td'); var acoes = el('div', 'spam-acoes');
         var g = el('a', 'btn btn-secondary btn-sm'); g.href = linkGmailSpam(c.mensagemId); g.target = '_blank'; g.rel = 'noopener';
         g.appendChild(ico('ph-arrow-square-out')); g.appendChild(document.createTextNode(' Abrir no Gmail'));
@@ -6323,15 +6573,15 @@
       }
       lista.appendChild(li);
     });
-    // contadores do submenu
-    var nNaoRec = Number($('roboNaoRecN').textContent) || 0;
-    $('roboAbaSpamN').textContent = (itens.length + nNaoRec) || '';
+    // contadores do submenu (os sem cliente têm a aba deles)
+    $('roboAbaSpamN').textContent = itens.length || '';
     $('roboAbaClientesN').textContent = $('roboCaixaN').textContent;
   }
 
   function renderCaixaRobo() {
     renderCaixaRoboBase();
     renderSpamRobo();
+    desenharAcoesEmail();   // "Salvando..." / "no Drive" acompanham no painel
   }
   function renderCaixaRoboBase() {
     var tab = $('tabCaixa');
@@ -6360,11 +6610,12 @@
       bC.addEventListener('click', function () { abrirDetalhe(cli.id, 'abaComunicacao'); });
       tdC.appendChild(bC); tdC.appendChild(el('div', 'sub', c.remetente || ''));
       linha.appendChild(tdC);
-      linha.appendChild(el('td', null, c.assunto || '(sem assunto)'));
+      linha.appendChild(celulaAssunto(c));
       var tdA = el('td'); tdA.appendChild(el('span', null, (c.arquivos || []).join(', '))); tdA.style.fontSize = 'var(--t-xs)';
       linha.appendChild(tdA);
       var tdB = el('td'); tdB.appendChild(acaoSalvar(c.mensagemId, c.clienteId));
       linha.appendChild(tdB);
+      abreEmail(linha, c, { clienteId: c.clienteId });
       tb.appendChild(linha);
     });
     tab.appendChild(tb);
