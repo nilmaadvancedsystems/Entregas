@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Minhas guias">
-<meta name="theme-color" content="#B0262D">
+<meta name="theme-color" content="#9A2B24">
 <!--
   Página do cliente. É o que abre no celular de quem recebe o link pelo
   WhatsApp: gente que não é de tecnologia, em aparelho simples e internet de
@@ -31,12 +31,10 @@
 -->
 <style>
   :root {
-    /* Cores do design-n1 (docs/tokens.md da skill), copiadas aqui porque
-       esta página não carrega nada de fora: o cliente abre pelo celular. */
-    --bg: #FFFFFF; --surface: #FFFFFF; --surface-2: #F7F7F8; --border: #DADADF;
-    --ink: #1D1C1F; --ink-soft: #5E5D64; --ink-faint: #5E5D64;
-    --accent: #B0262D; --accent-fundo: #B0262D; --accent-ink: #FFFFFF;
-    --ok-bg: #DAFBE1; --ok: #1A7F37; --ruim-bg: #FFEBE9; --ruim: #CF222E; --aviso-bg: #FFF8C5; --aviso: #9A6700;
+    --bg: #F6F6F6; --surface: #FFFFFF; --surface-2: #EFEFEF; --border: #DCDCDC;
+    --ink: #161616; --ink-soft: #4A4A4A; --ink-faint: #6A6A6A;
+    --accent: #9A2B24; --accent-ink: #FFFFFF;
+    --ok-bg: #E4F3EA; --ok: #17603A; --ruim-bg: #FBE7E5; --ruim: #94231C; --aviso-bg: #FFF3D6; --aviso: #6B4A00;
     --r: 12px;
     /* Fonte do próprio aparelho (a mesma lista do github.com e do app do
        escritório): Roboto no Android, SF no iPhone, Segoe UI no Windows.
@@ -47,12 +45,10 @@
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #0E0E10; --surface: #0E0E10; --surface-2: #17171A; --border: #34343A;
-      --ink: #F1F1F3; --ink-soft: #A0A0A8; --ink-faint: #A0A0A8;
-      /* no escuro o botão principal do N1 é o vermelho fechado com texto
-         branco; o vermelho claro fica pra texto e aba ativa */
-      --accent: #F0626A; --accent-fundo: #C62B32; --accent-ink: #FFFFFF;
-      --ok-bg: #2EA04326; --ok: #3FB950; --ruim-bg: #F851491A; --ruim: #F85149; --aviso-bg: #BB800926; --aviso: #D29922;
+      --bg: #121212; --surface: #1B1B1B; --surface-2: #262626; --border: #333333;
+      --ink: #F2F2F2; --ink-soft: #C2C2C2; --ink-faint: #9A9A9A;
+      --accent: #E0796F; --accent-ink: #26100E;
+      --ok-bg: #16301F; --ok: #7FD3A0; --ruim-bg: #3A1B18; --ruim: #F0A39B; --aviso-bg: #33290F; --aviso: #EBCB7A;
     }
   }
   * { box-sizing: border-box; }
@@ -127,13 +123,13 @@
     display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; text-align: center;
   }
   button:active, .botao:active { background: var(--surface-2); }
-  button.principal { background: var(--accent-fundo); color: var(--accent-ink); border-color: transparent; }
+  button.principal { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
   button:disabled { opacity: .6; cursor: default; }
   /* No botão principal o contorno era da mesma cor do fundo dele: quem anda
      de teclado não via onde estava. */
   button:focus-visible, .botao:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
   button.principal:focus-visible { outline-color: var(--ink); }
-  svg { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+  svg { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
   label { display: block; font-weight: 600; font-size: 1rem; margin-bottom: 4px; }
   input[type=text] {
@@ -1289,7 +1285,7 @@ function iconeDasGuias(lado) {
   const c = document.createElement('canvas');
   c.width = c.height = lado;
   const x = c.getContext('2d');
-  x.fillStyle = '#B0262D';
+  x.fillStyle = '#9A2B24';
   x.fillRect(0, 0, lado, lado);
   // o desenho ocupa o miolo: o Android recorta o ícone em círculo
   x.translate(lado * 0.25, lado * 0.25);
@@ -1307,7 +1303,7 @@ function montarManifesto() {
   const inicio = location.origin + location.pathname + '?portal=' + encodeURIComponent(token);
   const m = {
     name: 'Minhas guias', short_name: 'Minhas guias', id: inicio, start_url: inicio, scope: pasta,
-    display: 'standalone', lang: 'pt-BR', background_color: '#FFFFFF', theme_color: '#B0262D',
+    display: 'standalone', lang: 'pt-BR', background_color: '#F6F6F6', theme_color: '#9A2B24',
     icons: [
       { src: i192, sizes: '192x192', type: 'image/png', purpose: 'any' },
       { src: i512, sizes: '512x512', type: 'image/png', purpose: 'any' },

@@ -16,12 +16,10 @@
 
 /* ---------------------------------------------------------------
  tokens, tema escuro, paletas, preferências e barra de rolagem
- (entregas.html, linhas 72-380)
+ (entregas.html, linhas 73-365)
  --------------------------------------------------------------- */
 :root {
   /* --- neutros ---
-     Valores do design-n1 (skill design-n1, docs/tokens.md), o sistema de
-     design da Conferência Contábil, desde 24/09/2026.
      UMA SUPERFÍCIE SÓ. Barra de cima, menu lateral e conteúdo dividem o
      mesmo fundo; o que separa é fio de 1px, não bloco de cor. Antes o
      conteúdo era um painel claro boiando numa bandeja escura, e o vão
@@ -32,43 +30,37 @@
      cravado na base. */
   --bg-base: #FFFFFF;
   --surface-base: #FFFFFF;
-  --surface-2-base: #F7F7F8;
-  --border-base: #DADADF;
-  --border-forte-base: #8C8C92;
+  --surface-2-base: #F2F2F2;
+  --border-base: #E3E3E3;
+  --border-forte-base: #C9C9C9;
   --bg: var(--bg-base);
   --surface: var(--surface-base);
   --surface-2: var(--surface-2-base);
   --border: var(--border-base);
   --border-forte: var(--border-forte-base);
-  /* design-n1: terceira superfície (hover de linha, faixa) e fundo da barra
-     de cima, que no N1 se distingue um pouco do conteúdo. */
-  --surface-3: #EEEEF0;
-  --header-bg: #F7F7F8;
-  --laranja: #BC4C00;          /* N1: atenção / diferença */
-  --laranja-soft: #FFF1E5;
 
   /* Os cinzas de texto NÃO são tingidos. Eram eles que faziam a tela
      inteira parecer pintada de vermelho. */
-  --ink: #1D1C1F;
-  --ink-soft: #5E5D64;
-  --ink-faint: #5E5D64;
+  --ink: #1A1A1A;
+  --ink-soft: #525252;
+  --ink-faint: #6C6C6C;
 
   /* --- cor da marca --- */
-  --accent: #B0262D;
+  --accent: #9A2B24;
   --accent-ink: #FFFFFF;
-  --accent-soft: #F9E7E7;
+  --accent-soft: #F7E7E5;
   --accent-2: #6B6F75;
   --accent-2-soft: #EAEAEC;
 
   /* --- significado ---
      Verde = feito, amarelo = atenção, vermelho = falhou. Não mudam com a
      paleta escolhida: significado não é gosto. */
-  --success: #1A7F37;
-  --success-soft: #DAFBE1;
-  --warning: #9A6700;
-  --warning-soft: #FFF8C5;
-  --danger: #CF222E;
-  --danger-soft: #FFEBE9;
+  --success: #17694A;
+  --success-soft: #E2F2EA;
+  --warning: #8A5D12;
+  --warning-soft: #FAF0DC;
+  --danger: #A8322F;
+  --danger-soft: #FAE6E4;
   --danger-ink: #FFFFFF;
 
   /* Versão "de texto" de cada cor: a cor cheia preenche (botão, barra,
@@ -91,15 +83,15 @@
   /* --- elevação ---
      Uma sombra só, e só pro que realmente flutua: modal, barra de abas do
      celular, lista suspensa. Cartão não flutua — cartão tem borda. */
-  --shadow: 0 8px 24px #1D1C1F33, 0 0 0 1px #DADADF80;
+  --shadow: 0 10px 28px -14px rgba(10, 10, 16, .45), 0 2px 6px -3px rgba(10, 10, 16, .18);
 
   /* --- forma ---
      Escala curta e fechada. Raio grande em cartão é o que fazia a tela
      parecer app de banco em vez de ferramenta. */
   --r-xs: 4px;
   --r-sm: 6px;
-  --r-md: 6px;
-  --r-lg: 6px;
+  --r-md: 8px;
+  --r-lg: 10px;
   --r-pill: 999px;
   /* nomes antigos, mantidos porque ainda há regra apontando pra eles */
   --radius-s: var(--r-sm);
@@ -181,64 +173,56 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --surface-3: #222226;
-    --header-bg: #08080A;
-    --laranja: #DB6D28;
-    --laranja-soft: #DB6D281A;
-    --bg-base: #0E0E10;
-    --surface-base: #0E0E10;
-    --surface-2-base: #17171A;
-    --border-base: #34343A;
-    --border-forte-base: #6B6B73;
-    --ink: #F1F1F3;
-    --ink-soft: #A0A0A8;
-    --ink-faint: #A0A0A8;
+    --bg-base: #141414;
+    --surface-base: #141414;
+    --surface-2-base: #1E1E1E;
+    --border-base: #2C2C2C;
+    --border-forte-base: #404040;
+    --ink: #F0F0F0;
+    --ink-soft: #ADADAD;
+    --ink-faint: #8C8C8C;
     /* No escuro a marca já nasce clara — misturar com o texto só desbota. */
     --dose-forte: 92%;
-    --accent: #F0626A;
-    --accent-ink: #1A0506;
-    --accent-soft: #F0626A1A;
+    --accent: #DE756B;
+    --accent-ink: #26100E;
+    --accent-soft: #38201D;
     --accent-2: #A9ADB2;
     --accent-2-soft: #2C2E33;
-    --success: #3FB950;
-    --success-soft: #2EA04326;
-    --warning: #D29922;
-    --warning-soft: #BB800926;
-    --danger: #F85149;
-    --danger-soft: #F851491A;
-    --danger-ink: #1A0506;
+    --success: #4FC188;
+    --success-soft: #14301F;
+    --warning: #D9A857;
+    --warning-soft: #322614;
+    --danger: #E8827A;
+    --danger-soft: #381C1A;
+    --danger-ink: #2E100E;
     --scrim: rgba(4, 4, 8, .62);
-    --shadow: 0 8px 24px #000, 0 0 0 1px #34343A;
+    --shadow: 0 10px 28px -14px rgba(0, 0, 0, .7), 0 2px 6px -3px rgba(0, 0, 0, .5);
   }
 }
 :root[data-theme="dark"] {
-  --surface-3: #222226;
-  --header-bg: #08080A;
-  --laranja: #DB6D28;
-  --laranja-soft: #DB6D281A;
-  --bg-base: #0E0E10;
-  --surface-base: #0E0E10;
-  --surface-2-base: #17171A;
-  --border-base: #34343A;
-  --border-forte-base: #6B6B73;
-  --ink: #F1F1F3;
-  --ink-soft: #A0A0A8;
-  --ink-faint: #A0A0A8;
+  --bg-base: #141414;
+  --surface-base: #141414;
+  --surface-2-base: #1E1E1E;
+  --border-base: #2C2C2C;
+  --border-forte-base: #404040;
+  --ink: #F0F0F0;
+  --ink-soft: #ADADAD;
+  --ink-faint: #8C8C8C;
   --dose-forte: 92%;
-  --accent: #F0626A;
-  --accent-ink: #1A0506;
-  --accent-soft: #F0626A1A;
+  --accent: #DE756B;
+  --accent-ink: #26100E;
+  --accent-soft: #38201D;
   --accent-2: #A9ADB2;
   --accent-2-soft: #2C2E33;
-  --success: #3FB950;
-  --success-soft: #2EA04326;
-  --warning: #D29922;
-  --warning-soft: #BB800926;
-  --danger: #F85149;
-  --danger-soft: #F851491A;
-  --danger-ink: #1A0506;
+  --success: #4FC188;
+  --success-soft: #14301F;
+  --warning: #D9A857;
+  --warning-soft: #322614;
+  --danger: #E8827A;
+  --danger-soft: #381C1A;
+  --danger-ink: #2E100E;
   --scrim: rgba(4, 4, 8, .62);
-  --shadow: 0 8px 24px #000, 0 0 0 1px #34343A;
+  --shadow: 0 10px 28px -14px rgba(0, 0, 0, .7), 0 2px 6px -3px rgba(0, 0, 0, .5);
 }
 
 /* Paletas (Configurações → Cor). Trocam só a cor da marca. Sucesso, aviso e
@@ -330,7 +314,7 @@ html[data-animacao="reduzida"] *::after {
 
 /* ---------------------------------------------------------------
  base: corpo, tipografia, toque, ícones, foco
- (entregas.html, linhas 381-460)
+ (entregas.html, linhas 366-445)
  --------------------------------------------------------------- */
 /* ---------- base ---------- */
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -415,7 +399,7 @@ select:focus-visible, textarea:focus-visible, a:focus-visible, .chip:focus-visib
 
 /* ---------------------------------------------------------------
  cartão
- (entregas.html, linhas 732-775)
+ (entregas.html, linhas 713-756)
  --------------------------------------------------------------- */
 .card {
   background: none; border: none; border-radius: 0;
@@ -464,7 +448,7 @@ select:focus-visible, textarea:focus-visible, a:focus-visible, .chip:focus-visib
 
 /* ---------------------------------------------------------------
  campo, entrada e erro de campo
- (entregas.html, linhas 776-829)
+ (entregas.html, linhas 757-810)
  --------------------------------------------------------------- */
 .field { display: block; margin-bottom: var(--esp-4); }
 /* rótulo de campo: 14px, 600, na cor do texto — a Nilma lê o rótulo
@@ -523,7 +507,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  chip
- (entregas.html, linhas 1070-1089)
+ (entregas.html, linhas 1041-1060)
  --------------------------------------------------------------- */
 .chip { position: relative; }
 .chip input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
@@ -548,8 +532,10 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  botão
- (entregas.html, linhas 1132-1248)
+ (entregas.html, linhas 1076-1194)
  --------------------------------------------------------------- */
+   Botões — uma forma só, três pesos
+   ========================================================================== */
 .btn {
   border: 1px solid transparent; border-radius: var(--r-sm); padding: 12px 16px;
   font-weight: 600; font-size: var(--t-md); cursor: pointer; width: auto;
@@ -670,7 +656,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  aviso flutuante
- (entregas.html, linhas 1482-1490)
+ (entregas.html, linhas 1428-1436)
  --------------------------------------------------------------- */
 .toast {
   position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 10px); z-index: var(--z-aviso);
@@ -684,7 +670,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  janela (modal)
- (entregas.html, linhas 1557-1602)
+ (entregas.html, linhas 1441-1486)
  --------------------------------------------------------------- */
 .modal-overlay {
   position: fixed; inset: 0; background: var(--scrim); z-index: var(--z-veu);
@@ -735,7 +721,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  selo de situação
- (entregas.html, linhas 1345-1355)
+ (entregas.html, linhas 1291-1301)
  --------------------------------------------------------------- */
 /* ---------- selo de situação ---------- */
 .status-pill {
@@ -751,7 +737,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  tela vazia e janela
- (entregas.html, linhas 1356-1398)
+ (entregas.html, linhas 1302-1344)
  --------------------------------------------------------------- */
 .empty-state { color: var(--ink-faint); font-size: var(--t-base); text-align: center; padding: var(--esp-5) var(--esp-3); line-height: 1.5; }
 
@@ -799,7 +785,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent);
 
 /* ---------------------------------------------------------------
  casca GitHub: barra de cima, abas do módulo e gavetas (nilma-shell.js)
- (entregas.html, linhas 504-714)
+ (entregas.html, linhas 489-695)
  --------------------------------------------------------------- */
 /* ---------- casca GitHub: barra, abas e gavetas ---------- */
 /* A marcação nasce em nilma-shell.js; este bloco sai inteiro pra
@@ -984,29 +970,25 @@ body:has(.gaveta:not([hidden])) { overflow: hidden; }
 }
 .aviso-faixa > .ph { color: var(--warning-forte); font-size: 1.1rem; flex: none; margin-top: 1px; }
 /* --- PC: as abas do módulo viram barra lateral fixa ---
-   Duas barras laterais, como pediu a Nilma: esta, fixa, com as páginas do
-   módulo (Nova entrega, Rota, Painel...); e o ☰, que abre por cima com os
-   módulos e as ferramentas. No celular as abas continuam sublinhadas logo
-   abaixo da barra de cima. Visual do menu lateral do design-n1: item de
-   36px, texto cinza, o atual em negrito com a barrinha vermelha. */
+   Duas barras laterais, como pediu a Nilma: esta, fixa, com as abas do
+   módulo; e o ☰, que abre por cima com módulos e ferramentas. No celular
+   as abas continuam sublinhadas logo abaixo da barra de cima. */
 @media (min-width: 900px) {
   .tabs {
     position: fixed; top: var(--topo-total); left: 0; bottom: 0; z-index: var(--z-fixo);
     width: var(--lateral); min-height: 0; flex-direction: column; align-items: stretch; gap: 2px;
     padding: var(--esp-3) var(--esp-2); border-bottom: 0; border-right: 1px solid var(--border);
-    background: var(--bg); overflow-x: hidden; overflow-y: auto;
+    overflow-x: hidden; overflow-y: auto;
   }
   .tab {
-    position: relative; justify-content: flex-start; gap: var(--esp-3); min-height: 36px; padding: 0 var(--esp-3);
-    margin: 0; border-bottom: 0; border-radius: var(--r-sm); color: var(--ink-soft); font-weight: 400;
+    position: relative; justify-content: flex-start; min-height: var(--alvo); padding: 0 var(--esp-3);
+    margin: 0; border-bottom: 0; border-radius: var(--r-sm);
   }
-  .tab .tab-ico, .tab > .ph { color: var(--ink-faint); }
-  .tab:hover { background: var(--surface-2); color: var(--ink); }
+  .tab:hover { background: var(--surface-2); }
   .tab:hover .tab-label { background: none; }
   .tab-label { flex: 1; min-width: 0; padding: 0; margin: 0; text-align: left; overflow: hidden; text-overflow: ellipsis; }
-  .tab.active, .tab[aria-current="page"] { background: var(--surface-2); color: var(--ink); font-weight: 600; border-bottom-color: transparent; }
-  .tab.active .tab-ico, .tab[aria-current="page"] .tab-ico { color: var(--accent-forte); }
-  .tab.active::before, .tab[aria-current="page"]::before {
+  .tab.active { background: var(--surface-2); }
+  .tab.active::before {
     content: ''; position: absolute; left: calc(-1 * var(--esp-2)); top: 6px; bottom: 6px;
     width: 3px; border-radius: var(--r-pill); background: var(--accent);
   }
@@ -1015,15 +997,13 @@ body:has(.gaveta:not([hidden])) { overflow: hidden; }
 
 /* ---------------------------------------------------------------
  submenu padrão (menu de 2º nível)
- (entregas.html, linhas 1921-1947)
+ (entregas.html, linhas 1803-1827)
  --------------------------------------------------------------- */
 /* ---------- submenu (menu de 2º nível) ---------- */
 /* O submenu padrão de todos os apps: a barrinha de categorias no alto do
    conteúdo (Clientes › Ajustes, Rota › Paradas…). Sai daqui pro
    nilma-ui.css (scripts/monta-folha.js) e vale igual no Pendências e no
    Fiscal. */
-.entrega-row .er-abrir { color: var(--ink-faint); font-size: 16px; margin-left: 4px; }
-.entrega-row:hover .er-abrir, .entrega-row:focus-visible .er-abrir { color: var(--accent); }
 .mode-toggle {
   display: flex; gap: 3px; background: var(--surface-2); border: 1px solid var(--border);
   border-radius: var(--r-sm); padding: 3px; margin-bottom: var(--esp-4);
@@ -1047,7 +1027,7 @@ body:has(.gaveta:not([hidden])) { overflow: hidden; }
 
 /* ---------------------------------------------------------------
  painel "Perguntar à IA" (nilma-extras.js)
- (entregas.html, linhas 2496-2592)
+ (entregas.html, linhas 2375-2471)
  --------------------------------------------------------------- */
 /* A consulta abre como uma barra de pesquisa aberta (o "Ask" do GitHub):
    no PC, uma caixa ancorada na barra de cima, cobrindo a caixa "Perguntar
@@ -1146,139 +1126,6 @@ body:has(.gaveta:not([hidden])) { overflow: hidden; }
   transition: border-color var(--dur) var(--ease), color var(--dur) var(--ease);
 }
 .cq-exemplo:hover { border-color: var(--border-forte); color: var(--ink); }
-
-/* ---------------------------------------------------------------
- design-n1: componentes (botões, selos, seletor, campos, janela, aviso)
- (entregas.html, linhas 2602-2729)
- --------------------------------------------------------------- */
-:root { /* botões do N1 (esta linha não pode ser igual à do :root do topo: é âncora do monta-folha) */
-  --btn-bg: var(--surface-2);
-  --btn-hover: var(--surface-3);
-  --btn-border: var(--border);
-  --btn-primary: var(--accent);
-  --btn-primary-ink: var(--accent-ink);
-  --btn-sombra: 0 1px 0 #1D1C1F0A;
-}
-/* No escuro, com a paleta padrão, o botão principal do N1 é um vermelho mais
-   fechado com texto branco (o vermelho claro fica pro texto e pro ativo).
-   Com outra paleta escolhida, vale a cor dela, como sempre. */
-:root[data-theme="dark"]:not([data-paleta]), :root[data-theme="dark"][data-paleta="padrao"] { --btn-primary: #C62B32; --btn-primary-ink: #FFFFFF; }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]):not([data-paleta]), :root:not([data-theme="light"])[data-paleta="padrao"] { --btn-primary: #C62B32; --btn-primary-ink: #FFFFFF; }
-}
-
-/* botões: 14px, peso 500, fundo cinza com borda; 32px no PC (no celular
-   continua o alvo de 44px — é dedo, não mouse) */
-.btn { font-weight: 500; font-size: 14px; line-height: 20px; padding: 5px 16px; gap: 8px; min-height: var(--alvo); box-shadow: var(--btn-sombra); }
-/* botão sem variante = o botão cinza do N1 (antes ficava com o fundo do
-   navegador, quase branco no escuro). :where() deixa o peso de uma classe
-   só, pra quem define .btn na própria página continuar mandando nela. */
-.btn:where(:not(.btn-primary, .btn-ghost, .btn-success, .btn-icone)) { background: var(--btn-bg); border-color: var(--btn-border); color: var(--ink); }
-.btn:where(:not(.btn-primary, .btn-ghost, .btn-success, .btn-icone)):where(:hover:not(:disabled)) { background: var(--btn-hover); }
-.btn-primary { background: var(--btn-primary); color: var(--btn-primary-ink); border-color: #1D1C1F26; }
-.btn-primary:hover:not(:disabled) { background: color-mix(in srgb, var(--btn-primary) 86%, #000); }
-.btn-secondary { background: var(--btn-bg); border-color: var(--btn-border); }
-.btn-secondary:hover:not(:disabled) { background: var(--btn-hover); border-color: var(--btn-border); }
-.btn-perigo { color: var(--danger); }
-.btn-perigo:hover { background: var(--danger); border-color: var(--danger); color: #FFFFFF; }
-.btn-chip { background: var(--btn-bg); border-color: var(--btn-border); font-weight: 500; gap: 6px; box-shadow: var(--btn-sombra); }
-.btn-chip:hover { background: var(--btn-hover); border-color: var(--btn-border); }
-.btn-chip.accent { color: var(--accent-forte); }
-.btn-chip.accent:hover { background: var(--accent-soft); border-color: var(--accent); }
-.btn-chip.danger { color: var(--danger); }
-@media (min-width: 900px) {
-  .btn, .btn-chip { min-height: 32px; }
-  .btn-chip.mini, .btn-sm { min-height: 28px; padding: 3px 12px; font-size: 12px; }
-}
-
-/* selos: o badge do N1 — contorno colorido, sem fundo, em pílula.
-   Cor pelo significado: verde ok, laranja atenção, vermelho falhou,
-   marca = em andamento, cinza = apoio. */
-.status-pill { background: none !important; border: 1px solid currentColor; border-radius: 2em; font-weight: 500; padding: 0 7px; line-height: 18px; }
-.status-pill.entregue { color: var(--success); }
-.status-pill.pendente { color: var(--laranja); }
-.status-pill.rota { color: var(--accent-forte); }
-.status-pill.falha { color: var(--danger); }
-.status-pill.neutro { color: var(--ink-soft); border-color: var(--border); }
-
-/* seletor interno: o SegmentedControl do N1 (faixa cinza, ativo em branco
-   com borda). Diferença de propósito: no app ele ocupa a largura toda
-   (pedido do escritório), no N1 é do tamanho do conteúdo. */
-.mode-toggle { background: var(--surface-3); border: 1px solid var(--border); border-radius: 6px; padding: 0; gap: 0; }
-.mode-btn { margin: -1px; border: 1px solid transparent; border-radius: 6px; padding: 4px 16px; min-height: 30px; color: var(--ink); font-weight: 400; }
-.mode-btn:hover:not(.active) { background: color-mix(in srgb, var(--border-forte) 16%, transparent); }
-.mode-btn.active { background: var(--surface); border-color: var(--border-forte); color: var(--ink); font-weight: 600; box-shadow: none; }
-
-/* campos: borda da marca ao focar, como no N1 */
-.input:focus, input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); outline: none; }
-
-/* números sempre alinhados (N1: tabular-nums) */
-.num, .dash-num, .historico-mes-total, .cp-kpi b, .contagem, .tab-badge, .cp-cont { font-variant-numeric: tabular-nums; }
-/* etapa 9: também as datas e valores das linhas de lista, o ranking, o
-   gráfico e a meta do Painel, o resumo em anel e o dia dos Honorários */
-.er-sub, #rankingEquipe, #graficoDiario, #metaResumo, .summary-text,
-.honorario-linha > div:nth-child(3) { font-variant-numeric: tabular-nums; }
-
-/* janela (etapa 6): o Dialog do N1 — título 14px numa faixa com fio
-   embaixo, cantos de 12px no PC. Diferenças de propósito: no celular
-   continua a folha que sobe de baixo, a largura é a do app (540px, as
-   janelas daqui têm formulário) e o × fica, porque muitas não têm
-   "Cancelar". A página do cliente (.modal-pagina) tem o desenho dela. */
-.modal-overlay:not(.modal-pagina) .modal-head {
-  margin: calc(-1 * var(--esp-4)) calc(-1 * var(--esp-4)) var(--esp-4);
-  padding: 8px 12px 8px 16px; min-height: 48px; align-items: center;
-  border-bottom: 1px solid var(--border); background: var(--surface);
-  position: sticky; top: calc(-1 * var(--esp-4)); z-index: 1;
-}
-.modal-overlay:not(.modal-pagina) .modal-head h2 { font-size: 14px; font-weight: 600; line-height: 20px; margin: 0; }
-.modal-overlay:not(.modal-pagina) .modal-head-sub { font-size: 12px; color: var(--ink-soft); }
-.modal-close { background: var(--btn-bg); border-color: var(--btn-border); color: var(--ink-soft); }
-.modal-close:hover { background: var(--btn-hover); border-color: var(--btn-border); }
-@media (min-width: 640px) {
-  .modal-overlay:not(.modal-pagina) .modal { border-radius: 12px; }
-  .modal-close { width: 32px; height: 32px; }
-}
-
-/* diálogo de confirmação (etapa 8, nilma-dialogo.js): o Dialog do N1 —
-   448px, cantos de 12px, pergunta em 14px com fio embaixo, frase e,
-   embaixo à direita, Voltar + a ação. É um <dialog>: fica por cima
-   de qualquer janela aberta. */
-.n1-dialogo {
-  background: var(--surface); color: var(--ink); border: 1px solid var(--border);
-  border-radius: 12px; box-shadow: var(--shadow); width: calc(100% - 32px); max-width: 448px;
-  padding: 0; overflow: hidden; animation: modalEnterCentro var(--dur-lento) var(--ease);
-}
-/* o véu do N1 (#1F232866 no claro, #01040999 no escuro); ::backdrop não
-   herda variável em navegador mais velho, por isso a cor vai escrita */
-.n1-dialogo::backdrop { background: #1F232866; }
-:root[data-theme="dark"] .n1-dialogo::backdrop { background: #01040999; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .n1-dialogo::backdrop { background: #01040999; } }
-.n1-dialogo h3 { margin: 0; padding: 16px; font-size: 14px; font-weight: 600; line-height: 20px; border-bottom: 1px solid var(--border); }
-.n1-dialogo-texto { margin: 0; padding: 16px; font-size: 14px; line-height: 20px; white-space: pre-line; }
-.n1-dialogo-texto b { font-weight: 600; }
-.n1-dialogo-corpo { padding: 16px; }
-.n1-dialogo-texto + .n1-dialogo-corpo { padding-top: 0; }
-.n1-dialogo-rotulo { display: block; font-size: 14px; font-weight: 600; margin-bottom: 6px; }
-.n1-dialogo-campo { width: 100%; }
-.n1-dialogo-acoes { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; padding: 16px; border-top: 1px solid var(--border); }
-.n1-dialogo-acoes .btn { width: auto; }
-@media (prefers-reduced-motion: reduce) { .n1-dialogo { animation: none; } }
-html[data-animacao="reduzida"] .n1-dialogo { animation: none; }
-
-/* aviso flutuante (etapa 6): o Toast do N1 — fundo da superfície, borda
-   e uma faixa de 4px à esquerda na cor do significado (marca = feito,
-   vermelho = erro). No PC fica no canto de baixo à esquerda, como no N1;
-   no celular continua centrado, longe do polegar. */
-.toast { /* (linha diferente do .toast de cima: aquele é âncora do monta-folha) */
-  background: var(--surface); color: var(--ink); border: 1px solid var(--border);
-  border-left: 4px solid var(--accent); border-radius: 6px; font-size: 14px; line-height: 20px;
-  padding: 12px 16px; box-shadow: var(--shadow);
-}
-.toast.error { background: var(--surface); color: var(--ink); border-left-color: var(--danger); }
-@media (min-width: 900px) {
-  .toast { left: 16px; max-width: 420px; transform: translateY(10px); }
-  .toast.show { transform: none; }
-}
 /* ---------------------------------------------------------------
    Só destas telas: janela de Aparência (nilma-ui.js) e a moldura
    (menu lateral, cabeçalho de página). O entregas.html tem a

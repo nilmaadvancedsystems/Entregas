@@ -5,12 +5,11 @@
 <title>Conciliadorzinho</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <script>if (/[?&]embutido=1/.test(location.search)) document.documentElement.classList.add('embutido');</script>
-<link rel="stylesheet" href="nilma-icones.css?v=343">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
 <!-- Aparência (tema, cor, texto, espaçamento, animação) igual à das outras
      telas. Sem defer: precisa valer antes da primeira pintura. -->
-<script src="nilma-dialogo.js?v=343"></script>
-<script src="nilma-ui.js?v=343"></script>
-<link rel="stylesheet" href="nilma-ui.css?v=343">
+<script src="nilma-ui.js"></script>
+<link rel="stylesheet" href="nilma-ui.css">
 <style>
   /* ---------------------------------- tokens ---------------------------------- */
   :root{
@@ -1008,18 +1007,13 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
   var LIMITE_AVISO_MB_ = 20;
   function pesarArquivo_(file){
     var mb = (file.size||0) / 1048576;
-    if(mb < LIMITE_AVISO_MB_) return Promise.resolve(true);
-    return NilmaDialogo.confirmar({ titulo: 'Ler um arquivo de ' + mb.toFixed(1).replace('.', ',') + ' MB?',
-      texto: 'A leitura pode deixar a página parada por um tempo. Não feche a aba.', acao: 'Ler assim mesmo' });
-  }
-  // Pesa antes de ler: arquivo grande pergunta no diálogo do N1, que é assíncrono.
-  function lerSePuder_(file, ler){
-    return pesarArquivo_(file).then(function(ok){ return ok ? ler(file) : {ok:false, motivo:'cancelado'}; });
+    if(mb < LIMITE_AVISO_MB_) return true;
+    return confirm('Este arquivo tem ' + mb.toFixed(1) + ' MB. A leitura pode deixar a página parada por um tempo — não feche a aba. Ler assim mesmo?');
   }
 
-  function parseCardStatementFile(file){ return lerSePuder_(file, lerExtratoDoCartao_); }
-  function lerExtratoDoCartao_(file){
+  function parseCardStatementFile(file){
     return new Promise(function(resolve){
+      if(!pesarArquivo_(file)){ resolve({ok:false, motivo:'cancelado'}); return; }
       if(typeof XLSX === 'undefined' || !file.arrayBuffer){ resolve({ok:false, motivo:'semXlsx'}); return; }
       file.arrayBuffer().then(function(buf){
         var wb;
@@ -1072,12 +1066,12 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
     var idx = s.indexOf('-');
     return idx === -1 ? s : s.slice(0, idx).trim();
   }
-  function parseSalesFile(file){ return lerSePuder_(file, lerPlanilhaDeVendas_); }
-  function lerPlanilhaDeVendas_(file){
+  function parseSalesFile(file){
     // Reads the real sales/notas-fiscais sheet per the layout: C=Data, G=Valor Bruto, I=Histórico (NF-CPF/CNPJ-Nome).
     // Returns full entries (used for genuine date+valor matching against the card statement) plus the
     // month tally (used to warn about months the card statement doesn't cover).
     return new Promise(function(resolve){
+      if(!pesarArquivo_(file)){ resolve({ok:false, motivo:'cancelado'}); return; }
       if(typeof XLSX === 'undefined' || !file.arrayBuffer){ resolve({ok:false, motivo:'semXlsx'}); return; }
       file.arrayBuffer().then(function(buf){
         var wb;

@@ -38,10 +38,8 @@ const pedacos = [
   ['chip',
    '  .chip { position: relative; }',
    '  /* ---------- valores ---------- */'],
-  // Começa na regra, não no título: começar no meio do comentário deixava
-  // o "*/" solto na frente do .btn, e o navegador jogava a regra fora.
   ['botão',
-   '  .btn {',
+   '     Botões — uma forma só, três pesos',
    '     Linhas de lista — o coração do app', 2],
   ['aviso flutuante',
    '  .toast {',
@@ -69,13 +67,6 @@ const pedacos = [
   ['painel "Perguntar à IA" (nilma-extras.js)',
    '  /* A consulta abre como uma barra de pesquisa aberta (o "Ask" do GitHub):',
    '  /* ---------- fim da consulta (Perguntar à IA) ---------- */'],
-  // A camada design-n1 dos componentes (botões, selos, seletor, campos,
-  // janela e aviso flutuante) vem depois de tudo acima e troca só o visual;
-  // sem ela as outras telas ficavam com os componentes do jeito antigo.
-  // As camadas N1 "telas do Entregas" e "Clientes" são só do entregas.html.
-  ['design-n1: componentes (botões, selos, seletor, campos, janela, aviso)',
-   '  :root { /* botões do N1 (esta linha não pode ser igual à do :root do topo: é âncora do monta-folha) */',
-   '  /* ---------- fim da camada design-n1 (componentes) ---------- */'],
 ];
 
 const cabeca = `/* ==========================================================================

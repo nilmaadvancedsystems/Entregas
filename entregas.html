@@ -47,7 +47,8 @@
 })();
 </script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<link rel="stylesheet" href="nilma-icones.css?v=343">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css">
 <style>
   /* ==========================================================================
      Nilma Protocolos — folha de estilo
@@ -71,8 +72,6 @@
 
   :root {
     /* --- neutros ---
-       Valores do design-n1 (skill design-n1, docs/tokens.md), o sistema de
-       design da Conferência Contábil, desde 24/09/2026.
        UMA SUPERFÍCIE SÓ. Barra de cima, menu lateral e conteúdo dividem o
        mesmo fundo; o que separa é fio de 1px, não bloco de cor. Antes o
        conteúdo era um painel claro boiando numa bandeja escura, e o vão
@@ -83,43 +82,37 @@
        cravado na base. */
     --bg-base: #FFFFFF;
     --surface-base: #FFFFFF;
-    --surface-2-base: #F7F7F8;
-    --border-base: #DADADF;
-    --border-forte-base: #8C8C92;
+    --surface-2-base: #F2F2F2;
+    --border-base: #E3E3E3;
+    --border-forte-base: #C9C9C9;
     --bg: var(--bg-base);
     --surface: var(--surface-base);
     --surface-2: var(--surface-2-base);
     --border: var(--border-base);
     --border-forte: var(--border-forte-base);
-    /* design-n1: terceira superfície (hover de linha, faixa) e fundo da barra
-       de cima, que no N1 se distingue um pouco do conteúdo. */
-    --surface-3: #EEEEF0;
-    --header-bg: #F7F7F8;
-    --laranja: #BC4C00;          /* N1: atenção / diferença */
-    --laranja-soft: #FFF1E5;
 
     /* Os cinzas de texto NÃO são tingidos. Eram eles que faziam a tela
        inteira parecer pintada de vermelho. */
-    --ink: #1D1C1F;
-    --ink-soft: #5E5D64;
-    --ink-faint: #5E5D64;
+    --ink: #1A1A1A;
+    --ink-soft: #525252;
+    --ink-faint: #6C6C6C;
 
     /* --- cor da marca --- */
-    --accent: #B0262D;
+    --accent: #9A2B24;
     --accent-ink: #FFFFFF;
-    --accent-soft: #F9E7E7;
+    --accent-soft: #F7E7E5;
     --accent-2: #6B6F75;
     --accent-2-soft: #EAEAEC;
 
     /* --- significado ---
        Verde = feito, amarelo = atenção, vermelho = falhou. Não mudam com a
        paleta escolhida: significado não é gosto. */
-    --success: #1A7F37;
-    --success-soft: #DAFBE1;
-    --warning: #9A6700;
-    --warning-soft: #FFF8C5;
-    --danger: #CF222E;
-    --danger-soft: #FFEBE9;
+    --success: #17694A;
+    --success-soft: #E2F2EA;
+    --warning: #8A5D12;
+    --warning-soft: #FAF0DC;
+    --danger: #A8322F;
+    --danger-soft: #FAE6E4;
     --danger-ink: #FFFFFF;
 
     /* Versão "de texto" de cada cor: a cor cheia preenche (botão, barra,
@@ -142,15 +135,15 @@
     /* --- elevação ---
        Uma sombra só, e só pro que realmente flutua: modal, barra de abas do
        celular, lista suspensa. Cartão não flutua — cartão tem borda. */
-    --shadow: 0 8px 24px #1D1C1F33, 0 0 0 1px #DADADF80;
+    --shadow: 0 10px 28px -14px rgba(10, 10, 16, .45), 0 2px 6px -3px rgba(10, 10, 16, .18);
 
     /* --- forma ---
        Escala curta e fechada. Raio grande em cartão é o que fazia a tela
        parecer app de banco em vez de ferramenta. */
     --r-xs: 4px;
     --r-sm: 6px;
-    --r-md: 6px;
-    --r-lg: 6px;
+    --r-md: 8px;
+    --r-lg: 10px;
     --r-pill: 999px;
     /* nomes antigos, mantidos porque ainda há regra apontando pra eles */
     --radius-s: var(--r-sm);
@@ -232,64 +225,56 @@
 
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-      --surface-3: #222226;
-      --header-bg: #08080A;
-      --laranja: #DB6D28;
-      --laranja-soft: #DB6D281A;
-      --bg-base: #0E0E10;
-      --surface-base: #0E0E10;
-      --surface-2-base: #17171A;
-      --border-base: #34343A;
-      --border-forte-base: #6B6B73;
-      --ink: #F1F1F3;
-      --ink-soft: #A0A0A8;
-      --ink-faint: #A0A0A8;
+      --bg-base: #141414;
+      --surface-base: #141414;
+      --surface-2-base: #1E1E1E;
+      --border-base: #2C2C2C;
+      --border-forte-base: #404040;
+      --ink: #F0F0F0;
+      --ink-soft: #ADADAD;
+      --ink-faint: #8C8C8C;
       /* No escuro a marca já nasce clara — misturar com o texto só desbota. */
       --dose-forte: 92%;
-      --accent: #F0626A;
-      --accent-ink: #1A0506;
-      --accent-soft: #F0626A1A;
+      --accent: #DE756B;
+      --accent-ink: #26100E;
+      --accent-soft: #38201D;
       --accent-2: #A9ADB2;
       --accent-2-soft: #2C2E33;
-      --success: #3FB950;
-      --success-soft: #2EA04326;
-      --warning: #D29922;
-      --warning-soft: #BB800926;
-      --danger: #F85149;
-      --danger-soft: #F851491A;
-      --danger-ink: #1A0506;
+      --success: #4FC188;
+      --success-soft: #14301F;
+      --warning: #D9A857;
+      --warning-soft: #322614;
+      --danger: #E8827A;
+      --danger-soft: #381C1A;
+      --danger-ink: #2E100E;
       --scrim: rgba(4, 4, 8, .62);
-      --shadow: 0 8px 24px #000, 0 0 0 1px #34343A;
+      --shadow: 0 10px 28px -14px rgba(0, 0, 0, .7), 0 2px 6px -3px rgba(0, 0, 0, .5);
     }
   }
   :root[data-theme="dark"] {
-    --surface-3: #222226;
-    --header-bg: #08080A;
-    --laranja: #DB6D28;
-    --laranja-soft: #DB6D281A;
-    --bg-base: #0E0E10;
-    --surface-base: #0E0E10;
-    --surface-2-base: #17171A;
-    --border-base: #34343A;
-    --border-forte-base: #6B6B73;
-    --ink: #F1F1F3;
-    --ink-soft: #A0A0A8;
-    --ink-faint: #A0A0A8;
+    --bg-base: #141414;
+    --surface-base: #141414;
+    --surface-2-base: #1E1E1E;
+    --border-base: #2C2C2C;
+    --border-forte-base: #404040;
+    --ink: #F0F0F0;
+    --ink-soft: #ADADAD;
+    --ink-faint: #8C8C8C;
     --dose-forte: 92%;
-    --accent: #F0626A;
-    --accent-ink: #1A0506;
-    --accent-soft: #F0626A1A;
+    --accent: #DE756B;
+    --accent-ink: #26100E;
+    --accent-soft: #38201D;
     --accent-2: #A9ADB2;
     --accent-2-soft: #2C2E33;
-    --success: #3FB950;
-    --success-soft: #2EA04326;
-    --warning: #D29922;
-    --warning-soft: #BB800926;
-    --danger: #F85149;
-    --danger-soft: #F851491A;
-    --danger-ink: #1A0506;
+    --success: #4FC188;
+    --success-soft: #14301F;
+    --warning: #D9A857;
+    --warning-soft: #322614;
+    --danger: #E8827A;
+    --danger-soft: #381C1A;
+    --danger-ink: #2E100E;
     --scrim: rgba(4, 4, 8, .62);
-    --shadow: 0 8px 24px #000, 0 0 0 1px #34343A;
+    --shadow: 0 10px 28px -14px rgba(0, 0, 0, .7), 0 2px 6px -3px rgba(0, 0, 0, .5);
   }
 
   /* Paletas (Configurações → Cor). Trocam só a cor da marca. Sucesso, aviso e
@@ -684,29 +669,25 @@
   }
   .aviso-faixa > .ph { color: var(--warning-forte); font-size: 1.1rem; flex: none; margin-top: 1px; }
   /* --- PC: as abas do módulo viram barra lateral fixa ---
-     Duas barras laterais, como pediu a Nilma: esta, fixa, com as páginas do
-     módulo (Nova entrega, Rota, Painel...); e o ☰, que abre por cima com os
-     módulos e as ferramentas. No celular as abas continuam sublinhadas logo
-     abaixo da barra de cima. Visual do menu lateral do design-n1: item de
-     36px, texto cinza, o atual em negrito com a barrinha vermelha. */
+     Duas barras laterais, como pediu a Nilma: esta, fixa, com as abas do
+     módulo; e o ☰, que abre por cima com módulos e ferramentas. No celular
+     as abas continuam sublinhadas logo abaixo da barra de cima. */
   @media (min-width: 900px) {
     .tabs {
       position: fixed; top: var(--topo-total); left: 0; bottom: 0; z-index: var(--z-fixo);
       width: var(--lateral); min-height: 0; flex-direction: column; align-items: stretch; gap: 2px;
       padding: var(--esp-3) var(--esp-2); border-bottom: 0; border-right: 1px solid var(--border);
-      background: var(--bg); overflow-x: hidden; overflow-y: auto;
+      overflow-x: hidden; overflow-y: auto;
     }
     .tab {
-      position: relative; justify-content: flex-start; gap: var(--esp-3); min-height: 36px; padding: 0 var(--esp-3);
-      margin: 0; border-bottom: 0; border-radius: var(--r-sm); color: var(--ink-soft); font-weight: 400;
+      position: relative; justify-content: flex-start; min-height: var(--alvo); padding: 0 var(--esp-3);
+      margin: 0; border-bottom: 0; border-radius: var(--r-sm);
     }
-    .tab .tab-ico, .tab > .ph { color: var(--ink-faint); }
-    .tab:hover { background: var(--surface-2); color: var(--ink); }
+    .tab:hover { background: var(--surface-2); }
     .tab:hover .tab-label { background: none; }
     .tab-label { flex: 1; min-width: 0; padding: 0; margin: 0; text-align: left; overflow: hidden; text-overflow: ellipsis; }
-    .tab.active, .tab[aria-current="page"] { background: var(--surface-2); color: var(--ink); font-weight: 600; border-bottom-color: transparent; }
-    .tab.active .tab-ico, .tab[aria-current="page"] .tab-ico { color: var(--accent-forte); }
-    .tab.active::before, .tab[aria-current="page"]::before {
+    .tab.active { background: var(--surface-2); }
+    .tab.active::before {
       content: ''; position: absolute; left: calc(-1 * var(--esp-2)); top: 6px; bottom: 6px;
       width: 3px; border-radius: var(--r-pill); background: var(--accent);
     }
@@ -2355,8 +2336,8 @@
     body.modo-secundario #frameConciliador,
     body.modo-secundario #frameCheque {
       /* altura explícita: iframe não estica com top+bottom como uma div */
-      position: fixed; top: var(--topo-total); left: var(--lateral); right: 0;
-      width: calc(100% - var(--lateral)) !important; height: calc(100vh - var(--topo-total)) !important; border-radius: 0 !important;
+      position: fixed; top: var(--topo-total); left: 0; right: 0;
+      width: 100% !important; height: calc(100vh - var(--topo-total)) !important; border-radius: 0 !important;
     }
 
     main { max-width: none; margin: 0; padding: var(--esp-5) var(--esp-5) var(--esp-6); }
@@ -2421,8 +2402,9 @@
     #solDescricaoField { grid-column: 1 / -1; }
     #form-nova .mode-toggle { width: max-content; margin-bottom: var(--esp-5); }
     #form-nova .mode-btn { flex: none; padding: 8px 20px; white-space: nowrap; }
-    /* o Adicionar cliente mora no cabeçalho do cartão: tamanho do rótulo */
-    #form-cliente button[type="submit"] { width: max-content; }
+    #form-cliente button[type="submit"] {
+      width: max-content; min-width: 220px; justify-self: start;
+    }
     #form-cliente .row2 { display: grid; grid-template-columns: 1fr 1fr; }
 
   }
@@ -2592,260 +2574,13 @@
   .cq-exemplo:hover { border-color: var(--border-forte); color: var(--ink); }
   /* ---------- fim da consulta (Perguntar à IA) ---------- */
 
-  /* ==========================================================================
-     design-n1 — componentes (etapa 2 da reformulação, 24/09/2026)
-     A aparência vem do kit N1 (skill design-n1: css/nilma.css). As CLASSES
-     continuam as do app (.btn-chip, .status-pill, .mode-toggle...), porque o
-     código inteiro depende delas; esta camada, no fim da folha, só troca o
-     visual. Onde o N1 e o app divergem de propósito, está dito.
-     ========================================================================== */
-  :root { /* botões do N1 (esta linha não pode ser igual à do :root do topo: é âncora do monta-folha) */
-    --btn-bg: var(--surface-2);
-    --btn-hover: var(--surface-3);
-    --btn-border: var(--border);
-    --btn-primary: var(--accent);
-    --btn-primary-ink: var(--accent-ink);
-    --btn-sombra: 0 1px 0 #1D1C1F0A;
-  }
-  /* No escuro, com a paleta padrão, o botão principal do N1 é um vermelho mais
-     fechado com texto branco (o vermelho claro fica pro texto e pro ativo).
-     Com outra paleta escolhida, vale a cor dela, como sempre. */
-  :root[data-theme="dark"]:not([data-paleta]), :root[data-theme="dark"][data-paleta="padrao"] { --btn-primary: #C62B32; --btn-primary-ink: #FFFFFF; }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]):not([data-paleta]), :root:not([data-theme="light"])[data-paleta="padrao"] { --btn-primary: #C62B32; --btn-primary-ink: #FFFFFF; }
-  }
-
-  /* botões: 14px, peso 500, fundo cinza com borda; 32px no PC (no celular
-     continua o alvo de 44px — é dedo, não mouse) */
-  .btn { font-weight: 500; font-size: 14px; line-height: 20px; padding: 5px 16px; gap: 8px; min-height: var(--alvo); box-shadow: var(--btn-sombra); }
-  /* botão sem variante = o botão cinza do N1 (antes ficava com o fundo do
-     navegador, quase branco no escuro). :where() deixa o peso de uma classe
-     só, pra quem define .btn na própria página continuar mandando nela. */
-  .btn:where(:not(.btn-primary, .btn-ghost, .btn-success, .btn-icone)) { background: var(--btn-bg); border-color: var(--btn-border); color: var(--ink); }
-  .btn:where(:not(.btn-primary, .btn-ghost, .btn-success, .btn-icone)):where(:hover:not(:disabled)) { background: var(--btn-hover); }
-  .btn-primary { background: var(--btn-primary); color: var(--btn-primary-ink); border-color: #1D1C1F26; }
-  .btn-primary:hover:not(:disabled) { background: color-mix(in srgb, var(--btn-primary) 86%, #000); }
-  .btn-secondary { background: var(--btn-bg); border-color: var(--btn-border); }
-  .btn-secondary:hover:not(:disabled) { background: var(--btn-hover); border-color: var(--btn-border); }
-  .btn-perigo { color: var(--danger); }
-  .btn-perigo:hover { background: var(--danger); border-color: var(--danger); color: #FFFFFF; }
-  .btn-chip { background: var(--btn-bg); border-color: var(--btn-border); font-weight: 500; gap: 6px; box-shadow: var(--btn-sombra); }
-  .btn-chip:hover { background: var(--btn-hover); border-color: var(--btn-border); }
-  .btn-chip.accent { color: var(--accent-forte); }
-  .btn-chip.accent:hover { background: var(--accent-soft); border-color: var(--accent); }
-  .btn-chip.danger { color: var(--danger); }
-  @media (min-width: 900px) {
-    .btn, .btn-chip { min-height: 32px; }
-    .btn-chip.mini, .btn-sm { min-height: 28px; padding: 3px 12px; font-size: 12px; }
-  }
-
-  /* selos: o badge do N1 — contorno colorido, sem fundo, em pílula.
-     Cor pelo significado: verde ok, laranja atenção, vermelho falhou,
-     marca = em andamento, cinza = apoio. */
-  .status-pill { background: none !important; border: 1px solid currentColor; border-radius: 2em; font-weight: 500; padding: 0 7px; line-height: 18px; }
-  .status-pill.entregue { color: var(--success); }
-  .status-pill.pendente { color: var(--laranja); }
-  .status-pill.rota { color: var(--accent-forte); }
-  .status-pill.falha { color: var(--danger); }
-  .status-pill.neutro { color: var(--ink-soft); border-color: var(--border); }
-
-  /* seletor interno: o SegmentedControl do N1 (faixa cinza, ativo em branco
-     com borda). Diferença de propósito: no app ele ocupa a largura toda
-     (pedido do escritório), no N1 é do tamanho do conteúdo. */
-  .mode-toggle { background: var(--surface-3); border: 1px solid var(--border); border-radius: 6px; padding: 0; gap: 0; }
-  .mode-btn { margin: -1px; border: 1px solid transparent; border-radius: 6px; padding: 4px 16px; min-height: 30px; color: var(--ink); font-weight: 400; }
-  .mode-btn:hover:not(.active) { background: color-mix(in srgb, var(--border-forte) 16%, transparent); }
-  .mode-btn.active { background: var(--surface); border-color: var(--border-forte); color: var(--ink); font-weight: 600; box-shadow: none; }
-
-  /* campos: borda da marca ao focar, como no N1 */
-  .input:focus, input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); outline: none; }
-
-  /* números sempre alinhados (N1: tabular-nums) */
-  .num, .dash-num, .historico-mes-total, .cp-kpi b, .contagem, .tab-badge, .cp-cont { font-variant-numeric: tabular-nums; }
-  /* etapa 9: também as datas e valores das linhas de lista, o ranking, o
-     gráfico e a meta do Painel, o resumo em anel e o dia dos Honorários */
-  .er-sub, #rankingEquipe, #graficoDiario, #metaResumo, .summary-text,
-  .honorario-linha > div:nth-child(3) { font-variant-numeric: tabular-nums; }
-
-  /* janela (etapa 6): o Dialog do N1 — título 14px numa faixa com fio
-     embaixo, cantos de 12px no PC. Diferenças de propósito: no celular
-     continua a folha que sobe de baixo, a largura é a do app (540px, as
-     janelas daqui têm formulário) e o × fica, porque muitas não têm
-     "Cancelar". A página do cliente (.modal-pagina) tem o desenho dela. */
-  .modal-overlay:not(.modal-pagina) .modal-head {
-    margin: calc(-1 * var(--esp-4)) calc(-1 * var(--esp-4)) var(--esp-4);
-    padding: 8px 12px 8px 16px; min-height: 48px; align-items: center;
-    border-bottom: 1px solid var(--border); background: var(--surface);
-    position: sticky; top: calc(-1 * var(--esp-4)); z-index: 1;
-  }
-  .modal-overlay:not(.modal-pagina) .modal-head h2 { font-size: 14px; font-weight: 600; line-height: 20px; margin: 0; }
-  .modal-overlay:not(.modal-pagina) .modal-head-sub { font-size: 12px; color: var(--ink-soft); }
-  .modal-close { background: var(--btn-bg); border-color: var(--btn-border); color: var(--ink-soft); }
-  .modal-close:hover { background: var(--btn-hover); border-color: var(--btn-border); }
-  @media (min-width: 640px) {
-    .modal-overlay:not(.modal-pagina) .modal { border-radius: 12px; }
-    .modal-close { width: 32px; height: 32px; }
-  }
-
-  /* diálogo de confirmação (etapa 8, nilma-dialogo.js): o Dialog do N1 —
-     448px, cantos de 12px, pergunta em 14px com fio embaixo, frase e,
-     embaixo à direita, Voltar + a ação. É um <dialog>: fica por cima
-     de qualquer janela aberta. */
-  .n1-dialogo {
-    background: var(--surface); color: var(--ink); border: 1px solid var(--border);
-    border-radius: 12px; box-shadow: var(--shadow); width: calc(100% - 32px); max-width: 448px;
-    padding: 0; overflow: hidden; animation: modalEnterCentro var(--dur-lento) var(--ease);
-  }
-  /* o véu do N1 (#1F232866 no claro, #01040999 no escuro); ::backdrop não
-     herda variável em navegador mais velho, por isso a cor vai escrita */
-  .n1-dialogo::backdrop { background: #1F232866; }
-  :root[data-theme="dark"] .n1-dialogo::backdrop { background: #01040999; }
-  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .n1-dialogo::backdrop { background: #01040999; } }
-  .n1-dialogo h3 { margin: 0; padding: 16px; font-size: 14px; font-weight: 600; line-height: 20px; border-bottom: 1px solid var(--border); }
-  .n1-dialogo-texto { margin: 0; padding: 16px; font-size: 14px; line-height: 20px; white-space: pre-line; }
-  .n1-dialogo-texto b { font-weight: 600; }
-  .n1-dialogo-corpo { padding: 16px; }
-  .n1-dialogo-texto + .n1-dialogo-corpo { padding-top: 0; }
-  .n1-dialogo-rotulo { display: block; font-size: 14px; font-weight: 600; margin-bottom: 6px; }
-  .n1-dialogo-campo { width: 100%; }
-  .n1-dialogo-acoes { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; padding: 16px; border-top: 1px solid var(--border); }
-  .n1-dialogo-acoes .btn { width: auto; }
-  @media (prefers-reduced-motion: reduce) { .n1-dialogo { animation: none; } }
-  html[data-animacao="reduzida"] .n1-dialogo { animation: none; }
-
-  /* aviso flutuante (etapa 6): o Toast do N1 — fundo da superfície, borda
-     e uma faixa de 4px à esquerda na cor do significado (marca = feito,
-     vermelho = erro). No PC fica no canto de baixo à esquerda, como no N1;
-     no celular continua centrado, longe do polegar. */
-  .toast { /* (linha diferente do .toast de cima: aquele é âncora do monta-folha) */
-    background: var(--surface); color: var(--ink); border: 1px solid var(--border);
-    border-left: 4px solid var(--accent); border-radius: 6px; font-size: 14px; line-height: 20px;
-    padding: 12px 16px; box-shadow: var(--shadow);
-  }
-  .toast.error { background: var(--surface); color: var(--ink); border-left-color: var(--danger); }
-  @media (min-width: 900px) {
-    .toast { left: 16px; max-width: 420px; transform: translateY(10px); }
-    .toast.show { transform: none; }
-  }
-  /* ---------- fim da camada design-n1 (componentes) ---------- */
-
-  /* ==========================================================================
-     design-n1 — telas do Entregas (etapa 4 da reformulação, 24/09/2026)
-     Nova entrega, Rota, Painel, Honorários: as medidas do kit N1 em cima do
-     desenho que já existia (caixa com cabeçalho de fundo). Só visual.
-     ========================================================================== */
-  /* Ícone de título em cinza: no N1 o vermelho é da ação principal e do
-     item ativo, não de enfeite em todo título. */
-  .card h2 .ph, .modal h2 .ph { color: var(--ink-faint); }
-
-  /* Caixa (gh-box do N1): cabeçalho de 48px, título 14px, laterais de 16px */
-  .card.caixa > .card-head-row { min-height: 48px; padding: 8px 16px; }
-  .card.caixa > .card-head-row > h2 { font-size: 14px; font-weight: 600; }
-  .card.caixa > .card-ferramentas, .card.caixa > .filters, .card.caixa > .linha-busca-cnpj,
-  .card.caixa > .painel-resumo { padding: 12px 16px; }
-  .card.caixa .entrega-row, .card.caixa .history-row, .card.caixa .fecha-linha, .card.caixa .montagem-linha { padding-left: 16px; padding-right: 16px; }
-  .card.caixa > #graficoDiario, .card.caixa > #rankingEquipe, .card.caixa > #metaResumo,
-  .card.caixa > .map-wrap, .card.caixa > .numeros-do-mes { padding: 12px 16px; }
-  .card.caixa .contagem { color: var(--ink-soft); }
-
-  /* Formulário da tela (Nova entrega): o .card do N1 — título numa faixa
-     cinza em cima (a borda e o fundo estão na camada de Clientes). */
-  .view > form.card:not(.caixa) > h2:first-child {
-    margin: -16px -16px 16px; padding: 12px 16px; font-size: 14px; font-weight: 600;
-    background: var(--surface-2); border-bottom: 1px solid var(--border); border-radius: 6px 6px 0 0;
-  }
-  @media (max-width: 640px) {
-    .view > form.card:not(.caixa) { padding: 12px; }
-    .view > form.card:not(.caixa) > h2:first-child { margin: -12px -12px 12px; padding: 10px 12px; }
-  }
-
-  /* "Assine aqui": ícone separado do texto e o cinza de apoio do N1 */
-  .sig-placeholder { gap: 6px; color: var(--ink-soft); }
-
-  /* Lista vazia: frase curta, cinza, centrada (o .empty do N1) */
-  .empty-state { font-size: 14px; color: var(--ink-soft); padding: 24px 16px; }
-
-  /* Honorários: a tabela do N1 — cabeçalho 12px cinza sobre faixa, 16px de lado */
-  .honorario-linha { padding-left: 16px; padding-right: 16px; }
-  @media (min-width: 900px) {
-    .honorarios-cabecalho { padding: 8px 16px; font-size: 12px; border-bottom: 1px solid var(--border); }
-  }
-  /* ---------- fim da camada design-n1 (telas do Entregas) ---------- */
-
-  /* ==========================================================================
-     design-n1 — Clientes (etapa 5 da reformulação, 24/09/2026)
-     Carteira, Novo cliente, Ajustes, Sistema e a página do cliente. Só
-     visual; classes e ids do app ficam como estão.
-     ========================================================================== */
-  /* Formulários (Novo cliente e os do Ajustes): o .card do N1 — borda,
-     fundo e o cabeçalho numa faixa cinza, com o Salvar à direita. */
-  .view > form.card:not(.caixa), .card.form-ajuste {
-    border: 1px solid var(--border); border-radius: 6px; background: var(--surface);
-    padding: 16px; margin-bottom: 16px;
-  }
-  .view > form.card:not(.caixa) > .card-head-row:first-child,
-  .card.form-ajuste > .card-head-row {
-    margin: -16px -16px 16px; padding: 8px 16px; min-height: 48px;
-    background: var(--surface-2); border-bottom: 1px solid var(--border); border-radius: 6px 6px 0 0;
-  }
-  .view > form.card:not(.caixa) > .card-head-row:first-child > h2,
-  .card.form-ajuste > .card-head-row > h2 { font-size: 14px; font-weight: 600; }
-  @media (max-width: 640px) {
-    .card.form-ajuste { padding: 12px; }
-    .view > form.card:not(.caixa) > .card-head-row:first-child,
-    .card.form-ajuste > .card-head-row { margin: -12px -12px 12px; padding: 8px 12px; }
-  }
-
-  /* Carteira: linha de cliente com 16px de lado, como a tabela do N1 */
-  .card.caixa .client-row { padding-left: 16px; padding-right: 16px; }
-
-  /* ---- página do cliente ---- */
-  .cp-avatar { width: 48px; height: 48px; color: var(--ink-soft); }
-  .cp-quem-texto h2 { font-size: 20px; font-weight: 600; }
-  /* números: o stat do N1 — rótulo 12px cinza, valor 24px */
-  .cp-kpis { border-radius: 6px; }
-  .cp-kpi { padding: 12px 16px; }
-  .cp-kpi-r { font-size: 12px; }
-  .cp-kpi b { font-size: 24px; font-weight: 600; line-height: 1.25; }
-  .cp-kpi b.pend { color: var(--laranja); }
-  /* avisos: o .alert do N1 — faixa de fundo suave, cor pelo significado
-     (laranja = atenção, vermelho = grave, cinza = recado do escritório) */
-  .cp-aviso { border-radius: 6px; padding: 12px 16px; font-size: 14px; border: 1px solid var(--laranja); border-left-width: 1px; background: var(--laranja-soft); }
-  .cp-aviso i { color: var(--laranja); }
-  .cp-aviso.grave { border-color: var(--danger); background: var(--danger-soft); }
-  .cp-aviso.grave i { color: var(--danger); }
-  .cp-aviso.recado { border-color: var(--border); background: var(--surface-2); }
-  .cp-aviso.recado i { color: var(--accent-forte); }
-  /* cartões (Contato, Empresa, Últimas entregas): caixa do N1 */
-  .cp-card, .cp-acoes-lista { border-radius: 6px; }
-  .cp-card-cab { min-height: 48px; padding: 8px 16px; border-radius: 6px 6px 0 0; }
-  .cp-card-cab h3 { font-size: 14px; font-weight: 600; }
-  .cp-card-cab h3 .ph { color: var(--ink-faint); }
-  .cp-card-corpo { padding: 12px 16px; }
-  .cp-dados dt { font-size: 12px; }
-  .cp-acao { padding: 12px 16px; }
-  .cp-acao > i:first-child { font-size: 18px; color: var(--ink-faint); }
-  /* menu lateral da página: o mesmo item do menu lateral do app */
-  .cp-menu button { min-height: 36px; padding: 0 12px; position: relative; }
-  .cp-menu button[aria-selected="true"] { box-shadow: none; }
-  .cp-menu button[aria-selected="true"]::before {
-    content: ''; position: absolute; left: -8px; top: 6px; bottom: 6px;
-    width: 3px; border-radius: var(--r-pill); background: var(--accent);
-  }
-  @media (max-width: 899px) {
-    .cp-menu button[aria-selected="true"]::before { content: none; }
-    .cp-menu button[aria-selected="true"] { box-shadow: inset 0 -2px 0 var(--accent); }
-  }
-  /* ---------- fim da camada design-n1 (Clientes) ---------- */
-
 </style>
 </head>
 <body>
 <!-- Casca no estilo do GitHub: barra de cima (☰ · Nilma / módulo · consulta
      rápida · anotações · avatar) e as duas gavetas. Nasce aqui, antes do
      resto, porque os scripts do app procuram #notasBtn, #topo etc. -->
-<script src="nilma-dialogo.js?v=343"></script>
-<script src="nilma-shell.js?v=343"></script>
+<script src="nilma-shell.js"></script>
 <script>NilmaShell.montar({ modulo: 'Entregas', moduloId: 'entregas', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle' });</script>
 <!-- Abas do módulo, sublinhadas, logo abaixo da barra. -->
 <nav class="tabs" id="tabsNav" role="tablist">
@@ -4540,15 +4275,8 @@
       '</div>';
   }
   function registrarOcorrencia_(cliente, tipo, aoTerminar) {
-    var rotulo = (TIPOS_DE_OCORRENCIA_.filter(function (t) { return t.id === tipo; })[0] || {}).rotulo || 'Ocorrência';
-    NilmaDialogo.perguntar({
-      titulo: rotulo + ' · ' + clienteLabel(cliente), rotulo: 'O que aconteceu?',
-      multilinha: true, obrigatorio: true, acao: 'Registrar'
-    }).then(function (texto) {
-      if (texto) gravarOcorrencia_(cliente, tipo, texto, aoTerminar);
-    });
-  }
-  function gravarOcorrencia_(cliente, tipo, texto, aoTerminar) {
+    var texto = prompt('O que aconteceu? (aparece na ficha e na linha do tempo)');
+    if (!texto || !texto.trim()) return;
     var nova = { tipo: tipo, texto: texto.trim().slice(0, 240), por: currentUserNome || '', em: new Date().toISOString() };
     var lista = [nova].concat(ocorrenciasDe_(cliente)).slice(0, 40);
     db.doc('clientes/' + cliente.id).update({ ocorrencias: lista })
@@ -5532,7 +5260,8 @@
     });
   }
 
-  // Pede confirmação no diálogo do N1 antes de apagar (confirmarDuplo).
+  // O botão pede confirmação nele mesmo (mesmo jeito de apagar entrega):
+  // o primeiro toque avisa, o segundo apaga.
   function apagarDadosDoCliente_(btn, cliente, aoTerminar) {
     confirmarDuplo(btn, function () {
       var limpo = {
@@ -5550,7 +5279,7 @@
         showToast('Dados pessoais apagados e link derrubado.');
         if (aoTerminar) aoTerminar();
       }).catch(function (err) { showToast(errMsg(err, 'Não foi possível apagar.'), 'error'); });
-    }, { titulo: 'Apagar os dados pessoais deste cliente?', texto: 'Telefone, e-mail, endereço e contatos saem do cadastro e o link do cliente para de funcionar. Não dá para desfazer.', acao: 'Apagar dados' });
+    });
   }
 
   // ---------- Clientes: carteira e ajustes do app ----------
@@ -8609,7 +8338,7 @@
             db.doc('recados/' + r.id).delete().catch(function (err) {
               showToast(errMsg(err, 'Não foi possível apagar.'), 'error');
             });
-          }, { titulo: 'Apagar este recado?', acao: 'Apagar' });
+          });
         });
         row.appendChild(apagar);
       }
@@ -9237,7 +8966,7 @@
           showToast(errMsg(err, 'Não foi possível remover.'), 'error');
           botaoLivre_(btn);
         });
-      }, { titulo: 'Remover da lista de honorários?', texto: 'O cliente deixa de aparecer nos Honorários.', acao: 'Remover' });
+      });
     });
   }
 
@@ -12192,7 +11921,7 @@
             historico = historico.filter(function (e) { return e.id !== entrega.id; });
             renderHistoricoList(cliente, historico);
           });
-        }, { titulo: 'Excluir esta entrega?', texto: 'A entrega e o comprovante saem do histórico do cliente. Não dá para desfazer.', acao: 'Excluir' });
+        });
       });
     }
 
@@ -12663,7 +12392,7 @@
     $('overlay').addEventListener('click', function (e) { if (e.target.id === 'overlay') closeModal(); });
     if ($('excluirPendenteBtn')) {
       $('excluirPendenteBtn').addEventListener('click', function () {
-        confirmarDuplo(this, function () { excluirEntrega(entrega, closeModal); }, { titulo: 'Remover da rota?', texto: 'A entrega pendente é excluída.', acao: 'Remover' });
+        confirmarDuplo(this, function () { excluirEntrega(entrega, closeModal); });
       });
     }
     if ($('pendingEditarBtn')) {
@@ -13239,12 +12968,6 @@
         box.setAttribute('aria-modal', 'true');
         box.tabIndex = -1;
       }
-      // o × só tem ícone: sem nome, o leitor de tela lê "botão" e o mouse
-      // não mostra dica (regra do N1: botão só de ícone tem title e aria-label)
-      [].forEach.call(box.querySelectorAll('.modal-close'), function (b) {
-        if (!b.getAttribute('aria-label')) b.setAttribute('aria-label', 'Fechar');
-        if (!b.title) b.title = 'Fechar';
-      });
       if (!focoAntesDoModal) {
         var atual = document.activeElement;
         var foraDoModal = atual && atual !== document.body && !$('modalRoot').contains(atual);
@@ -13422,7 +13145,7 @@
     var btn = this;
     // confirmação dupla no próprio botão, igual ao resto do app, em vez da
     // caixinha do navegador que ignora tema e paleta
-    confirmarDuplo(btn, function () { importarClientesSeed(btn); }, { titulo: 'Importar clientes de arquivo?', acao: 'Importar', perigo: false });
+    confirmarDuplo(btn, function () { importarClientesSeed(btn); });
   });
 
   // Le um .json escolhido pela pessoa e devolve o array. Substitui os
@@ -13497,7 +13220,7 @@
     // e a importação nunca sai do lugar.
     confirmarDuplo(btn, function () {
       lerJsonEscolhido_(null, function (lista) { importarEnderecos_(btn, lista); });
-    }, { titulo: 'Preencher endereços de arquivo?', texto: 'Os endereços do arquivo entram no cadastro dos clientes.', acao: 'Escolher arquivo', perigo: false });
+    });
   });
 
   function importarEnderecos_(btn, lista) {
@@ -13639,7 +13362,7 @@
     garantirTodosOsClientes_();   // a planilha cita clientes do escritório inteiro
     confirmarDuplo(btn, function () {
       lerJsonEscolhido_(null, function (lista) { importarHonorarios_(btn, lista); });
-    }, { titulo: 'Preencher honorários de arquivo?', acao: 'Escolher arquivo', perigo: false });
+    });
   });
 
   function importarHonorarios_(btn, lista) {
@@ -14060,7 +13783,7 @@
             showToast(err && err.message ? err.message : 'Não foi possível excluir.', 'error');
             botaoLivre_(btn);
           });
-        }, { titulo: 'Excluir o acesso desta pessoa?', texto: 'Ela não consegue mais entrar no app.', acao: 'Excluir acesso' });
+        });
       });
     }
 
@@ -15160,7 +14883,7 @@
               registrarAuditoria_('competencia_reaberta', fmtCompetencia(comp));
               showToast('Competência reaberta.');
             }).catch(function (err) { showToast(errMsg(err, 'Não foi possível reabrir.'), 'error'); });
-          }, { titulo: 'Reabrir esta competência?', texto: 'A edição do mês fica liberada para toda a equipe.', acao: 'Reabrir', perigo: false });
+          }, 'Confirmar?');
         });
       }
       el.appendChild(row);
@@ -15223,26 +14946,29 @@
     });
   });
 
-  // Confirmação antes de uma ação de risco (em vez do confirm() do navegador).
-  // Até a etapa 8 do N1 era um "toque de novo pra confirmar" no próprio botão.
-  //
-  // Etapa 8 do N1 ("excluir sempre com modal"): o nome e a chamada ficam,
-  // mas agora abre o diálogo de confirmação do N1 (nilma-dialogo.js), por
-  // cima da janela que estiver aberta. opcoes: { titulo, texto, acao,
-  // perigo } — sem título, pergunta com o nome do botão ("Excluir?").
-  // A ação roda dentro do clique do "confirmar", então quem abre seletor
-  // de arquivo depois (importar endereços/honorários) continua podendo.
-  function confirmarDuplo(btn, acao, opcoes) {
-    var o = (opcoes && typeof opcoes === 'object') ? opcoes : {};
-    var nome = (btn.getAttribute('aria-label') || btn.title || btn.textContent || '').trim();
-    NilmaDialogo.confirmar({
-      titulo: o.titulo || ((nome || 'Confirmar') + '?'),
-      texto: o.texto,
-      html: o.html,
-      acao: o.acao || nome || 'Confirmar',
-      perigo: o.perigo !== false,
-      aoConfirmar: function () { acao(); }
-    });
+  // Confirmação dupla direto no botão (em vez do confirm() do navegador):
+  // primeiro toque avisa e arma um temporizador; só apaga de verdade se
+  // tocar de novo dentro de alguns segundos.
+  // rotulo (opcional) troca o aviso longo por um curto onde a linha é
+  // estreita — ex.: "Confirmar?" no Reabrir de Competências fechadas.
+  function confirmarDuplo(btn, acao, rotulo) {
+    if (btn.dataset.confirmando === '1') {
+      clearTimeout(btn._confirmTimer);
+      delete btn.dataset.confirmando;
+      btn.classList.remove('confirmando');
+      btn.textContent = btn.dataset.textoOriginal;
+      acao();
+      return;
+    }
+    btn.dataset.textoOriginal = btn.textContent;
+    btn.dataset.confirmando = '1';
+    btn.classList.add('confirmando');
+    btn.innerHTML = '<i class="ph ph-warning" aria-hidden="true"></i> ' + (rotulo || 'Toque de novo pra confirmar');
+    btn._confirmTimer = setTimeout(function () {
+      delete btn.dataset.confirmando;
+      btn.classList.remove('confirmando');
+      btn.textContent = btn.dataset.textoOriginal;
+    }, 4000);
   }
 
   function excluirEntrega(entrega, onDone) {
@@ -16694,7 +16420,7 @@
   NilmaShell.ao('conta', function () { abrirConfiguracoes('conta'); });
   NilmaShell.ao('instalar', function () { instalarApp_(); });
   NilmaShell.ao('sair', function () { auth.signOut(); });
-  NilmaShell.versao('2.343 · 24/09/2026');
+  NilmaShell.versao('2.1');
 
   auth.onAuthStateChanged(function (user) {
     if (user) {
@@ -17278,7 +17004,7 @@
       });
     }
     if ($('portalCriarBtn')) $('portalCriarBtn').addEventListener('click', function () { criar(this); });
-    if ($('portalTrocarBtn')) $('portalTrocarBtn').addEventListener('click', function () { var b = this; confirmarDuplo(b, function () { criar(b); }, { titulo: 'Trocar o link do cliente?', texto: 'O link antigo para de funcionar. Mande o novo para o cliente.', acao: 'Trocar o link', perigo: false }); });
+    if ($('portalTrocarBtn')) $('portalTrocarBtn').addEventListener('click', function () { var b = this; confirmarDuplo(b, function () { criar(b); }); });
     if (!tem) return;
     db.doc('portais/' + cliente.portalToken).get().then(function (snap) {
       var v = snap.exists && snap.data().visto;
