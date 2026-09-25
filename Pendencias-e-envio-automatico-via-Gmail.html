@@ -653,7 +653,8 @@
   .exp-lista li:has(> .exp-marca) { display: flex; align-items: stretch; }
   .exp-lista li > .exp-item { flex: 1; min-width: 0; }
   .exp-marca { display: flex; align-items: center; padding: 0 0 0 16px; cursor: pointer; }
-  .exp-marca input { width: 16px; height: 16px; margin: 0; accent-color: var(--tab-active, var(--accent)); cursor: pointer; }
+  /* tamanho e o "✓" vêm do checkbox padrão do N1 (nilma-ui.css, 18px) */
+  .exp-marca input { margin: 0; flex: none; cursor: pointer; }
   .exp-lista li:has(> .exp-marca) > .exp-item { padding-left: 12px; }
   .exp-lista li.marcado { background: var(--hover-bg); }
   .exp-acoes {
