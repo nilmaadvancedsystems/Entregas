@@ -13,12 +13,15 @@ mesma janela no Entregas, na Pendências, no Fiscal e no Contábil
 (`nilma-config.js`), começando em Minha conta: tópicos à esquerda, com busca,
 e as opções à direita, no desenho da ficha do cliente.
 
-- **Minha conta**: foto, nome, e-mail, cargos, trocar senha e sair.
-- **Preferências**: tema, onde o Entregas abre e como abrir os PDFs do Drive.
-- **Notificações**: se os avisos estão ligados neste aparelho, e o botão pra ligar
-  (em qualquer tela).
-- **Aplicativo**: instalar, versão e "Buscar a versão mais nova".
-- **Integrações** (só admin): se o robô, o Gmail e a IA estão no ar.
+- **Conta › Minha conta**: foto, nome (editável), e-mail, cargos, trocar senha e sair.
+- **Conta › Notificações**: ligar, mandar um aviso de teste e desligar neste aparelho.
+- **Preferências › Aparência**: tema e barra lateral aberta ou recolhida.
+- **Preferências › Telas e listas**: onde o Entregas e a Pendências abrem, clientes
+  da Pendências em lista ou cartões, e como abrir os PDFs do Drive.
+- **Preferências › Consulta rápida**: resposta padrão, rápida ou com IA.
+- **Aplicativo › Instalação e versão**: instalar, versão, "Buscar a versão mais
+  nova" e os atalhos de teclado.
+- **Escritório › Integrações** (só admin): robô, Gmail, IA, backup e uso do banco.
 
 ## Visual N1 no ar (25/09/2026)
 

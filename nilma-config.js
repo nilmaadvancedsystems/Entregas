@@ -9,11 +9,15 @@
    à direita).
 
    Tópicos:
-     Conta        Minha conta (foto, nome, e-mail, cargos, senha, sair)
-                  Preferências (tema, onde o Entregas abre, como abrir PDF)
-                  Notificações (avisos neste aparelho)
-     Aplicativo   Instalar, versão, baixar a versão mais nova
-     Escritório   Integrações (só admin: robô, Gmail, IA) — só leitura aqui
+     Conta         Minha conta (foto, nome, e-mail, cargos, senha, sair)
+                   Notificações (ligar, testar e desligar neste aparelho)
+     Preferências  Aparência (tema, barra lateral)
+                   Telas e listas (onde Entregas e Pendências abrem, lista ou
+                   cartões, como abrir PDF)
+                   Consulta rápida (resposta padrão: rápida ou com IA)
+     Aplicativo    Instalar, versão, baixar a versão mais nova, atalhos
+     Escritório    Integrações (só admin: robô, Gmail, IA, backup, uso do
+                   banco) — só leitura aqui
 
    Gravação: só quando a pessoa toca em algo, e só se o valor mudou. Guarda
    no aparelho (localStorage nilma_*) e na conta (usuarios/{uid}), nos mesmos
@@ -25,6 +29,7 @@
        usuario: () => ({ nome, foto }),     // o que a tela já sabe da pessoa
        cargos: () => ['admin', ...],
        aoMudarFoto: foto => ...,            // pinta o avatar da barra
+       aoMudarNome: nome => ...,            // idem, com o nome novo
        aplicar: (campo, valor) => ...,      // a tela aplica tema etc. na hora
        salvar: (campo, valor) => bool,      // opcional: true = a tela gravou
        toast: (msg, tipo) => ...,
@@ -32,7 +37,7 @@
        instalar: { pode: () => bool, fazer: () => ... },
        versao: '2.346', sair: () => ...
      });
-     NilmaConfig.abrir('conta' | 'preferencias' | 'notificacoes' | 'aplicativo' | 'integracoes');
+     NilmaConfig.abrir('conta' | 'notificacoes' | 'aparencia' | 'telas' | 'consulta' | 'aplicativo' | 'integracoes');
    Link direto: qualquer tela com ?config=notificacoes abre ali depois do login.
    ========================================================================== */
 (function (janela, doc) {
@@ -71,7 +76,12 @@
   var NOME_CARGO = { admin: 'Admin', contabil: 'Contábil', fiscal: 'Fiscal', office_boy: 'Office boy', staff: 'Equipe' };
 
   // ------------------------------------------------------------ preferências
-  var CHAVE_LOCAL = { abaInicial: 'nilma_aba_inicial' };
+  var CHAVE_LOCAL = {
+    abaInicial: 'nilma_aba_inicial', pendInicio: 'nilma_pend_inicio', lateral: 'nilma_lateral',
+    visaoPendencias: 'nilma_cobranca_visao', consultaModo: 'nilma_cq_modo'
+  };
+  // Jeito de trabalhar de cada aparelho (tela pequena x monitor): fica só nele.
+  var SO_APARELHO = { lateral: true, visaoPendencias: true, consultaModo: true };
   function lerLocal(campo, padrao) {
     try { return localStorage.getItem(CHAVE_LOCAL[campo] || 'nilma_' + campo) || padrao; } catch (e) { return padrao; }
   }
@@ -80,6 +90,10 @@
     return t === 'light' ? 'claro' : t === 'dark' ? 'escuro' : 'auto';
   }
   function aplicarPadrao(campo, valor) {
+    if (campo === 'lateral' && janela.NilmaShell && typeof janela.NilmaShell.recolherLateral === 'function') {
+      janela.NilmaShell.recolherLateral(valor === 'recolhida');
+      return;
+    }
     if (campo !== 'tema') return;
     if (janela.NilmaUI && typeof janela.NilmaUI.aplicar === 'function') { janela.NilmaUI.aplicar('tema', valor); return; }
     var r = doc.documentElement;
@@ -92,10 +106,11 @@
   function salvarPreferencia(campo, valor, atual) {
     if (valor === atual) return;
     if (typeof o.salvar === 'function' && o.salvar(campo, valor) === true) return;
-    if (typeof o.aplicar === 'function') o.aplicar(campo, valor); else aplicarPadrao(campo, valor);
     try { localStorage.setItem(CHAVE_LOCAL[campo] || 'nilma_' + campo, valor); } catch (e) {}
+    aplicarPadrao(campo, valor);
+    if (typeof o.aplicar === 'function') o.aplicar(campo, valor);
     var u = contaFirebase();
-    if (u && o.db) {
+    if (u && o.db && !SO_APARELHO[campo]) {
       var dados = {}; dados[campo] = valor;
       o.db.collection('usuarios').doc(u.uid).update(dados).catch(function () {});
     }
@@ -105,14 +120,18 @@
   var SECOES = [
     { id: 'conta', grupo: 'Conta', rotulo: 'Minha conta', icone: 'ph-user-circle',
       titulo: 'Minha conta', sub: 'Seu perfil, o login e a senha', busca: 'perfil foto nome email e-mail cargo senha sair login' },
-    { id: 'preferencias', grupo: 'Conta', rotulo: 'Preferências', icone: 'ph-sliders-horizontal',
-      titulo: 'Preferências', sub: 'Como o sistema aparece e abre para você', busca: 'tema claro escuro aparencia sistema abrir app inicial pdf drive leitor navegador' },
     { id: 'notificacoes', grupo: 'Conta', rotulo: 'Notificações', icone: 'ph-bell',
-      titulo: 'Notificações', sub: 'Avisos neste aparelho', busca: 'notificacao aviso celular push alerta' },
-    { id: 'aplicativo', grupo: 'Aplicativo', rotulo: 'Aplicativo', icone: 'ph-device-mobile',
-      titulo: 'Aplicativo', sub: 'Instalação e versão', busca: 'instalar tela inicial versao atualizar cache' },
+      titulo: 'Notificações', sub: 'Avisos neste aparelho', busca: 'notificacao aviso celular push alerta teste desativar' },
+    { id: 'aparencia', grupo: 'Preferências', rotulo: 'Aparência', icone: 'ph-paint-brush',
+      titulo: 'Aparência', sub: 'Cores e o jeito da tela', busca: 'tema claro escuro sistema aparencia barra lateral recolher' },
+    { id: 'telas', grupo: 'Preferências', rotulo: 'Telas e listas', icone: 'ph-squares-four',
+      titulo: 'Telas e listas', sub: 'Onde cada tela abre e como as listas aparecem', busca: 'abrir inicial aba entregas pendencias cartoes lista pdf drive leitor navegador' },
+    { id: 'consulta', grupo: 'Preferências', rotulo: 'Consulta rápida', icone: 'ph-chats-circle',
+      titulo: 'Consulta rápida', sub: 'A caixa "Perguntar à IA" da barra de cima', busca: 'ia consulta rapida pergunta claude resposta' },
+    { id: 'aplicativo', grupo: 'Aplicativo', rotulo: 'Instalação e versão', icone: 'ph-device-mobile',
+      titulo: 'Instalação e versão', sub: 'O app neste aparelho e os atalhos de teclado', busca: 'instalar tela inicial versao atualizar cache atalho teclado' },
     { id: 'integracoes', grupo: 'Escritório', rotulo: 'Integrações', icone: 'ph-plugs-connected', soAdmin: true,
-      titulo: 'Integrações', sub: 'O que o sistema usa por trás: robô, Gmail e IA', busca: 'robo gmail ia claude gemini integracao drive' }
+      titulo: 'Integrações', sub: 'O que o sistema usa por trás: robô, Gmail, IA, backup e banco', busca: 'robo gmail ia claude gemini integracao drive backup banco leituras' }
   ];
   function secoesVisiveis() { return SECOES.filter(function (s) { return !s.soAdmin || ehAdmin(); }); }
 
@@ -189,6 +208,10 @@
     '.ncfg-seg .ph{font-size:15px}' +
     '.ncfg select,.ncfg input[type=password]{min-height:32px;padding:5px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--ink);font:inherit;font-size:14px}' +
     '.ncfg select:focus,.ncfg input[type=password]:focus{outline:none;border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}' +
+    '.ncfg input.ncfg-texto{width:220px;min-height:32px;padding:5px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--ink);font:inherit;font-size:14px}' +
+    '.ncfg input.ncfg-texto:focus{outline:none;border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}' +
+    '.ncfg-tecla{display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:24px;padding:0 6px;border:1px solid var(--border);' +
+      'border-bottom-width:2px;border-radius:5px;background:var(--surface-2);color:var(--ink);font:inherit;font-size:12px;font-weight:600}' +
     '.ncfg-senha{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}' +
     '.ncfg-senha label{display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:600;color:var(--ink-muted)}' +
     '.ncfg-senha .acoes{grid-column:1/-1;display:flex;gap:8px;justify-content:flex-end}' +
@@ -276,10 +299,12 @@
   function linhasDe(id) {
     return {
       conta: ['Foto de perfil', 'Nome', 'E-mail', 'Cargos', 'Senha', 'Sair da conta'],
-      preferencias: ['Tema claro escuro sistema', 'Abrir o Entregas em', 'Abrir PDFs do Drive leitor do computador navegador'],
-      notificacoes: ['Avisos neste aparelho'],
-      aplicativo: ['Instalar na tela inicial', 'Versão', 'Buscar a versão mais nova'],
-      integracoes: ['Robô da nuvem', 'Gmail', 'IA da Consulta rápida']
+      notificacoes: ['Avisos neste aparelho', 'Aviso de teste', 'Desativar'],
+      aparencia: ['Tema claro escuro sistema', 'Barra lateral aberta recolhida'],
+      telas: ['Abrir o Entregas em', 'Abrir a Pendências em', 'Clientes da Pendências lista cartões', 'Abrir PDFs do Drive leitor do computador navegador'],
+      consulta: ['Resposta padrão rápida com IA'],
+      aplicativo: ['Instalar na tela inicial', 'Versão', 'Buscar a versão mais nova', 'Atalhos de teclado'],
+      integracoes: ['Robô da nuvem', 'Gmail', 'IA da Consulta rápida', 'Backup', 'Uso do banco hoje']
     }[id] || [];
   }
   function combina(texto) { return !busca || semAcento(texto).indexOf(busca) !== -1; }
@@ -330,8 +355,8 @@
   function desenharPagina() {
     var s = secao(secaoAtual);
     var pag = $('ncfgPagina');
-    var corpo = ({ conta: paginaConta, preferencias: paginaPreferencias, notificacoes: paginaNotificacoes,
-      aplicativo: paginaAplicativo, integracoes: paginaIntegracoes })[s.id]();
+    var corpo = ({ conta: paginaConta, notificacoes: paginaNotificacoes, aparencia: paginaAparencia, telas: paginaTelas,
+      consulta: paginaConsulta, aplicativo: paginaAplicativo, integracoes: paginaIntegracoes })[s.id]();
     pag.innerHTML = '<h1>' + esc(s.titulo) + '</h1><p class="ncfg-sub">' + esc(s.sub) + '</p>' +
       (corpo || '<div class="ncfg-nada" style="margin:0">Nada encontrado neste tópico.</div>');
     ligarPagina(s.id);
@@ -349,7 +374,9 @@
         fotoHtml + '<input type="file" accept="image/*" id="ncfgFotoArquivo" class="ncfg-arquivo">' +
         '<label class="ncfg-botao" for="ncfgFotoArquivo"><i class="ph ph-camera" aria-hidden="true"></i> Escolher foto</label>' +
         (foto ? '<button type="button" class="ncfg-botao leve" id="ncfgFotoRemover">Remover</button>' : '')),
-      linha('Nome', '', '<span class="ncfg-valor">' + esc(u.nome || '—') + '</span>'),
+      linha('Nome', 'Como você aparece pra equipe: nas entregas, cobranças e solicitações.',
+        '<input type="text" id="ncfgNome" class="ncfg-texto" maxlength="60" autocomplete="name" value="' + esc(u.nome || '') + '" aria-label="Nome">' +
+        '<button type="button" class="ncfg-botao" id="ncfgNomeSalvar" hidden>Salvar</button>'),
       linha('E-mail', 'Usado para entrar.', '<span class="ncfg-valor">' + esc((conta && conta.email) || '—') + '</span>'),
       nomesCargos ? linha('Cargos', 'Quem muda é um admin, em Clientes e ajustes.', '<span class="ncfg-valor">' + esc(nomesCargos) + '</span>') : ''
     ]) + cartao('Segurança', [
@@ -368,24 +395,51 @@
     ]);
   }
 
-  // ---------------- Preferências
-  function paginaPreferencias() {
-    var aba = lerLocal('abaInicial', 'nova');
-    var pdf = lerLocal('abrirPdf', 'navegador');
-    var abas = [['nova', 'Nova entrega'], ['rota', 'Rota'], ['painel', 'Painel'], ['solicitacoes', 'Solicitações'], ['clientes', 'Clientes e ajustes']]
-      .concat(ehAdmin() || cargos().indexOf('office_boy') !== -1 ? [['honorarios', 'Honorários']] : []);
-    return cartao('Aparência', [
+  // ---------------- Aparência
+  function paginaAparencia() {
+    return cartao('Cores', [
       linha('Tema', 'Vale em todas as telas, em qualquer aparelho seu.',
         seg('tema', valorTema(), [['claro', 'Claro', 'ph-sun'], ['escuro', 'Escuro', 'ph-moon'], ['auto', 'Sistema', 'ph-desktop']]),
         { busca: 'claro escuro sistema aparencia' })
-    ]) + cartao('Ao abrir', [
-      linha('Abrir o Entregas em', 'A aba que aparece primeiro quando você abre o Entregas.',
-        '<select id="ncfgAbaInicial" aria-label="Abrir o Entregas em">' + abas.map(function (a) {
-          return '<option value="' + a[0] + '"' + (a[0] === aba ? ' selected' : '') + '>' + esc(a[1]) + '</option>';
-        }).join('') + '</select>', { busca: 'app inicial aba' }),
+    ]) + cartao('Barra lateral', [
+      linha('Barra lateral', 'Recolhida, fica só com os ícones e a tela usa a largura toda. Neste aparelho (no computador).',
+        seg('lateral', lerLocal('lateral', 'aberta'), [['aberta', 'Aberta', 'ph-caret-left'], ['recolhida', 'Recolhida', 'ph-caret-right']]),
+        { busca: 'recolher icones largura' })
+    ]);
+  }
+
+  // ---------------- Telas e listas
+  function opcoesSelect(id, rotulo, atual, opcoes) {
+    return '<select id="' + id + '" aria-label="' + esc(rotulo) + '">' + opcoes.map(function (a) {
+      return '<option value="' + a[0] + '"' + (a[0] === atual ? ' selected' : '') + '>' + esc(a[1]) + '</option>';
+    }).join('') + '</select>';
+  }
+  function paginaTelas() {
+    var abas = [['nova', 'Nova entrega'], ['rota', 'Rota'], ['painel', 'Painel'], ['solicitacoes', 'Solicitações'], ['clientes', 'Clientes e ajustes']]
+      .concat(ehAdmin() || cargos().indexOf('office_boy') !== -1 ? [['honorarios', 'Honorários']] : []);
+    var pend = [['hoje', 'Hoje'], ['clientes', 'Clientes'], ['robo', 'Robô do Gmail'], ['cobrancas', 'Cobranças']]
+      .concat(ehAdmin() || cargos().indexOf('contabil') !== -1 ? [['arquivo', 'Arquivo']] : []);
+    return cartao('Ao abrir', [
+      linha('Abrir o Entregas em', 'A tela que aparece primeiro quando você abre o Entregas.',
+        opcoesSelect('ncfgAbaInicial', 'Abrir o Entregas em', lerLocal('abaInicial', 'nova'), abas), { busca: 'app inicial aba' }),
+      linha('Abrir a Pendências em', 'A tela que aparece primeiro quando você abre a Pendências.',
+        opcoesSelect('ncfgPendInicio', 'Abrir a Pendências em', lerLocal('pendInicio', 'hoje'), pend), { busca: 'inicial cobranca' })
+    ]) + cartao('Listas e arquivos', [
+      linha('Clientes da Pendências', 'Em lista (uma linha por cliente) ou em cartões, com o gráfico dos últimos meses. Neste aparelho.',
+        seg('visaoPendencias', lerLocal('visaoPendencias', 'lista'), [['lista', 'Lista', 'ph-list-bullets'], ['cartoes', 'Cartões', 'ph-squares-four']]),
+        { busca: 'cartoes lista grafico' }),
       linha('Abrir PDFs do Drive', 'No leitor do computador, o PDF é baixado e abre no seu programa de PDF.',
-        seg('abrirPdf', pdf, [['navegador', 'No navegador'], ['leitor', 'No leitor do computador']]),
+        seg('abrirPdf', lerLocal('abrirPdf', 'navegador'), [['navegador', 'No navegador'], ['leitor', 'No leitor do computador']]),
         { busca: 'arquivo pasta pdf drive' })
+    ]);
+  }
+
+  // ---------------- Consulta rápida
+  function paginaConsulta() {
+    return cartao('Resposta', [
+      linha('Resposta padrão', 'Rápida busca na hora, no próprio aparelho. Com IA entende perguntas abertas, mas depende do PC do escritório ligado. Neste aparelho.',
+        seg('consultaModo', lerLocal('consultaModo', 'rapida'), [['rapida', 'Rápida', 'ph-lightning'], ['ia', 'Com IA', 'ph-sparkle']]),
+        { busca: 'rapida ia claude' })
     ]);
   }
 
@@ -394,17 +448,26 @@
     if (!('Notification' in janela)) return 'sem';
     return Notification.permission;   // granted | denied | default
   }
+  var CHAVE_AVISOS_DESLIGADOS = 'nilma_avisos_desligados';
+  function avisosDesligadosAqui() { try { return localStorage.getItem(CHAVE_AVISOS_DESLIGADOS) === '1'; } catch (e) { return false; } }
   function paginaNotificacoes() {
     var est = estadoNotificacao();
-    var selo = est === 'granted' ? '<span class="ncfg-selo ok">Ligadas</span>'
-      : est === 'denied' ? '<span class="ncfg-selo ruim">Bloqueadas</span>'
-      : est === 'sem' ? '<span class="ncfg-selo">Sem suporte</span>' : '<span class="ncfg-selo">Desligadas</span>';
+    var ligados = est === 'granted' && !avisosDesligadosAqui();
+    var selo = ligados ? '<span class="ncfg-selo ok">Ligados</span>'
+      : est === 'denied' ? '<span class="ncfg-selo ruim">Bloqueados</span>'
+      : est === 'sem' ? '<span class="ncfg-selo">Sem suporte</span>' : '<span class="ncfg-selo">Desligados</span>';
     var botao = est === 'sem' || est === 'denied' ? ''
-      : '<button type="button" class="ncfg-botao" id="ncfgNotifAtivar"><i class="ph ph-bell-simple-ringing" aria-hidden="true"></i> ' + (est === 'granted' ? 'Reativar' : 'Ativar') + '</button>';
+      : '<button type="button" class="ncfg-botao" id="ncfgNotifAtivar"><i class="ph ph-bell-simple-ringing" aria-hidden="true"></i> ' + (ligados ? 'Reativar' : 'Ativar') + '</button>';
     var desc = est === 'denied' ? 'O navegador bloqueou. Libere nas permissões do site (cadeado ao lado do endereço) e volte aqui.'
       : est === 'sem' ? 'Este navegador não recebe avisos. No iPhone, instale o app na tela inicial primeiro.'
       : 'Paradas novas, entrega não realizada, lembretes e documentos vencendo, conforme o seu cargo.';
-    return cartao('Neste aparelho', [linha('Avisos', desc, selo + botao, { busca: 'notificacao push celular' })]);
+    return cartao('Neste aparelho', [
+      linha('Avisos', desc, selo + botao, { busca: 'notificacao push celular' }),
+      ligados ? linha('Aviso de teste', 'Mostra um aviso agora, pra conferir se aparece neste aparelho.',
+        '<button type="button" class="ncfg-botao" id="ncfgNotifTeste"><i class="ph ph-bell" aria-hidden="true"></i> Enviar teste</button>') : '',
+      ligados ? linha('Desativar neste aparelho', 'Os avisos param de chegar aqui; nos seus outros aparelhos continuam.',
+        '<button type="button" class="ncfg-botao perigo" id="ncfgNotifDesligar"><i class="ph ph-bell-slash" aria-hidden="true"></i> Desativar</button>') : ''
+    ]);
   }
 
   // ---------------- Aplicativo
@@ -419,6 +482,10 @@
       linha('Buscar a versão mais nova', 'Apaga os arquivos guardados pelo navegador e abre de novo. Resolve tela velha ou barra sumida.',
         '<button type="button" class="ncfg-botao" id="ncfgAtualizar"><i class="ph ph-arrows-clockwise" aria-hidden="true"></i> Atualizar</button>',
         { busca: 'cache recarregar' })
+    ]) + cartao('Atalhos de teclado', [
+      linha('Perguntar à IA', 'Abre a caixa da barra de cima.', '<kbd class="ncfg-tecla">/</kbd>', { busca: 'atalho teclado' }),
+      linha('Busca', 'Procura cliente, entrega ou tela (no Entregas).', '<kbd class="ncfg-tecla">Ctrl</kbd><kbd class="ncfg-tecla">K</kbd>', { busca: 'atalho teclado' }),
+      linha('Fechar', 'Fecha a janela, o painel ou o menu aberto.', '<kbd class="ncfg-tecla">Esc</kbd>', { busca: 'atalho teclado' })
     ]);
   }
 
@@ -439,7 +506,8 @@
       // Uma leitura só, ao abrir o tópico (sem ouvinte ligado).
       if (!lendoRobo && o.db) {
         lendoRobo = true;
-        o.db.collection('robo').doc('estado').get().then(function (d) { roboLido = d.exists ? d.data() : {}; })
+        Promise.all([o.db.collection('robo').doc('estado').get(), o.db.collection('robo').doc('uso').get().catch(function () { return null; })])
+          .then(function (r) { roboLido = r[0].exists ? r[0].data() : {}; roboLido.usoDoBanco = r[1] && r[1].exists ? r[1].data() : null; })
           .catch(function () { roboLido = { erro: true }; })
           .then(function () { lendoRobo = false; if (caixa && caixa.open && secaoAtual === 'integracoes') desenharPagina(); });
       }
@@ -459,6 +527,21 @@
         r.ultimaExecucao ? '<span class="ncfg-selo ok">Lendo</span>' : '<span class="ncfg-selo">Sem registro</span>'),
       linha('IA da Consulta rápida', ia.motor === 'claude' ? 'Claude, no PC do escritório.' : ia.motor ? 'Gemini, na nuvem.' : 'Motor não informado.',
         iaOk ? '<span class="ncfg-selo ok">Ligada</span>' : '<span class="ncfg-selo ruim">' + (ia.motor === 'claude' ? 'PC desligado' : 'Desligada') + '</span>')
+    ]) + cartao('Dados', [
+      (function () {
+        var b = r.backup || {};
+        var dias = b.em ? Math.floor((Date.now() - Date.parse(b.em)) / 864e5) : null;
+        var ok = b.ok !== false && dias !== null && dias <= 3;
+        return linha('Backup', b.ok === false ? 'O último backup falhou.' : b.em ? 'Último ' + tempo(b.em) + (b.resumo ? ' · ' + b.resumo : '') + '.' : 'Nenhum backup registrado.',
+          ok ? '<span class="ncfg-selo ok">Em dia</span>' : '<span class="ncfg-selo ruim">Ver</span>');
+      })(),
+      (function () {
+        var u = r.usoDoBanco;
+        if (!u || u.erro || typeof u.leituras !== 'number') return linha('Uso do banco hoje', 'O robô ainda não trouxe os números do Google.', '<span class="ncfg-selo">Sem dado</span>');
+        var pct = Math.round(u.leituras / 50000 * 100);
+        return linha('Uso do banco hoje', u.leituras.toLocaleString('pt-BR') + ' de 50.000 leituras (' + pct + '%) · ' + (u.gravacoes || 0).toLocaleString('pt-BR') + ' gravações · ' + tempo(u.em) + '.',
+          pct >= 80 ? '<span class="ncfg-selo ruim">Perto do limite</span>' : '<span class="ncfg-selo ok">Folgado</span>');
+      })()
     ]) + cartao('Editar', [
       linha('Integrações do escritório', 'Motor da IA, serviço de contas e o resto ficam em Clientes e ajustes.',
         '<a class="ncfg-botao" href="entregas.html#clientes"><i class="ph ph-arrow-square-out" aria-hidden="true"></i> Abrir Ajustes</a>')
@@ -480,6 +563,8 @@
     });
     var sel = $('ncfgAbaInicial');
     if (sel) sel.addEventListener('change', function () { salvarPreferencia('abaInicial', sel.value, lerLocal('abaInicial', 'nova')); });
+    var selP = $('ncfgPendInicio');
+    if (selP) selP.addEventListener('change', function () { salvarPreferencia('pendInicio', selP.value, lerLocal('pendInicio', 'hoje')); });
 
     if (id === 'conta') {
       var arq = $('ncfgFotoArquivo');
@@ -497,6 +582,13 @@
       if (cancelar) cancelar.addEventListener('click', function () { trocandoSenha = false; desenharPagina(); });
       var form = $('ncfgSenhaForm');
       if (form) form.addEventListener('submit', trocarSenha);
+      var nome = $('ncfgNome'), nomeSalvar = $('ncfgNomeSalvar');
+      if (nome) {
+        var original = nome.value;
+        nome.addEventListener('input', function () { nomeSalvar.hidden = nome.value.trim() === original.trim(); });
+        nome.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { ev.preventDefault(); if (!nomeSalvar.hidden) nomeSalvar.click(); } });
+        nomeSalvar.addEventListener('click', function () { salvarNome(nome.value, nomeSalvar); });
+      }
       var sair = $('ncfgSair');
       if (sair) sair.addEventListener('click', function () { fechar(); o.sair(); });
     }
@@ -505,12 +597,20 @@
       if (at) at.addEventListener('click', function () {
         at.disabled = true;
         var ativar = o.notificacoes && typeof o.notificacoes.ativar === 'function' ? o.notificacoes.ativar : ativarAvisos;
+        try { localStorage.removeItem(CHAVE_AVISOS_DESLIGADOS); } catch (e) {}
         Promise.resolve(ativar()).catch(function () {}).then(function () {
           // a permissão responde depois do clique: redesenha quando chegar
           setTimeout(function () { if (caixa.open && secaoAtual === 'notificacoes') desenharPagina(); }, 1500);
         });
       });
     }
+    var teste = $('ncfgNotifTeste');
+    if (teste) teste.addEventListener('click', avisoDeTeste);
+    var desligar = $('ncfgNotifDesligar');
+    if (desligar) desligar.addEventListener('click', function () {
+      desligar.disabled = true;
+      desativarAvisos().then(function () { if (caixa.open && secaoAtual === 'notificacoes') desenharPagina(); });
+    });
     if (id === 'aplicativo') {
       var inst = $('ncfgInstalar');
       if (inst) inst.addEventListener('click', function () { o.instalar.fazer(); });
@@ -564,6 +664,50 @@
         .then(function () { avisar('Avisos ligados: chegam mesmo com o app fechado.'); })
         .catch(function (err) { avisar('Não foi possível ligar os avisos: ' + erroDe(err, 'erro'), 'error'); });
     });
+  }
+
+  function avisoDeTeste() {
+    var titulo = 'Nilma', corpo = 'Aviso de teste: os avisos estão chegando neste aparelho.';
+    var mostrar = 'serviceWorker' in navigator && navigator.serviceWorker.getRegistration
+      ? navigator.serviceWorker.getRegistration().then(function (reg) {
+          if (reg && reg.showNotification) return reg.showNotification(titulo, { body: corpo, tag: 'nilma-teste' });
+          new Notification(titulo, { body: corpo, tag: 'nilma-teste' });
+        })
+      : Promise.resolve().then(function () { new Notification(titulo, { body: corpo, tag: 'nilma-teste' }); });
+    mostrar.then(function () { avisar('Aviso de teste enviado.'); })
+      .catch(function (err) { avisar('O aviso de teste não saiu: ' + erroDe(err, 'erro'), 'error'); });
+  }
+  // Tira o endereço de aviso deste aparelho da conta (o robô para de mandar
+  // pra cá) e apaga ele do navegador. A permissão do site continua.
+  function desativarAvisos() {
+    var u = contaFirebase();
+    var marcar = function () { try { localStorage.setItem(CHAVE_AVISOS_DESLIGADOS, '1'); } catch (e) {} };
+    if (!u || !o.db || !o.firebase || !('serviceWorker' in navigator)) { marcar(); return Promise.resolve(); }
+    return carregarMensagens()
+      .then(function () { return navigator.serviceWorker.register('firebase-messaging-sw.js'); })
+      .then(function (registro) {
+        var m = o.firebase.messaging();
+        return m.getToken({ vapidKey: FCM_VAPID_KEY, serviceWorkerRegistration: registro }).then(function (token) {
+          var tirar = token ? o.db.collection('usuarios').doc(u.uid).update({ fcmTokens: o.firebase.firestore.FieldValue.arrayRemove(token) }) : Promise.resolve();
+          return tirar.then(function () { return m.deleteToken().catch(function () {}); });
+        });
+      })
+      .then(function () { marcar(); avisar('Avisos desligados neste aparelho.'); })
+      .catch(function (err) { avisar('Não foi possível desligar: ' + erroDe(err, 'erro'), 'error'); });
+  }
+  function salvarNome(valor, botao) {
+    var nome = String(valor || '').replace(/\s+/g, ' ').trim();
+    if (nome.length < 2) { avisar('Escreva o nome com pelo menos 2 letras.', 'error'); return; }
+    var u = contaFirebase();
+    if (!u || !o.db) return;
+    botao.disabled = true;
+    o.db.collection('usuarios').doc(u.uid).update({ nome: nome })
+      .then(function () {
+        if (typeof o.aoMudarNome === 'function') o.aoMudarNome(nome);
+        avisar('Nome atualizado.');
+        desenhar();
+      })
+      .catch(function (err) { botao.disabled = false; avisar(erroDe(err, 'Não foi possível salvar o nome.'), 'error'); });
   }
 
   // ------------------------------------------------------------ foto e senha
@@ -622,7 +766,7 @@
     montar();
     var u = usuario();
     fotoAtual = u.foto || '';
-    if (qual === 'aparencia') qual = 'preferencias';
+    if (qual === 'preferencias') qual = 'aparencia';
     if (qual && secao(qual)) secaoAtual = qual;
     if (qual === 'integracoes') roboLido = null;   // abre com o estado de agora
     busca = '';

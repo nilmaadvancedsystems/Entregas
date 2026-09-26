@@ -58,8 +58,8 @@
      rápida · anotações · avatar) e as duas gavetas. Nasce aqui, antes do
      resto, porque os scripts do app procuram #notasBtn, #topo etc. -->
 <script src="nilma-dialogo.js?v=345"></script>
-<script src="nilma-shell.js?v=350"></script>
-<script src="nilma-config.js?v=347"></script>
+<script src="nilma-shell.js?v=354"></script>
+<script src="nilma-config.js?v=354"></script>
 <script>NilmaShell.montar({ modulo: 'Entregas', moduloId: 'entregas', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle' });</script>
 <!-- Abas do módulo, sublinhadas, logo abaixo da barra. -->
 <nav class="tabs" id="tabsNav" role="tablist">
@@ -11897,7 +11897,7 @@
     }
   }
 
-  var VERSAO_APP_ = '2.353 · 26/09/2026';
+  var VERSAO_APP_ = '2.354 · 26/09/2026';
   // Configurações do usuário: a janela comum (nilma-config.js), a mesma da
   // Pendências e do Fiscal. 'conta' abre em Minha conta; o resto, em
   // Preferências.
@@ -11915,7 +11915,11 @@
       if (campo === 'abaInicial') { salvarAbaInicial(valor); return true; }
       return false;
     },
-    aplicar: function (campo, valor) { aplicarPreferencia(campo, valor); },
+    aplicar: function (campo, valor) {
+      if (campo === 'consultaModo') { cqModoPreferido = valor === 'ia' ? 'ia' : 'rapida'; cqRenderModo_(); return; }
+      aplicarPreferencia(campo, valor);
+    },
+    aoMudarNome: function (nome) { currentUserNome = nome; aplicarFotoPerfil(fotoPerfilAtual); },
     toast: function (msg, tipo) { showToast(msg, tipo); },
     notificacoes: { ativar: function () { ativarNotificacoesSolicitacoes(); } },
     instalar: { pode: function () { return !!promptInstalar; }, fazer: function () { instalarApp_(); } },

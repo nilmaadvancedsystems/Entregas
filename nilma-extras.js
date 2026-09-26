@@ -61,6 +61,7 @@
   function iaDisponivel() { return iaLigada && (iaClaude || vigiaLigado); }
   function modoAtual() {
     if (!temRapida()) return 'ia';
+    try { modoPreferido = localStorage.getItem(CHAVE_MODO) === 'ia' ? 'ia' : 'rapida'; } catch (e) {}
     return modoPreferido === 'ia' && iaDisponivel() ? 'ia' : 'rapida';
   }
 

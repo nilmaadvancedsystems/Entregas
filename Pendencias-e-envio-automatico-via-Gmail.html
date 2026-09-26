@@ -1249,11 +1249,11 @@
 <body>
 <!-- Casca comum (barra de cima, menu ☰ e menu da conta): nilma-shell.js -->
 <script src="nilma-dialogo.js?v=345"></script>
-<script src="nilma-shell.js?v=350"></script>
-<script src="nilma-config.js?v=347"></script>
-<script src="nilma-extras.js?v=347"></script>
+<script src="nilma-shell.js?v=354"></script>
+<script src="nilma-config.js?v=354"></script>
+<script src="nilma-extras.js?v=354"></script>
 <script>
-  var VERSAO_APP = '2.353 · 26/09/2026';
+  var VERSAO_APP = '2.354 · 26/09/2026';
   NilmaShell.montar({ modulo: 'Pendências', moduloId: 'pendencias', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false, versao: VERSAO_APP });
   // antes do login só a tela de entrada; a barra aparece junto com o app
   document.getElementById('topo').hidden = true;
@@ -2733,7 +2733,12 @@
   });
   NilmaConfig.ligar({
     cargos: function () { return rolesAtuais; },
-    aplicar: function (campo, valor) { if (campo === 'tema') aplicarTema(valor, true); else aplicarPreferencia(campo, valor); },
+    aplicar: function (campo, valor) {
+      if (campo === 'tema') aplicarTema(valor, true);
+      else if (campo === 'visaoPendencias') trocarVisao(valor === 'cartoes' ? 'cartoes' : 'lista');
+      else aplicarPreferencia(campo, valor);
+    },
+    aoMudarNome: function (nome) { usuarioNome = nome; aplicarFoto(contaAtual.foto, nome); },
     sair: function () { auth.signOut(); },
     versao: VERSAO_APP
   });
@@ -8178,7 +8183,11 @@
           '<p>Sua conta não tem acesso a esta tela.</p></div>';
         return;
       }
-      paginaAtual = 'hoje';
+      // Onde abre: Configurações › Telas e listas (vale a da conta, depois a do aparelho).
+      var inicio = dados.pendInicio || '';
+      try { if (inicio) localStorage.setItem('nilma_pend_inicio', inicio); else inicio = localStorage.getItem('nilma_pend_inicio') || ''; } catch (e) {}
+      if (inicio === 'arquivo' && !podeVerArquivo) inicio = '';
+      paginaAtual = SECAO_DA_PAGINA[inicio] ? inicio : 'hoje';
       aplicarLayout();
       aoTrocarMes();
       subscribeConfig();

@@ -470,17 +470,17 @@
       if (!rec && t.dataset.tituloDaCasca) { t.removeAttribute('title'); delete t.dataset.tituloDaCasca; }
     });
   }
+  function recolherLateral(sim) {
+    doc.documentElement.classList.toggle('lateral-recolhida', !!sim);
+    try { localStorage.setItem(CHAVE_LATERAL, sim ? 'recolhida' : 'aberta'); } catch (e) {}
+    pintarRecolher();
+  }
   function ligarRecolher() {
     var nav = $('tabsNav');
     if (!nav || $('lateralRecolher')) return;
     var b = doc.createElement('button');
     b.type = 'button'; b.className = 'lateral-recolher'; b.id = 'lateralRecolher';
-    b.addEventListener('click', function () {
-      var rec = !lateralRecolhida();
-      doc.documentElement.classList.toggle('lateral-recolhida', rec);
-      try { localStorage.setItem(CHAVE_LATERAL, rec ? 'recolhida' : 'aberta'); } catch (e) {}
-      pintarRecolher();
-    });
+    b.addEventListener('click', function () { recolherLateral(!lateralRecolhida()); });
     nav.appendChild(b);
     pintarRecolher();
   }
@@ -521,6 +521,7 @@
     mostrarNotas: function (sim) { mostrar('notasBtn', sim); mostrar('menuNotasBtn', sim); },
     mostrarInstalar: function (sim) { mostrar('menuInstalarBtn', sim); },
     mostrarPerfil: function (sim) { mostrar('menuPerfilBtn', sim); },
+    recolherLateral: recolherLateral,
     versao: function (v) { var el = $('menuAppVersao'); if (el) el.textContent = v ? 'versão ' + v : ''; },
     MODULOS: MODULOS_PADRAO
   };
