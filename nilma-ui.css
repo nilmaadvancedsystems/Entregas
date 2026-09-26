@@ -2065,12 +2065,18 @@ main .card-grupo:not([hidden]),
 /* Pendências › Clientes em cartões: o anel enche e as peças do gráfico
    sobem, coluna a coluna, quando o cartão aparece */
 .cartao-anel .arco { animation: nArco .6s cubic-bezier(.2, .8, .2, 1) backwards; }
-.grafico-peca { transform-origin: bottom; animation: nPeca .35s cubic-bezier(.2, .8, .2, 1) backwards; }
-.grafico-col:nth-child(2) .grafico-peca { animation-delay: 40ms; }
-.grafico-col:nth-child(3) .grafico-peca { animation-delay: 80ms; }
-.grafico-col:nth-child(4) .grafico-peca { animation-delay: 120ms; }
-.grafico-col:nth-child(5) .grafico-peca { animation-delay: 160ms; }
-.grafico-col:nth-child(6) .grafico-peca { animation-delay: 200ms; }
+/* a coluna inteira sobe (não cada peça): com 300 cartões, animar peça por
+   peça eram 5 mil animações de uma vez e a tela travava */
+.grafico-trilho { transform-origin: bottom; animation: nPeca .35s cubic-bezier(.2, .8, .2, 1) backwards; }
+.grafico-col:nth-child(2) .grafico-trilho { animation-delay: 40ms; }
+.grafico-col:nth-child(3) .grafico-trilho { animation-delay: 80ms; }
+.grafico-col:nth-child(4) .grafico-trilho { animation-delay: 120ms; }
+.grafico-col:nth-child(5) .grafico-trilho { animation-delay: 160ms; }
+.grafico-col:nth-child(6) .grafico-trilho { animation-delay: 200ms; }
+/* cartão e linha fora da tela não são desenhados nem animados até chegarem
+   perto dela (o navegador guarda o tamanho pra rolagem não pular) */
+.cartao { content-visibility: auto; contain-intrinsic-size: auto 340px; }
+.linha-cliente { content-visibility: auto; contain-intrinsic-size: auto 48px; }
 
 /* linhas que abrem alguma coisa acendem com transição */
 .tab-simples tbody tr, .entrega-row, .ncfg-linha { transition: background-color .15s ease; }

@@ -34,7 +34,7 @@
      senão a tela pisca no tema errado. -->
 <script src="bancos-nilma.js"></script>
 <script src="nilma-ui.js?v=347"></script>
-<link rel="stylesheet" href="nilma-ui.css?v=356">
+<link rel="stylesheet" href="nilma-ui.css?v=357">
 <style>
   /* ==========================================================================
      Pendências — só o que é desta tela, em cima da fundação (nilma-ui.css).
@@ -1287,7 +1287,7 @@
 <script src="nilma-config.js?v=356"></script>
 <script src="nilma-extras.js?v=355"></script>
 <script>
-  var VERSAO_APP = '2.356 · 26/09/2026';
+  var VERSAO_APP = '2.357 · 26/09/2026';
   NilmaShell.montar({ modulo: 'Pendências', moduloId: 'pendencias', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false, versao: VERSAO_APP });
   // antes do login só a tela de entrada; a barra aparece junto com o app
   document.getElementById('topo').hidden = true;
@@ -3830,16 +3830,13 @@
     });
     container.appendChild(frag);
 
-    var painel = $('painelCartoes');
-    painel.innerHTML = '';
+    // Os cartões só são montados quando a visão de cartões está aberta: cada
+    // um tem uns 150 elementos, e com 300 clientes isso deixava a tela lenta
+    // mesmo para quem só usa a lista.
+    $('painelCartoes').innerHTML = '';
     cartoes.clear();
-    var fragC = document.createDocumentFragment();
-    clientesCache.forEach(function (cliente, i) {
-      var cartao = criarCartao(cliente);
-      if (primeiraMontagem && i < 8) { cartao.style.setProperty('--i', i); cartao.classList.add('nasce'); }
-      fragC.appendChild(cartao);
-    });
-    painel.appendChild(fragC);
+    cartoesAtrasados = true;
+    if (modoVisao === 'cartoes') montarCartoes();
     primeiraMontagem = false;
 
     atualizarTodosStatus();
@@ -3847,13 +3844,32 @@
     renderPaginas();
   }
 
+  var cartoesAtrasados = true;   // true: os cartões montados não refletem o último status
+  function montarCartoes() {
+    if (cartoes.size === 0 && clientesCache.length) {
+      var fragC = document.createDocumentFragment();
+      clientesCache.forEach(function (cliente, i) {
+        var cartao = criarCartao(cliente);
+        if (i < 8) { cartao.style.setProperty('--i', i); cartao.classList.add('nasce'); }
+        fragC.appendChild(cartao);
+      });
+      $('painelCartoes').appendChild(fragC);
+    }
+    if (cartoesAtrasados) {
+      clientesCache.forEach(atualizarCartao);
+      cartoesAtrasados = false;
+    }
+  }
+
   var rodadasDeStatus = 0;
   function atualizarTodosStatus() {
     if (statusCarregado) rodadasDeStatus++;
+    var comCartoes = modoVisao === 'cartoes' && cartoes.size > 0;
     clientesCache.forEach(function (cliente) {
       atualizarLinha(cliente);
-      atualizarCartao(cliente);
+      if (comCartoes) atualizarCartao(cliente);
     });
+    cartoesAtrasados = !comCartoes;
     aplicarFiltros();
   }
 
@@ -3918,13 +3934,19 @@
     var novaOrdem = ordenados.map(function (c) { return c.id; }).join('|');
     if (atualOrdem !== novaOrdem) {
       var frag = document.createDocumentFragment();
-      var fragC = document.createDocumentFragment();
-      ordenados.forEach(function (c) {
-        var l = linhas.get(c.id); if (l) frag.appendChild(l.row);
-        var k = cartoes.get(c.id); if (k) fragC.appendChild(k.cartao);
-      });
+      ordenados.forEach(function (c) { var l = linhas.get(c.id); if (l) frag.appendChild(l.row); });
       container.appendChild(frag);
-      $('painelCartoes').appendChild(fragC);
+    }
+    // Os cartões podem ter sido montados depois (ao trocar de visão), então
+    // a ordem deles é conferida à parte.
+    if (cartoes.size) {
+      var painelC = $('painelCartoes');
+      var ordemC = Array.prototype.map.call(painelC.children, function (n) { return n.id.slice(3); }).join('|');
+      if (ordemC !== novaOrdem) {
+        var fragC = document.createDocumentFragment();
+        ordenados.forEach(function (c) { var k = cartoes.get(c.id); if (k) fragC.appendChild(k.cartao); });
+        painelC.appendChild(fragC);
+      }
     }
 
     var visiveis = idsVisiveis.length;
@@ -4104,6 +4126,7 @@
     if (modoVisao === qual) return;
     modoVisao = qual;
     try { localStorage.setItem('nilma_cobranca_visao', qual); } catch (e) {}
+    if (qual === 'cartoes') montarCartoes();
     aplicarLayout();
     aplicarFiltros();
   }
