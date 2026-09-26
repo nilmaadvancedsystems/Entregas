@@ -48,7 +48,7 @@
 </script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="stylesheet" href="nilma-icones.css?v=345">
-<link rel="stylesheet" href="nilma-ui.css?v=351">
+<link rel="stylesheet" href="nilma-ui.css?v=352">
 <link rel="stylesheet" href="n1-entregas-a.css?v=345">
 <link rel="stylesheet" href="n1-entregas-b.css?v=345">
 <link rel="stylesheet" href="n1-entregas-c.css?v=346">
@@ -73,6 +73,10 @@
   <button class="tab" data-tab="conciliador" role="tab" id="tabbtn-conciliador" aria-controls="tab-conciliador" aria-selected="false" tabindex="-1" hidden><span class="tab-ico"><i class="ph ph-credit-card" aria-hidden="true"></i></span><span class="tab-label">Conciliadorzinho</span></button>
   <button class="tab" data-tab="cheque" role="tab" id="tabbtn-cheque" aria-controls="tab-cheque" aria-selected="false" tabindex="-1" hidden><span class="tab-ico"><i class="ph ph-bank" aria-hidden="true"></i></span><span class="tab-label">Cheque especial</span></button>
 </nav>
+<!-- Menu de cima (nível 2), ao lado da barra lateral: as categorias da tela
+     aberta. Os botões são espelho das barrinhas .aba-subnav/.clientes-subnav
+     de cada tela (desenharAbasSecao_), que ficam escondidas. -->
+<nav class="abas-secao" id="abasSecao" role="tablist" aria-label="Categorias da tela" hidden></nav>
 
 <div class="topbar">
   <div class="topbar-inner">
@@ -831,10 +835,10 @@
     <!-- sem src de propósito: só carrega (data-src) na primeira vez que a
          aba é aberta, pra quem nunca usa Contábil não pagar o custo de
          carregar mais dois apps inteiros (Firebase incluso) à toa. -->
-    <iframe id="frameConciliador" data-src="conciliador.html?embutido=1" title="Conciliadorzinho" style="width:100%;height:calc(100dvh - var(--topo-total, 56px) - 32px);min-height:480px;border:0;display:block;border-radius:var(--r-md);"></iframe>
+    <iframe id="frameConciliador" data-src="conciliador.html?embutido=1" title="Conciliadorzinho" style="width:100%;height:calc(100dvh - var(--topo-total, 56px) - var(--abas2, 0px) - 32px);min-height:480px;border:0;display:block;border-radius:var(--r-md);"></iframe>
   </section>
   <section id="tab-cheque" class="view" role="tabpanel" tabindex="-1" aria-labelledby="tabbtn-cheque" hidden>
-    <iframe id="frameCheque" data-src="cheque-especial.html?embutido=1" title="Cheque especial" style="width:100%;height:calc(100dvh - var(--topo-total, 56px) - 32px);min-height:480px;border:0;display:block;border-radius:var(--r-md);"></iframe>
+    <iframe id="frameCheque" data-src="cheque-especial.html?embutido=1" title="Cheque especial" style="width:100%;height:calc(100dvh - var(--topo-total, 56px) - var(--abas2, 0px) - 32px);min-height:480px;border:0;display:block;border-radius:var(--r-md);"></iframe>
   </section>
 </main>
 
@@ -3032,6 +3036,72 @@
   }
 
   montarAjustesNaAbaClientes_();
+
+  // ---------- menu de cima (nível 2), como na Pendências ----------
+  // Barra lateral = a tela (nível 1); menu de cima = as categorias dela
+  // (nível 2); dentro da página, o que cada categoria já tem (nível 3). As
+  // categorias continuam sendo as barrinhas .aba-subnav / .clientes-subnav
+  // montadas acima: o menu de cima só mostra os botões delas e, no clique,
+  // aperta o botão original. Tela sem categorias ganha um item só, com o
+  // nome dela, pra barra não aparecer e sumir a cada troca.
+  function subnavDaTelaAberta_() {
+    var lista = document.querySelectorAll('main .aba-subnav, main .clientes-subnav');
+    for (var i = 0; i < lista.length; i++) {
+      var sub = lista[i], escondida = sub.hidden;
+      for (var p = sub.parentElement; p && !escondida && p !== document.body; p = p.parentElement) if (p.hidden) escondida = true;
+      if (!escondida) return sub;
+    }
+    return null;
+  }
+  function iconeDe_(el) {
+    var i = el && el.querySelector('.ph');
+    var m = i && i.className.match(/ph-[a-z0-9-]+/);
+    return m ? m[0] : '';
+  }
+  var assinaturaAbasSecao_ = '';
+  function desenharAbasSecao_() {
+    var nav = $('abasSecao');
+    if (!nav) return;
+    var itens = [];
+    var sub = subnavDaTelaAberta_();
+    if (sub) {
+      sub.querySelectorAll('.mode-btn').forEach(function (b) {
+        if (!b.hidden) itens.push({ alvo: b, rotulo: b.textContent.trim(), icone: iconeDe_(b), ativo: b.classList.contains('active') });
+      });
+    } else {
+      var t = document.querySelector('#tabsNav .tab-nivel1.active:not([hidden])') || document.querySelector('#tabsNav .tab.active:not([hidden])');
+      var rot = t && t.querySelector('.tab-label');
+      if (rot) itens.push({ alvo: null, rotulo: rot.textContent.trim(), icone: iconeDe_(t), ativo: true });
+    }
+    var esconder = $('tabsNav').hidden || !itens.length;
+    var assinatura = esconder ? '' : itens.map(function (x) { return x.rotulo + (x.ativo ? '*' : ''); }).join('|');
+    if (assinatura === assinaturaAbasSecao_ && nav.hidden === esconder) return;
+    assinaturaAbasSecao_ = assinatura;
+    nav.hidden = esconder;
+    nav.innerHTML = '';
+    itens.forEach(function (x) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'aba-s'; b.setAttribute('role', 'tab');
+      b.setAttribute('aria-selected', String(x.ativo));
+      b.innerHTML = (x.icone ? '<i class="ph ' + x.icone + '" aria-hidden="true"></i>' : '') + '<span>' + escapeHtml_(x.rotulo) + '</span>';
+      if (x.alvo) b.addEventListener('click', function () { x.alvo.click(); });
+      nav.appendChild(b);
+    });
+  }
+  // Troca de tela, de categoria e de cargo mexem em hidden/class: um
+  // redesenho por quadro, no máximo, e só quando o que aparece mudou.
+  (function () {
+    var pedido = false;
+    var obs = new MutationObserver(function (lista) {
+      if (pedido) return;
+      for (var i = 0; i < lista.length; i++) {
+        if (!$('abasSecao').contains(lista[i].target)) { pedido = true; break; }
+      }
+      if (pedido) requestAnimationFrame(function () { pedido = false; desenharAbasSecao_(); });
+    });
+    obs.observe(document.body, { attributes: true, attributeFilter: ['hidden', 'class'], subtree: true });
+    desenharAbasSecao_();
+  })();
 
   // ---------- submenus das abas de Entregas ----------
   // O mesmo desenho que a Nilma aprovou em Clientes › Ajustes: a barra
@@ -11827,7 +11897,7 @@
     }
   }
 
-  var VERSAO_APP_ = '2.351 · 26/09/2026';
+  var VERSAO_APP_ = '2.352 · 26/09/2026';
   // Configurações do usuário: a janela comum (nilma-config.js), a mesma da
   // Pendências e do Fiscal. 'conta' abre em Minha conta; o resto, em
   // Preferências.

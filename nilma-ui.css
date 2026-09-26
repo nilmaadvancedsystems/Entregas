@@ -1744,6 +1744,48 @@ html.com-casca body > .topbar { display: none; }
 }
 @media (max-width: 899px) { .lateral-recolher { display: none; } }
 
+/* --- menu de cima (nível 2): as páginas da tela aberta na barra lateral ---
+   Pendências e Entregas. Barra lateral = seções (nível 1), menu de cima =
+   páginas (nível 2), submenu dentro da página = partes (nível 3). */
+/* No PC ele fica ao lado da barra lateral, no alto do conteúdo (começa na
+   linha dela, não por cima), e gruda embaixo do cabeçalho; o que gruda no
+   alto das páginas desce os 48px dele (--abas2). No celular vem logo
+   abaixo da faixa das seções. */
+:root { --abas2: 0px; }
+html.com-casca:has(#abasSecao:not([hidden])) { --abas2: 48px; }
+.abas-secao {
+  position: sticky; top: calc(var(--topo-total) + 48px); z-index: var(--z-fixo);
+  display: flex; align-items: center; gap: 4px; height: 48px; margin: 0; padding: 0 16px;
+  /* o fio de baixo é sombra: com borda, o sublinhado da aba aberta era cortado */
+  background: var(--header-bg); box-shadow: inset 0 -1px 0 var(--border);
+  overflow-x: auto; overflow-y: hidden; scrollbar-width: none;
+}
+.abas-secao::-webkit-scrollbar { display: none; }
+.abas-secao[hidden] { display: none; }
+/* aba: texto cinza; a aberta em tinta, com o sublinhado vermelho colado no
+   fio de baixo da barra (sem caixa em volta) */
+.aba-s {
+  position: relative; flex: none; display: inline-flex; align-items: center; gap: 8px; height: 48px; padding: 0 12px;
+  border: 0; border-radius: 0; background: none; color: var(--ink-muted); font: inherit; font-size: 14px; white-space: nowrap; cursor: pointer;
+}
+.aba-s::before { content: ''; position: absolute; inset: 8px 2px; border-radius: 6px; z-index: -1; transition: background .12s ease; }
+.aba-s { isolation: isolate; }
+.aba-s:hover { color: var(--ink); }
+.aba-s:hover::before { background: var(--hover-bg); }
+.aba-s .ph { font-size: 16px; }
+.aba-s[aria-selected="true"] { color: var(--ink); font-weight: 600; }
+.aba-s[aria-selected="true"] .ph { color: var(--ink); }
+.aba-s[aria-selected="true"]::after {
+  content: ''; position: absolute; left: 8px; right: 8px; bottom: 0; height: 2px; border-radius: 2px 2px 0 0; background: var(--tab-active);
+}
+.aba-s .tab-badge { background: var(--surface-3); }
+@media (min-width: 900px) {
+  .abas-secao { top: var(--topo-total); padding: 0 20px; background: var(--bg); }
+}
+/* Entregas: as categorias de cada tela sobem pro menu de cima */
+html:has(#abasSecao:not([hidden])) main .aba-subnav,
+html:has(#abasSecao:not([hidden])) main .clientes-subnav { display: none !important; }
+
 /* --- gaveta ☰ (= .drawer) --- */
 .gaveta-veu {
   position: fixed; inset: 0; z-index: calc(var(--z-gaveta) - 1); background: #0000004D;
