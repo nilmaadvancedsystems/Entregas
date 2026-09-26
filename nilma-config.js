@@ -247,13 +247,16 @@
       '.ncfg-senha{grid-template-columns:1fr}' +
     '}';
 
+  // A janela de Solicitações (nilma-solicitacoes.js) usa o mesmo desenho.
+  function estilo() {
+    if ($('ncfgEstilo')) return;
+    var s = doc.createElement('style');
+    s.id = 'ncfgEstilo'; s.textContent = CSS;
+    doc.head.appendChild(s);
+  }
   function montar() {
     if (caixa) return caixa;
-    if (!$('ncfgEstilo')) {
-      var s = doc.createElement('style');
-      s.id = 'ncfgEstilo'; s.textContent = CSS;
-      doc.head.appendChild(s);
-    }
+    estilo();
     caixa = doc.createElement('dialog');
     caixa.className = 'ncfg';
     caixa.id = 'nilmaConfig';
@@ -789,6 +792,8 @@
   var linkPendente = false;
   function ligar(opcoes) {
     o = Object.assign(o, opcoes || {});
+    // Solicitações usa a mesma conta, banco e cargos que a tela já passou aqui
+    if (janela.NilmaSolicitacoes) janela.NilmaSolicitacoes.ligar(o);
     // ?config=notificacoes (vindo de outra tela): abre depois do login
     if (!linkPendente && o.auth && /[?&]config=/.test(location.search)) {
       linkPendente = true;
@@ -808,5 +813,5 @@
     }
   }
 
-  janela.NilmaConfig = { ligar: ligar, abrir: abrir, fechar: fechar };
+  janela.NilmaConfig = { ligar: ligar, abrir: abrir, fechar: fechar, estilo: estilo };
 })(window, document);

@@ -1283,11 +1283,12 @@
 <body>
 <!-- Casca comum (barra de cima, menu ☰ e menu da conta): nilma-shell.js -->
 <script src="nilma-dialogo.js?v=345"></script>
-<script src="nilma-shell.js?v=355"></script>
-<script src="nilma-config.js?v=356"></script>
+<script src="nilma-shell.js?v=358"></script>
+<script src="nilma-config.js?v=358"></script>
+<script src="nilma-solicitacoes.js?v=358"></script>
 <script src="nilma-extras.js?v=355"></script>
 <script>
-  var VERSAO_APP = '2.357 · 26/09/2026';
+  var VERSAO_APP = '2.358 · 26/09/2026';
   NilmaShell.montar({ modulo: 'Pendências', moduloId: 'pendencias', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false, versao: VERSAO_APP });
   // antes do login só a tela de entrada; a barra aparece junto com o app
   document.getElementById('topo').hidden = true;
@@ -2784,6 +2785,7 @@
   });
   NilmaConfig.ligar({
     cargos: function () { return rolesAtuais; },
+    clientes: function () { return clientesCache; },   // empresa do pedido de atestado (Solicitações)
     aplicar: function (campo, valor) {
       if (campo === 'tema') aplicarTema(valor, true);
       else if (campo === 'visaoPendencias') trocarVisao(valor === 'cartoes' ? 'cartoes' : 'lista');

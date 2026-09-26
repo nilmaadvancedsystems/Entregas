@@ -319,11 +319,14 @@
     botao('menuBuscaBtn', 'buscaGlobal');
     botao('menuInstalarBtn', 'instalar');
     botao('menuPerfilBtn', 'perfil');
-    // Tela sem Solicitações próprias: vai pra aba do Entregas.
+    // Solicitações abrem numa janela por cima da tela (nilma-solicitacoes.js);
+    // tela sem essa janela vai pro Entregas, que abre a janela lá.
     var solBtn = $('menuSolicitacoesBtn');
     if (solBtn) solBtn.addEventListener('click', function (ev) {
       fecharGaveta(true);
-      if (!chamar('solicitacoes', ev)) janela.location.href = 'entregas.html#solicitacoes';
+      if (chamar('solicitacoes', ev)) return;
+      if (janela.NilmaSolicitacoes) janela.NilmaSolicitacoes.abrir();
+      else janela.location.href = 'entregas.html#solicitacoes';
     });
     botao('menuAparenciaBtn', 'aparencia');
     botao('menuSairBtn', 'sair');

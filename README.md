@@ -8,7 +8,11 @@ Para testar sem gravar nada no banco, abra com `?demo=1` no fim do link.
 ## Configurações no estilo do Notion (versão 2.347)
 
 O menu da foto (canto de cima) tem **Solicitações** e **Configurações** em
-todas as telas. Solicitações leva à aba do Entregas. Configurações abre a
+todas as telas. Solicitações (versão 2.358) abre uma janela no mesmo desenho,
+por cima da tela, sem sair de onde a pessoa está (`nilma-solicitacoes.js`):
+Nova solicitação, Pendentes (urgentes em cima, com Concluir) e Concluídas
+(as últimas 30), com busca. O office boy vê a fila da equipe; o resto, o que
+pediu. As pendentes só são ouvidas com a janela aberta. Configurações abre a
 mesma janela no Entregas, na Pendências, no Fiscal e no Contábil
 (`nilma-config.js`), começando em Minha conta: tópicos à esquerda, com busca,
 e as opções à direita, no desenho da ficha do cliente.
