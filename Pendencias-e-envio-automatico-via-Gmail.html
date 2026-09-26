@@ -1253,7 +1253,7 @@
 <script src="nilma-config.js?v=347"></script>
 <script src="nilma-extras.js?v=347"></script>
 <script>
-  var VERSAO_APP = '2.352 · 26/09/2026';
+  var VERSAO_APP = '2.353 · 26/09/2026';
   NilmaShell.montar({ modulo: 'Pendências', moduloId: 'pendencias', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false, versao: VERSAO_APP });
   // antes do login só a tela de entrada; a barra aparece junto com o app
   document.getElementById('topo').hidden = true;
@@ -6700,7 +6700,7 @@
     }).then(function (ref) {
       var fim = setTimeout(function () {
         parar();
-        terminar({ status: 'erro', erro: 'o robô não respondeu a tempo; confira se ele está online' });
+        terminar({ status: 'erro', erro: 'o robô não respondeu a tempo; confira se ele está online e se já recebeu a versão nova' });
       }, 90000);
       var parar = ref.onSnapshot(function (d) {
         var p = d.data();
@@ -6709,10 +6709,14 @@
         terminar(p);
       }, function (err) {
         clearTimeout(fim);
-        terminar({ status: 'erro', erro: err.message });
+        terminar({ status: 'erro', erro: err && err.code === 'permission-denied'
+          ? 'o banco ainda não deixa ler a resposta (falta publicar as regras novas do Firestore)' : err.message });
       });
     }).catch(function (err) {
-      terminar({ status: 'erro', erro: err.message });
+      // Sem a regra de leiturasGmail publicada no banco, o pedido é recusado.
+      terminar({ status: 'erro', erro: err && err.code === 'permission-denied'
+        ? 'o banco ainda não aceita este pedido (falta publicar as regras novas do Firestore)'
+        : err.message });
     });
   }
 
