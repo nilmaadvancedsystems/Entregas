@@ -38,14 +38,18 @@ function montarMensagem({ de, para, cco, assunto, corpo, html, imagens, anexos }
       '--' + alt, 'Content-Type: text/html; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', em76(Buffer.from(html, 'utf8')),
       '--' + alt + '--',
     ];
-    const figuras = (imagens || []).filter(i => { try { return fs.statSync(i.arquivo).size < 200 * 1024; } catch (e) { return false; } });
+    // imagem de arquivo (logos, até 200 KB) ou já em memória (as do HTML pronto do Disparo)
+    const figuras = (imagens || []).filter(i => {
+      if (i.buffer) return i.buffer.length < 3 * 1024 * 1024;
+      try { return fs.statSync(i.arquivo).size < 200 * 1024; } catch (e) { return false; }
+    });
     if (!figuras.length) {
       conteudo.push('Content-Type: multipart/alternative; boundary="' + alt + '"', '', ...partes);
     } else {
       conteudo.push('Content-Type: multipart/related; boundary="' + rel + '"', '',
         '--' + rel, 'Content-Type: multipart/alternative; boundary="' + alt + '"', '', ...partes);
       figuras.forEach(i => conteudo.push('--' + rel, 'Content-Type: ' + (i.mime || 'image/png'), 'Content-Transfer-Encoding: base64',
-        'Content-ID: <' + i.cid + '>', 'Content-Disposition: inline; filename="' + i.cid + '.png"', '', em76(fs.readFileSync(i.arquivo))));
+        'Content-ID: <' + i.cid + '>', 'Content-Disposition: inline; filename="' + i.cid + '.' + String(i.mime || 'image/png').split('/')[1].replace('jpeg', 'jpg') + '"', '', em76(i.buffer || fs.readFileSync(i.arquivo))));
       conteudo.push('--' + rel + '--');
     }
   }
@@ -64,4 +68,22 @@ function montarMensagem({ de, para, cco, assunto, corpo, html, imagens, anexos }
     .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-module.exports = { montarMensagem, codificarCabecalho, nomeCodificado };
+// HTML pronto (Disparo): tira <script> e troca as imagens embutidas em
+// data: (que o Gmail não mostra) por imagens anexadas por cid.
+// -> { html, imagens: [{ cid, mime, buffer }] }
+function prepararHtmlPronto(html) {
+  const imagens = [];
+  let limpo = String(html || '')
+    .replace(/<script\b[\s\S]*?<\/script\s*>/gi, '')
+    .replace(/\son[a-z]+\s*=\s*("[^"]*"|'[^']*')/gi, '');
+  limpo = limpo.replace(/(src\s*=\s*)(["'])data:(image\/(?:png|jpe?g|gif|webp));base64,([A-Za-z0-9+/=\s]+)\2/gi, (tudo, attr, aspas, mime, dados) => {
+    const buffer = Buffer.from(dados.replace(/\s+/g, ''), 'base64');
+    if (!buffer.length) return tudo;
+    const cid = 'img-' + (imagens.length + 1);
+    imagens.push({ cid, mime: mime.toLowerCase().replace('jpg', 'jpeg'), buffer });
+    return attr + aspas + 'cid:' + cid + aspas;
+  });
+  return { html: limpo, imagens };
+}
+
+module.exports = { montarMensagem, codificarCabecalho, nomeCodificado, prepararHtmlPronto };

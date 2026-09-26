@@ -21,6 +21,11 @@ e-mail começam marcados; dá pra buscar e desmarcar.
   admin. O andamento aparece em % no cartão do robô e na página.
 - O Gmail aceita uns 500 destinatários por dia: a página avisa quando passa
   de 450.
+- **HTML pronto** (versão 2.361): em vez do texto, um arquivo .html (ou o código
+  colado), com prévia na página. Vai do jeito que veio, sem a moldura do
+  escritório; o vigia só tira `<script>`/`on…=` e troca imagens embutidas em
+  `data:` (que o Gmail não mostra) por imagens anexadas por cid. O `<title>`
+  vira o assunto se ele estiver vazio. Máximo de uns 800 KB de HTML.
 - Regras do banco: pedido de disparo só admin cria (em nome próprio) e altera;
   `partes` só admin.
 

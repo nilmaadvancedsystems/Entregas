@@ -865,6 +865,9 @@
   .disp-coluna .input { width: 100%; }
   .disp-coluna textarea.input { min-height: 150px; resize: vertical; line-height: 20px; font-family: inherit; }
   .disp-nome { gap: 6px; }
+  .disp-formato { margin-left: auto; }
+  .disp-codigo { min-height: 160px; font-family: var(--font-num); font-size: 12px; line-height: 18px; white-space: pre; overflow-wrap: normal; }
+  .disp-previa { width: 100%; height: 460px; border: 1px solid var(--border); border-radius: 6px; background: #FFFFFF; }
   .disp-nome .input { width: 240px; }
   .disp-ext { font-size: 14px; color: var(--ink-muted); }
   .disp-cont { margin-left: auto; font-size: 12px; color: var(--ink-muted); font-variant-numeric: tabular-nums; }
@@ -1321,7 +1324,7 @@
 <script src="nilma-solicitacoes.js?v=358"></script>
 <script src="nilma-extras.js?v=355"></script>
 <script>
-  var VERSAO_APP = '2.360 · 26/09/2026';
+  var VERSAO_APP = '2.361 · 26/09/2026';
   NilmaShell.montar({ modulo: 'Pendências', moduloId: 'pendencias', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false, versao: VERSAO_APP });
   // antes do login só a tela de entrada; a barra aparece junto com o app
   document.getElementById('topo').hidden = true;
@@ -1572,19 +1575,41 @@
       <div id="dispAndamento" aria-live="polite" hidden></div>
       <form class="disp-form" id="dispForm" novalidate>
         <section class="cfg-cartao">
-          <div class="cfg-cartao-cab"><h2>Mensagem</h2></div>
+          <div class="cfg-cartao-cab"><h2>Mensagem</h2>
+            <div class="mode-toggle disp-formato" role="group" aria-label="Formato da mensagem" id="dispFormato">
+              <button type="button" class="mode-btn active" data-formato="texto" aria-pressed="true">Texto</button>
+              <button type="button" class="mode-btn" data-formato="html" aria-pressed="false">HTML pronto</button>
+            </div>
+          </div>
           <div class="cfg-linha disp-coluna">
             <label class="rot" for="dispAssunto">Assunto</label>
             <input class="input" id="dispAssunto" type="text" maxlength="200" placeholder="Ex.: Calendário de obrigações de outubro" autocomplete="off">
           </div>
           <div class="cfg-linha disp-coluna">
-            <label class="rot" for="dispCorpo">Texto</label>
+            <label class="rot" for="dispCorpo" id="dispRotTexto">Texto</label>
             <textarea class="input" id="dispCorpo" rows="7" maxlength="20000">Olá,
 
 Segue em anexo.
 
 Qualquer dúvida, é só responder este e-mail.</textarea>
             <div class="desc">A assinatura das Configurações vai no rodapé do e-mail.</div>
+          </div>
+          <div class="cfg-linha" id="dispLinhaHtmlArq" hidden>
+            <div class="txt"><span class="rot">Arquivo HTML</span>
+              <div class="desc">O e-mail vai do jeito que está no HTML, sem a moldura do escritório. Imagens com link (https://) aparecem normalmente; as embutidas no arquivo vão dentro do e-mail.</div></div>
+            <div class="ctl">
+              <input type="file" id="dispHtmlArq" accept=".html,.htm,text/html" hidden>
+              <button type="button" class="btn btn-secondary" id="dispHtmlEscolher"><i class="ph ph-file-code" aria-hidden="true"></i> Escolher .html</button>
+            </div>
+          </div>
+          <div class="cfg-linha disp-coluna" id="dispLinhaHtml" hidden>
+            <label class="rot" for="dispHtml">Código HTML</label>
+            <textarea class="input disp-codigo" id="dispHtml" rows="8" spellcheck="false" placeholder="ou cole o HTML aqui"></textarea>
+            <div class="desc" id="dispHtmlInfo"></div>
+          </div>
+          <div class="cfg-linha disp-coluna" id="dispLinhaPrevia" hidden>
+            <span class="rot">Prévia</span>
+            <iframe class="disp-previa" id="dispPrevia" sandbox="" title="Prévia do e-mail"></iframe>
           </div>
         </section>
         <section class="cfg-cartao">
@@ -6485,20 +6510,72 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
     dispLerHistorico();
   }
 
+  // Texto (o escritório escreve, o robô põe na moldura) ou HTML pronto (vai
+  // do jeito que veio). A prévia roda num iframe sem script (sandbox vazio).
+  var dispFormato = 'texto';
+  var DISP_HTML_MAX = 800000;                // letras: o pedido inteiro tem que caber em 1 MB no banco
+  function dispTrocarFormato(qual) {
+    dispFormato = qual;
+    $('dispFormato').querySelectorAll('.mode-btn').forEach(function (b) {
+      var ativo = b.dataset.formato === qual;
+      b.classList.toggle('active', ativo); b.setAttribute('aria-pressed', String(ativo));
+    });
+    var html = qual === 'html';
+    $('dispCorpo').closest('.cfg-linha').hidden = html;
+    $('dispLinhaHtmlArq').hidden = !html;
+    $('dispLinhaHtml').hidden = !html;
+    dispPrevia();
+  }
+  $('dispFormato').addEventListener('click', function (ev) {
+    var b = ev.target.closest('.mode-btn');
+    if (b) dispTrocarFormato(b.dataset.formato);
+  });
+  var dispPreviaRelogio = null;
+  function dispPrevia() {
+    var html = $('dispHtml').value;
+    var mostrar = dispFormato === 'html' && !!html.trim();
+    $('dispLinhaPrevia').hidden = !mostrar;
+    var info = $('dispHtmlInfo');
+    info.textContent = !html.trim() ? '' : tamanhoLegivel(new Blob([html]).size) + (html.length > DISP_HTML_MAX ? ' · grande demais: o máximo é uns 800 KB (imagens pesadas embutidas? use imagens com link)' : '');
+    info.style.color = html.length > DISP_HTML_MAX ? 'var(--destructive)' : '';
+    if (mostrar) $('dispPrevia').srcdoc = html;
+    // o <title> do HTML vira o assunto, se ainda não tem um
+    var t = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+    if (t && !$('dispAssunto').value.trim()) $('dispAssunto').value = t[1].replace(/\s+/g, ' ').trim().slice(0, 200);
+  }
+  $('dispHtml').addEventListener('input', function () { clearTimeout(dispPreviaRelogio); dispPreviaRelogio = setTimeout(dispPrevia, 400); });
+  $('dispHtmlEscolher').addEventListener('click', function () { $('dispHtmlArq').click(); });
+  $('dispHtmlArq').addEventListener('change', function () {
+    var f = this.files && this.files[0];
+    this.value = '';
+    if (!f) return;
+    if (!/\.html?$/i.test(f.name)) { toast('Escolha um arquivo .html.', 'erro'); return; }
+    var leitor = new FileReader();
+    leitor.onload = function () { $('dispHtml').value = String(leitor.result || ''); dispPrevia(); };
+    leitor.onerror = function () { toast('Não consegui ler o arquivo.', 'erro'); };
+    leitor.readAsText(f, 'utf-8');
+  });
+
   $('dispForm').addEventListener('submit', async function (ev) {
     ev.preventDefault();
     if (dispEnviando || !souAdmin) return;
     var aviso = $('dispAviso');
     var assunto = $('dispAssunto').value.trim();
-    var corpo = $('dispCorpo').value.trim();
+    var emHtml = dispFormato === 'html';
+    var corpo = emHtml ? '' : $('dispCorpo').value.trim();
+    var html = emHtml ? $('dispHtml').value : '';
     var escolhidos = dispEscolhidos();
-    var erro = !assunto ? 'Escreva o assunto.' : !corpo ? 'Escreva o texto.' : !escolhidos.length ? 'Marque pelo menos um cliente.' : '';
+    var erro = !assunto ? 'Escreva o assunto.'
+      : emHtml && !html.trim() ? 'Escolha o arquivo .html ou cole o HTML.'
+      : emHtml && html.length > DISP_HTML_MAX ? 'O HTML passa de uns 800 KB: use imagens com link em vez de embutidas.'
+      : !emHtml && !corpo ? 'Escreva o texto.'
+      : !escolhidos.length ? 'Marque pelo menos um cliente.' : '';
     if (!erro && dispArquivo && !$('dispNomeArquivo').value.trim()) erro = 'Dê um nome pro arquivo.';
     if (erro) { aviso.textContent = erro; aviso.classList.add('erro'); return; }
     var nomeArquivo = dispArquivo ? $('dispNomeArquivo').value.trim().replace(/[\\/:*?"<>|]+/g, '-') + '.' + dispArquivo.ext : '';
     var ok = await NilmaDialogo.confirmar({
       titulo: 'Disparar para ' + plural(escolhidos.length, 'cliente', 'clientes') + '?',
-      texto: '"' + assunto + '"' + (nomeArquivo ? ' com o arquivo ' + nomeArquivo : ', sem arquivo') + '. Depois de enviado, não dá pra desfazer.',
+      texto: '"' + assunto + '"' + (emHtml ? ' (HTML pronto)' : '') + (nomeArquivo ? ' com o arquivo ' + nomeArquivo : ', sem arquivo') + '. Depois de enviado, não dá pra desfazer.',
       acao: 'Disparar'
     });
     if (!ok) return;
@@ -6520,6 +6597,7 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
       aviso.textContent = 'Pondo na fila do robô…';
       await ref.set({
         tipo: 'disparo', status: 'pendente', assunto: assunto, corpo: corpo,
+        formato: emHtml ? 'html' : 'texto', html: emHtml ? html : null,
         clienteIds: escolhidos.map(function (c) { return c.id; }),
         anexo: dispArquivo ? { nome: nomeArquivo, mime: dispArquivo.mime, tamanho: dispArquivo.tamanho, partes: partes } : null,
         criadoEm: new Date().toISOString(), criadoPor: quemSou(),
@@ -6532,6 +6610,7 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
       toast(vigiaLigado() ? 'Disparo na fila do robô.' : 'Disparo na fila: o robô está fora do ar e envia quando voltar.', 'ok');
       // formulário limpo pro próximo; a lista volta a ter todos marcados
       $('dispAssunto').value = '';
+      $('dispHtml').value = ''; dispPrevia();
       $('dispTirar').click();
       dispFora.clear(); dispListaDe = ''; dispMontarLista();
       dispLerHistorico(true);

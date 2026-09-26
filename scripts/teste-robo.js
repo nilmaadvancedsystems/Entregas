@@ -336,6 +336,14 @@ igual('disparo: Cco, multipart/mixed, anexo com nome acentuado e HTML', [
   comAnexo.includes(Buffer.from('%PDF-1.4 teste').toString('base64')),
 ], [true, true, true, true, true]);
 igual('sem anexo continua sem multipart/mixed', /multipart\/mixed/.test(cru(mg.montarMensagem({ de: 'n@x.com', assunto: 'Oi', corpo: 'x' }))), false);
+const png1x1 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+const pronto = mg.prepararHtmlPronto('<html><body onload="x()"><h1>Aviso</h1><img src="data:image/png;base64,' + png1x1 + '"><img src="https://x.com/a.png"><script>alert(1)</script></body></html>');
+igual('HTML pronto: sem script/onload, imagem data: vira cid, link externo fica', [
+  /<script/i.test(pronto.html), /onload/i.test(pronto.html), /src="cid:img-1"/.test(pronto.html), /src="https:\/\/x\.com\/a\.png"/.test(pronto.html),
+  pronto.imagens.length, pronto.imagens[0].mime,
+], [false, false, true, true, 1, 'image/png']);
+const comFigura = cru(mg.montarMensagem({ de: 'n@x.com', assunto: 'A', corpo: 'a', html: pronto.html, imagens: pronto.imagens }));
+igual('HTML pronto: imagem vai embutida (multipart/related, Content-ID)', [/multipart\/related/.test(comFigura), /Content-ID: <img-1>/.test(comFigura)], [true, true]);
 const disp = eh.htmlDoDisparo({ assunto: 'Aviso <importante>', corpo: 'Olá\n\nSegue.', anexo: { nome: 'a.pdf', tamanho: 348000 } });
 igual('HTML do disparo: título escapado, arquivo e tamanho', [/Aviso &lt;importante&gt;/.test(disp.html), /a\.pdf/.test(disp.html), /340 KB/.test(disp.html)], [true, true, true]);
 

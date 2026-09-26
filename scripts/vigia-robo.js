@@ -82,7 +82,8 @@ function baterPonto() {
 
 // ---------- e-mail ----------
 // A mensagem (texto, HTML, logos por cid e anexos) é montada em mensagem-gmail.js.
-const { montarMensagem: montarMime } = require('./mensagem-gmail');
+const { montarMensagem: montarMime, prepararHtmlPronto } = require('./mensagem-gmail');
+const { htmlParaTexto } = require('./leituras-gmail');
 const montarMensagem = dados => montarMime(Object.assign({ de: CAIXA }, dados));
 const { htmlDaCobranca, htmlDoDisparo } = require('./email-html');
 // assinatura e dia limite, do config/cobranca; lido no máximo a cada 10 min
@@ -215,8 +216,10 @@ async function dispararPara(p, ref) {
   const papeis = Array.isArray(quem.roles) ? quem.roles : (quem.role ? [quem.role] : []);
   if (!papeis.includes('admin')) throw new Error('só o administrador pode disparar e-mail pra vários clientes');
   const assunto = String(p.assunto || '').trim().slice(0, 200);
-  const corpo = String(p.corpo || '').slice(0, 20000);
+  // no HTML pronto, o texto puro (pra quem não abre HTML) sai do próprio HTML
+  const corpo = String(p.corpo || (p.formato === 'html' ? htmlParaTexto(String(p.html || '')) : '')).slice(0, 20000);
   if (!assunto) throw new Error('o disparo não tem assunto');
+  if (p.formato === 'html' && !String(p.html || '').trim()) throw new Error('o disparo em HTML veio sem o HTML');
 
   // o arquivo, pedaço por pedaço
   let anexo = null;
@@ -248,8 +251,13 @@ async function dispararPara(p, ref) {
 
   const cfg = await configDaCobranca().catch(() => ({}));
   let visual = {};
-  try { visual = htmlDoDisparo({ assunto, corpo, assinatura: cfg.assinatura || 'Nilma Contabilidade', caixa: CAIXA, anexo: anexo && { nome: anexo.nome, tamanho: anexo.buffer.length } }); }
-  catch (err) { log('disparo sai só em texto:', err.message); }
+  if (p.formato === 'html' && p.html) {
+    // HTML pronto: vai do jeito que veio (sem a moldura do escritório)
+    visual = prepararHtmlPronto(String(p.html).slice(0, 900000));
+  } else {
+    try { visual = htmlDoDisparo({ assunto, corpo, assinatura: cfg.assinatura || 'Nilma Contabilidade', caixa: CAIXA, anexo: anexo && { nome: anexo.nome, tamanho: anexo.buffer.length } }); }
+    catch (err) { log('disparo sai só em texto:', err.message); }
+  }
 
   andamentoAtual = null;
   publicarAndamento({ ativo: true, tipo: 'disparo', motivo: 'pedido por ' + (p.criadoPor || 'alguém'), inicio: agora(), fase: 'enviando',
