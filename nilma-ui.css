@@ -1687,28 +1687,57 @@ html.com-casca body > .topbar { display: none; }
   .tabs-pe { display: none; }
 }
 /* --- PC: as abas viram a barra lateral fixa (= .subnav da Conferência) --- */
+/* Item de 36px, ícone em cinza e rótulo em tinta; o aberto ganha o fundo e
+   uma barrinha vermelha DENTRO dele (antes ela ficava solta, 8px pra fora). */
 @media (min-width: 900px) {
   .tabs {
     position: fixed; top: var(--topo-total); left: 0; bottom: 0; z-index: var(--z-fixo);
     width: var(--lateral); height: auto; flex-direction: column; align-items: stretch; gap: 2px;
-    padding: 16px 8px 16px 16px; background: var(--bg); border-bottom: 0; border-right: 1px solid var(--border);
-    overflow-x: hidden; overflow-y: auto;
+    padding: 12px; background: var(--bg); border-bottom: 0; border-right: 1px solid var(--border);
+    overflow-x: hidden; overflow-y: auto; transition: width .15s ease;
   }
   .tab {
-    width: 100%; height: auto; min-height: 32px; padding: 6px 8px; border-radius: 6px;
-    justify-content: flex-start; text-align: left; isolation: auto;
+    width: 100%; height: auto; min-height: 36px; padding: 0 10px 0 12px; gap: 10px; border-radius: 8px;
+    justify-content: flex-start; text-align: left; isolation: auto; color: var(--ink-muted);
   }
+  .tab .tab-ico { width: 18px; justify-content: center; font-size: 16px; color: inherit; }
   .tab::before { display: none; }
-  .tab:hover { background: var(--hover-bg); }
+  .tab:hover { background: var(--hover-bg); color: var(--ink); }
   .tab-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; text-align: left; }
-  .tab .tab-badge { margin-left: auto; background: var(--surface-3); }
-  .tab.active, .tab[aria-current="page"] { background: var(--hover-bg); font-weight: 600; }
+  .tab .tab-badge { margin-left: auto; background: var(--surface-3); color: var(--ink); }
+  .tab.active, .tab[aria-current="page"] { background: var(--hover-bg); color: var(--ink); font-weight: 600; }
+  .tab.active .tab-ico, .tab[aria-current="page"] .tab-ico { color: var(--ink); }
   .tab.active::after, .tab[aria-current="page"]::after {
-    left: -8px; right: auto; top: 6px; bottom: 6px; width: 4px; height: auto; border-radius: 6px;
+    left: 0; right: auto; top: 9px; bottom: 9px; width: 3px; height: auto; border-radius: 0 3px 3px 0;
   }
   .tabs-pe { margin-top: auto; padding: 8px 8px 0; border-top: 1px solid var(--border); }
-  body:has(> .tabs:not([hidden])) { padding-left: var(--lateral); }
+  body:has(> .tabs:not([hidden])) { padding-left: var(--lateral); transition: padding-left .15s ease; }
+
+  /* botão do pé: recolhe a barra pros ícones (nilma-shell.js guarda a escolha) */
+  .lateral-recolher {
+    display: flex; align-items: center; gap: 10px; width: 100%; min-height: 36px; margin-top: auto; padding: 0 10px 0 12px;
+    border: 0; border-top: 1px solid var(--border); border-radius: 0; background: none; color: var(--ink-muted);
+    font: inherit; font-size: 13px; text-align: left; cursor: pointer;
+  }
+  .lateral-recolher:hover { color: var(--ink); }
+  .lateral-recolher .ph { width: 18px; flex: none; font-size: 16px; text-align: center; }
+  .tabs-pe ~ .lateral-recolher { margin-top: 8px; }
+
+  /* recolhida: só os ícones, o contador vira um pontinho */
+  html.lateral-recolhida:has(#tabsNav) { --lateral: 64px; }
+  html.lateral-recolhida .tabs { padding: 12px 10px; }
+  html.lateral-recolhida .tabs .tab { justify-content: center; padding: 0; position: relative; }
+  html.lateral-recolhida .tabs .tab-label,
+  html.lateral-recolhida .tabs .tabs-mes,
+  html.lateral-recolhida .tabs .tabs-pe,
+  html.lateral-recolhida .lateral-recolher span { display: none; }
+  html.lateral-recolhida .tabs .tab-badge {
+    position: absolute; top: 7px; right: 9px; min-width: 0; width: 8px; height: 8px; padding: 0; border-radius: 50%;
+    font-size: 0; line-height: 0; color: transparent; overflow: hidden; background: var(--tab-active);
+  }
+  html.lateral-recolhida .lateral-recolher { justify-content: center; padding: 0; margin-top: auto; }
 }
+@media (max-width: 899px) { .lateral-recolher { display: none; } }
 
 /* --- gaveta ☰ (= .drawer) --- */
 .gaveta-veu {

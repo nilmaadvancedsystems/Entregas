@@ -34,7 +34,7 @@
      senão a tela pisca no tema errado. -->
 <script src="bancos-nilma.js"></script>
 <script src="nilma-ui.js?v=347"></script>
-<link rel="stylesheet" href="nilma-ui.css?v=345">
+<link rel="stylesheet" href="nilma-ui.css?v=350">
 <style>
   /* ==========================================================================
      Pendências — só o que é desta tela, em cima da fundação (nilma-ui.css).
@@ -371,7 +371,7 @@
   .tabela-cab { display: none !important; }
   .lista-com-regua { display: flex; gap: 4px; align-items: flex-start; }
   .lista-com-regua #lista { flex: 1; min-width: 0; }
-  .az-regua { position: sticky; top: calc(var(--topo-total) + 64px); display: flex; flex-direction: column; flex: none; padding: 4px 4px 4px 0; }
+  .az-regua { position: sticky; top: calc(var(--topo-total) + 64px + var(--abas2)); display: flex; flex-direction: column; flex: none; padding: 4px 4px 4px 0; }
   .az-letra {
     width: 20px; min-height: 17px; padding: 0; border: none; border-radius: 4px; background: none; cursor: pointer;
     font-size: 12px; font-weight: 600; line-height: 1; color: var(--ink-muted);
@@ -834,7 +834,7 @@
   .cfg-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
   @media (min-width: 1100px) {
     .cfg-grid { grid-template-columns: minmax(0, 1fr) 400px; align-items: start; }
-    .cfg-preview { position: sticky; top: calc(var(--topo-total) + 16px); }
+    .cfg-preview { position: sticky; top: calc(var(--topo-total) + 16px + var(--abas2)); }
   }
   .cfg-form, .cfg-painel { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
   .cfg-painel > .mode-toggle { margin: 0; align-self: flex-start; }
@@ -1161,34 +1161,41 @@
   @media (max-width: 480px) { .modal-pe .btn { flex: 1 1 auto; } .modal-pe #modalWhats { margin-right: 0; } }
 
   /* ---------- menu de cima: as páginas da seção aberta na barra lateral ---------- */
-  /* No PC ele atravessa a tela logo abaixo do cabeçalho, por cima da barra
-     lateral (como na Conferência); por isso o --topo-total cresce 48px e a
-     barra lateral, o corpo e o que gruda no alto descem junto. No celular
-     vem logo abaixo da faixa das seções. */
+  /* No PC ele fica ao lado da barra lateral, no alto do conteúdo (começa na
+     linha dela, não por cima), e gruda embaixo do cabeçalho; o que gruda no
+     alto das páginas desce os 48px dele (--abas2). No celular vem logo
+     abaixo da faixa das seções. */
   :root { --abas2: 0px; }
   html.com-casca:has(#abasSecao:not([hidden])) { --abas2: 48px; }
   .abas-secao {
     position: sticky; top: calc(var(--topo-total) + 48px); z-index: var(--z-fixo);
     display: flex; align-items: center; gap: 4px; height: 48px; margin: 0; padding: 0 16px;
-    background: var(--header-bg); border-bottom: 1px solid var(--border);
+    /* o fio de baixo é sombra: com borda, o sublinhado da aba aberta era cortado */
+    background: var(--header-bg); box-shadow: inset 0 -1px 0 var(--border);
     overflow-x: auto; overflow-y: hidden; scrollbar-width: none;
   }
   .abas-secao::-webkit-scrollbar { display: none; }
   .abas-secao[hidden] { display: none; }
+  /* aba: texto cinza; a aberta em tinta, com o sublinhado vermelho colado no
+     fio de baixo da barra (sem caixa em volta) */
   .aba-s {
-    position: relative; flex: none; display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px;
-    border: 0; border-radius: 6px; background: none; color: var(--ink-muted); font: inherit; font-size: 14px; white-space: nowrap; cursor: pointer;
+    position: relative; flex: none; display: inline-flex; align-items: center; gap: 8px; height: 48px; padding: 0 12px;
+    border: 0; border-radius: 0; background: none; color: var(--ink-muted); font: inherit; font-size: 14px; white-space: nowrap; cursor: pointer;
   }
-  .aba-s:hover { background: var(--hover-bg); color: var(--ink); }
+  .aba-s::before { content: ''; position: absolute; inset: 8px 2px; border-radius: 6px; z-index: -1; transition: background .12s ease; }
+  .aba-s { isolation: isolate; }
+  .aba-s:hover { color: var(--ink); }
+  .aba-s:hover::before { background: var(--hover-bg); }
   .aba-s .ph { font-size: 16px; }
-  .aba-s[aria-selected="true"] { background: var(--hover-bg); color: var(--ink); font-weight: 600; }
+  .aba-s[aria-selected="true"] { color: var(--ink); font-weight: 600; }
+  .aba-s[aria-selected="true"] .ph { color: var(--ink); }
   .aba-s[aria-selected="true"]::after {
-    content: ''; position: absolute; left: 0; right: 0; bottom: -7px; height: 2px; border-radius: 2px; background: var(--tab-active);
+    content: ''; position: absolute; left: 8px; right: 8px; bottom: 0; height: 2px; border-radius: 2px 2px 0 0; background: var(--tab-active);
   }
   .aba-s .tab-badge { background: var(--surface-3); }
   @media (min-width: 900px) {
-    html.com-casca:has(#abasSecao:not([hidden])) { --topo-total: calc(var(--topo) + 48px + env(safe-area-inset-top, 0px)); }
-    .abas-secao { position: fixed; top: calc(var(--topo) + env(safe-area-inset-top, 0px)); left: 0; right: 0; padding: 0 24px; }
+    .abas-secao { top: var(--topo-total); padding: 0 20px; background: var(--bg); }
+    .toolbar.lista-barra { top: calc(var(--topo-total) + var(--abas2)); }
   }
   /* com o menu de cima, o que ele já faz sai da página */
   html:has(#abasSecao:not([hidden])) #cfgAbas,
@@ -1210,7 +1217,7 @@
   .tab-simples tr.email-abre:hover td { background: var(--hover-bg); }
   .tab-simples tr.email-aberto td { background: var(--selected-bg, var(--hover-bg)); }
   dialog.email-painel {
-    position: fixed; inset: calc(var(--topo-total, 56px) + 12px) 16px 16px auto; margin: 0;
+    position: fixed; inset: calc(var(--topo-total, 56px) + var(--abas2, 0px) + 12px) 16px 16px auto; margin: 0;
     width: min(560px, calc(100vw - 32px)); height: auto; max-height: none;
     display: none; flex-direction: column; padding: 0; overflow: hidden;
     border: 1px solid var(--border); border-radius: 12px; background: var(--surface); color: var(--ink);
@@ -1282,11 +1289,11 @@
 <body>
 <!-- Casca comum (barra de cima, menu ☰ e menu da conta): nilma-shell.js -->
 <script src="nilma-dialogo.js?v=345"></script>
-<script src="nilma-shell.js?v=347"></script>
+<script src="nilma-shell.js?v=350"></script>
 <script src="nilma-config.js?v=347"></script>
 <script src="nilma-extras.js?v=347"></script>
 <script>
-  var VERSAO_APP = '2.349 · 26/09/2026';
+  var VERSAO_APP = '2.350 · 26/09/2026';
   NilmaShell.montar({ modulo: 'Pendências', moduloId: 'pendencias', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false, versao: VERSAO_APP });
   // antes do login só a tela de entrada; a barra aparece junto com o app
   document.getElementById('topo').hidden = true;

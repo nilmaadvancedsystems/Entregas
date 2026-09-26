@@ -450,6 +450,42 @@
   }
   function mostrar(id, sim) { var el = $(id); if (el) el.hidden = !sim; }
 
+  // ---------- barra lateral que recolhe (PC) ----------
+  // Um botão no pé da barra (#tabsNav) deixa só os ícones. A escolha fica no
+  // aparelho e vale pra todas as telas. Recolhida, cada item diz o nome ao
+  // passar o mouse.
+  var CHAVE_LATERAL = 'nilma_lateral';
+  function lateralRecolhida() { return doc.documentElement.classList.contains('lateral-recolhida'); }
+  function pintarRecolher() {
+    var nav = $('tabsNav'), b = $('lateralRecolher');
+    if (!nav || !b) return;
+    var rec = lateralRecolhida();
+    b.innerHTML = '<i class="ph ph-caret-' + (rec ? 'right' : 'left') + '" aria-hidden="true"></i><span>Recolher barra lateral</span>';
+    b.title = rec ? 'Abrir a barra lateral' : 'Recolher a barra lateral';
+    b.setAttribute('aria-label', b.title);
+    b.setAttribute('aria-expanded', String(!rec));
+    [].forEach.call(nav.querySelectorAll('.tab'), function (t) {
+      var rotulo = t.querySelector('.tab-label');
+      if (rec && rotulo && !t.title) { t.title = rotulo.textContent.trim(); t.dataset.tituloDaCasca = '1'; }
+      if (!rec && t.dataset.tituloDaCasca) { t.removeAttribute('title'); delete t.dataset.tituloDaCasca; }
+    });
+  }
+  function ligarRecolher() {
+    var nav = $('tabsNav');
+    if (!nav || $('lateralRecolher')) return;
+    var b = doc.createElement('button');
+    b.type = 'button'; b.className = 'lateral-recolher'; b.id = 'lateralRecolher';
+    b.addEventListener('click', function () {
+      var rec = !lateralRecolhida();
+      doc.documentElement.classList.toggle('lateral-recolhida', rec);
+      try { localStorage.setItem(CHAVE_LATERAL, rec ? 'recolhida' : 'aberta'); } catch (e) {}
+      pintarRecolher();
+    });
+    nav.appendChild(b);
+    pintarRecolher();
+  }
+  try { if (localStorage.getItem(CHAVE_LATERAL) === 'recolhida') doc.documentElement.classList.add('lateral-recolhida'); } catch (e) {}
+
   function montar(o) {
     opcoes = o || {};
     if (!doc.body) {
@@ -464,6 +500,8 @@
     if (opcoes.logo) definirLogo(opcoes.logo);
     if (opcoes.usuario) definirUsuario(opcoes.usuario);
     if (opcoes.abas && opcoes.abaInicial) ativarAba(opcoes.abaInicial);
+    // a barra lateral da página pode vir depois deste script
+    if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', ligarRecolher); else ligarRecolher();
     return api;
   }
 
