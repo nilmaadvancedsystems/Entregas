@@ -860,7 +860,15 @@
   #viewDisparo { display: flex; flex-direction: column; gap: 16px; }
   #viewDisparo[hidden] { display: none; }
   .disp-sub { margin: 4px 0 0; font-size: 14px; color: var(--ink-muted); }
-  .disp-form { display: flex; flex-direction: column; gap: 16px; max-width: 760px; }
+  /* duas colunas: a mensagem à esquerda; pra quem e o botão à direita, parados
+     enquanto a página rola. Tela estreita: uma coluna só. */
+  .disp-form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 400px); gap: 16px; align-items: start; }
+  .disp-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+  .disp-lado { position: sticky; top: calc(var(--topo-total, 64px) + var(--abas2, 0px) + 16px); }
+  .disp-lado .disp-lista { max-height: max(200px, calc(100vh - var(--topo-total, 64px) - var(--abas2, 0px) - 330px)); }
+  .disp-lado .disp-acoes { flex-direction: column; align-items: stretch; }
+  .disp-lado .disp-acoes .btn { justify-content: center; }
+  @media (max-width: 1100px) { .disp-form { grid-template-columns: minmax(0, 1fr); } .disp-lado { position: static; } .disp-lado .disp-lista { max-height: 320px; } }
   .cfg-linha.disp-coluna { flex-direction: column; align-items: stretch; gap: 6px; }
   .disp-coluna .input { width: 100%; }
   .disp-coluna textarea.input { min-height: 150px; resize: vertical; line-height: 20px; font-family: inherit; }
@@ -870,8 +878,10 @@
   .disp-previa { width: 100%; height: 460px; border: 1px solid var(--border); border-radius: 6px; background: #FFFFFF; }
   .disp-nome .input { width: 240px; }
   .disp-ext { font-size: 14px; color: var(--ink-muted); }
-  .disp-cont { margin-left: auto; font-size: 12px; color: var(--ink-muted); font-variant-numeric: tabular-nums; }
-  .disp-filtro { gap: 8px; flex-wrap: wrap; }
+  .disp-cont { flex: none; font-size: 12px; color: var(--ink-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .disp-marcar { margin-left: auto; display: flex; gap: 4px; }
+  .disp-marcar .btn { min-height: 26px; padding: 2px 10px; }
+  .disp-filtro { gap: 12px; padding-top: 12px; padding-bottom: 12px; }
   .disp-busca { flex: 1 1 220px; display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); }
   .disp-busca:focus-within { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
   .disp-busca .ph { color: var(--ink-muted); }
@@ -882,6 +892,8 @@
   .disp-cli:hover { background: var(--surface-2); }
   .disp-cli input { margin: 0; flex: none; }
   .disp-cli .nome { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .disp-lado .disp-cli { flex-wrap: wrap; row-gap: 0; }
+  .disp-lado .disp-cli .mail { flex: 0 0 100%; max-width: none; padding-left: 26px; }
   .disp-cli .mail { flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--ink-muted); }
   .disp-acoes { display: flex; align-items: center; justify-content: flex-end; gap: 12px; flex-wrap: wrap; }
   .disp-aviso { flex: 1; min-width: 200px; font-size: 12px; color: var(--ink-muted); }
@@ -1324,7 +1336,7 @@
 <script src="nilma-solicitacoes.js?v=358"></script>
 <script src="nilma-extras.js?v=355"></script>
 <script>
-  var VERSAO_APP = '2.361 · 26/09/2026';
+  var VERSAO_APP = '2.362 · 26/09/2026';
   NilmaShell.montar({ modulo: 'Pendências', moduloId: 'pendencias', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false, versao: VERSAO_APP });
   // antes do login só a tela de entrada; a barra aparece junto com o app
   document.getElementById('topo').hidden = true;
@@ -1574,6 +1586,7 @@
       </div>
       <div id="dispAndamento" aria-live="polite" hidden></div>
       <form class="disp-form" id="dispForm" novalidate>
+        <div class="disp-col">
         <section class="cfg-cartao">
           <div class="cfg-cartao-cab"><h2>Mensagem</h2>
             <div class="mode-toggle disp-formato" role="group" aria-label="Formato da mensagem" id="dispFormato">
@@ -1629,18 +1642,25 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
             </div>
           </div>
         </section>
+        </div>
+        <div class="disp-col disp-lado">
         <section class="cfg-cartao">
-          <div class="cfg-cartao-cab"><h2>Para quem</h2><span class="disp-cont" id="dispN"></span></div>
+          <div class="cfg-cartao-cab"><h2>Para quem</h2>
+            <div class="disp-marcar">
+              <button type="button" class="btn btn-ghost btn-sm" id="dispTodos" title="Marcar todos os clientes da lista (ou os da busca)">Todos</button>
+              <button type="button" class="btn btn-ghost btn-sm" id="dispNenhum" title="Desmarcar todos os clientes da lista (ou os da busca)">Nenhum</button>
+            </div>
+          </div>
           <div class="cfg-linha disp-filtro">
             <label class="disp-busca"><i class="ph ph-magnifying-glass" aria-hidden="true"></i><input type="search" id="dispBusca" placeholder="Buscar cliente" aria-label="Buscar cliente" autocomplete="off"></label>
-            <button type="button" class="btn btn-ghost btn-sm" id="dispTodos">Marcar todos</button>
-            <button type="button" class="btn btn-ghost btn-sm" id="dispNenhum">Desmarcar todos</button>
+            <span class="disp-cont" id="dispN"></span>
           </div>
           <div class="disp-lista" id="dispLista" role="group" aria-label="Clientes que recebem"></div>
         </section>
         <div class="disp-acoes">
           <span class="disp-aviso" id="dispAviso"></span>
           <button type="submit" class="btn btn-primary" id="dispEnviar"><i class="ph ph-paper-plane-tilt" aria-hidden="true"></i> <span>Disparar</span></button>
+        </div>
         </div>
       </form>
       <section class="caixa-p">
