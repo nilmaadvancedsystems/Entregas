@@ -173,7 +173,8 @@
     '.ncfg-fechar{position:absolute;top:10px;right:10px;width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;' +
       'border:0;border-radius:6px;background:none;color:var(--ink-muted);cursor:pointer;font-size:16px;z-index:1}' +
     '.ncfg-fechar:hover{background:var(--hover-bg);color:var(--ink)}' +
-    '.ncfg-pagina{max-width:720px;margin:0 auto;padding:32px 32px 48px}' +
+    // a página usa a largura da janela toda (antes ficava no meio, com sobra dos lados)
+    '.ncfg-pagina{max-width:none;margin:0;padding:32px 56px 48px 40px}' +
     '.ncfg-pagina h1{margin:0;font-size:20px;font-weight:600;line-height:28px}' +
     '.ncfg-pagina .ncfg-sub{margin:4px 0 24px;font-size:14px;color:var(--ink-muted)}' +
     /* cartões no desenho da ficha do cliente */

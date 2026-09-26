@@ -1332,11 +1332,11 @@
 <!-- Casca comum (barra de cima, menu ☰ e menu da conta): nilma-shell.js -->
 <script src="nilma-dialogo.js?v=345"></script>
 <script src="nilma-shell.js?v=358"></script>
-<script src="nilma-config.js?v=358"></script>
+<script src="nilma-config.js?v=362"></script>
 <script src="nilma-solicitacoes.js?v=358"></script>
 <script src="nilma-extras.js?v=355"></script>
 <script>
-  var VERSAO_APP = '2.362 · 26/09/2026';
+  var VERSAO_APP = '2.363 · 26/09/2026';
   NilmaShell.montar({ modulo: 'Pendências', moduloId: 'pendencias', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false, versao: VERSAO_APP });
   // antes do login só a tela de entrada; a barra aparece junto com o app
   document.getElementById('topo').hidden = true;
@@ -1828,6 +1828,7 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
             <div class="caixa-cab"><h2><i class="ph ph-flag" aria-hidden="true"></i> Marcações erradas</h2><span class="cont" id="roboErrosN"></span></div>
             <div class="tab-rolagem"><table class="tab-simples" id="tabErrosRobo"></table></div>
           </section>
+          <section class="caixa-p robo-vazio-cat"><div class="lado-vazio">Nenhuma leitura registrada ainda. Cada vez que o robô lê o Gmail, a execução aparece aqui.</div></section>
           </div>
         </div>
       </div>
