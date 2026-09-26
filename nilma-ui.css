@@ -2004,3 +2004,84 @@ html:has(#menuPerfil:not([hidden])) .gaveta-veu { background: transparent; }
 }
 .cq-exemplo:hover { background: var(--hover-bg); }
 .cq-exemplo .ph { font-size: 16px; color: var(--ink-muted); }
+
+/* ==========================================================================
+   Parte 6 — movimento
+   Animações curtas (150–300 ms) que mostram o que mudou: a tela que chega
+   sobe de leve, o sublinhado e a barrinha da aba aberta crescem, botão
+   afunda no clique, cartão sobe ao passar o mouse, o tema troca com
+   transição. Quem pediu menos movimento no aparelho
+   (prefers-reduced-motion) já fica sem nada pela regra da parte 1, e quem
+   escolheu "Animações reduzidas" também (abaixo).
+   Só "backwards" nas entradas: terminada a animação, não sobra transform
+   (transform prende elemento fixo/grudado lá dentro).
+   ========================================================================== */
+@keyframes nEntra { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes nSurge { from { opacity: 0; } to { opacity: 1; } }
+@keyframes nCresceX { from { transform: scaleX(.2); opacity: .3; } to { transform: scaleX(1); opacity: 1; } }
+@keyframes nCresceY { from { transform: scaleY(.2); opacity: .3; } to { transform: scaleY(1); opacity: 1; } }
+@keyframes nPeca { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes nArco { from { stroke-dasharray: 0 999; } }
+
+/* a tela que aparece: páginas da Pendências, categorias do Entregas, partes
+   das configurações e a página da janela de Configurações */
+main.conteudo > div[id^="view"]:not([hidden]),
+main .card-grupo:not([hidden]),
+.cfg-painel:not([hidden]),
+.ncfg-pagina > *,
+#screen > * { animation: nEntra .22s cubic-bezier(.2, .8, .2, 1) backwards; }
+
+/* menu de cima: as abas chegam em sequência quando a seção muda */
+.abas-secao .aba-s { animation: nSurge .2s ease-out backwards; }
+.abas-secao .aba-s:nth-child(2) { animation-delay: 30ms; }
+.abas-secao .aba-s:nth-child(3) { animation-delay: 60ms; }
+.abas-secao .aba-s:nth-child(4) { animation-delay: 90ms; }
+.abas-secao .aba-s:nth-child(n+5) { animation-delay: 120ms; }
+/* o sublinhado da aba aberta cresce do meio */
+.aba-s[aria-selected="true"]::after { animation: nCresceX .22s cubic-bezier(.2, .8, .2, 1); }
+.mode-btn { transition: background-color .15s ease, color .15s ease, box-shadow .15s ease, border-color .15s ease; }
+/* barra lateral: a barrinha vermelha cresce (PC, em pé; celular, deitada) */
+@media (min-width: 900px) {
+  .tab.active::after, .tab[aria-current="page"]::after { animation: nCresceY .22s cubic-bezier(.2, .8, .2, 1); }
+  .tab { transition: background-color .15s ease, color .15s ease; }
+}
+@media (max-width: 899px) {
+  .tab.active::after, .tab[aria-current="page"]::after { animation: nCresceX .22s cubic-bezier(.2, .8, .2, 1); }
+}
+
+/* botão afunda no clique */
+.btn, .btn-chip, .ncfg-botao, .mode-btn, .aba-s, .tab, .ncfg-item, .ncfg-seg button, .topo-btn, .topo-avatar, .visao-btn {
+  transition-property: background-color, color, border-color, box-shadow, transform;
+  transition-duration: .15s, .15s, .15s, .15s, .08s;
+}
+.btn:active:not(:disabled), .btn-chip:active:not(:disabled), .ncfg-botao:active:not(:disabled), .mode-btn:active:not(:disabled),
+.aba-s:active, .tab:active, .ncfg-item:active, .ncfg-seg button:active, .topo-btn:active, .topo-avatar:active, .visao-btn:active {
+  transform: scale(.97);
+}
+
+/* cartão clicável sobe um pouco */
+.cartao { transition: background-color .15s ease, border-color .15s ease, box-shadow .2s ease, transform .2s cubic-bezier(.2, .8, .2, 1); }
+.cartao:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+/* Pendências › Clientes em cartões: o anel enche e as peças do gráfico
+   sobem, coluna a coluna, quando o cartão aparece */
+.cartao-anel .arco { animation: nArco .6s cubic-bezier(.2, .8, .2, 1) backwards; }
+.grafico-peca { transform-origin: bottom; animation: nPeca .35s cubic-bezier(.2, .8, .2, 1) backwards; }
+.grafico-col:nth-child(2) .grafico-peca { animation-delay: 40ms; }
+.grafico-col:nth-child(3) .grafico-peca { animation-delay: 80ms; }
+.grafico-col:nth-child(4) .grafico-peca { animation-delay: 120ms; }
+.grafico-col:nth-child(5) .grafico-peca { animation-delay: 160ms; }
+.grafico-col:nth-child(6) .grafico-peca { animation-delay: 200ms; }
+
+/* linhas que abrem alguma coisa acendem com transição */
+.tab-simples tbody tr, .entrega-row, .ncfg-linha { transition: background-color .15s ease; }
+
+/* tema claro/escuro: as cores trocam juntas, sem piscar (a classe fica
+   300 ms no <html>; quem põe é a janela de Configurações) */
+html.tema-troca, html.tema-troca *, html.tema-troca *::before, html.tema-troca *::after {
+  transition: background-color .3s ease, color .3s ease, border-color .3s ease, fill .3s ease, stroke .3s ease !important;
+}
+
+/* "Animações reduzidas" escolhido na conta: sem movimento */
+html[data-animacao="reduzida"] *, html[data-animacao="reduzida"] *::before, html[data-animacao="reduzida"] *::after {
+  animation-duration: .001ms !important; animation-delay: 0s !important; transition-duration: .001ms !important;
+}

@@ -102,8 +102,14 @@
   }
   // Freio: grava só se mudou. A tela pode assumir a gravação (o Entregas tem
   // as suas funções de salvar); senão, aparelho + conta.
+  var relogioTema = null;
   function salvarPreferencia(campo, valor, atual) {
     if (valor === atual) return;
+    if (campo === 'tema') {
+      doc.documentElement.classList.add('tema-troca');
+      clearTimeout(relogioTema);
+      relogioTema = setTimeout(function () { doc.documentElement.classList.remove('tema-troca'); }, 350);
+    }
     if (typeof o.salvar === 'function' && o.salvar(campo, valor) === true) return;
     try { localStorage.setItem(CHAVE_LOCAL[campo] || 'nilma_' + campo, valor); } catch (e) {}
     aplicarPadrao(campo, valor);

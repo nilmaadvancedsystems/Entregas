@@ -48,7 +48,7 @@
 </script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="stylesheet" href="nilma-icones.css?v=345">
-<link rel="stylesheet" href="nilma-ui.css?v=352">
+<link rel="stylesheet" href="nilma-ui.css?v=356">
 <link rel="stylesheet" href="n1-entregas-a.css?v=345">
 <link rel="stylesheet" href="n1-entregas-b.css?v=345">
 <link rel="stylesheet" href="n1-entregas-c.css?v=355">
@@ -59,7 +59,7 @@
      resto, porque os scripts do app procuram #notasBtn, #topo etc. -->
 <script src="nilma-dialogo.js?v=345"></script>
 <script src="nilma-shell.js?v=355"></script>
-<script src="nilma-config.js?v=355"></script>
+<script src="nilma-config.js?v=356"></script>
 <script>NilmaShell.montar({ modulo: 'Entregas', moduloId: 'entregas', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle' });</script>
 <!-- Abas do módulo, sublinhadas, logo abaixo da barra. -->
 <nav class="tabs" id="tabsNav" role="tablist">
@@ -3073,8 +3073,16 @@
       if (rot) itens.push({ alvo: null, rotulo: rot.textContent.trim(), icone: iconeDe_(t), ativo: true });
     }
     var esconder = $('tabsNav').hidden || !itens.length;
-    var assinatura = esconder ? '' : itens.map(function (x) { return x.rotulo + (x.ativo ? '*' : ''); }).join('|');
-    if (assinatura === assinaturaAbasSecao_ && nav.hidden === esconder) return;
+    var assinatura = esconder ? '' : itens.map(function (x) { return x.rotulo; }).join('|');
+    // Mesmas abas, outra aberta: só troca a marca (refazer os botões
+    // repetiria a animação de entrada a cada clique).
+    if (assinatura === assinaturaAbasSecao_ && nav.hidden === esconder) {
+      nav.querySelectorAll('.aba-s').forEach(function (b, k) {
+        var ativo = String(!!(itens[k] && itens[k].ativo));
+        if (b.getAttribute('aria-selected') !== ativo) b.setAttribute('aria-selected', ativo);
+      });
+      return;
+    }
     assinaturaAbasSecao_ = assinatura;
     nav.hidden = esconder;
     nav.innerHTML = '';
@@ -11887,7 +11895,7 @@
   // Aba em que o app abre: office boy vive em Solicitações, quem faz rota
   // abre em Rota. Guardar isso evita dois toques toda vez que entra.
 
-  var VERSAO_APP_ = '2.355 · 26/09/2026';
+  var VERSAO_APP_ = '2.356 · 26/09/2026';
   // Configurações do usuário: a janela comum (nilma-config.js), a mesma da
   // Pendências e do Fiscal. 'conta' abre em Minha conta; o resto, em
   // Preferências.
