@@ -13,6 +13,7 @@
 // Nada fica guardado: o texto vive no pedido por TEXTO_DURA_MS e some. Quem
 // lê é só quem pediu (regras do Firestore), e só admin ou contábil pede.
 const { ouvir } = require('./ouvinte');
+const { consertarAcentos, pareceUtf8 } = require('./acentos');
 
 const TEXTO_DURA_MS = 10 * 60 * 1000;
 const TEXTO_MAXIMO = 60000;    // letras; e-mail maior que isso vem cortado (1 MB por documento)
@@ -29,7 +30,9 @@ function decodificarCorpo(part) {
   const bytes = Buffer.from(String(dados).replace(/-/g, '+').replace(/_/g, '/'), 'base64');
   const tipo = cabecalho(part.headers, 'Content-Type');
   const m = tipo.match(/charset="?([\w.:-]+)"?/i);
-  const charset = m ? m[1].toLowerCase() : 'utf-8';
+  // Tem e-mail que diz Latin-1 e manda UTF-8: bytes que são UTF-8 válido
+  // com acento são lidos como UTF-8.
+  const charset = pareceUtf8(bytes) ? 'utf-8' : (m ? m[1].toLowerCase() : 'utf-8');
   try { return new TextDecoder(charset).decode(bytes); }
   catch (e) { return bytes.toString('utf8'); }
 }
@@ -75,7 +78,7 @@ function textoDoEmail(payload) {
     const html = acharParte(payload, 'text/html');
     texto = html ? htmlParaTexto(decodificarCorpo(html)) : '';
   }
-  return texto.replace(/\n{3,}/g, '\n\n');
+  return consertarAcentos(texto).replace(/\n{3,}/g, '\n\n');
 }
 
 function anexosDe(part, acc) {
@@ -112,7 +115,7 @@ function iniciarLeiturasGmail(db, log, getGmail, opcoes) {
       await ref.update({
         status: 'pronto', texto, truncado,
         de: cabecalho(headers, 'From'), para: cabecalho(headers, 'To'), cc: cabecalho(headers, 'Cc'),
-        assunto: cabecalho(headers, 'Subject'),
+        assunto: consertarAcentos(cabecalho(headers, 'Subject')),
         em: msg.internalDate ? new Date(Number(msg.internalDate)).toISOString() : '',
         anexos: anexosDe(msg.payload, []).slice(0, 50),
         prontoEm: new Date().toISOString(),

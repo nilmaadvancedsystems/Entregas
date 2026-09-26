@@ -29,6 +29,7 @@ const { getDb } = require('./firestore-client');
 // O que o robô lembra entre uma leitura e outra (e-mails já lidos, anexo sem
 // dono, anexo que não baixa) — hoje no banco, não mais em arquivo. Ver lá.
 const estadoRobo = require('./estado-robo.js');
+const { consertarAcentos } = require('./acentos');
 
 const PASTA_DESTINO = 'G:\\Meu Drive\\Claudio Secretario';
 // No PC a pasta do Drive é uma unidade montada (G:) e gravar nela é gravar em
@@ -141,12 +142,13 @@ function dominioDe(email) {
   return i === -1 ? '' : email.slice(i + 1);
 }
 
-// O snippet do Gmail vem com entidades HTML (&#39;, &quot;...).
+// O snippet do Gmail vem com entidades HTML (&#39;, &quot;...) e, se o
+// e-mail veio com o charset errado, com os acentos embaralhados ("COMÃ‰RCIO").
 function decodificarEntidades(t) {
-  return String(t || '')
+  return consertarAcentos(String(t || '')
     .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
     .replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-    .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&');
+    .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&'));
 }
 
 function detectarTipos(texto) {
@@ -309,7 +311,7 @@ function montarSpam(mensagens, porEmail, porDominio, ignorados) {
     const ms = Number(m.internalDate);
     return {
       mensagemId: m.id, em: ms ? new Date(ms).toISOString() : '', remetente, nome: extrairNome(from),
-      assunto: cabecalho(headers, 'Subject'), trecho: decodificarEntidades(m.snippet).slice(0, 240),
+      assunto: consertarAcentos(cabecalho(headers, 'Subject')), trecho: decodificarEntidades(m.snippet).slice(0, 240),
       arquivos: coletarAnexos(m.payload, []).map(a => a.filename),
       clienteId: cliente ? String(cliente.id) : null, clienteNome: cliente ? (cliente.nome || cliente.nomeFantasia || '') : '',
     };
@@ -520,7 +522,7 @@ async function main() {
       const headers = msg.data.payload.headers || [];
       const from = cabecalho(headers, 'From');
       const remetente = extrairEmail(from);
-      const assunto = cabecalho(headers, 'Subject');
+      const assunto = consertarAcentos(cabecalho(headers, 'Subject'));
       const em = new Date(Number(msg.data.internalDate)).toISOString();
       const trecho = decodificarEntidades(msg.data.snippet).slice(0, 240);
       const anexos = coletarAnexos(msg.data.payload, []);

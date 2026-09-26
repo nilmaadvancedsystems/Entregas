@@ -437,6 +437,15 @@ igual('texto: prefere o text/plain e junta linhas em branco demais', lg.textoDoE
 igual('texto: e-mail em ISO-8859-1 não vira ???', lg.textoDoEmail({ mimeType: 'text/plain',
   headers: [{ name: 'Content-Type', value: 'text/plain; charset=iso-8859-1' }],
   body: { data: Buffer.from('Não, ação', 'latin1').toString('base64') } }), 'Não, ação');
+const embaralhar = t => new TextDecoder('windows-1252').decode(Buffer.from(t, 'utf8'));
+igual('texto: e-mail que diz ISO-8859-1 e manda UTF-8', lg.textoDoEmail({ mimeType: 'text/plain',
+  headers: [{ name: 'Content-Type', value: 'text/plain; charset=iso-8859-1' }],
+  body: { data: Buffer.from('notas de SAÍDA da A7 COMÉRCIO no mês', 'utf8').toString('base64') } }), 'notas de SAÍDA da A7 COMÉRCIO no mês');
+igual('texto: acentos que já chegam embaralhados são consertados', lg.textoDoEmail({ mimeType: 'text/plain',
+  body: { data: b64url(embaralhar('A7 COMÉRCIO DE VEÍCULOS, SAÍDA, mês, agradeço — “ok”')) } }), 'A7 COMÉRCIO DE VEÍCULOS, SAÍDA, mês, agradeço — “ok”');
+const ac = require('./acentos');
+igual('acentos: texto certo não muda', ac.consertarAcentos('Ação, É“x” Â, 100 °C, São Paulo'), 'Ação, É“x” Â, 100 °C, São Paulo');
+igual('acentos: trecho do Gmail embaralhado', r.decodificarEntidades(embaralhar('Segue as notas de SAÍDA &amp; ENTRADA')), 'Segue as notas de SAÍDA & ENTRADA');
 igual('texto: só HTML sai sem as marcas', lg.htmlParaTexto('<head><style>p{}</style></head><p>Bom dia&nbsp;&amp; tudo</p><div>Linha 2<br>Linha 3</div><ul><li>um</li></ul>&#233;'),
   'Bom dia & tudo\nLinha 2\nLinha 3\n• um\né');
 
