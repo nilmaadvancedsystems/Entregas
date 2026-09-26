@@ -326,7 +326,7 @@
     position: sticky; top: var(--topo-total); z-index: var(--z-fixo);
     display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 0; margin-top: -8px; background: var(--bg);
   }
-  @media (max-width: 899px) { .toolbar.lista-barra { top: calc(var(--topo-total) + 48px); } }
+  @media (max-width: 899px) { .toolbar.lista-barra { top: calc(var(--topo-total) + 48px + var(--abas2)); } }
   .busca-junta { display: flex; flex: 1 1 320px; min-width: 0; }
   .busca-junta #filtrosBtn { flex: none; border-top-right-radius: 0; border-bottom-right-radius: 0; }
   .busca-junta #filtrosBtn .seta { font-size: 12px; }
@@ -378,7 +378,7 @@
   }
   .az-letra:hover:not(:disabled) { background: var(--hover-bg); color: var(--ink); }
   .az-letra.vazia { opacity: .35; cursor: default; }
-  @media (max-width: 899px) { .az-regua { top: calc(var(--topo-total) + 104px); } .az-letra { width: 24px; min-height: 20px; } }
+  @media (max-width: 899px) { .az-regua { top: calc(var(--topo-total) + 104px + var(--abas2)); } .az-letra { width: 24px; min-height: 20px; } }
 
   .linha-cliente {
     position: relative; display: flex; align-items: center; gap: 12px; min-height: 40px; padding: 4px 8px 4px 16px;
@@ -1160,6 +1160,40 @@
   .modal-pe #modalEnviar { order: 3; }
   @media (max-width: 480px) { .modal-pe .btn { flex: 1 1 auto; } .modal-pe #modalWhats { margin-right: 0; } }
 
+  /* ---------- menu de cima: as páginas da seção aberta na barra lateral ---------- */
+  /* No PC ele atravessa a tela logo abaixo do cabeçalho, por cima da barra
+     lateral (como na Conferência); por isso o --topo-total cresce 48px e a
+     barra lateral, o corpo e o que gruda no alto descem junto. No celular
+     vem logo abaixo da faixa das seções. */
+  :root { --abas2: 0px; }
+  html.com-casca:has(#abasSecao:not([hidden])) { --abas2: 48px; }
+  .abas-secao {
+    position: sticky; top: calc(var(--topo-total) + 48px); z-index: var(--z-fixo);
+    display: flex; align-items: center; gap: 4px; height: 48px; margin: 0; padding: 0 16px;
+    background: var(--header-bg); border-bottom: 1px solid var(--border);
+    overflow-x: auto; overflow-y: hidden; scrollbar-width: none;
+  }
+  .abas-secao::-webkit-scrollbar { display: none; }
+  .abas-secao[hidden] { display: none; }
+  .aba-s {
+    position: relative; flex: none; display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px;
+    border: 0; border-radius: 6px; background: none; color: var(--ink-muted); font: inherit; font-size: 14px; white-space: nowrap; cursor: pointer;
+  }
+  .aba-s:hover { background: var(--hover-bg); color: var(--ink); }
+  .aba-s .ph { font-size: 16px; }
+  .aba-s[aria-selected="true"] { background: var(--hover-bg); color: var(--ink); font-weight: 600; }
+  .aba-s[aria-selected="true"]::after {
+    content: ''; position: absolute; left: 0; right: 0; bottom: -7px; height: 2px; border-radius: 2px; background: var(--tab-active);
+  }
+  .aba-s .tab-badge { background: var(--surface-3); }
+  @media (min-width: 900px) {
+    html.com-casca:has(#abasSecao:not([hidden])) { --topo-total: calc(var(--topo) + 48px + env(safe-area-inset-top, 0px)); }
+    .abas-secao { position: fixed; top: calc(var(--topo) + env(safe-area-inset-top, 0px)); left: 0; right: 0; padding: 0 24px; }
+  }
+  /* com o menu de cima, o que ele já faz sai da página */
+  html:has(#abasSecao:not([hidden])) #cfgAbas,
+  html:has(#abasSecao:not([hidden])) #execVoltar { display: none; }
+
   /* ---------- robô: resumo do e-mail na lista e painel do e-mail ---------- */
   /* Nomes com email-painel-*: .painel-titulo já é da ficha do cliente. */
   .tab-simples .email-trecho {
@@ -1167,6 +1201,12 @@
     max-width: 52ch; margin-top: 2px; font-size: 12px; color: var(--ink-muted);
   }
   .tab-simples tr.email-abre { cursor: pointer; }
+  /* celular: o resumo desce pra linha de baixo, alinhado com o assunto */
+  @media (max-width: 700px) {
+    .tab-simples td:has(> .email-trecho) { flex-wrap: wrap; }
+    .tab-simples td:has(> .email-trecho) > div:first-of-type { flex: 1; min-width: 0; }
+    .tab-simples td > .email-trecho { flex-basis: 100%; max-width: none; padding-left: 116px; }
+  }
   .tab-simples tr.email-abre:hover td { background: var(--hover-bg); }
   .tab-simples tr.email-aberto td { background: var(--selected-bg, var(--hover-bg)); }
   dialog.email-painel {
@@ -1246,24 +1286,27 @@
 <script src="nilma-config.js?v=347"></script>
 <script src="nilma-extras.js?v=347"></script>
 <script>
-  var VERSAO_APP = '2.348 · 26/09/2026';
+  var VERSAO_APP = '2.349 · 26/09/2026';
   NilmaShell.montar({ modulo: 'Pendências', moduloId: 'pendencias', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false, versao: VERSAO_APP });
   // antes do login só a tela de entrada; a barra aparece junto com o app
   document.getElementById('topo').hidden = true;
 </script>
-<!-- Menu da Pendências = barra lateral da casca (fixa no PC, sublinhada no
-     celular). Os itens continuam .menu-item[data-pagina]: é assim que o JS
-     desta tela troca de página. O mês aparece em cima, na própria barra. -->
+<!-- Três níveis, no desenho da Conferência:
+     1. barra lateral (#tabsNav): as seções (Hoje, Clientes, Robô, Arquivo,
+        Configurações). Fixa no PC, sublinhada no celular. O mês aparece em
+        cima, na própria barra.
+     2. menu de cima (#abasSecao): as páginas da seção aberta (no Robô:
+        E-mails, Cobranças, Histórico). Montado por desenharAbasSecao().
+     3. submenu dentro da página (.cliente-menu): as partes da página aberta. -->
 <nav class="tabs" id="tabsNav" aria-label="Menu da Pendências" hidden>
   <div class="tabs-mes" id="menuMes"></div>
   <button type="button" class="tab menu-item" id="menuHoje" data-pagina="hoje" aria-current="page"><span class="tab-ico"><i class="ph ph-sun-horizon" aria-hidden="true"></i></span><span class="tab-label rot">Hoje</span><span class="tab-badge menu-cont" id="menuNumHoje"></span></button>
   <button type="button" class="tab menu-item" id="menuClientes" data-pagina="clientes" data-filtro="todos"><span class="tab-ico"><i class="ph ph-users" aria-hidden="true"></i></span><span class="tab-label rot">Clientes</span><span class="tab-badge menu-cont" id="menuNumTodos" hidden></span></button>
-  <button type="button" class="tab menu-item" id="menuCobrancas" data-pagina="cobrancas"><span class="tab-ico"><i class="ph ph-paper-plane-tilt" aria-hidden="true"></i></span><span class="tab-label rot">Cobranças</span><span class="tab-badge menu-cont" id="menuNumCobrancas" hidden></span></button>
   <button type="button" class="tab menu-item" id="menuRobo" data-pagina="robo"><span class="tab-ico"><i class="ph ph-robot" aria-hidden="true"></i></span><span class="tab-label rot">Robô do Gmail</span><span class="tab-badge menu-cont" id="menuNumRobo"></span></button>
   <button type="button" class="tab menu-item" id="menuArquivo" data-pagina="arquivo" hidden><span class="tab-ico"><i class="ph ph-archive" aria-hidden="true"></i></span><span class="tab-label rot">Arquivo</span><span class="tab-badge menu-cont" id="menuNumArquivo"></span></button>
-  <button type="button" class="tab menu-item" id="menuAnual" data-pagina="anual"><span class="tab-ico"><i class="ph ph-calendar-blank" aria-hidden="true"></i></span><span class="tab-label rot">Visão anual</span></button>
   <button type="button" class="tab menu-item" id="menuConfig" data-pagina="config"><span class="tab-ico"><i class="ph ph-sliders-horizontal" aria-hidden="true"></i></span><span class="tab-label rot">Configurações</span></button>
 </nav>
+<nav class="abas-secao" id="abasSecao" role="tablist" aria-label="Páginas da seção" hidden></nav>
 
 <!-- Entrada no desenho do login da Conferência: logo, título e a caixa cinza com os campos. -->
 <div id="authGate">
@@ -1593,7 +1636,6 @@
         <button type="button" class="secao-btn" role="tab" data-grupo="semcliente" aria-selected="false"><i class="ph ph-user-circle-plus" aria-hidden="true"></i><span>Sem cliente</span><span class="cont" id="roboAbaSemClienteN"></span></button>
         <button type="button" class="secao-btn" role="tab" data-grupo="spam" aria-selected="false"><i class="ph ph-warning-octagon" aria-hidden="true"></i><span>Spam</span><span class="cont" id="roboAbaSpamN"></span></button>
         <button type="button" class="secao-btn" role="tab" data-grupo="marcados" aria-selected="false"><i class="ph ph-check-square" aria-hidden="true"></i><span>Marcados</span></button>
-        <button type="button" class="secao-btn" role="tab" data-grupo="historico" aria-selected="false"><i class="ph ph-clock-counter-clockwise" aria-hidden="true"></i><span>Histórico</span></button>
       </nav>
       <!-- Mesmo desenho do Hoje: à esquerda a categoria aberta, à direita o resumo. -->
       <div class="hoje-grade">
@@ -2635,8 +2677,10 @@
     document.querySelectorAll('#viewRobo .card-grupo').forEach(function (g) { g.hidden = g.dataset.grupo !== grupo; });
   }
   function atualizarSubmenuRobo() {
+    // Histórico é página própria no menu de cima: sem submenu
+    if (roboModo === 'historico') { $('roboAbas').hidden = true; mostrarGrupoRobo('historico'); return; }
     var visiveis = [];
-    document.querySelectorAll('#viewRobo .card-grupo').forEach(function (g) {
+    document.querySelectorAll('#viewRobo .card-grupo:not([data-grupo="historico"])').forEach(function (g) {
       var tem = g.hasAttribute('data-sempre') || [].some.call(g.querySelectorAll(':scope > section'), function (sec) { return !sec.hidden; });
       var b = document.querySelector('#roboAbas .secao-btn[data-grupo="' + g.dataset.grupo + '"]');
       if (b) b.hidden = !tem;
@@ -2644,6 +2688,7 @@
     });
     $('roboAbas').hidden = visiveis.length < 2;
     if (visiveis.indexOf(grupoRobo) === -1) mostrarGrupoRobo(visiveis[0] || 'marcados');
+    else mostrarGrupoRobo(grupoRobo);
   }
   document.querySelectorAll('#roboAbas .secao-btn').forEach(function (b) {
     b.addEventListener('click', function () { fecharPainelEmail(); mostrarGrupoRobo(b.dataset.grupo); });
@@ -2736,23 +2781,88 @@
     if (ev.key === 'nilma_animacao') aplicarPreferencia('animacao', ev.newValue);
   });
 
-  // ---------- menu principal ----------
+  // ---------- navegação: seção (barra lateral) › página (menu de cima) ----------
+  // Cada página do menu de cima tem um id; "robo:historico" é o Robô aberto
+  // no Histórico, "config:email" as Configurações na parte E-mail. A página
+  // aberta sai do estado da tela (paginaAtual e cia.), então quem já trocava
+  // paginaAtual direto continua funcionando.
+  var SECOES_DA_BARRA = {
+    hoje: [{ id: 'hoje', rotulo: 'Resumo do dia', icone: 'ph-sun-horizon' }],
+    clientes: [{ id: 'clientes', rotulo: 'Lista', icone: 'ph-list-bullets' }, { id: 'anual', rotulo: 'Visão anual', icone: 'ph-calendar-blank' }],
+    robo: [{ id: 'robo', rotulo: 'E-mails', icone: 'ph-tray' }, { id: 'cobrancas', rotulo: 'Cobranças', icone: 'ph-paper-plane-tilt', badge: 'abaNumCobrancas' },
+      { id: 'robo:historico', rotulo: 'Histórico', icone: 'ph-clock-counter-clockwise' }],
+    arquivo: [{ id: 'arquivo', rotulo: 'Pasta do ano', icone: 'ph-folder-open' }, { id: 'arquivo:execucoes', rotulo: 'Execuções', icone: 'ph-list-checks' }],
+    config: [{ id: 'config:geral', rotulo: 'Prazo e assinatura', icone: 'ph-calendar' }, { id: 'config:email', rotulo: 'E-mail', icone: 'ph-envelope-simple' },
+      { id: 'config:whats', rotulo: 'WhatsApp', icone: 'ph-whatsapp-logo' }, { id: 'config:meus', rotulo: 'Modelos seus', icone: 'ph-bookmarks-simple' },
+      { id: 'config:lote', rotulo: 'Cobrança em lote', icone: 'ph-users-three' }, { id: 'config:auto', rotulo: 'Automático', icone: 'ph-robot' }]
+  };
+  var SECAO_DA_PAGINA = { hoje: 'hoje', clientes: 'clientes', anual: 'clientes', robo: 'robo', cobrancas: 'robo', arquivo: 'arquivo', config: 'config' };
+  var roboModo = 'emails';        // Robô: 'emails' (submenu) ou 'historico'
+  var ultimaDaSecao = {};         // a página que ficou aberta em cada seção
+  var secaoDesenhada = '';
+  function paginaAberta() {
+    if (telaCliente) return 'clientes';
+    if (paginaAtual === 'robo') return roboModo === 'historico' ? 'robo:historico' : 'robo';
+    if (paginaAtual === 'arquivo') return telaExecucoes ? 'arquivo:execucoes' : 'arquivo';
+    if (paginaAtual === 'config') return 'config:' + (cfgAba || 'geral');
+    return paginaAtual;
+  }
+  function secaoDe(idPagina) { return SECAO_DA_PAGINA[String(idPagina).split(':')[0]] || 'hoje'; }
+  function irParaPagina(id) {
+    var partes = String(id).split(':');
+    telaCliente = false;
+    paginaAtual = partes[0];
+    if (paginaAtual === 'robo') roboModo = partes[1] === 'historico' ? 'historico' : 'emails';
+    if (paginaAtual === 'arquivo') {
+      if (partes[1] === 'execucoes') { abrirTelaExecucoes(); renderPaginas(); return; }
+      telaExecucoes = false;
+    }
+    aplicarLayout();
+    if (paginaAtual === 'config' && partes[1]) {
+      var b = document.querySelector('#cfgAbas .secao-btn[data-cfg="' + partes[1] + '"]');
+      if (b) b.click();
+      atualizarMenu();
+    }
+    if (paginaAtual === 'robo') atualizarSubmenuRobo();
+    renderPaginas();
+    window.scrollTo(0, 0);
+  }
+  function desenharAbasSecao(secao, aberta) {
+    var nav = $('abasSecao');
+    var lista = SECOES_DA_BARRA[secao] || [];
+    if (secaoDesenhada !== secao) {
+      secaoDesenhada = secao;
+      var numCob = $('abaNumCobrancas') ? $('abaNumCobrancas').textContent : '';
+      nav.innerHTML = '';
+      lista.forEach(function (a) {
+        var b = el('button', 'aba-s'); b.type = 'button';
+        b.setAttribute('role', 'tab'); b.dataset.pagina = a.id;
+        b.appendChild(ico(a.icone)); b.appendChild(el('span', null, a.rotulo));
+        if (a.badge) { var n = el('span', 'tab-badge', numCob); n.id = a.badge; b.appendChild(n); }
+        b.addEventListener('click', function () { irParaPagina(a.id); });
+        nav.appendChild(b);
+      });
+    }
+    nav.querySelectorAll('.aba-s').forEach(function (b) { b.setAttribute('aria-selected', String(b.dataset.pagina === aberta)); });
+    nav.hidden = $('app').hidden;
+  }
   document.querySelectorAll('.menu-item[data-pagina]').forEach(function (item) {
     item.addEventListener('click', function () {
-      telaCliente = false;
-      paginaAtual = item.dataset.pagina;
-      if (paginaAtual === 'clientes') { filtroStatus = item.dataset.filtro; aplicarFiltros(); }
-      aplicarLayout();
-      renderPaginas();
-      window.scrollTo(0, 0);
+      var secao = item.dataset.pagina;
+      if (secao === 'clientes') { filtroStatus = 'todos'; aplicarFiltros(); }
+      irParaPagina(ultimaDaSecao[secao] || SECOES_DA_BARRA[secao][0].id);
     });
   });
   function atualizarMenu() {
+    var aberta = paginaAberta();
+    var secao = secaoDe(aberta);
+    ultimaDaSecao[secao] = aberta;
     document.querySelectorAll('.menu-item[data-pagina]').forEach(function (item) {
-      var ativo = !telaCliente && item.dataset.pagina === paginaAtual && (paginaAtual !== 'clientes' || item.dataset.filtro === 'todos');
+      var ativo = item.dataset.pagina === secao;
       if (ativo) item.setAttribute('aria-current', 'page'); else item.removeAttribute('aria-current');
       item.classList.toggle('active', ativo);
     });
+    desenharAbasSecao(secao, aberta);
   }
   $('filtrosBtn').addEventListener('click', function () {
     var painel = $('filtrosPainel');
@@ -4267,7 +4377,7 @@
       (Array.isArray(dado.cobrancas) ? dado.cobrancas : []).forEach(function (c) { cob.push(Object.assign({ clienteId: clienteId, clienteNome: dado.clienteNome }, c)); });
     });
     cob.sort(function (a, b) { return String(b.em).localeCompare(String(a.em)); });
-    $('menuNumCobrancas').textContent = cob.length ? cob.length : '';
+    if ($('abaNumCobrancas')) $('abaNumCobrancas').textContent = cob.length ? cob.length : '';
     $('cobN').textContent = cob.length || '';
     var tc = $('tabCobrancas');
     tc.innerHTML = '';
@@ -7025,6 +7135,7 @@
       document.querySelectorAll('.cfg-painel').forEach(function (p) { p.hidden = p.dataset.cfgPainel !== cfgAba; });
       mostrarVariaveisDaAba();
       renderPreviewConfig();
+      atualizarMenu();
     });
   });
   document.querySelectorAll('#cfgPreviewQual .chip').forEach(function (c) {
@@ -8004,6 +8115,7 @@
       $('app').hidden = true;
       $('topo').hidden = true;
       $('tabsNav').hidden = true;
+      $('abasSecao').hidden = true;
       NilmaShell.fecharGaveta();
       NilmaExtras.sair();
       return;
@@ -8034,6 +8146,7 @@
       $('app').hidden = false;
       $('topo').hidden = false;
       $('tabsNav').hidden = !podeUsar;
+      if (podeUsar) atualizarMenu(); else $('abasSecao').hidden = true;
       // Arquivo: só admin e contábil (as regras do banco pedem o mesmo).
       podeVerArquivo = souAdmin || roles.indexOf('contabil') !== -1;
       $('menuArquivo').hidden = !podeVerArquivo;
