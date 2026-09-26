@@ -12,7 +12,7 @@
      Conta         Minha conta (foto, nome, e-mail, cargos, senha, sair)
                    Notificações (ligar, testar e desligar neste aparelho)
      Preferências  Aparência (tema, barra lateral)
-                   Telas e listas (onde Entregas e Pendências abrem, lista ou
+                   Telas e listas (em qual módulo o sistema abre, lista ou
                    cartões, como abrir PDF)
                    Consulta rápida (resposta padrão: rápida ou com IA)
      Aplicativo    Instalar, versão, baixar a versão mais nova, atalhos
@@ -73,11 +73,10 @@
     var p = String(nome || '').trim().split(/[\s.@]+/).filter(Boolean);
     return p.length ? (p[0][0] + (p.length > 1 ? p[p.length - 1][0] : '')).toUpperCase() : '';
   }
-  var NOME_CARGO = { admin: 'Admin', contabil: 'Contábil', fiscal: 'Fiscal', office_boy: 'Office boy', staff: 'Equipe' };
 
   // ------------------------------------------------------------ preferências
   var CHAVE_LOCAL = {
-    abaInicial: 'nilma_aba_inicial', pendInicio: 'nilma_pend_inicio', lateral: 'nilma_lateral',
+    moduloInicial: 'nilma_modulo_inicial', lateral: 'nilma_lateral',
     visaoPendencias: 'nilma_cobranca_visao', consultaModo: 'nilma_cq_modo'
   };
   // Jeito de trabalhar de cada aparelho (tela pequena x monitor): fica só nele.
@@ -119,13 +118,13 @@
   // ------------------------------------------------------------ tópicos
   var SECOES = [
     { id: 'conta', grupo: 'Conta', rotulo: 'Minha conta', icone: 'ph-user-circle',
-      titulo: 'Minha conta', sub: 'Seu perfil, o login e a senha', busca: 'perfil foto nome email e-mail cargo senha sair login' },
+      titulo: 'Minha conta', sub: 'Seu perfil, o login e a senha', busca: 'perfil foto nome email e-mail senha sair login' },
     { id: 'notificacoes', grupo: 'Conta', rotulo: 'Notificações', icone: 'ph-bell',
       titulo: 'Notificações', sub: 'Avisos neste aparelho', busca: 'notificacao aviso celular push alerta teste desativar' },
     { id: 'aparencia', grupo: 'Preferências', rotulo: 'Aparência', icone: 'ph-paint-brush',
       titulo: 'Aparência', sub: 'Cores e o jeito da tela', busca: 'tema claro escuro sistema aparencia barra lateral recolher' },
     { id: 'telas', grupo: 'Preferências', rotulo: 'Telas e listas', icone: 'ph-squares-four',
-      titulo: 'Telas e listas', sub: 'Onde cada tela abre e como as listas aparecem', busca: 'abrir inicial aba entregas pendencias cartoes lista pdf drive leitor navegador' },
+      titulo: 'Telas e listas', sub: 'Onde o sistema abre e como as listas aparecem', busca: 'abrir inicial modulo entregas pendencias fiscal contabil cartoes lista pdf drive leitor navegador' },
     { id: 'consulta', grupo: 'Preferências', rotulo: 'Consulta rápida', icone: 'ph-chats-circle',
       titulo: 'Consulta rápida', sub: 'A caixa "Perguntar à IA" da barra de cima', busca: 'ia consulta rapida pergunta claude resposta' },
     { id: 'aplicativo', grupo: 'Aplicativo', rotulo: 'Instalação e versão', icone: 'ph-device-mobile',
@@ -298,10 +297,10 @@
   // texto pesquisável de cada linha, por tópico (o mesmo que aparece na tela)
   function linhasDe(id) {
     return {
-      conta: ['Foto de perfil', 'Nome', 'E-mail', 'Cargos', 'Senha', 'Sair da conta'],
+      conta: ['Foto de perfil', 'Nome', 'E-mail', 'Senha', 'Sair da conta'],
       notificacoes: ['Avisos neste aparelho', 'Aviso de teste', 'Desativar'],
       aparencia: ['Tema claro escuro sistema', 'Barra lateral aberta recolhida'],
-      telas: ['Abrir o Entregas em', 'Abrir a Pendências em', 'Clientes da Pendências lista cartões', 'Abrir PDFs do Drive leitor do computador navegador'],
+      telas: ['Ao entrar, abrir módulo Entregas Pendências Fiscal Contábil Clientes', 'Clientes da Pendências lista cartões', 'Abrir PDFs do Drive leitor do computador navegador'],
       consulta: ['Resposta padrão rápida com IA'],
       aplicativo: ['Instalar na tela inicial', 'Versão', 'Buscar a versão mais nova', 'Atalhos de teclado'],
       integracoes: ['Robô da nuvem', 'Gmail', 'IA da Consulta rápida', 'Backup', 'Uso do banco hoje']
@@ -368,7 +367,6 @@
     var conta = contaFirebase();
     var foto = fotoAtual || u.foto || '';
     var fotoHtml = '<span class="ncfg-foto" id="ncfgFoto" style="' + (foto ? 'background-image:url(&quot;' + esc(foto) + '&quot;)' : '') + '">' + (foto ? '' : esc(iniciais(u.nome))) + '</span>';
-    var nomesCargos = cargos().map(function (c) { return NOME_CARGO[c] || c; }).join(', ');
     return cartao('Perfil', [
       linha('Foto de perfil', 'Aparece no canto de cima e nas entregas que você registra.',
         fotoHtml + '<input type="file" accept="image/*" id="ncfgFotoArquivo" class="ncfg-arquivo">' +
@@ -377,8 +375,7 @@
       linha('Nome', 'Como você aparece pra equipe: nas entregas, cobranças e solicitações.',
         '<input type="text" id="ncfgNome" class="ncfg-texto" maxlength="60" autocomplete="name" value="' + esc(u.nome || '') + '" aria-label="Nome">' +
         '<button type="button" class="ncfg-botao" id="ncfgNomeSalvar" hidden>Salvar</button>'),
-      linha('E-mail', 'Usado para entrar.', '<span class="ncfg-valor">' + esc((conta && conta.email) || '—') + '</span>'),
-      nomesCargos ? linha('Cargos', 'Quem muda é um admin, em Clientes e ajustes.', '<span class="ncfg-valor">' + esc(nomesCargos) + '</span>') : ''
+      linha('E-mail', 'Usado para entrar.', '<span class="ncfg-valor">' + esc((conta && conta.email) || '—') + '</span>')
     ]) + cartao('Segurança', [
       linha('Senha', 'Troque a senha que você usa para entrar.',
         trocandoSenha ? '' : '<button type="button" class="ncfg-botao" id="ncfgSenhaAbrir"><i class="ph ph-key" aria-hidden="true"></i> Trocar senha</button>',
@@ -414,16 +411,18 @@
       return '<option value="' + a[0] + '"' + (a[0] === atual ? ' selected' : '') + '>' + esc(a[1]) + '</option>';
     }).join('') + '</select>';
   }
+  // Módulos que o cargo da pessoa abre (os mesmos do menu ☰).
+  function modulosDaPessoa() {
+    var c = cargos(), adm = ehAdmin();
+    return [['ultimo', 'Onde parei por último'], ['entregas', 'Entregas'], ['clientes', 'Clientes e ajustes']]
+      .concat(adm || c.indexOf('contabil') !== -1 ? [['contabil', 'Contábil']] : [])
+      .concat(adm || c.indexOf('fiscal') !== -1 ? [['fiscal', 'Fiscal']] : [])
+      .concat([['pendencias', 'Pendências']]);
+  }
   function paginaTelas() {
-    var abas = [['nova', 'Nova entrega'], ['rota', 'Rota'], ['painel', 'Painel'], ['solicitacoes', 'Solicitações'], ['clientes', 'Clientes e ajustes']]
-      .concat(ehAdmin() || cargos().indexOf('office_boy') !== -1 ? [['honorarios', 'Honorários']] : []);
-    var pend = [['hoje', 'Hoje'], ['clientes', 'Clientes'], ['robo', 'Robô do Gmail'], ['cobrancas', 'Cobranças']]
-      .concat(ehAdmin() || cargos().indexOf('contabil') !== -1 ? [['arquivo', 'Arquivo']] : []);
-    return cartao('Ao abrir', [
-      linha('Abrir o Entregas em', 'A tela que aparece primeiro quando você abre o Entregas.',
-        opcoesSelect('ncfgAbaInicial', 'Abrir o Entregas em', lerLocal('abaInicial', 'nova'), abas), { busca: 'app inicial aba' }),
-      linha('Abrir a Pendências em', 'A tela que aparece primeiro quando você abre a Pendências.',
-        opcoesSelect('ncfgPendInicio', 'Abrir a Pendências em', lerLocal('pendInicio', 'hoje'), pend), { busca: 'inicial cobranca' })
+    return cartao('Ao entrar', [
+      linha('Abrir em', 'O módulo que aparece quando você entra no sistema. Dentro dele, a primeira página.',
+        opcoesSelect('ncfgModuloInicial', 'Abrir em', lerLocal('moduloInicial', 'ultimo'), modulosDaPessoa()), { busca: 'app inicial modulo' })
     ]) + cartao('Listas e arquivos', [
       linha('Clientes da Pendências', 'Em lista (uma linha por cliente) ou em cartões, com o gráfico dos últimos meses. Neste aparelho.',
         seg('visaoPendencias', lerLocal('visaoPendencias', 'lista'), [['lista', 'Lista', 'ph-list-bullets'], ['cartoes', 'Cartões', 'ph-squares-four']]),
@@ -538,9 +537,12 @@
       (function () {
         var u = r.usoDoBanco;
         if (!u || u.erro || typeof u.leituras !== 'number') return linha('Uso do banco hoje', 'O robô ainda não trouxe os números do Google.', '<span class="ncfg-selo">Sem dado</span>');
-        var pct = Math.round(u.leituras / 50000 * 100);
-        return linha('Uso do banco hoje', u.leituras.toLocaleString('pt-BR') + ' de 50.000 leituras (' + pct + '%) · ' + (u.gravacoes || 0).toLocaleString('pt-BR') + ' gravações · ' + tempo(u.em) + '.',
-          pct >= 80 ? '<span class="ncfg-selo ruim">Perto do limite</span>' : '<span class="ncfg-selo ok">Folgado</span>');
+        // Só a contagem: o dia do Google começa à meia-noite da Califórnia.
+        var num = function (n) { return Number(n || 0).toLocaleString('pt-BR'); };
+        var desde = u.desde ? new Date(u.desde).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
+        return linha('Uso do banco hoje', num(u.gravacoes) + ' gravações' + (u.exclusoes ? ' · ' + num(u.exclusoes) + ' exclusões' : '') +
+          (desde ? ' · desde ' + desde : '') + ' · atualizado ' + tempo(u.em) + '.',
+          '<span class="ncfg-valor"><b>' + num(u.leituras) + '</b> leituras</span>', { busca: 'leituras gravacoes' });
       })()
     ]) + cartao('Editar', [
       linha('Integrações do escritório', 'Motor da IA, serviço de contas e o resto ficam em Clientes e ajustes.',
@@ -561,10 +563,8 @@
         g.querySelectorAll('button').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
       });
     });
-    var sel = $('ncfgAbaInicial');
-    if (sel) sel.addEventListener('change', function () { salvarPreferencia('abaInicial', sel.value, lerLocal('abaInicial', 'nova')); });
-    var selP = $('ncfgPendInicio');
-    if (selP) selP.addEventListener('change', function () { salvarPreferencia('pendInicio', selP.value, lerLocal('pendInicio', 'hoje')); });
+    var sel = $('ncfgModuloInicial');
+    if (sel) sel.addEventListener('change', function () { salvarPreferencia('moduloInicial', sel.value, lerLocal('moduloInicial', 'ultimo')); });
 
     if (id === 'conta') {
       var arq = $('ncfgFotoArquivo');

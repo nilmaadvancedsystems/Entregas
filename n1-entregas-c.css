@@ -344,6 +344,7 @@ body.modo-clientes #qualidadeRotaCard { display: none !important; }
 .saude-barra { flex: none; width: 96px; height: 8px; overflow: hidden; border-radius: 6px; background: var(--surface-3); }
 .saude-barra > span { display: block; height: 100%; border-radius: inherit; }
 .saude-msg { padding: 12px 16px; font-size: 14px; color: var(--ink-muted); }
+.saude-num { flex: none; margin-left: auto; font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); }
 @media (max-width: 599px) { .saude-barra { width: 56px; } }
 .card.caixa > .caixa-form-linha { align-items: center; border-bottom: 1px solid var(--border); }
 #competenciaFecharInput { width: auto; flex: 1 1 140px; max-width: 200px; min-width: 0; }

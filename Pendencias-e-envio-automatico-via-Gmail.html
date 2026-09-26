@@ -856,6 +856,43 @@
   .cfg-liga { margin: 0; flex: none; cursor: pointer; }
   .cfg-liga:disabled { cursor: default; }
   .cfg-contador { margin-top: 4px; font-size: 12px; color: var(--ink-muted); text-align: right; font-variant-numeric: tabular-nums; }
+  /* Geral e Automático: cartões com uma opção por linha (rótulo e explicação
+     à esquerda, campo à direita), como na janela de Configurações */
+  .cfg-cartao { border: 1px solid var(--border); border-radius: 6px; background: var(--surface); overflow: hidden; }
+  .cfg-cartao-cab { display: flex; align-items: center; min-height: 44px; padding: 10px 16px; border-bottom: 1px solid var(--border); background: var(--surface-2); }
+  .cfg-cartao-cab h2 { margin: 0; font-size: 14px; font-weight: 600; }
+  .cfg-linha { display: flex; align-items: center; gap: 16px; margin: 0; padding: 14px 16px; }
+  label.cfg-linha { cursor: pointer; }
+  .cfg-linha + .cfg-linha { border-top: 1px solid var(--border-muted, var(--border)); }
+  .cfg-linha .txt { flex: 1; min-width: 0; }
+  .cfg-linha .rot { display: block; margin: 0; font-size: 14px; font-weight: 500; color: var(--ink); }
+  .cfg-linha .desc { margin-top: 2px; font-size: 12px; line-height: 16px; color: var(--ink-muted); }
+  .cfg-linha .desc:empty { display: none; }
+  .cfg-linha .ctl { flex: none; display: flex; align-items: center; gap: 8px; }
+  .cfg-linha .input.cfg-num { width: 120px; }
+  .cfg-linha .input.cfg-texto { width: 260px; }
+  @media (max-width: 600px) { .cfg-linha { flex-wrap: wrap; } .cfg-linha .ctl, .cfg-linha .input.cfg-texto { width: 100%; } }
+  /* interruptor (liga/desliga) no lugar da caixinha; o seletor é mais forte
+     que o input[type="checkbox"] da folha comum */
+  input[type="checkbox"].cfg-chave {
+    -webkit-appearance: none; appearance: none; position: relative; width: 36px; height: 20px; margin: 0; flex: none;
+    border: 1px solid var(--border-strong); border-radius: 999px; background: var(--surface-3); box-shadow: none;
+    cursor: pointer; transition: background .15s ease, border-color .15s ease;
+  }
+  input[type="checkbox"].cfg-chave::after {
+    content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border: 0; border-radius: 50%;
+    background: var(--ink-muted); transform: none; transition: transform .15s ease, background .15s ease;
+  }
+  input[type="checkbox"].cfg-chave:hover:not(:disabled) { box-shadow: none; border-color: var(--ink-muted); }
+  input[type="checkbox"].cfg-chave:checked { background: var(--success); border-color: var(--success); }
+  input[type="checkbox"].cfg-chave:checked::after { left: 2px; top: 2px; width: 14px; height: 14px; border: 0; transform: translateX(16px); background: #FFFFFF; }
+  input[type="checkbox"].cfg-chave:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  input[type="checkbox"].cfg-chave:disabled { opacity: .5; cursor: default; }
+  /* Mensagens: o submenu manda; o seletor antigo de 1ª/2ª/3ª sai */
+  .cfg-sub { margin: 0; align-self: flex-start; max-width: 100%; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .cfg-sub::-webkit-scrollbar { display: none; }
+  .cfg-sub .mode-btn { white-space: nowrap; }
+  #cfgQualEditor { display: none; }
   .cfg-meta { font-size: 12px; color: var(--ink-muted); }
   .cfg-meta:empty { display: none; }
   .cfg-vars { padding: 12px 16px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-2); }
@@ -1249,11 +1286,11 @@
 <body>
 <!-- Casca comum (barra de cima, menu ☰ e menu da conta): nilma-shell.js -->
 <script src="nilma-dialogo.js?v=345"></script>
-<script src="nilma-shell.js?v=354"></script>
-<script src="nilma-config.js?v=354"></script>
-<script src="nilma-extras.js?v=354"></script>
+<script src="nilma-shell.js?v=355"></script>
+<script src="nilma-config.js?v=355"></script>
+<script src="nilma-extras.js?v=355"></script>
 <script>
-  var VERSAO_APP = '2.354 · 26/09/2026';
+  var VERSAO_APP = '2.355 · 26/09/2026';
   NilmaShell.montar({ modulo: 'Pendências', moduloId: 'pendencias', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false, versao: VERSAO_APP });
   // antes do login só a tela de entrada; a barra aparece junto com o app
   document.getElementById('topo').hidden = true;
@@ -1688,22 +1725,34 @@
         <div class="cfg-form">
 
           <div class="cfg-painel" data-cfg-painel="geral">
-            <div class="cfg-modelo">
-              <div class="cfg-modelo-topo"><div><div class="cfg-modelo-titulo">Dia limite</div></div></div>
-              <div class="campo" style="max-width:220px;margin-bottom:8px">
-                <label for="cfgDiaLimite">Dia (1 a 28)</label>
-                <input class="input" id="cfgDiaLimite" type="number" min="1" max="28" placeholder="vazio = sem prazo">
+            <section class="cfg-cartao">
+              <div class="cfg-cartao-cab"><h2>Prazo</h2></div>
+              <div class="cfg-linha">
+                <div class="txt"><label class="rot" for="cfgDiaLimite">Dia limite do mês</label>
+                  <div class="desc" id="cfgPrazoExemplo"></div></div>
+                <div class="ctl"><input class="input cfg-num" id="cfgDiaLimite" type="number" min="1" max="28" placeholder="sem prazo"></div>
               </div>
-              <div class="campo-dica" id="cfgPrazoExemplo"></div>
-            </div>
-            <div class="cfg-modelo">
-              <div class="cfg-modelo-topo"><div><div class="cfg-modelo-titulo">Assinatura</div></div></div>
-              <div class="campo" style="max-width:420px;margin-bottom:0">
-                <label for="cfgAssinatura">Nome que assina</label>
-                <input class="input" id="cfgAssinatura" type="text" maxlength="80">
+            </section>
+            <section class="cfg-cartao">
+              <div class="cfg-cartao-cab"><h2>Assinatura</h2></div>
+              <div class="cfg-linha">
+                <div class="txt"><label class="rot" for="cfgAssinatura">Quem assina</label>
+                  <div class="desc">Vai no fim do e-mail e do WhatsApp, no lugar de {assinatura}.</div></div>
+                <div class="ctl"><input class="input cfg-texto" id="cfgAssinatura" type="text" maxlength="80"></div>
               </div>
-            </div>
+            </section>
             <div class="cfg-meta" id="cfgMeta"></div>
+          </div>
+
+          <!-- Mensagens: o submenu troca a mensagem aberta (as partes E-mail,
+               WhatsApp, Em lote e Modelos seus, e a 1ª/2ª/3ª cobrança). -->
+          <div class="mode-toggle cfg-sub" role="group" aria-label="Qual mensagem" id="cfgMsgSub" hidden>
+            <button type="button" class="mode-btn" data-cfg="email" data-qual="1">1ª cobrança</button>
+            <button type="button" class="mode-btn" data-cfg="email" data-qual="2">2ª cobrança</button>
+            <button type="button" class="mode-btn" data-cfg="email" data-qual="3">3ª em diante</button>
+            <button type="button" class="mode-btn" data-cfg="whats">WhatsApp</button>
+            <button type="button" class="mode-btn" data-cfg="lote">Em lote</button>
+            <button type="button" class="mode-btn" data-cfg="meus">Modelos seus</button>
           </div>
 
           <div class="cfg-painel" data-cfg-painel="email" hidden>
@@ -1778,22 +1827,27 @@
 
           <!-- O que o robô faz sozinho. Tudo vem desligado. -->
           <div class="cfg-painel" data-cfg-painel="auto" hidden>
-            <div class="cfg-modelo">
-              <label class="cfg-liga-linha" for="cfgReguaLigada">
-                <input type="checkbox" class="cfg-liga" id="cfgReguaLigada">
-                <span><span class="cfg-modelo-titulo">Cobrar sozinho quem não mandou</span></span>
+            <section class="cfg-cartao">
+              <div class="cfg-cartao-cab"><h2>Cobrança</h2></div>
+              <label class="cfg-linha" for="cfgReguaLigada">
+                <div class="txt"><div class="rot">Cobrar sozinho quem não mandou</div>
+                  <div class="desc">Nos dias escolhidos, o robô manda a cobrança por e-mail a quem ainda deve documento do mês.</div></div>
+                <div class="ctl"><input type="checkbox" class="cfg-liga cfg-chave" id="cfgReguaLigada" role="switch"></div>
               </label>
-              <div class="campo" style="max-width:260px;margin:12px 0 0 30px">
-                <label for="cfgReguaDias">Dias do mês</label>
-                <input class="input" id="cfgReguaDias" type="text" inputmode="numeric" placeholder="ex.: 5, 10, 15">
+              <div class="cfg-linha">
+                <div class="txt"><label class="rot" for="cfgReguaDias">Dias do mês</label>
+                  <div class="desc">Separados por vírgula. Cada cliente recebe no máximo uma cobrança por dia.</div></div>
+                <div class="ctl"><input class="input cfg-texto" id="cfgReguaDias" type="text" inputmode="numeric" placeholder="ex.: 5, 10, 15"></div>
               </div>
-            </div>
-            <div class="cfg-modelo">
-              <label class="cfg-liga-linha" for="cfgComprovanteEmail">
-                <input type="checkbox" class="cfg-liga" id="cfgComprovanteEmail">
-                <span><span class="cfg-modelo-titulo">Comprovante de entrega por e-mail</span></span>
+            </section>
+            <section class="cfg-cartao">
+              <div class="cfg-cartao-cab"><h2>Entregas</h2></div>
+              <label class="cfg-linha" for="cfgComprovanteEmail">
+                <div class="txt"><div class="rot">Comprovante de entrega por e-mail</div>
+                  <div class="desc">Cada entrega confirmada na rua vira um e-mail curto pro cliente: o que foi entregue, quem recebeu e quando.</div></div>
+                <div class="ctl"><input type="checkbox" class="cfg-liga cfg-chave" id="cfgComprovanteEmail" role="switch"></div>
               </label>
-            </div>
+            </section>
             <div class="cfg-meta" id="cfgAutoMeta">Quem faz é o robô, online na nuvem.</div>
           </div>
 
@@ -2782,19 +2836,21 @@
     robo: [{ id: 'robo', rotulo: 'E-mails', icone: 'ph-tray' }, { id: 'cobrancas', rotulo: 'Cobranças', icone: 'ph-paper-plane-tilt', badge: 'abaNumCobrancas' },
       { id: 'robo:historico', rotulo: 'Histórico', icone: 'ph-clock-counter-clockwise' }],
     arquivo: [{ id: 'arquivo', rotulo: 'Pasta do ano', icone: 'ph-folder-open' }, { id: 'arquivo:execucoes', rotulo: 'Execuções', icone: 'ph-list-checks' }],
-    config: [{ id: 'config:geral', rotulo: 'Prazo e assinatura', icone: 'ph-calendar' }, { id: 'config:email', rotulo: 'E-mail', icone: 'ph-envelope-simple' },
-      { id: 'config:whats', rotulo: 'WhatsApp', icone: 'ph-whatsapp-logo' }, { id: 'config:meus', rotulo: 'Modelos seus', icone: 'ph-bookmarks-simple' },
-      { id: 'config:lote', rotulo: 'Cobrança em lote', icone: 'ph-users-three' }, { id: 'config:auto', rotulo: 'Automático', icone: 'ph-robot' }]
+    config: [{ id: 'config:geral', rotulo: 'Geral', icone: 'ph-sliders-horizontal' },
+      { id: 'config:mensagens', rotulo: 'Mensagens', icone: 'ph-envelope-simple' },
+      { id: 'config:auto', rotulo: 'Automático', icone: 'ph-robot' }]
   };
   var SECAO_DA_PAGINA = { hoje: 'hoje', clientes: 'clientes', anual: 'clientes', robo: 'robo', cobrancas: 'robo', arquivo: 'arquivo', config: 'config' };
   var roboModo = 'emails';        // Robô: 'emails' (submenu) ou 'historico'
+  var PARTES_DE_MENSAGEM = ['email', 'whats', 'lote', 'meus'];
+  var ultimaMensagemCfg = 'email'; // Configurações › Mensagens: a parte que ficou aberta
   var ultimaDaSecao = {};         // a página que ficou aberta em cada seção
   var secaoDesenhada = '';
   function paginaAberta() {
     if (telaCliente) return 'clientes';
     if (paginaAtual === 'robo') return roboModo === 'historico' ? 'robo:historico' : 'robo';
     if (paginaAtual === 'arquivo') return telaExecucoes ? 'arquivo:execucoes' : 'arquivo';
-    if (paginaAtual === 'config') return 'config:' + (cfgAba || 'geral');
+    if (paginaAtual === 'config') return 'config:' + (PARTES_DE_MENSAGEM.indexOf(cfgAba) !== -1 ? 'mensagens' : (cfgAba || 'geral'));
     return paginaAtual;
   }
   function secaoDe(idPagina) { return SECAO_DA_PAGINA[String(idPagina).split(':')[0]] || 'hoje'; }
@@ -2810,7 +2866,8 @@
     }
     aplicarLayout();
     if (paginaAtual === 'config' && partes[1]) {
-      var b = document.querySelector('#cfgAbas .secao-btn[data-cfg="' + partes[1] + '"]');
+      var parteCfg = partes[1] === 'mensagens' ? ultimaMensagemCfg : partes[1];
+      var b = document.querySelector('#cfgAbas .secao-btn[data-cfg="' + parteCfg + '"]');
       if (b) b.click();
       atualizarMenu();
     }
@@ -7162,7 +7219,30 @@
       document.querySelectorAll('.cfg-painel').forEach(function (p) { p.hidden = p.dataset.cfgPainel !== cfgAba; });
       mostrarVariaveisDaAba();
       renderPreviewConfig();
+      if (PARTES_DE_MENSAGEM.indexOf(cfgAba) !== -1) ultimaMensagemCfg = cfgAba;
+      marcarSubDeMensagens();
       atualizarMenu();
+    });
+  });
+  // Submenu de Mensagens: cada botão abre uma parte (e, no e-mail, qual das
+  // três cobranças). Os botões antigos continuam fazendo o trabalho.
+  function marcarSubDeMensagens() {
+    var sub = $('cfgMsgSub');
+    if (!sub) return;
+    sub.hidden = PARTES_DE_MENSAGEM.indexOf(cfgAba) === -1;
+    sub.querySelectorAll('.mode-btn').forEach(function (b) {
+      b.classList.toggle('active', b.dataset.cfg === cfgAba && (!b.dataset.qual || b.dataset.qual === cfgPreviewQual));
+    });
+  }
+  document.querySelectorAll('#cfgMsgSub .mode-btn').forEach(function (b) {
+    b.addEventListener('click', function () {
+      if (b.dataset.qual) {
+        var q = document.querySelector('#cfgQualEditor .mode-btn[data-qual="' + b.dataset.qual + '"]');
+        if (q) q.click();
+      }
+      var aba = document.querySelector('#cfgAbas .secao-btn[data-cfg="' + b.dataset.cfg + '"]');
+      if (aba) aba.click();
+      marcarSubDeMensagens();
     });
   });
   document.querySelectorAll('#cfgPreviewQual .chip').forEach(function (c) {
@@ -8183,11 +8263,7 @@
           '<p>Sua conta não tem acesso a esta tela.</p></div>';
         return;
       }
-      // Onde abre: Configurações › Telas e listas (vale a da conta, depois a do aparelho).
-      var inicio = dados.pendInicio || '';
-      try { if (inicio) localStorage.setItem('nilma_pend_inicio', inicio); else inicio = localStorage.getItem('nilma_pend_inicio') || ''; } catch (e) {}
-      if (inicio === 'arquivo' && !podeVerArquivo) inicio = '';
-      paginaAtual = SECAO_DA_PAGINA[inicio] ? inicio : 'hoje';
+      paginaAtual = 'hoje';
       aplicarLayout();
       aoTrocarMes();
       subscribeConfig();

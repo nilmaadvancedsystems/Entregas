@@ -51,15 +51,15 @@
 <link rel="stylesheet" href="nilma-ui.css?v=352">
 <link rel="stylesheet" href="n1-entregas-a.css?v=345">
 <link rel="stylesheet" href="n1-entregas-b.css?v=345">
-<link rel="stylesheet" href="n1-entregas-c.css?v=346">
+<link rel="stylesheet" href="n1-entregas-c.css?v=355">
 </head>
 <body>
 <!-- Casca no estilo do GitHub: barra de cima (☰ · Nilma / módulo · consulta
      rápida · anotações · avatar) e as duas gavetas. Nasce aqui, antes do
      resto, porque os scripts do app procuram #notasBtn, #topo etc. -->
 <script src="nilma-dialogo.js?v=345"></script>
-<script src="nilma-shell.js?v=354"></script>
-<script src="nilma-config.js?v=354"></script>
+<script src="nilma-shell.js?v=355"></script>
+<script src="nilma-config.js?v=355"></script>
 <script>NilmaShell.montar({ modulo: 'Entregas', moduloId: 'entregas', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle' });</script>
 <!-- Abas do módulo, sublinhadas, logo abaixo da barra. -->
 <nav class="tabs" id="tabsNav" role="tablist">
@@ -1257,7 +1257,6 @@
     NilmaShell.definirUsuario({
       nome: currentUserNome || '',
       iniciais: iniciaisDe_(currentUserNome),
-      cargos: currentUserNome ? cargosLabel_(currentUserRoles) : '',
       foto: dataUrl || '',
       podeVer: function (id, papel) { return !papel || temPapel('admin') || temPapel(papel); }
     });
@@ -11724,7 +11723,8 @@
         PREFERENCIAS.forEach(function (p) {
           aplicarPreferencia(p.campo, snap.data()[p.campo] || p.padrao);
         });
-        aplicarAbaInicial(snap.data().abaInicial || 'nova');
+        // Configurações › Telas e listas › "Abrir em": vale a da conta.
+        try { if (snap.data().moduloInicial) localStorage.setItem('nilma_modulo_inicial', snap.data().moduloInicial); } catch (e) {}
         fotoPerfilAtual = snap.data().fotoPerfil || '';
         return;
       }
@@ -11886,18 +11886,8 @@
 
   // Aba em que o app abre: office boy vive em Solicitações, quem faz rota
   // abre em Rota. Guardar isso evita dois toques toda vez que entra.
-  function aplicarAbaInicial(aba) {
-    try { localStorage.setItem('nilma_aba_inicial', aba || 'nova'); } catch (e) {}
-  }
 
-  function salvarAbaInicial(aba) {
-    aplicarAbaInicial(aba);
-    if (auth.currentUser) {
-      db.collection('usuarios').doc(auth.currentUser.uid).update({ abaInicial: aba }).catch(function () {});
-    }
-  }
-
-  var VERSAO_APP_ = '2.354 · 26/09/2026';
+  var VERSAO_APP_ = '2.355 · 26/09/2026';
   // Configurações do usuário: a janela comum (nilma-config.js), a mesma da
   // Pendências e do Fiscal. 'conta' abre em Minha conta; o resto, em
   // Preferências.
@@ -11909,10 +11899,9 @@
     usuario: function () { return { nome: currentUserNome, foto: fotoPerfilAtual }; },
     cargos: function () { return currentUserRoles; },
     aoMudarFoto: function (foto) { fotoPerfilAtual = foto; aplicarFotoPerfil(foto); },
-    // tema e aba inicial têm gravação própria aqui (aplicam e vão pra conta)
+    // o tema tem gravação própria aqui (aplica e vai pra conta)
     salvar: function (campo, valor) {
       if (campo === 'tema') { salvarTema(valor); return true; }
-      if (campo === 'abaInicial') { salvarAbaInicial(valor); return true; }
       return false;
     },
     aplicar: function (campo, valor) {
@@ -12680,15 +12669,6 @@
     subscribeCompetenciasFechadas_();
     atualizarBotaoNotificacoes();
     aplicarFotoPerfil(fotoPerfilAtual);
-
-    // Abre direto na aba escolhida nas configurações (Perfil só se for admin).
-    var abaInicial = 'nova';
-    try { abaInicial = localStorage.getItem('nilma_aba_inicial') || 'nova'; } catch (e) {}
-    if (abaInicial === 'perfil') abaInicial = temPapel('admin') ? 'clientes' : 'nova';
-    if (abaInicial !== 'nova') {
-      var alvo = document.querySelector('.tab[data-tab="' + abaInicial + '"]');
-      if (alvo && !alvo.hidden) alvo.click();
-    }
   }
 
   // ---------- instalar na tela inicial ----------
@@ -12893,6 +12873,16 @@
     // valores antigos (da tela de cartões) ainda gravados no aparelho
     ultima = { hubEntregas: 'entregas', hubClientes: 'clientes', hubContabil: 'contabil' }[ultima] || ultima;
     var alvo = pedido || ultima;
+    // Configurações › Telas e listas › "Abrir em": só na primeira abertura da
+    // sessão. Quem volta pelo menu ☰ cai onde pediu, não no módulo escolhido.
+    var modulo = '', primeira = false;
+    try { modulo = localStorage.getItem('nilma_modulo_inicial') || ''; } catch (e) {}
+    try { primeira = !sessionStorage.getItem('nilma_ja_entrou'); sessionStorage.setItem('nilma_ja_entrou', '1'); } catch (e) {}
+    if (!pedido && primeira && modulo && modulo !== 'ultimo') {
+      if (modulo === 'pendencias') { location.replace('Pendencias-e-envio-automatico-via-Gmail.html'); return; }
+      if (modulo === 'fiscal' && (temPapel('admin') || temPapel('fiscal'))) { location.replace('lcdpr.html'); return; }
+      if (modulo === 'entregas' || modulo === 'clientes' || modulo === 'contabil') alvo = modulo;
+    }
     if (pedido === 'solicitacoes') abrirSolicitacoes_();
     else if (alvo === 'clientes') entrarModoClientes_();
     else if (/^contabil(\/|$)/.test(alvo) && podeContabil_()) entrarModoSecundario_('contabil', alvo.indexOf('/') !== -1 ? 'tabbtn-' + alvo.split('/')[1] : '');
@@ -12937,42 +12927,33 @@
   }
 
   // ---------- saúde do sistema ----------
-  // Barra fina dentro da linha "Leituras hoje" (mesmo desenho das linhas
-  // do robô logo abaixo, em vez de um bloco à parte).
-  function barraDeUso_(pct, cor) {
-    return '<span class="saude-barra" aria-hidden="true"><span style="width:' + Math.min(100, Math.max(2, pct)) + '%;background:' + cor + '"></span></span>';
-  }
-  // Limites grátis do Firestore por dia; zeram à meia-noite da Califórnia.
-  var LIMITES_DO_DIA_ = { leituras: 50000, gravacoes: 20000, exclusoes: 20000 };
-  function linhaDeUso_(nome, usado, limite, sub, titulo) {
-    var pct = Math.round(usado / limite * 100);
-    var cor = pct >= 80 ? 'var(--danger)' : (pct >= 50 ? 'var(--warning)' : 'var(--success)');
+  // Uso do banco: só a contagem do dia (o dia do Google começa à meia-noite
+  // da Califórnia), sem limite nem porcentagem.
+  function linhaDeUso_(nome, usado, sub, titulo) {
     return '<div class="entrega-row saude-linha"' + (titulo ? ' title="' + escapeHtml_(titulo) + '"' : '') + '>' +
-      '<div><div class="er-nome">' + escapeHtml_(nome) + '</div>' +
-      '<div class="er-sub">' + usado.toLocaleString('pt-BR') + ' de ' + limite.toLocaleString('pt-BR') + ' (' + pct + '%)' + (sub ? ' · ' + escapeHtml_(sub) : '') + '</div></div>' +
-      barraDeUso_(pct, cor) +
-      '<span class="status-pill ' + (pct >= 80 ? 'falha' : 'entregue') + '">' + (pct >= 80 ? 'ver' : 'ok') + '</span></div>';
+      '<div><div class="er-nome">' + escapeHtml_(nome) + '</div>' + (sub ? '<div class="er-sub">' + escapeHtml_(sub) + '</div>' : '') + '</div>' +
+      '<span class="saude-num">' + Number(usado || 0).toLocaleString('pt-BR') + '</span></div>';
   }
   function desenharUsoDoBanco_(uso) {
     var caixa = $('saudeUsoLinhas');
     if (!caixa) return;
     var emMs = uso && uso.em ? Date.parse(uso.em) : 0;
     var desdeMs = uso && uso.desde ? Date.parse(uso.desde) : 0;
-    // número do Google vale se é recente e ainda é do mesmo dia da cota
+    // número do Google vale se é recente e ainda é do mesmo dia
     var valido = uso && !uso.erro && typeof uso.leituras === 'number' && emMs && (Date.now() - emMs) < 45 * 60000 &&
       desdeMs && (Date.now() - desdeMs) < 864e5;
     if (valido) {
-      var zera = new Date(desdeMs + 864e5).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-      var quando = 'até ' + new Date(emMs).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + ', zera às ' + zera;
+      var hora = function (ms) { return new Date(ms).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }); };
+      var quando = 'desde ' + hora(desdeMs) + ', atualizado às ' + hora(emMs);
       caixa.innerHTML =
-        linhaDeUso_('Leituras hoje', uso.leituras, LIMITES_DO_DIA_.leituras, quando, 'Todo o sistema: telas, aparelhos e robô, contado pelo Google') +
-        linhaDeUso_('Gravações hoje', uso.gravacoes || 0, LIMITES_DO_DIA_.gravacoes, '', 'Todo o sistema, contado pelo Google') +
-        ((uso.exclusoes || 0) > 1000 ? linhaDeUso_('Exclusões hoje', uso.exclusoes, LIMITES_DO_DIA_.exclusoes, '', 'Todo o sistema, contado pelo Google') : '');
+        linhaDeUso_('Leituras hoje', uso.leituras, quando, 'Todo o sistema: telas, aparelhos e robô, contado pelo Google') +
+        linhaDeUso_('Gravações hoje', uso.gravacoes, '', 'Todo o sistema, contado pelo Google') +
+        (uso.exclusoes ? linhaDeUso_('Exclusões hoje', uso.exclusoes, '', 'Todo o sistema, contado pelo Google') : '');
       return;
     }
-    caixa.innerHTML = linhaDeUso_('Leituras deste aparelho hoje', lerContadorDeLeituras_(), LIMITES_DO_DIA_.leituras,
+    caixa.innerHTML = linhaDeUso_('Leituras deste aparelho hoje', lerContadorDeLeituras_(),
       'o total do sistema aparece quando o robô da nuvem trouxer os números do Google',
-      'Só o que este navegador leu no Entregas; o limite vale pro sistema inteiro');
+      'Só o que este navegador leu no Entregas');
   }
   function renderSaudeDoSistema_() {
     var card = $('saudeSistemaCard');

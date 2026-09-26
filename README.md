@@ -13,15 +13,21 @@ mesma janela no Entregas, na Pendências, no Fiscal e no Contábil
 (`nilma-config.js`), começando em Minha conta: tópicos à esquerda, com busca,
 e as opções à direita, no desenho da ficha do cliente.
 
-- **Conta › Minha conta**: foto, nome (editável), e-mail, cargos, trocar senha e sair.
+- **Conta › Minha conta**: foto, nome (editável), e-mail, trocar senha e sair.
 - **Conta › Notificações**: ligar, mandar um aviso de teste e desligar neste aparelho.
 - **Preferências › Aparência**: tema e barra lateral aberta ou recolhida.
-- **Preferências › Telas e listas**: onde o Entregas e a Pendências abrem, clientes
-  da Pendências em lista ou cartões, e como abrir os PDFs do Drive.
+- **Preferências › Telas e listas**: em qual módulo o sistema abre ao entrar
+  (Entregas, Clientes e ajustes, Contábil, Fiscal, Pendências ou onde parou),
+  clientes da Pendências em lista ou cartões, e como abrir os PDFs do Drive.
 - **Preferências › Consulta rápida**: resposta padrão, rápida ou com IA.
 - **Aplicativo › Instalação e versão**: instalar, versão, "Buscar a versão mais
   nova" e os atalhos de teclado.
-- **Escritório › Integrações** (só admin): robô, Gmail, IA, backup e uso do banco.
+- **Escritório › Integrações** (só admin): robô, Gmail, IA, backup e uso do banco
+  (leituras e gravações do dia, contadas pelo Google).
+
+A Pendências tem as configurações da cobrança em **Configurações**: Geral (prazo e
+assinatura), Mensagens (1ª, 2ª e 3ª cobrança, WhatsApp, em lote e modelos seus) e
+Automático (cobrança sozinha e comprovante por e-mail).
 
 ## Visual N1 no ar (25/09/2026)
 
