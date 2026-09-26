@@ -70,7 +70,10 @@ function diaDeRodar(agora, dias, ultimaRodada) {
 function faltandoDo(cliente, doc) {
   if (doc && doc.semMovimento) return [];
   const naoAplica = Array.isArray(cliente.documentosNaoAplicaveis) ? cliente.documentosNaoAplicaveis : [];
-  return TIPOS.filter(t => !naoAplica.includes(t.chave) && !(doc && doc[t.chave]));
+  const inc = doc && doc.extratoIncompleto && doc.extratoIncompleto.texto;
+  return TIPOS.filter(t => !naoAplica.includes(t.chave) && !(doc && doc[t.chave]))
+    // extrato que veio só de parte do mês: a cobrança diz até onde chegou
+    .map(t => t.chave === 'extrato' && inc ? Object.assign({}, t, { label: t.label + ' — veio ' + inc + ', falta o resto do mês' }) : t);
 }
 
 // Monta a mensagem de um cliente, ou devolve por que ele fica de fora.

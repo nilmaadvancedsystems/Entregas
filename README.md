@@ -5,6 +5,24 @@ https://nilmaadvancedsystems.github.io/Entregas/entregas.html
 
 Para testar sem gravar nada no banco, abra com `?demo=1` no fim do link.
 
+## Filtros do Disparo, extrato incompleto e o robô que aprende (versão 2.365)
+
+- **Disparo › Para quem**: filtros de pendência no mês aberto (com, sem, falta
+  extrato/comprovante/aplicação), zona e enquadramento. Quem não passa sai da
+  lista e do envio; a busca só mostra.
+- **Extrato de parte do mês** (`scripts/periodo-extrato.js`): o robô lê o
+  período escrito no extrato ("Período: 01/08/2026 a 15/08/2026"). Se não vai
+  do 1º ao último dia útil (um dia de folga), o extrato não conta como recebido
+  e fica `documentosMensal.extratoIncompleto` ({ de, ate, texto }). A tela
+  mostra laranja ("chegou só até 15/08") e a cobrança, manual ou automática,
+  pede "Extrato Bancário — veio só até 15/08, falta o resto do mês". Extrato
+  inteiro que chega depois apaga a anotação. Sem período escrito: como antes.
+- **Aprender com as escolhas**: Salvar um e-mail escolhendo a empresa (quando
+  ele podia ser de mais de uma) grava em `robo/aprendizado` o remetente, a
+  empresa e as palavras do assunto/arquivos. Nos próximos e-mails do mesmo
+  remetente, depois de CNPJ e nome, a escolha parecida decide; remetente que
+  foi sempre pra mesma empresa (2 vezes ou mais) vai pra ela.
+
 ## Disparo pelo Gmail (versão 2.360)
 
 Pendências › Robô do Gmail › **Disparo** (só admin): um assunto, um texto e,

@@ -75,8 +75,8 @@ function seloDoBanco(b, recebido, imagens) {
 // Uma linha por documento que falta, todas numa lista só: ícone, nome, o que
 // mandar e, com bancos conhecidos, um selo por banco (os que faltam primeiro).
 // Vale pros três documentos, que saem todos do banco.
-function linhaDoDocumento(tipo, cliente, recebidosPorTipo, imagens) {
-  const t = TIPOS[tipo];
+function linhaDoDocumento(tipo, cliente, recebidosPorTipo, imagens, nota) {
+  const t = nota ? Object.assign({}, TIPOS[tipo], { dica: nota }) : TIPOS[tipo];
   const recebidos = (recebidosPorTipo && recebidosPorTipo[tipo]) || [];
   const bancos = (cliente.bancos || []).map(id => POR_ID.get(id)).filter(Boolean);
   const faltam = bancos.filter(b => !recebidos.includes(b.id)).length;
@@ -208,7 +208,10 @@ function htmlDaCobranca(o) {
       fechaP();
       const tipo = tipoDaLinha(l);
       cartoes = cartoes || [];
-      if (tipo && !cartoes.some(c => c.tipo === tipo)) { const c = new String(linhaDoDocumento(tipo, cliente, recebidos, imagens)); c.tipo = tipo; cartoes.push(c); }
+      // "Extrato Bancário — veio só até 15/08, falta o resto do mês": a linha avisa
+      const parte = (l.match(/—\s*veio\s+(.+?),\s*falta o resto do mês/) || [])[1];
+      const nota = parte ? 'Chegou ' + parte + '. Falta o resto do mês.' : '';
+      if (tipo && !cartoes.some(c => c.tipo === tipo)) { const c = new String(linhaDoDocumento(tipo, cliente, recebidos, imagens, nota)); c.tipo = tipo; cartoes.push(c); }
       else if (!tipo) cartoes.push('<div style="font:600 15px/1.4 ' + FONTE + ';color:' + COR.tinta + '">' + esc(l.replace(/^-\s+/, '')) + '</div>');
     } else if (/^https?:\/\//.test(l)) {
       fechaP(); fechaC();                                   // o link vira o botão lá embaixo

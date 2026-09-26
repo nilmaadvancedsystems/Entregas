@@ -325,6 +325,44 @@ igual('HTML: o comprovante também conta por banco', [
   /Falta 1 banco/.test(visual2.html),
 ], [true, true, true]);
 
+// ---------- aprender com as escolhas da equipe ----------
+const pal = r.palavrasDaEscolha('RES: Notas fiscais de saída - Oficina Centro (agosto/2026)', ['NF 123 OFICINA.pdf']);
+igual('palavras da escolha sem as comuns, meses e números', pal, ['OFICINA', 'CENTRO']);
+const mob = { id: 'm', nome: 'A7 MOBILE' }, com = { id: 'c', nome: 'A7 COMERCIO DE VEICULOS' };
+const esc = [{ remetente: 'a7@x.com', clienteId: 'm', palavras: ['OFICINA', 'CENTRO'] }, { remetente: 'a7@x.com', clienteId: 'c', palavras: ['LOJA', 'MATRIZ'] }];
+igual('assunto parecido com uma escolha antiga decide', (r.desempatarPeloAprendido([com, mob], 'a7@x.com', ['OFICINA', 'CENTRO', 'SETEMBRO'], esc) || {}).id, 'm');
+igual('assunto que não lembra nenhuma escolha não decide', r.desempatarPeloAprendido([com, mob], 'a7@x.com', ['OUTRA', 'COISA'], esc), null);
+igual('outro remetente não usa a escolha', r.desempatarPeloAprendido([com, mob], 'outro@x.com', ['OFICINA', 'CENTRO'], esc), null);
+const sempre = [{ remetente: 'b@x.com', clienteId: 'm', palavras: ['X1'] }, { remetente: 'b@x.com', clienteId: 'm', palavras: ['Y2'] }];
+igual('remetente que sempre foi pra mesma empresa: ela', (r.desempatarPeloAprendido([com, mob], 'b@x.com', ['NADA'], sempre) || {}).id, 'm');
+igual('a mesma escolha não se repete na lista', r.juntarEscolha(esc, { remetente: 'a7@x.com', clienteId: 'm', palavras: ['OFICINA', 'CENTRO'] }).length, 2);
+
+// ---------- extrato que não cobre o mês ----------
+const pe = require('./periodo-extrato');
+const aval = (t, c) => pe.avaliarPeriodo(pe.periodoDoTexto(t), c || '2026-08');
+igual('extrato só até o dia 15', aval('SICOOB Período: 01/08/2026 a 15/08/2026'), { completo: false, de: '2026-08-01', ate: '2026-08-15', texto: 'só até 15/08' });
+igual('extrato do mês inteiro', aval('PERÍODO DE 01/08/2026 ATÉ 31/08/2026').completo, true);
+igual('começa no 1º dia útil (01/08 é sábado)', aval('Extrato de 03/08/2026 até 31/08/2026').completo, true);
+igual('começa no meio do mês', aval('Data inicial: 10/08/2026  Data final: 31/08/2026').texto, 'só a partir de 10/08');
+igual('só datas de lançamento não decidem', aval('05/08/2026 PIX 12/08/2026'), null);
+igual('período de outro mês não conta', aval('Período: 01/07/2026 a 31/07/2026'), null);
+const esperarExtratos = (async () => {
+  const pdf = (nome, texto) => ({ filename: nome, mimeType: 'application/pdf', buffer: Buffer.from('x'), _texto: texto });
+  const so15 = await r.conferirPeriodoDosExtratos([pdf('extrato sicoob.pdf', 'Extrato conta corrente SICOOB Período: 01/08/2026 a 15/08/2026')], '2026-08');
+  igual('extrato só de parte do mês não conta como inteiro', [so15.inteiro, so15.incompletos.length, so15.incompletos[0].texto], [false, 1, 'só até 15/08']);
+  const comComprovante = await r.conferirPeriodoDosExtratos([pdf('extrato.pdf', 'Extrato Período: 01/08/2026 a 15/08/2026'), pdf('comprovante pix.pdf', 'Comprovante de pagamento PIX')], '2026-08');
+  igual('comprovante no mesmo e-mail não "completa" o extrato', comComprovante.inteiro, false);
+  const semPeriodo = await r.conferirPeriodoDosExtratos([pdf('extrato agosto.pdf', 'Extrato bancário lançamentos 05/08 PIX')], '2026-08');
+  igual('extrato sem período escrito conta como antes', semPeriodo.inteiro, true);
+})().catch(e => { console.error(e); falhas++; });
+const rc = require('./regua-cobranca');
+if (rc.cobrancaDo) {
+  const cob = rc.cobrancaDo({ email: 'a@x.com', nome: 'PADARIA' }, { extratoIncompleto: { texto: 'só até 15/08' } }, {}, '2026-08', Date.now());
+  igual('cobrança automática diz até onde o extrato veio', /Extrato Bancário — veio só até 15\/08, falta o resto do mês/.test(cob.corpo), true);
+  const vis = eh.htmlDaCobranca({ corpo: 'Olá\n\n' + cob.corpo.split('\n').filter(l => /^- /.test(l)).join('\n'), cliente: {}, competencia: '2026-08' });
+  igual('e-mail HTML avisa na linha do extrato', /Chegou só até 15\/08\. Falta o resto do mês\./.test(vis.html), true);
+}
+
 // ---------- mensagem do Gmail com anexo (Disparo) ----------
 const mg = require('./mensagem-gmail');
 const cru = t => Buffer.from(t.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8');
@@ -495,5 +533,8 @@ igual('cota do dia no inverno (8h UTC)', ub.inicioDoDiaDaCota(new Date('2026-12-
 igual('soma os pontos de todas as séries', ub.somaDaResposta({ timeSeries: [{ points: [{ value: { int64Value: '1200' } }, { value: { int64Value: '34' } }] }, { points: [{ value: { int64Value: '6' } }] }] }), 1240);
 igual('sem série é zero', ub.somaDaResposta({}), 0);
 
-console.log(falhas ? '\n' + falhas + ' de ' + total + ' testes FALHARAM' : total + ' testes, todos passaram');
-process.exit(falhas ? 1 : 0);
+// os testes que leem PDF são assíncronos: o resultado espera por eles
+esperarExtratos.then(() => {
+  console.log(falhas ? '\n' + falhas + ' de ' + total + ' testes FALHARAM' : total + ' testes, todos passaram');
+  process.exit(falhas ? 1 : 0);
+});

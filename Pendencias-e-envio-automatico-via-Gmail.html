@@ -891,6 +891,10 @@
   .disp-marcar { margin-left: auto; display: flex; gap: 4px; }
   .disp-marcar .btn { min-height: 26px; padding: 2px 10px; }
   .disp-filtro { gap: 12px; padding-top: 12px; padding-bottom: 12px; }
+  .cfg-linha.disp-filtros { flex-wrap: wrap; gap: 8px; padding-top: 12px; padding-bottom: 0; }
+  .disp-filtros .select { flex: 1 1 150px; min-width: 0; height: 32px; font-size: 13px; }
+  .disp-filtros + .cfg-linha { border-top: 0; }
+  .disp-filtros .select.ativo { border-color: var(--accent); color: var(--ink); }
   .disp-busca { flex: 1 1 220px; display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); }
   .disp-busca:focus-within { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
   .disp-busca .ph { color: var(--ink-muted); }
@@ -1345,7 +1349,7 @@
 <script src="nilma-solicitacoes.js?v=358"></script>
 <script src="nilma-extras.js?v=355"></script>
 <script>
-  var VERSAO_APP = '2.364 · 26/09/2026';
+  var VERSAO_APP = '2.365 · 26/09/2026';
   NilmaShell.montar({ modulo: 'Pendências', moduloId: 'pendencias', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false, versao: VERSAO_APP });
   // antes do login só a tela de entrada; a barra aparece junto com o app
   document.getElementById('topo').hidden = true;
@@ -1659,6 +1663,12 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
               <button type="button" class="btn btn-ghost btn-sm" id="dispTodos" title="Marcar todos os clientes da lista (ou os da busca)">Todos</button>
               <button type="button" class="btn btn-ghost btn-sm" id="dispNenhum" title="Desmarcar todos os clientes da lista (ou os da busca)">Nenhum</button>
             </div>
+          </div>
+          <!-- Filtros: quem não passa sai da lista e do envio (a busca só mostra) -->
+          <div class="cfg-linha disp-filtros">
+            <select class="select" id="dispFiltroPend" aria-label="Pendência no mês"></select>
+            <select class="select" id="dispFiltroZona" aria-label="Zona" hidden></select>
+            <select class="select" id="dispFiltroEnq" aria-label="Enquadramento" hidden></select>
           </div>
           <div class="cfg-linha disp-filtro">
             <label class="disp-busca"><i class="ph ph-magnifying-glass" aria-hidden="true"></i><input type="search" id="dispBusca" placeholder="Buscar cliente" aria-label="Buscar cliente" autocomplete="off"></label>
@@ -2629,11 +2639,23 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
   function faltandoDe(clienteId) {
     var st = statusDoCliente(clienteId);
     if (st.semMovimento) return [];
+    var inc = extratoIncompleto(st);
     return tiposExigidos(clienteId).map(function (t) {
       var faltam = bancosFaltando(clienteId, t.chave, st);
-      if (faltam.length) return tipoComBancos(t, faltam, clienteId);
-      return st[t.chave] ? null : t;
+      var r = faltam.length ? tipoComBancos(t, faltam, clienteId) : (st[t.chave] ? null : t);
+      // extrato que veio só de parte do mês (o robô leu o período escrito nele)
+      if (r && t.chave === 'extrato' && inc) {
+        r = Object.assign({}, r, { label: r.label + ' — veio ' + inc.texto + ', falta o resto do mês',
+          frase: (r.frase || r.label.toLowerCase()) + ' (o que chegou vai ' + inc.texto + ')', incompleto: inc });
+      }
+      return r;
     }).filter(Boolean);
+  }
+  // Extrato de parte do mês ainda sem o resto: vale enquanto nenhum extrato
+  // inteiro chegou (o robô apaga a anotação quando chega).
+  function extratoIncompleto(st) {
+    var inc = st && st.extratoIncompleto;
+    return inc && inc.texto ? inc : null;
   }
   function completoNoMes(clienteId, dado) {
     if (!dado) return false;
@@ -3798,10 +3820,14 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
       b.classList.toggle('recebido', marcado);
       b.classList.toggle('gmail', marcado && !!(detalhes[tipo.chave] && detalhes[tipo.chave].origem === 'gmail'));
       var faltamBancos = bancosFaltando(cliente.id, tipo.chave);
-      // Chegou de um banco e falta de outro: nem verde nem vazio.
-      b.classList.toggle('parcial', marcado && faltamBancos.length > 0);
-      if (marcado && faltamBancos.length) b.classList.remove('recebido');
-      b.title = faltamBancos.length
+      var inc = tipo.chave === 'extrato' ? extratoIncompleto(status) : null;
+      // Chegou de um banco e falta de outro, ou chegou só parte do mês: nem verde nem vazio.
+      var parcial = (marcado && faltamBancos.length > 0) || (!!inc && (!marcado || faltamBancos.length > 0));
+      b.classList.toggle('parcial', parcial);
+      if (parcial) b.classList.remove('recebido');
+      b.title = inc && parcial
+        ? 'Chegou extrato ' + inc.texto + (inc.bancos && inc.bancos.length ? ' (' + nomesDeBancos(inc.bancos) + ')' : '') + ': falta o resto do mês.'
+        : faltamBancos.length
         ? 'Falta o ' + tipo.curto.toLowerCase() + ' de ' + nomesDeBancos(faltamBancos) + (marcado ? ' (os outros já chegaram)' : '') + '.'
         : tipo.label + (marcado ? ' recebido. Clique para desmarcar.' : ' em falta. Clique para marcar como recebido.');
       b.setAttribute('aria-label', b.title);
@@ -6489,9 +6515,50 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
     return clientesCache.filter(function (c) { return emailsDoCliente(c).length; })
       .sort(function (a, b) { return clienteLabel(a).localeCompare(clienteLabel(b), 'pt-BR'); });
   }
-  function dispEscolhidos() { return clientesComEmail().filter(function (c) { return !dispFora.has(c.id); }); }
+  // Filtros do Disparo: pendência no mês aberto na tela, zona e enquadramento.
+  function dispMontarFiltros() {
+    var mes = competenciaPorExtenso(competenciaStr(competenciaAtual)).split(' de ')[0];
+    var pend = $('dispFiltroPend'), atual = pend.value;
+    pend.innerHTML = '';
+    [['', 'Pendência: todos'], ['com', 'Com pendência em ' + mes], ['sem', 'Sem pendência em ' + mes],
+      ['extrato', 'Falta extrato'], ['comprovante', 'Falta comprovante'], ['aplicacao', 'Falta aplicação']].forEach(function (o) {
+      pend.appendChild(new Option(o[1], o[0]));
+    });
+    pend.value = atual;
+    [['dispFiltroZona', 'zona', 'Zona: todas'], ['dispFiltroEnq', 'enquadramento', 'Enquadramento: todos']].forEach(function (cfg) {
+      var sel = $(cfg[0]), antes = sel.value;
+      var valores = [];
+      clientesComEmail().forEach(function (c) { var v = (c[cfg[1]] || '').trim(); if (v && valores.indexOf(v) === -1) valores.push(v); });
+      valores.sort(function (a, b) { return a.localeCompare(b, 'pt-BR'); });
+      sel.innerHTML = '';
+      sel.appendChild(new Option(cfg[2], ''));
+      valores.forEach(function (v) { sel.appendChild(new Option(v, v)); });
+      sel.value = valores.indexOf(antes) !== -1 ? antes : '';
+      sel.hidden = !valores.length;
+    });
+    ['dispFiltroPend', 'dispFiltroZona', 'dispFiltroEnq'].forEach(function (id) { $(id).classList.toggle('ativo', !!$(id).value); });
+  }
+  function dispPassaFiltros(c) {
+    var pend = $('dispFiltroPend').value, zona = $('dispFiltroZona').value, enq = $('dispFiltroEnq').value;
+    if (zona && (c.zona || '').trim() !== zona) return false;
+    if (enq && (c.enquadramento || '').trim() !== enq) return false;
+    if (!pend) return true;
+    var falta = faltandoDe(c.id);
+    if (pend === 'com') return falta.length > 0;
+    if (pend === 'sem') return falta.length === 0;
+    return falta.some(function (t) { return t.chave === pend; });
+  }
+  function dispFiltrosAtivos() {
+    return ['dispFiltroPend', 'dispFiltroZona', 'dispFiltroEnq'].map(function (id) {
+      var s = $(id); return s.value ? s.options[s.selectedIndex].text : '';
+    }).filter(Boolean);
+  }
+  ['dispFiltroPend', 'dispFiltroZona', 'dispFiltroEnq'].forEach(function (id) {
+    $(id).addEventListener('change', function () { this.classList.toggle('ativo', !!this.value); dispFiltrar(); dispPintarContagem(); });
+  });
+  function dispEscolhidos() { return clientesComEmail().filter(function (c) { return !dispFora.has(c.id) && dispPassaFiltros(c); }); }
   function dispPintarContagem() {
-    var todos = clientesComEmail(), marcados = dispEscolhidos();
+    var todos = clientesComEmail().filter(dispPassaFiltros), marcados = dispEscolhidos();
     var enderecos = new Set();
     marcados.forEach(function (c) { emailsDoCliente(c).forEach(function (e) { enderecos.add(e.toLowerCase()); }); });
     $('dispN').textContent = marcados.length + ' de ' + todos.length + ' clientes';
@@ -6528,7 +6595,15 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
   }
   function dispFiltrar() {
     var t = normalizarBusca($('dispBusca').value);
-    $('dispLista').querySelectorAll('.disp-cli').forEach(function (l) { l.hidden = !!t && l.dataset.busca.indexOf(t) === -1; });
+    var algum = false;
+    $('dispLista').querySelectorAll('.disp-cli').forEach(function (l) {
+      var c = clientesPorId.get(l.dataset.id);
+      l.hidden = (!!t && l.dataset.busca.indexOf(t) === -1) || !c || !dispPassaFiltros(c);
+      if (!l.hidden) algum = true;
+    });
+    var vazio = $('dispLista').querySelector('.disp-vazio');
+    if (!algum && !vazio) { vazio = el('div', 'lado-vazio disp-vazio', 'Nenhum cliente com esses filtros.'); $('dispLista').appendChild(vazio); }
+    if (vazio) vazio.hidden = algum;
   }
   function dispMarcarVisiveis(marcar) {
     $('dispLista').querySelectorAll('.disp-cli:not([hidden])').forEach(function (l) {
@@ -6608,6 +6683,7 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
     }).catch(function () {});
   }
   function abrirDisparo() {
+    dispMontarFiltros();
     dispMontarLista();
     dispLerHistorico();
   }
@@ -6677,7 +6753,8 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
     var nomeArquivo = dispArquivo ? $('dispNomeArquivo').value.trim().replace(/[\\/:*?"<>|]+/g, '-') + '.' + dispArquivo.ext : '';
     var ok = await NilmaDialogo.confirmar({
       titulo: 'Disparar para ' + plural(escolhidos.length, 'cliente', 'clientes') + '?',
-      texto: '"' + assunto + '"' + (emHtml ? ' (HTML pronto)' : '') + (nomeArquivo ? ' com o arquivo ' + nomeArquivo : ', sem arquivo') + '. Depois de enviado, não dá pra desfazer.',
+      texto: '"' + assunto + '"' + (emHtml ? ' (HTML pronto)' : '') + (nomeArquivo ? ' com o arquivo ' + nomeArquivo : ', sem arquivo') +
+        (dispFiltrosAtivos().length ? '. Filtro: ' + dispFiltrosAtivos().join(', ') : '') + '. Depois de enviado, não dá pra desfazer.',
       acao: 'Disparar'
     });
     if (!ok) return;

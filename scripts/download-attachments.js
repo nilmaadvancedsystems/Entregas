@@ -225,13 +225,48 @@ function copiaJaNaOrigem(nomeCliente, nome, buffer) {
 }
 
 // Bancos dos extratos anexados, cada PDF pelo próprio cabeçalho.
+// Texto de um PDF, lido uma vez só (banco, período do extrato e desempate
+// usam o mesmo texto). PDF ilegível: ''.
+async function textoDoPdf(a) {
+  if (a._texto !== undefined) return a._texto;
+  a._texto = '';
+  if (a.mimeType === 'application/pdf' && a.buffer) {
+    try { a._texto = (await pdfParse(a.buffer)).text || ''; }
+    catch (err) { console.error('  não consegui ler o PDF', a.filename, '-', err.message); }
+  }
+  return a._texto;
+}
 async function bancosDosAnexos(anexos) {
   const textos = [];
   for (const a of anexos) {
     if (a.mimeType !== 'application/pdf' || !a.buffer) continue;
-    try { textos.push((await pdfParse(a.buffer)).text); } catch (err) { /* PDF ilegível: sem banco */ }
+    const t = await textoDoPdf(a);
+    if (t) textos.push(t);
   }
   return require('./bancos').bancosDosTextos(textos);
+}
+
+// Extrato que não cobre o mês inteiro (scripts/periodo-extrato.js). Olha só
+// os PDFs que são extrato; o que não tem período escrito conta como antes
+// (inteiro). -> { incompletos: [{ arquivo, bancos, de, ate, texto }], inteiro, bancosInteiros }
+async function conferirPeriodoDosExtratos(anexos, competencia) {
+  const { periodoDoTexto, avaliarPeriodo } = require('./periodo-extrato');
+  const { bancosDoTexto } = require('./bancos');
+  const r = { incompletos: [], inteiro: false, bancosInteiros: new Set() };
+  let algumPdf = false;
+  for (const a of anexos) {
+    if (a.mimeType !== 'application/pdf' || !a.buffer) continue;
+    const texto = await textoDoPdf(a);
+    if (!detectarTipos(a.filename + ' ' + texto.slice(0, 4000)).includes('extrato')) continue;
+    algumPdf = true;
+    const av = avaliarPeriodo(periodoDoTexto(texto), competencia);
+    if (av && !av.completo) { r.incompletos.push({ arquivo: a.filename, bancos: bancosDoTexto(texto), de: av.de, ate: av.ate, texto: av.texto }); continue; }
+    r.inteiro = true;
+    bancosDoTexto(texto).forEach(b => r.bancosInteiros.add(b));
+  }
+  // extrato em foto ou sem PDF de extrato reconhecível: como antes
+  if (!algumPdf) r.inteiro = true;
+  return r;
 }
 // Banco novo no cadastro do cliente. O que o admin tirou à mão
 // (bancosRecusados) o robô não põe de volta.
@@ -253,11 +288,7 @@ async function aprenderBancos(db, cliente, bancos) {
 
 async function textoDosPdfs(anexos) {
   let texto = '';
-  for (const a of anexos) {
-    if (a.mimeType !== 'application/pdf' || !a.buffer) continue;
-    try { texto += ' ' + (await pdfParse(a.buffer)).text; }
-    catch (err) { console.error('  não consegui ler o PDF', a.filename, '-', err.message); }
-  }
+  for (const a of anexos) texto += ' ' + (await textoDoPdf(a));
   return texto;
 }
 
@@ -338,6 +369,40 @@ function empresasIrmas(cliente, clientes, freq) {
     const delas = palavrasDoCliente(x);
     return minhas.some(w => delas.has(w));
   });
+}
+
+// Aprender com as escolhas da equipe: quando alguém diz na tela de qual
+// empresa é um e-mail ("De qual cliente?" e Salvar), o robô guarda o
+// remetente, a empresa e as palavras do assunto/arquivos em robo/aprendizado.
+// Nos próximos e-mails do mesmo remetente, a escolha parecida decide.
+const MAX_ESCOLHAS = 400;
+const PALAVRAS_COMUNS = new Set(['NOTA', 'NOTAS', 'FISCAL', 'FISCAIS', 'EXTRATO', 'EXTRATOS', 'SEGUE', 'SEGUEM', 'ANEXO', 'ANEXOS', 'PDF', 'XML',
+  'DOCUMENTO', 'DOCUMENTOS', 'MES', 'REF', 'REFERENTE', 'ENVIO', 'ARQUIVO', 'ARQUIVOS', 'ENTRADA', 'SAIDA', 'BANCO', 'BANCARIO', 'CONTA',
+  'JANEIRO', 'FEVEREIRO', 'MARCO', 'ABRIL', 'MAIO', 'JUNHO', 'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO', 'LTDA', 'RES', 'ENC', 'FWD']);
+function palavrasDaEscolha(assunto, arquivos) {
+  return [...new Set(palavras(assunto + ' ' + (arquivos || []).join(' ').replace(/\.[a-z0-9]{2,4}\b/gi, ' ')))]
+    .filter(w => w.length >= 3 && !/^\d+$/.test(w) && !LIGACAO.has(w) && !PALAVRAS_COMUNS.has(w)).slice(0, 12);
+}
+function desempatarPeloAprendido(candidatos, remetente, palavrasAgora, escolhas) {
+  const doRemetente = (escolhas || []).filter(e => e && e.remetente === remetente && candidatos.some(c => c.id === e.clienteId));
+  if (!doRemetente.length) return null;
+  const agora = new Set(palavrasAgora);
+  const nota = {};
+  doRemetente.forEach(e => {
+    const ps = e.palavras || [];
+    const bate = ps.length ? ps.filter(w => agora.has(w)).length / ps.length : 0;
+    nota[e.clienteId] = Math.max(nota[e.clienteId] || 0, bate);
+  });
+  const ordem = Object.keys(nota).sort((a, b) => nota[b] - nota[a]);
+  if (nota[ordem[0]] >= 0.5 && (ordem.length === 1 || nota[ordem[1]] < nota[ordem[0]])) return candidatos.find(c => c.id === ordem[0]);
+  // sempre a mesma empresa pra este remetente (duas vezes ou mais): ela
+  const ids = new Set(doRemetente.map(e => e.clienteId));
+  if (ids.size === 1 && doRemetente.length >= 2) return candidatos.find(c => c.id === doRemetente[0].clienteId);
+  return null;
+}
+function juntarEscolha(escolhas, nova) {
+  const chave = e => e.remetente + '|' + e.clienteId + '|' + (e.palavras || []).join(' ');
+  return (escolhas || []).filter(e => e && chave(e) !== chave(nova)).concat([nova]).slice(-MAX_ESCOLHAS);
 }
 
 // Texto do e-mail sem o nome de quem mandou: o dono assina com o nome dele,
@@ -538,6 +603,9 @@ async function main() {
   const DIA_LIMITE = Number((cobrancaSnap.data() || {}).diaLimite) || 0;
   // O --mensagem é pedido explícito da tela (e já recusa quem não é cliente).
   const ignorados = UMA_MENSAGEM ? new Set() : await lerIgnorados(db);
+  const refAprendizado = db.collection('robo').doc('aprendizado');
+  let escolhas = [];
+  try { escolhas = ((await refAprendizado.get()).data() || {}).escolhas || []; } catch (err) { console.log('Escolhas aprendidas não carregaram (' + err.message + '); segue sem elas.'); }
 
   // O que o robô lembra entre uma leitura e outra vem do banco, não mais de
   // arquivo ao lado do script — é o que permite ele rodar na nuvem, onde o
@@ -621,6 +689,18 @@ async function main() {
       const irmas = forcado ? [] : cadastrados.reduce((acc, c) => acc.concat(empresasIrmas(c, todosClientes, freqPalavras)
         .filter(x => !cadastrados.some(k => k.id === x.id) && !acc.some(k => k.id === x.id))), []);
       const candidatos = cadastrados.concat(irmas);
+      const palavrasAgora = palavrasDaEscolha(assunto, anexos.map(a => a.filename));
+      // Escolha feita na tela (Salvar com o cliente escolhido): se o e-mail
+      // podia ser de mais de uma empresa, o robô aprende pra próxima vez.
+      if (forcado && !SIMULAR) {
+        const naturais = porEmail.get(remetente) || porDominio.get(dominioDe(remetente)) || [];
+        const possiveis = naturais.concat(...naturais.map(c => empresasIrmas(c, todosClientes, freqPalavras)));
+        if (new Set(possiveis.map(c => c.id)).size > 1 && possiveis.some(c => c.id === forcado.id)) {
+          escolhas = juntarEscolha(escolhas, { remetente, clienteId: forcado.id, palavras: palavrasAgora, em });
+          await refAprendizado.set({ escolhas, atualizadoEm: new Date().toISOString() }).catch(err => console.log('não guardei a escolha:', err.message));
+          console.log('  aprendido: ' + remetente + ' → ' + (forcado.codigoOrigem || forcado.nome) + (palavrasAgora.length ? ' (' + palavrasAgora.join(' ') + ')' : ''));
+        }
+      }
       // trecho: o começo do e-mail (~240 letras), pro resumo na lista da tela
       const resumoCaixa = { em, remetente, nome: extrairNome(from), assunto, trecho, arquivos: anexos.map(a => a.filename) };
 
@@ -669,6 +749,10 @@ async function main() {
       let cliente = candidatos.length === 1 ? candidatos[0] : desempatarPorDocumento(candidatos, textoNomes);
       if (!cliente && candidatos.length > 1) cliente = desempatarPorNome(candidatos, assunto + ' ' + anexos.map(a => a.filename).join(' '));
       if (!cliente && candidatos.length > 1 && anexos.length) cliente = desempatarPorDocumento(candidatos, await lerPdf());
+      if (!cliente && candidatos.length > 1) {
+        cliente = desempatarPeloAprendido(candidatos, remetente, palavrasAgora, escolhas);
+        if (cliente) console.log('  pelo que a equipe já escolheu antes: ' + (cliente.codigoOrigem || cliente.nome));
+      }
       if (!cliente && candidatos.length > 1) {
         let corpo = '';
         try { corpo = textoDoEmail(msg.data.payload).slice(0, 20000); } catch (e) {}
@@ -772,7 +856,21 @@ async function main() {
         // que o cliente já tem — senão o boleto pago no Bradesco viraria
         // conta dele no Bradesco.
         const jaTem = new Set(cliente.bancos || []);
-        const bancosDoTipo = t => t === 'extrato' ? achados : achados.filter(b => jaTem.has(b));
+        // Extrato só de parte do mês: não conta como recebido (o banco dele
+        // também não) e fica anotado até onde veio, pra tela e pra cobrança.
+        const periodo = tipos.includes('extrato') ? await conferirPeriodoDosExtratos(comBytes, competencia) : null;
+        const bancosIncompletos = new Set(periodo ? [].concat(...periodo.incompletos.map(x => x.bancos)).filter(b => !periodo.bancosInteiros.has(b)) : []);
+        const soParteDoExtrato = !!(periodo && periodo.incompletos.length && !periodo.inteiro);
+        if (periodo && periodo.incompletos.length) {
+          const x = periodo.incompletos[0];
+          patch.extratoIncompleto = { de: x.de, ate: x.ate, texto: x.texto, arquivos: periodo.incompletos.map(i => i.arquivo), bancos: [...bancosIncompletos], mensagemId: id, em: agora };
+          console.log('  extrato ' + x.texto + ' (' + x.arquivo + '): ' + (soParteDoExtrato ? 'não marcado' : 'os outros bancos marcados'));
+          andamento({ texto: cliente.nome + ': extrato ' + x.texto + ', falta o resto do mês', destaque: true });
+        } else if (periodo && periodo.inteiro) {
+          patch.extratoIncompleto = FV.delete();
+        }
+        if (soParteDoExtrato) tipos = tipos.filter(t => t !== 'extrato');
+        const bancosDoTipo = t => t === 'extrato' ? achados.filter(b => !bancosIncompletos.has(b)) : achados.filter(b => jaTem.has(b));
         patch.atualizadoEm = agora;
         patch.detalhes = {};
         if (achados.length) patch.bancosPorTipo = {};
@@ -783,14 +881,16 @@ async function main() {
             doTipo.length ? { bancos: doTipo } : {});
           if (doTipo.length) patch.bancosPorTipo[t] = FV.arrayUnion(...doTipo);
         });
-        if (achados.length && tipos.includes('extrato')) {
+        if (achados.length && tipos.includes('extrato') && bancosDoTipo('extrato').length) {
           // bancosRecebidos era o campo antigo, só do extrato: continua em dia
           // pra quem ainda lê ele (o e-mail de cobrança, o mês já gravado).
-          patch.bancosRecebidos = FV.arrayUnion(...achados);
+          patch.bancosRecebidos = FV.arrayUnion(...bancosDoTipo('extrato'));
           await aprenderBancos(db, cliente, achados);
         }
-        cont.marcados++;
-        andamento({ texto: cliente.nome + ': marcado ' + tipos.join(', ') + ' de ' + competencia.split('-').reverse().join('/'), destaque: true });
+        if (tipos.length) {
+          cont.marcados++;
+          andamento({ texto: cliente.nome + ': marcado ' + tipos.join(', ') + ' de ' + competencia.split('-').reverse().join('/'), destaque: true });
+        }
         // o link que mostra este cliente: o dele ou o da empresa principal do grupo
         [cliente, clientesPorId.get(cliente.grupoLocal)].forEach(dono => {
           if (dono && dono.portalToken) portaisATocar.set(dono.id, dono);
@@ -914,7 +1014,7 @@ if (require.main === module) {
 
 module.exports = {
   competenciaDoTexto, competenciaPresumida, mesesDoPortal, faltamNoMes, detectarTipos, coletarAnexos, IMAGEM_DE_ASSINATURA, AUTOMATICO,
-  desempatarPorDocumento, desempatarPorNome, semAssinatura, empresasIrmas, frequenciaDePalavras, decodificarEntidades, extrairEmail, extrairNome, dominioDe, DOMINIOS_PUBLICOS, montarSpam, MAX_SPAM,
+  conferirPeriodoDosExtratos, palavrasDaEscolha, desempatarPeloAprendido, juntarEscolha, desempatarPorDocumento, desempatarPorNome, semAssinatura, empresasIrmas, frequenciaDePalavras, decodificarEntidades, extrairEmail, extrairNome, dominioDe, DOMINIOS_PUBLICOS, montarSpam, MAX_SPAM,
   // usados por envios-do-portal.js (documento que o cliente manda pelo link)
   PASTA_DESTINO, sanitizar, salvarArquivo, atualizarPortal, bancosNovos,
 };
