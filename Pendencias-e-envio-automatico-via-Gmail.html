@@ -873,6 +873,15 @@
   .disp-coluna .input { width: 100%; }
   .disp-coluna textarea.input { min-height: 150px; resize: vertical; line-height: 20px; font-family: inherit; }
   .disp-nome { gap: 6px; }
+  /* escolher cliente com busca */
+  .selcli { position: relative; width: 260px; max-width: 100%; }
+  .selcli-campo.input { width: 100%; height: 30px; min-height: 30px; padding: 4px 10px; font-size: var(--t-sm, 13px); }
+  .selcli-lista { position: fixed; z-index: 1000; max-height: 260px; overflow-y: auto; padding: 4px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); box-shadow: var(--shadow-lg); }
+  .selcli-item { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; width: 100%; padding: 6px 10px; border: 0; border-radius: 4px; background: none; color: var(--ink); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+  .selcli-item:hover, .selcli-item.marcado { background: var(--hover-bg); }
+  .selcli-item.marcado { box-shadow: inset 2px 0 0 var(--accent); }
+  .selcli-item .doc { font-size: 12px; color: var(--ink-muted); font-variant-numeric: tabular-nums; }
+  .selcli-nada { padding: 8px 10px; font-size: 13px; color: var(--ink-muted); }
   .disp-formato { margin-left: auto; }
   .disp-codigo { min-height: 160px; font-family: var(--font-num); font-size: 12px; line-height: 18px; white-space: pre; overflow-wrap: normal; }
   .disp-previa { width: 100%; height: 460px; border: 1px solid var(--border); border-radius: 6px; background: #FFFFFF; }
@@ -1336,7 +1345,7 @@
 <script src="nilma-solicitacoes.js?v=358"></script>
 <script src="nilma-extras.js?v=355"></script>
 <script>
-  var VERSAO_APP = '2.363 · 26/09/2026';
+  var VERSAO_APP = '2.364 · 26/09/2026';
   NilmaShell.montar({ modulo: 'Pendências', moduloId: 'pendencias', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false, versao: VERSAO_APP });
   // antes do login só a tela de entrada; a barra aparece junto com o app
   document.getElementById('topo').hidden = true;
@@ -4371,6 +4380,84 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
         throw err;
       });
   }
+  // Escolher cliente com busca (no lugar do <select> de 300 nomes): digita
+  // nome, fantasia, código ou CNPJ; setas e Enter escolhem, Esc fecha. A
+  // lista abre em position: fixed pra não ser cortada pela tabela que rola.
+  function seletorCliente(o) {
+    var caixa = el('div', 'selcli');
+    var campo = el('input', 'input selcli-campo');
+    campo.type = 'search'; campo.autocomplete = 'off'; campo.placeholder = o.rotulo || 'Escolher cliente…';
+    campo.setAttribute('aria-label', o.rotulo || 'Escolher cliente');
+    campo.setAttribute('role', 'combobox'); campo.setAttribute('aria-expanded', 'false');
+    var lista = el('div', 'selcli-lista'); lista.setAttribute('role', 'listbox'); lista.hidden = true;
+    caixa.appendChild(campo);
+    document.body.appendChild(lista);
+    var achados = [], marcado = 0;
+    function posicionar() {
+      var r = campo.getBoundingClientRect();
+      var largura = Math.max(r.width, 320);
+      var esquerda = Math.min(r.left, window.innerWidth - largura - 8);
+      var embaixo = window.innerHeight - r.bottom;
+      lista.style.left = Math.max(8, esquerda) + 'px';
+      lista.style.width = largura + 'px';
+      if (embaixo < 260 && r.top > embaixo) { lista.style.top = ''; lista.style.bottom = (window.innerHeight - r.top + 4) + 'px'; }
+      else { lista.style.bottom = ''; lista.style.top = (r.bottom + 4) + 'px'; }
+    }
+    function desenhar() {
+      var t = normalizarBusca(campo.value.trim());
+      var dig = campo.value.replace(/\D/g, '');
+      var todos = typeof o.clientes === 'function' ? o.clientes() : o.clientes;
+      achados = todos.filter(function (c) {
+        if (!t) return true;
+        return normalizarBusca(clienteLabel(c) + ' ' + (c.nomeFantasia || '')).indexOf(t) !== -1 ||
+          (dig.length >= 3 && String(c.documento || '').replace(/\D/g, '').indexOf(dig) !== -1);
+      }).slice(0, 60);
+      marcado = 0;
+      lista.innerHTML = '';
+      if (!achados.length) lista.appendChild(el('div', 'selcli-nada', 'Nenhum cliente com "' + campo.value.trim() + '"'));
+      achados.forEach(function (c, i) {
+        var b = el('button', 'selcli-item'); b.type = 'button'; b.setAttribute('role', 'option'); b.tabIndex = -1;
+        b.appendChild(el('span', 'nome', clienteLabel(c)));
+        if (c.documento) b.appendChild(el('span', 'doc', c.documento));
+        b.addEventListener('mousedown', function (ev) { ev.preventDefault(); escolher(i); });
+        lista.appendChild(b);
+      });
+      pintar();
+      posicionar();
+    }
+    function pintar() {
+      [].forEach.call(lista.querySelectorAll('.selcli-item'), function (b, i) {
+        b.classList.toggle('marcado', i === marcado);
+        if (i === marcado) b.scrollIntoView({ block: 'nearest' });
+      });
+    }
+    function abrir() { lista.hidden = false; campo.setAttribute('aria-expanded', 'true'); desenhar(); }
+    function fechar() { lista.hidden = true; campo.setAttribute('aria-expanded', 'false'); }
+    function escolher(i) {
+      var c = achados[i]; if (!c) return;
+      campo.value = clienteLabel(c);
+      fechar();
+      campo.blur();
+      Promise.resolve(o.aoEscolher(c)).catch(function () { campo.value = ''; });
+    }
+    campo.addEventListener('focus', function () { campo.select(); abrir(); });
+    campo.addEventListener('input', abrir);
+    campo.addEventListener('blur', function () { setTimeout(fechar, 120); });
+    campo.addEventListener('keydown', function (ev) {
+      if (ev.key === 'ArrowDown') { ev.preventDefault(); if (lista.hidden) abrir(); marcado = Math.min(achados.length - 1, marcado + 1); pintar(); }
+      else if (ev.key === 'ArrowUp') { ev.preventDefault(); marcado = Math.max(0, marcado - 1); pintar(); }
+      else if (ev.key === 'Enter') { ev.preventDefault(); if (!lista.hidden) escolher(marcado); }
+      else if (ev.key === 'Escape' && !lista.hidden) { ev.preventDefault(); ev.stopPropagation(); fechar(); }
+    });
+    // a tela rolou ou mudou de tamanho: a lista acompanha (ou fecha, se o campo saiu)
+    window.addEventListener('scroll', function () { if (!lista.hidden) posicionar(); }, true);
+    window.addEventListener('resize', function () { if (!lista.hidden) posicionar(); });
+    // campo tirado da tela (a tabela foi redesenhada): a lista sai junto
+    var vigia = new MutationObserver(function () { if (!document.body.contains(caixa)) { lista.remove(); vigia.disconnect(); } });
+    vigia.observe(document.body, { childList: true, subtree: true });
+    return caixa;
+  }
+
   function vincularRemetente(r, c) {
     var patch = c.email ? { emails: firebase.firestore.FieldValue.arrayUnion(r.remetente) } : { email: r.remetente };
     return db.collection('clientes').doc(c.id).update(patch)
@@ -4477,14 +4564,8 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
         }
         linha.appendChild(tdP);
         var tdV = el('td');
-        var sel = el('select', 'select'); sel.style.cssText = 'height:30px;width:auto;max-width:260px;font-size:var(--t-sm)';
-        sel.appendChild(new Option('Escolher cliente...', ''));
-        clientesCache.forEach(function (c) { sel.appendChild(new Option(clienteLabel(c), c.id)); });
-        sel.addEventListener('change', function () {
-          var c = clientesPorId.get(sel.value); if (!c) return;
-          vincularRemetente(r, c).catch(function () { sel.value = ''; });
-        });
-        tdV.appendChild(sel);
+        tdV.appendChild(seletorCliente({ rotulo: 'Escolher cliente…', clientes: function () { return clientesCache; },
+          aoEscolher: function (c) { return vincularRemetente(r, c); } }));
         linha.appendChild(tdV);
         // "É spam" fica embaixo do remetente: a tabela já tem seis colunas
         if (souAdmin) {
@@ -7138,7 +7219,7 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
   function desenharAcoesEmail() {
     if (!emailAberto) return;
     var acoes = $('emailPainelAcoes');
-    if (acoes.contains(document.activeElement) && document.activeElement.tagName === 'SELECT') return;
+    if (acoes.contains(document.activeElement) && /^(SELECT|INPUT)$/.test(document.activeElement.tagName)) return;
     var it = emailAberto.item, op = emailAberto.opcoes;
     var clienteId = clienteDoPainel();
     acoes.innerHTML = '';
@@ -7180,7 +7261,8 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
         });
         acoes.appendChild(bP);
       }
-      lista('Vincular a cliente…', clientesCache, vincular);
+      acoes.appendChild(seletorCliente({ rotulo: 'Vincular a cliente…', clientes: function () { return clientesCache; },
+        aoEscolher: function (c) { return vincularRemetente(r, c).then(fecharPainelEmail); } }));
     }
     if (souAdmin && !clienteId && (op.semCliente || op.spam) && it.remetente) {
       var bS = el('button', 'btn btn-secondary btn-sm'); bS.type = 'button';
