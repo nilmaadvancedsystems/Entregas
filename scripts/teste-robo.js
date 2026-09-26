@@ -325,6 +325,20 @@ igual('HTML: o comprovante também conta por banco', [
   /Falta 1 banco/.test(visual2.html),
 ], [true, true, true]);
 
+// ---------- mensagem do Gmail com anexo (Disparo) ----------
+const mg = require('./mensagem-gmail');
+const cru = t => Buffer.from(t.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8');
+const comAnexo = cru(mg.montarMensagem({ de: 'nilma@x.com', cco: ['a@x.com', 'b@x.com'], assunto: 'Calendário de outubro', corpo: 'Olá', html: '<p>Olá</p>',
+  anexos: [{ nome: 'Calendário.pdf', mime: 'application/pdf', buffer: Buffer.from('%PDF-1.4 teste') }] }));
+igual('disparo: Cco, multipart/mixed, anexo com nome acentuado e HTML', [
+  /^Bcc: a@x.com, b@x.com$/m.test(comAnexo), /Content-Type: multipart\/mixed/.test(comAnexo),
+  /Content-Disposition: attachment; filename="=\?UTF-8\?B\?/.test(comAnexo), /Content-Type: text\/html/.test(comAnexo),
+  comAnexo.includes(Buffer.from('%PDF-1.4 teste').toString('base64')),
+], [true, true, true, true, true]);
+igual('sem anexo continua sem multipart/mixed', /multipart\/mixed/.test(cru(mg.montarMensagem({ de: 'n@x.com', assunto: 'Oi', corpo: 'x' }))), false);
+const disp = eh.htmlDoDisparo({ assunto: 'Aviso <importante>', corpo: 'Olá\n\nSegue.', anexo: { nome: 'a.pdf', tamanho: 348000 } });
+igual('HTML do disparo: título escapado, arquivo e tamanho', [/Aviso &lt;importante&gt;/.test(disp.html), /a\.pdf/.test(disp.html), /340 KB/.test(disp.html)], [true, true, true]);
+
 igual('prazo: no futuro', eh.textoDoPrazo('2026-08', 22, new Date(2026, 8, 19)).texto, 'Prazo: até 22/09 (faltam 3 dias)');
 igual('prazo: sem dia limite não aparece', eh.textoDoPrazo('2026-08', null), null);
 

@@ -5,6 +5,28 @@ https://nilmaadvancedsystems.github.io/Entregas/entregas.html
 
 Para testar sem gravar nada no banco, abra com `?demo=1` no fim do link.
 
+## Disparo pelo Gmail (versão 2.360)
+
+Pendências › Robô do Gmail › **Disparo** (só admin): um assunto, um texto e,
+se quiser, um arquivo (PDF, foto, Word, Excel ou CSV, até 5 MB, com o nome
+que o cliente vai ver) pra vários clientes de uma vez. Todos os clientes com
+e-mail começam marcados; dá pra buscar e desmarcar.
+
+- O arquivo sobe em pedaços em `solicitacoesEmail/{id}/partes/{n}` antes do
+  pedido existir, e o vigia apaga os pedaços depois de enviar (dando certo ou
+  não).
+- O vigia manda em cópia oculta, em grupos de 90, com o HTML no desenho do app
+  (`scripts/email-html.js`, `htmlDoDisparo`) e o arquivo anexado
+  (`scripts/mensagem-gmail.js`). Confere de novo no cadastro se quem pediu é
+  admin. O andamento aparece em % no cartão do robô e na página.
+- O Gmail aceita uns 500 destinatários por dia: a página avisa quando passa
+  de 450.
+- Regras do banco: pedido de disparo só admin cria (em nome próprio) e altera;
+  `partes` só admin.
+
+O e-mail de cobrança também passou pro desenho do app: barra clara com o logo,
+cartões com cabeçalho cinza e uma linha por documento com os bancos em selos.
+
 ## Configurações no estilo do Notion (versão 2.347)
 
 O menu da foto (canto de cima) tem **Solicitações** e **Configurações** em

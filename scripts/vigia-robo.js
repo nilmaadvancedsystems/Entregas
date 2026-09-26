@@ -81,46 +81,10 @@ function baterPonto() {
 }
 
 // ---------- e-mail ----------
-// Assunto e corpo em UTF-8, codificados pro cabeçalho e o corpo aguentarem acento.
-function codificarCabecalho(texto) {
-  return /^[\x20-\x7e]*$/.test(texto) ? texto : '=?UTF-8?B?' + Buffer.from(texto, 'utf8').toString('base64') + '?=';
-}
-const em76 = buf => buf.toString('base64').replace(/(.{76})/g, '$1\r\n');
-// Com html: texto puro + HTML (multipart/alternative) e, se houver, as
-// imagens embutidas por cid (multipart/related) — os logos dos bancos.
-function montarMensagem({ para, cco, assunto, corpo, html, imagens }) {
-  const linhas = [
-    'From: ' + CAIXA,
-    'To: ' + (para || CAIXA),
-  ];
-  if (cco && cco.length) linhas.push('Bcc: ' + cco.join(', '));
-  linhas.push('Subject: ' + codificarCabecalho(assunto), 'MIME-Version: 1.0');
-  const texto = em76(Buffer.from(corpo || '', 'utf8'));
-  if (!html) {
-    linhas.push('Content-Type: text/plain; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', texto);
-  } else {
-    const alt = 'alt-' + Date.now().toString(36);
-    const rel = 'rel-' + Date.now().toString(36);
-    const partes = [
-      '--' + alt, 'Content-Type: text/plain; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', texto,
-      '--' + alt, 'Content-Type: text/html; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', em76(Buffer.from(html, 'utf8')),
-      '--' + alt + '--',
-    ];
-    const figuras = (imagens || []).filter(i => { try { return fs.statSync(i.arquivo).size < 200 * 1024; } catch (e) { return false; } });
-    if (!figuras.length) {
-      linhas.push('Content-Type: multipart/alternative; boundary="' + alt + '"', '', ...partes);
-    } else {
-      linhas.push('Content-Type: multipart/related; boundary="' + rel + '"', '',
-        '--' + rel, 'Content-Type: multipart/alternative; boundary="' + alt + '"', '', ...partes);
-      figuras.forEach(i => linhas.push('--' + rel, 'Content-Type: ' + (i.mime || 'image/png'), 'Content-Transfer-Encoding: base64',
-        'Content-ID: <' + i.cid + '>', 'Content-Disposition: inline; filename="' + i.cid + '.png"', '', em76(fs.readFileSync(i.arquivo))));
-      linhas.push('--' + rel + '--');
-    }
-  }
-  return Buffer.from(linhas.join('\r\n'), 'utf8').toString('base64')
-    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-const { htmlDaCobranca } = require('./email-html');
+// A mensagem (texto, HTML, logos por cid e anexos) é montada em mensagem-gmail.js.
+const { montarMensagem: montarMime } = require('./mensagem-gmail');
+const montarMensagem = dados => montarMime(Object.assign({ de: CAIXA }, dados));
+const { htmlDaCobranca, htmlDoDisparo } = require('./email-html');
 // assinatura e dia limite, do config/cobranca; lido no máximo a cada 10 min
 let configCache = { em: 0, valor: {} };
 async function configDaCobranca() {
@@ -232,6 +196,81 @@ async function atenderLote(p) {
   auditoria('cobranca_lote', clientes.length + ' clientes · ' + p.competencia, p);
   log('lote enviado:', clientes.length, 'clientes em', lotes.length, 'e-mail(s)');
   return { status: 'enviado', enviadoEm: agora(), enviadosPara: clientes.length, gmailIds };
+}
+
+// ---------- disparo pra vários clientes (Robô do Gmail › Disparo) ----------
+// Um texto e um arquivo pra todos os clientes escolhidos, em Cco (ninguém vê
+// o e-mail do outro), em grupos de MAX_CCO. Só admin pede (regras do banco);
+// aqui confere de novo pelo cadastro de quem pediu. O arquivo chega em
+// pedaços base64 em solicitacoesEmail/{id}/partes/{n} e é apagado depois.
+const TIPOS_DE_ANEXO = /^(application\/pdf|image\/(jpeg|png)|application\/(msword|vnd\.openxmlformats-officedocument\.(wordprocessingml\.document|spreadsheetml\.sheet))|application\/vnd\.ms-excel|text\/(plain|csv))$/;
+const MAX_ANEXO = 5 * 1024 * 1024;
+async function atenderDisparo(p, ref) {
+  // o arquivo não fica no banco, dando certo ou não
+  try { return await dispararPara(p, ref); }
+  finally { for (let i = 0; i < Math.min(Number(p.anexo && p.anexo.partes) || 0, 12); i++) await ref.collection('partes').doc(String(i)).delete().catch(() => {}); }
+}
+async function dispararPara(p, ref) {
+  const quem = p.criadoPorUid ? ((await db.collection('usuarios').doc(String(p.criadoPorUid)).get()).data() || {}) : {};
+  const papeis = Array.isArray(quem.roles) ? quem.roles : (quem.role ? [quem.role] : []);
+  if (!papeis.includes('admin')) throw new Error('só o administrador pode disparar e-mail pra vários clientes');
+  const assunto = String(p.assunto || '').trim().slice(0, 200);
+  const corpo = String(p.corpo || '').slice(0, 20000);
+  if (!assunto) throw new Error('o disparo não tem assunto');
+
+  // o arquivo, pedaço por pedaço
+  let anexo = null;
+  if (p.anexo && p.anexo.partes) {
+    const n = Math.min(Number(p.anexo.partes) || 0, 12);
+    const pedacos = [];
+    for (let i = 0; i < n; i++) {
+      const d = (await ref.collection('partes').doc(String(i)).get()).data();
+      if (!d || typeof d.dados !== 'string') throw new Error('o arquivo não chegou inteiro (falta a parte ' + (i + 1) + ' de ' + n + ')');
+      pedacos.push(d.dados);
+    }
+    const buffer = Buffer.from(pedacos.join(''), 'base64');
+    const mime = String(p.anexo.mime || '');
+    if (!buffer.length || buffer.length > MAX_ANEXO) throw new Error('o arquivo passa de 5 MB');
+    if (!TIPOS_DE_ANEXO.test(mime)) throw new Error('tipo de arquivo não aceito: ' + (mime || 'desconhecido'));
+    anexo = { nome: String(p.anexo.nome || 'arquivo').split(/[\\/]/).pop().slice(0, 120), mime, buffer };
+  }
+
+  // destinatários: os clientes escolhidos, com todos os e-mails do cadastro
+  const ids = new Set((Array.isArray(p.clienteIds) ? p.clienteIds : []).slice(0, 1000).map(String));
+  const ativos = await require('./clientes-cache').clientesAtivos(db, m => log(m));
+  const clientes = [];
+  ativos.forEach(d => { if (ids.has(d.id)) { const c = Object.assign({ id: d.id }, d.data()); if (enderecosDoCliente(c).length) clientes.push(c); } });
+  if (!clientes.length) throw new Error('nenhum dos clientes escolhidos tem e-mail no cadastro');
+  const enderecos = [...new Set([].concat(...clientes.map(enderecosDoCliente)))];
+  const grupos = [];
+  for (let i = 0; i < enderecos.length; i += MAX_CCO) grupos.push(enderecos.slice(i, i + MAX_CCO));
+  if (!dentroDoLimite(grupos.length)) throw new Error('limite de ' + MAX_ENVIOS_POR_HORA + ' envios por hora atingido; tente mais tarde');
+
+  const cfg = await configDaCobranca().catch(() => ({}));
+  let visual = {};
+  try { visual = htmlDoDisparo({ assunto, corpo, assinatura: cfg.assinatura || 'Nilma Contabilidade', caixa: CAIXA, anexo: anexo && { nome: anexo.nome, tamanho: anexo.buffer.length } }); }
+  catch (err) { log('disparo sai só em texto:', err.message); }
+
+  andamentoAtual = null;
+  publicarAndamento({ ativo: true, tipo: 'disparo', motivo: 'pedido por ' + (p.criadoPor || 'alguém'), inicio: agora(), fase: 'enviando',
+    feito: 0, total: enderecos.length, texto: 'Disparando "' + assunto.slice(0, 80) + '" para ' + clientes.length + ' clientes' }, true);
+  const gmailIds = [];
+  let enviados = 0;
+  try {
+    for (const grupo of grupos) {
+      gmailIds.push(await enviar({ para: CAIXA, cco: grupo, assunto, corpo, html: visual.html, imagens: visual.imagens, anexos: anexo ? [anexo] : [] }));
+      enviosRecentes.push(Date.now());
+      enviados += grupo.length;
+      publicarAndamento({ feito: enviados, texto: 'Enviado para ' + enviados + ' de ' + enderecos.length + ' e-mails' });
+    }
+  } catch (err) {
+    publicarAndamento({ ativo: false, fim: agora(), fase: 'erro', texto: 'Parou em ' + enviados + ' de ' + enderecos.length + ': ' + traduzirErro(err) }, true);
+    throw new Error((enviados ? 'enviado só para ' + enviados + ' de ' + enderecos.length + ' e-mails; ' : '') + traduzirErro(err));
+  }
+  publicarAndamento({ ativo: false, fim: agora(), fase: 'concluida', feito: enderecos.length, texto: 'Disparo concluído: ' + clientes.length + ' clientes, ' + enderecos.length + ' e-mails' }, true);
+  auditoria('disparo_gmail', '"' + assunto + '" · ' + clientes.length + ' clientes' + (anexo ? ' · ' + anexo.nome : ''), p);
+  log('disparo enviado:', clientes.length, 'clientes,', enderecos.length, 'e-mails em', grupos.length, 'mensagem(ns)');
+  return { status: 'enviado', enviadoEm: agora(), enviadosPara: clientes.length, enderecos: enderecos.length, gmailIds };
 }
 
 // ---------- leitura do Gmail (roda o robô) ----------
@@ -554,6 +593,7 @@ async function atenderFila() {
         lote: 'Cobrança em lote' + (Array.isArray(p.clientes) ? ' (' + p.clientes.length + ' clientes)' : ''),
         verificar: 'Leitura do Gmail pedida por ' + (p.criadoPor || 'alguém'),
         salvar: 'Salvando no Drive um e-mail' + (p.clienteNome ? ' de ' + p.clienteNome : ''),
+        disparo: 'Disparo "' + String(p.assunto || '').slice(0, 60) + '"',
       }[p.tipo] || 'Pedido da tela';
       atendeuAlgum = true;
       roboRef.set({ filaAndamento: { ativo: true, atual: oqueAgora, restantes: pendentes.length, desde: agora(), em: agora() } }, { merge: true }).catch(() => {});
@@ -572,13 +612,14 @@ async function atenderFila() {
           while (lendo) await new Promise(r => setTimeout(r, 2000));
           lendo = true;
           try { resultado = await salvarMensagem(p); } finally { lendo = false; }
-        } else throw new Error('tipo de pedido desconhecido: ' + p.tipo);
+        } else if (p.tipo === 'disparo') resultado = await atenderDisparo(p, doc.ref);
+        else throw new Error('tipo de pedido desconhecido: ' + p.tipo);
         await doc.ref.update(resultado);
       } catch (err) {
         const erro = traduzirErro(err);
         log('pedido', doc.id, 'falhou:', erro);
         await doc.ref.update({ status: 'erro', erro, erroEm: agora() }).catch(() => {});
-        const oque = { um: 'a cobrança de ' + (p.clienteNome || p.para), lote: 'a cobrança em lote', verificar: 'a verificação do Gmail', salvar: 'salvar anexo no Drive' }[p.tipo] || 'um pedido';
+        const oque = { um: 'a cobrança de ' + (p.clienteNome || p.para), lote: 'a cobrança em lote', verificar: 'a verificação do Gmail', salvar: 'salvar anexo no Drive', disparo: 'o disparo "' + (p.assunto || '') + '"' }[p.tipo] || 'um pedido';
         await alertar(oque + ' deu erro', 'Pedido de ' + (p.criadoPor || 'alguém') + ' em ' + new Date(p.criadoEm).toLocaleString('pt-BR') + ':\n' + erro);
       }
     }

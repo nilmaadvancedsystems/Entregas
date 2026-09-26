@@ -856,6 +856,39 @@
   /* Geral e Automático: cartões com uma opção por linha (rótulo e explicação
      à esquerda, campo à direita), como na janela de Configurações */
   .cfg-cartao { border: 1px solid var(--border); border-radius: 6px; background: var(--surface); overflow: hidden; }
+  /* Disparo: os mesmos cartões das Configurações */
+  #viewDisparo { display: flex; flex-direction: column; gap: 16px; }
+  #viewDisparo[hidden] { display: none; }
+  .disp-sub { margin: 4px 0 0; font-size: 14px; color: var(--ink-muted); }
+  .disp-form { display: flex; flex-direction: column; gap: 16px; max-width: 760px; }
+  .cfg-linha.disp-coluna { flex-direction: column; align-items: stretch; gap: 6px; }
+  .disp-coluna .input { width: 100%; }
+  .disp-coluna textarea.input { min-height: 150px; resize: vertical; line-height: 20px; font-family: inherit; }
+  .disp-nome { gap: 6px; }
+  .disp-nome .input { width: 240px; }
+  .disp-ext { font-size: 14px; color: var(--ink-muted); }
+  .disp-cont { margin-left: auto; font-size: 12px; color: var(--ink-muted); font-variant-numeric: tabular-nums; }
+  .disp-filtro { gap: 8px; flex-wrap: wrap; }
+  .disp-busca { flex: 1 1 220px; display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); }
+  .disp-busca:focus-within { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .disp-busca .ph { color: var(--ink-muted); }
+  .disp-busca input { flex: 1; min-width: 0; height: auto; min-height: 0; margin: 0; padding: 0; border: 0; box-shadow: none; background: none; outline: 0; color: var(--ink); font: inherit; font-size: 14px; }
+  .disp-lista { max-height: 320px; overflow-y: auto; border-top: 1px solid var(--border-muted, var(--border)); }
+  .disp-cli { display: flex; align-items: center; gap: 10px; padding: 7px 16px; cursor: pointer; font-size: 14px; }
+  .disp-cli + .disp-cli { border-top: 1px solid var(--border-muted, var(--border)); }
+  .disp-cli:hover { background: var(--surface-2); }
+  .disp-cli input { margin: 0; flex: none; }
+  .disp-cli .nome { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .disp-cli .mail { flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--ink-muted); }
+  .disp-acoes { display: flex; align-items: center; justify-content: flex-end; gap: 12px; flex-wrap: wrap; }
+  .disp-aviso { flex: 1; min-width: 200px; font-size: 12px; color: var(--ink-muted); }
+  .disp-aviso.erro { color: var(--destructive); }
+  .disp-hist { display: flex; align-items: center; gap: 12px; padding: 10px 16px; }
+  .disp-hist + .disp-hist { border-top: 1px solid var(--border-muted, var(--border)); }
+  .disp-hist .txt { flex: 1; min-width: 0; }
+  .disp-hist .rot { font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .disp-hist .desc { font-size: 12px; color: var(--ink-muted); }
+  @media (max-width: 600px) { .disp-nome .input { width: 100%; } .disp-nome { width: 100%; } .disp-cli .mail { display: none; } }
   .cfg-cartao-cab { display: flex; align-items: center; min-height: 44px; padding: 10px 16px; border-bottom: 1px solid var(--border); background: var(--surface-2); }
   .cfg-cartao-cab h2 { margin: 0; font-size: 14px; font-weight: 600; }
   .cfg-linha { display: flex; align-items: center; gap: 16px; margin: 0; padding: 14px 16px; }
@@ -1288,7 +1321,7 @@
 <script src="nilma-solicitacoes.js?v=358"></script>
 <script src="nilma-extras.js?v=355"></script>
 <script>
-  var VERSAO_APP = '2.359 · 26/09/2026';
+  var VERSAO_APP = '2.360 · 26/09/2026';
   NilmaShell.montar({ modulo: 'Pendências', moduloId: 'pendencias', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false, versao: VERSAO_APP });
   // antes do login só a tela de entrada; a barra aparece junto com o app
   document.getElementById('topo').hidden = true;
@@ -1529,6 +1562,68 @@
     </div>
 
     <!-- ================= PÁGINA: COBRANÇAS DO MÊS ================= -->
+    <!-- Disparo: um texto e um arquivo pra vários clientes (só admin). O
+         pedido vai pra fila do robô (solicitacoesEmail, tipo 'disparo') e o
+         arquivo em pedaços em partes/{n}; o robô manda em Cco e apaga. -->
+    <div id="viewDisparo" hidden>
+      <div class="pagina-topo">
+        <div><h1>Disparo</h1><p class="disp-sub">Um e-mail com arquivo pra vários clientes de uma vez. Vai em cópia oculta: ninguém vê o e-mail do outro.</p></div>
+      </div>
+      <div id="dispAndamento" aria-live="polite" hidden></div>
+      <form class="disp-form" id="dispForm" novalidate>
+        <section class="cfg-cartao">
+          <div class="cfg-cartao-cab"><h2>Mensagem</h2></div>
+          <div class="cfg-linha disp-coluna">
+            <label class="rot" for="dispAssunto">Assunto</label>
+            <input class="input" id="dispAssunto" type="text" maxlength="200" placeholder="Ex.: Calendário de obrigações de outubro" autocomplete="off">
+          </div>
+          <div class="cfg-linha disp-coluna">
+            <label class="rot" for="dispCorpo">Texto</label>
+            <textarea class="input" id="dispCorpo" rows="7" maxlength="20000">Olá,
+
+Segue em anexo.
+
+Qualquer dúvida, é só responder este e-mail.</textarea>
+            <div class="desc">A assinatura das Configurações vai no rodapé do e-mail.</div>
+          </div>
+        </section>
+        <section class="cfg-cartao">
+          <div class="cfg-cartao-cab"><h2>Arquivo</h2></div>
+          <div class="cfg-linha">
+            <div class="txt"><span class="rot">Anexo</span><div class="desc">PDF, foto, Word, Excel ou CSV, até 5 MB. Opcional.</div></div>
+            <div class="ctl">
+              <input type="file" id="dispArquivo" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx,.csv,.txt" hidden>
+              <button type="button" class="btn btn-secondary" id="dispEscolher"><i class="ph ph-paperclip" aria-hidden="true"></i> Escolher arquivo</button>
+            </div>
+          </div>
+          <div class="cfg-linha" id="dispArquivoLinha" hidden>
+            <div class="txt"><label class="rot" for="dispNomeArquivo">Nome do arquivo</label><div class="desc" id="dispArquivoInfo"></div></div>
+            <div class="ctl disp-nome">
+              <input class="input" id="dispNomeArquivo" type="text" maxlength="100" autocomplete="off"><span class="disp-ext" id="dispExt"></span>
+              <button type="button" class="btn btn-ghost btn-icone" id="dispTirar" aria-label="Tirar o arquivo" title="Tirar o arquivo"><i class="ph ph-x" aria-hidden="true"></i></button>
+            </div>
+          </div>
+        </section>
+        <section class="cfg-cartao">
+          <div class="cfg-cartao-cab"><h2>Para quem</h2><span class="disp-cont" id="dispN"></span></div>
+          <div class="cfg-linha disp-filtro">
+            <label class="disp-busca"><i class="ph ph-magnifying-glass" aria-hidden="true"></i><input type="search" id="dispBusca" placeholder="Buscar cliente" aria-label="Buscar cliente" autocomplete="off"></label>
+            <button type="button" class="btn btn-ghost btn-sm" id="dispTodos">Marcar todos</button>
+            <button type="button" class="btn btn-ghost btn-sm" id="dispNenhum">Desmarcar todos</button>
+          </div>
+          <div class="disp-lista" id="dispLista" role="group" aria-label="Clientes que recebem"></div>
+        </section>
+        <div class="disp-acoes">
+          <span class="disp-aviso" id="dispAviso"></span>
+          <button type="submit" class="btn btn-primary" id="dispEnviar"><i class="ph ph-paper-plane-tilt" aria-hidden="true"></i> <span>Disparar</span></button>
+        </div>
+      </form>
+      <section class="caixa-p">
+        <div class="caixa-cab"><h2><i class="ph ph-clock-counter-clockwise" aria-hidden="true"></i> Últimos disparos</h2></div>
+        <div id="dispHistorico"><div class="lado-vazio">Nenhum disparo ainda.</div></div>
+      </section>
+    </div>
+
     <div id="viewCobrancas" hidden>
       <div class="pagina-topo">
         <div><h1>Cobranças</h1><span id="cobMesLabel" hidden></span></div>
@@ -2833,13 +2928,13 @@
     hoje: [{ id: 'hoje', rotulo: 'Resumo do dia', icone: 'ph-sun-horizon' }],
     clientes: [{ id: 'clientes', rotulo: 'Lista', icone: 'ph-list-bullets' }, { id: 'anual', rotulo: 'Visão anual', icone: 'ph-calendar-blank' }],
     robo: [{ id: 'robo', rotulo: 'E-mails', icone: 'ph-tray' }, { id: 'cobrancas', rotulo: 'Cobranças', icone: 'ph-paper-plane-tilt', badge: 'abaNumCobrancas' },
-      { id: 'robo:historico', rotulo: 'Histórico', icone: 'ph-clock-counter-clockwise' }],
+      { id: 'robo:historico', rotulo: 'Histórico', icone: 'ph-clock-counter-clockwise' }, { id: 'disparo', rotulo: 'Disparo', icone: 'ph-users-three', soAdmin: true }],
     arquivo: [{ id: 'arquivo', rotulo: 'Pasta do ano', icone: 'ph-folder-open' }, { id: 'arquivo:execucoes', rotulo: 'Execuções', icone: 'ph-list-checks' }],
     config: [{ id: 'config:geral', rotulo: 'Geral', icone: 'ph-sliders-horizontal' },
       { id: 'config:mensagens', rotulo: 'Mensagens', icone: 'ph-envelope-simple' },
       { id: 'config:auto', rotulo: 'Automático', icone: 'ph-robot' }]
   };
-  var SECAO_DA_PAGINA = { hoje: 'hoje', clientes: 'clientes', anual: 'clientes', robo: 'robo', cobrancas: 'robo', arquivo: 'arquivo', config: 'config' };
+  var SECAO_DA_PAGINA = { hoje: 'hoje', clientes: 'clientes', anual: 'clientes', robo: 'robo', cobrancas: 'robo', disparo: 'robo', arquivo: 'arquivo', config: 'config' };
   var roboModo = 'emails';        // Robô: 'emails' (submenu) ou 'historico'
   var PARTES_DE_MENSAGEM = ['email', 'whats', 'lote', 'meus'];
   var ultimaMensagemCfg = 'email'; // Configurações › Mensagens: a parte que ficou aberta
@@ -2876,9 +2971,9 @@
   }
   function desenharAbasSecao(secao, aberta) {
     var nav = $('abasSecao');
-    var lista = SECOES_DA_BARRA[secao] || [];
-    if (secaoDesenhada !== secao) {
-      secaoDesenhada = secao;
+    var lista = (SECOES_DA_BARRA[secao] || []).filter(function (a) { return !a.soAdmin || souAdmin; });
+    if (secaoDesenhada !== secao + (souAdmin ? ':adm' : '')) {
+      secaoDesenhada = secao + (souAdmin ? ':adm' : '');
       var numCob = $('abaNumCobrancas') ? $('abaNumCobrancas').textContent : '';
       nav.innerHTML = '';
       lista.forEach(function (a) {
@@ -4100,6 +4195,8 @@
   function aplicarLayout() {
     $('viewLista').hidden = telaCliente || paginaAtual !== 'clientes';
     $('viewCobrancas').hidden = telaCliente || paginaAtual !== 'cobrancas';
+    $('viewDisparo').hidden = telaCliente || paginaAtual !== 'disparo' || !souAdmin;
+    if (paginaAtual === 'disparo' && !telaCliente && souAdmin) abrirDisparo();
     // saiu do Robô (ou abriu um cliente) com um e-mail aberto: o e-mail fecha
     if (emailAberto && (telaCliente || paginaAtual !== 'robo')) { emailAberto = null; marcarLinhaAberta(); }
     $('viewRobo').hidden = telaCliente || paginaAtual !== 'robo' || !!emailAberto;
@@ -6244,6 +6341,209 @@
     });
   }
 
+  // ---------- Disparo: um texto e um arquivo pra vários clientes (só admin) ----------
+  // Os clientes com e-mail começam todos marcados; quem desmarcar fica de
+  // fora. O arquivo sobe em pedaços (partes/{n}) ANTES do pedido existir: o
+  // robô nunca pega um pedido com o arquivo pela metade.
+  var DISP_PEDACO = 700000;                  // letras de base64 por pedaço (o limite do banco é 1 MB por documento)
+  var DISP_MAX = 5 * 1024 * 1024;
+  var DISP_TIPOS = { pdf: 'application/pdf', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', doc: 'application/msword',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', xls: 'application/vnd.ms-excel',
+    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', csv: 'text/csv', txt: 'text/plain' };
+  var dispFora = new Set();                  // clientes desmarcados
+  var dispArquivo = null;                    // { base64, ext, mime, tamanho }
+  var dispListaDe = '';                      // pra só remontar a lista quando os clientes mudam
+  var dispHistoricoEm = 0;
+  var dispEnviando = false;
+  function emailsDoCliente(c) {
+    return [c.email].concat(Array.isArray(c.emails) ? c.emails : []).filter(Boolean).map(function (e) { return String(e).trim(); });
+  }
+  function clientesComEmail() {
+    return clientesCache.filter(function (c) { return emailsDoCliente(c).length; })
+      .sort(function (a, b) { return clienteLabel(a).localeCompare(clienteLabel(b), 'pt-BR'); });
+  }
+  function dispEscolhidos() { return clientesComEmail().filter(function (c) { return !dispFora.has(c.id); }); }
+  function dispPintarContagem() {
+    var todos = clientesComEmail(), marcados = dispEscolhidos();
+    var enderecos = new Set();
+    marcados.forEach(function (c) { emailsDoCliente(c).forEach(function (e) { enderecos.add(e.toLowerCase()); }); });
+    $('dispN').textContent = marcados.length + ' de ' + todos.length + ' clientes';
+    $('dispEnviar').lastChild.textContent = marcados.length ? 'Disparar para ' + plural(marcados.length, 'cliente', 'clientes') : 'Disparar';
+    var aviso = $('dispAviso');
+    aviso.classList.remove('erro');
+    aviso.textContent = enderecos.size > 450
+      ? plural(enderecos.size, 'e-mail', 'e-mails') + ': o Gmail aceita uns 500 destinatários por dia. Se passar, o resto sai amanhã num novo disparo.'
+      : enderecos.size ? plural(enderecos.size, 'e-mail', 'e-mails') + ' em cópia oculta, em ' + plural(Math.ceil(enderecos.size / 90), 'mensagem', 'mensagens') + '.' : '';
+  }
+  function dispMontarLista() {
+    var lista = clientesComEmail();
+    var marca = lista.map(function (c) { return c.id; }).join('|');
+    if (marca === dispListaDe) { dispFiltrar(); dispPintarContagem(); return; }
+    dispListaDe = marca;
+    var box = $('dispLista');
+    box.innerHTML = '';
+    var frag = document.createDocumentFragment();
+    lista.forEach(function (c) {
+      var l = el('label', 'disp-cli');
+      l.dataset.id = c.id;
+      l.dataset.busca = normalizarBusca(clienteLabel(c) + ' ' + (c.nomeFantasia || '') + ' ' + emailsDoCliente(c).join(' '));
+      var cb = el('input'); cb.type = 'checkbox'; cb.checked = !dispFora.has(c.id);
+      cb.addEventListener('change', function () { if (cb.checked) dispFora.delete(c.id); else dispFora.add(c.id); dispPintarContagem(); });
+      l.appendChild(cb);
+      l.appendChild(el('span', 'nome', clienteLabel(c)));
+      l.appendChild(el('span', 'mail', emailsDoCliente(c).join(', ')));
+      frag.appendChild(l);
+    });
+    if (!lista.length) frag.appendChild(el('div', 'lado-vazio', 'Nenhum cliente com e-mail no cadastro.'));
+    box.appendChild(frag);
+    dispFiltrar();
+    dispPintarContagem();
+  }
+  function dispFiltrar() {
+    var t = normalizarBusca($('dispBusca').value);
+    $('dispLista').querySelectorAll('.disp-cli').forEach(function (l) { l.hidden = !!t && l.dataset.busca.indexOf(t) === -1; });
+  }
+  function dispMarcarVisiveis(marcar) {
+    $('dispLista').querySelectorAll('.disp-cli:not([hidden])').forEach(function (l) {
+      var cb = l.querySelector('input');
+      cb.checked = marcar;
+      if (marcar) dispFora.delete(l.dataset.id); else dispFora.add(l.dataset.id);
+    });
+    dispPintarContagem();
+  }
+  $('dispBusca').addEventListener('input', dispFiltrar);
+  $('dispTodos').addEventListener('click', function () { dispMarcarVisiveis(true); });
+  $('dispNenhum').addEventListener('click', function () { dispMarcarVisiveis(false); });
+
+  function tamanhoLegivel(n) {
+    return n >= 1048576 ? (n / 1048576).toFixed(1).replace('.', ',') + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
+  }
+  $('dispEscolher').addEventListener('click', function () { $('dispArquivo').click(); });
+  $('dispArquivo').addEventListener('change', function () {
+    var f = this.files && this.files[0];
+    this.value = '';
+    if (!f) return;
+    var ext = (f.name.match(/\.([A-Za-z0-9]{1,5})$/) || [])[1];
+    ext = ext ? ext.toLowerCase() : '';
+    if (!DISP_TIPOS[ext]) { toast('Esse tipo de arquivo não vai: use PDF, foto, Word, Excel ou CSV.', 'erro'); return; }
+    if (f.size > DISP_MAX) { toast('O arquivo tem ' + tamanhoLegivel(f.size) + '; o máximo é 5 MB.', 'erro'); return; }
+    var leitor = new FileReader();
+    leitor.onload = function () {
+      var url = String(leitor.result || '');
+      dispArquivo = { base64: url.slice(url.indexOf(',') + 1), ext: ext, mime: DISP_TIPOS[ext], tamanho: f.size };
+      $('dispNomeArquivo').value = f.name.replace(/\.[A-Za-z0-9]{1,5}$/, '');
+      $('dispExt').textContent = '.' + ext;
+      $('dispArquivoInfo').textContent = f.name + ' · ' + tamanhoLegivel(f.size) + '. É o nome que o cliente vê.';
+      $('dispArquivoLinha').hidden = false;
+      $('dispEscolher').lastChild.textContent = ' Trocar arquivo';
+      // "Segue em anexo." ganha o nome do arquivo
+      var corpo = $('dispCorpo');
+      if (/Segue em anexo\./.test(corpo.value)) corpo.value = corpo.value.replace('Segue em anexo.', 'Segue em anexo: ' + $('dispNomeArquivo').value + '.');
+      if (!$('dispAssunto').value.trim()) $('dispAssunto').value = $('dispNomeArquivo').value;
+    };
+    leitor.onerror = function () { toast('Não consegui ler o arquivo.', 'erro'); };
+    leitor.readAsDataURL(f);
+  });
+  $('dispTirar').addEventListener('click', function () {
+    dispArquivo = null;
+    $('dispArquivoLinha').hidden = true;
+    $('dispEscolher').lastChild.textContent = ' Escolher arquivo';
+  });
+
+  function dispDesenharHistorico(lista) {
+    var box = $('dispHistorico');
+    box.innerHTML = '';
+    if (!lista.length) { box.appendChild(el('div', 'lado-vazio', 'Nenhum disparo ainda.')); return; }
+    lista.forEach(function (d) {
+      var l = el('div', 'disp-hist');
+      var t = el('div', 'txt');
+      t.appendChild(el('div', 'rot', d.assunto || '(sem assunto)'));
+      var partes = [dataHora(d.criadoEm), d.criadoPor || ''];
+      if (d.anexo && d.anexo.nome) partes.push(d.anexo.nome);
+      if (d.status === 'enviado') partes.push(plural(d.enviadosPara || 0, 'cliente', 'clientes') + (d.enderecos ? ' · ' + plural(d.enderecos, 'e-mail', 'e-mails') : ''));
+      else partes.push(plural((d.clienteIds || []).length, 'cliente escolhido', 'clientes escolhidos'));
+      t.appendChild(el('div', 'desc', partes.filter(Boolean).join(' · ')));
+      l.appendChild(t);
+      var rot = { pendente: ['Na fila', 'pend'], processando: ['Enviando', 'info'], enviado: ['Enviado', 'ok'], erro: ['Erro', 'alerta'] }[d.status] || [d.status || '?', 'quieto'];
+      var b = badge(rot[0], rot[1]);
+      if (d.status === 'erro' && d.erro) b.title = d.erro;
+      l.appendChild(b);
+      box.appendChild(l);
+    });
+  }
+  function dispLerHistorico(forcar) {
+    if (!forcar && Date.now() - dispHistoricoEm < 60000) return;
+    dispHistoricoEm = Date.now();
+    db.collection('solicitacoesEmail').where('tipo', '==', 'disparo').limit(30).get().then(function (snap) {
+      var lista = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); })
+        .sort(function (a, b) { return String(b.criadoEm || '').localeCompare(String(a.criadoEm || '')); }).slice(0, 10);
+      dispDesenharHistorico(lista);
+    }).catch(function () {});
+  }
+  function abrirDisparo() {
+    dispMontarLista();
+    dispLerHistorico();
+  }
+
+  $('dispForm').addEventListener('submit', async function (ev) {
+    ev.preventDefault();
+    if (dispEnviando || !souAdmin) return;
+    var aviso = $('dispAviso');
+    var assunto = $('dispAssunto').value.trim();
+    var corpo = $('dispCorpo').value.trim();
+    var escolhidos = dispEscolhidos();
+    var erro = !assunto ? 'Escreva o assunto.' : !corpo ? 'Escreva o texto.' : !escolhidos.length ? 'Marque pelo menos um cliente.' : '';
+    if (!erro && dispArquivo && !$('dispNomeArquivo').value.trim()) erro = 'Dê um nome pro arquivo.';
+    if (erro) { aviso.textContent = erro; aviso.classList.add('erro'); return; }
+    var nomeArquivo = dispArquivo ? $('dispNomeArquivo').value.trim().replace(/[\\/:*?"<>|]+/g, '-') + '.' + dispArquivo.ext : '';
+    var ok = await NilmaDialogo.confirmar({
+      titulo: 'Disparar para ' + plural(escolhidos.length, 'cliente', 'clientes') + '?',
+      texto: '"' + assunto + '"' + (nomeArquivo ? ' com o arquivo ' + nomeArquivo : ', sem arquivo') + '. Depois de enviado, não dá pra desfazer.',
+      acao: 'Disparar'
+    });
+    if (!ok) return;
+    dispEnviando = true;
+    var botao = $('dispEnviar');
+    botao.disabled = true;
+    aviso.classList.remove('erro');
+    try {
+      var ref = db.collection('solicitacoesEmail').doc();
+      var partes = 0;
+      if (dispArquivo) {
+        var b64 = dispArquivo.base64;
+        partes = Math.ceil(b64.length / DISP_PEDACO);
+        for (var i = 0; i < partes; i++) {
+          aviso.textContent = 'Subindo o arquivo… ' + Math.round(i / partes * 100) + '%';
+          await ref.collection('partes').doc(String(i)).set({ dados: b64.slice(i * DISP_PEDACO, (i + 1) * DISP_PEDACO) });
+        }
+      }
+      aviso.textContent = 'Pondo na fila do robô…';
+      await ref.set({
+        tipo: 'disparo', status: 'pendente', assunto: assunto, corpo: corpo,
+        clienteIds: escolhidos.map(function (c) { return c.id; }),
+        anexo: dispArquivo ? { nome: nomeArquivo, mime: dispArquivo.mime, tamanho: dispArquivo.tamanho, partes: partes } : null,
+        criadoEm: new Date().toISOString(), criadoPor: quemSou(),
+        criadoPorEmail: (auth.currentUser && auth.currentUser.email) || '', criadoPorUid: auth.currentUser.uid
+      });
+      acompanharPedido(ref, {
+        ok: function (d) { dispLerHistorico(true); return 'Disparo enviado para ' + plural(d.enviadosPara || escolhidos.length, 'cliente', 'clientes') + '.'; },
+        erro: 'O disparo deu erro'
+      });
+      toast(vigiaLigado() ? 'Disparo na fila do robô.' : 'Disparo na fila: o robô está fora do ar e envia quando voltar.', 'ok');
+      // formulário limpo pro próximo; a lista volta a ter todos marcados
+      $('dispAssunto').value = '';
+      $('dispTirar').click();
+      dispFora.clear(); dispListaDe = ''; dispMontarLista();
+      dispLerHistorico(true);
+    } catch (err) {
+      aviso.textContent = 'Não foi possível pôr na fila: ' + (err && err.code === 'permission-denied' ? 'sem permissão (as regras novas do banco já foram publicadas?)' : (err.message || err));
+      aviso.classList.add('erro');
+    } finally {
+      dispEnviando = false;
+      botao.disabled = false;
+    }
+  });
+
   $('formCobrar').addEventListener('submit', function (ev) {
     ev.preventDefault();
     var assunto = $('cobAssunto').value.trim();
@@ -6377,7 +6677,10 @@
     var ativo = !!(a && a.ativo && idade(a.em) < 10 * 60000);
     var acabouAgora = !!(a && !a.ativo && idade(a.fim) < 5 * 60000);
     var salvar = !!(a && a.tipo === 'salvar');
+    var disparo = !!(a && a.tipo === 'disparo');
     pintarBotoesSalvando(a, ativo);
+    var dispBox = $('dispAndamento');
+    if (dispBox) { dispBox.innerHTML = ''; dispBox.hidden = true; }
     var filaAtiva = !!(f && f.ativo && idade(f.em) < 30 * 60000);
     box.innerHTML = '';
     box.hidden = !ativo && !acabouAgora && !filaAtiva;
@@ -6391,6 +6694,7 @@
       var tit = el('div', 'andamento-titulo');
       tit.appendChild(el('strong', null, salvar
         ? (ativo ? 'Salvando no Drive' : erro ? 'O salvamento deu erro' : 'Salvo no Drive')
+        : disparo ? (ativo ? 'Disparando e-mails' : erro ? 'O disparo deu erro' : 'Disparo concluído')
         : (ativo ? 'Lendo o Gmail' : erro ? 'A leitura deu erro' : 'Leitura concluída')));
       var sub = [];
       if (a.motivo) sub.push(a.motivo);
@@ -6404,7 +6708,7 @@
 
       var barra = el('div', 'andamento-barra' + (pct == null ? ' indeterminada' : ''));
       barra.setAttribute('role', 'progressbar');
-      barra.setAttribute('aria-label', salvar ? 'Andamento do salvamento no Drive' : 'Andamento da leitura do Gmail');
+      barra.setAttribute('aria-label', salvar ? 'Andamento do salvamento no Drive' : disparo ? 'Andamento do disparo' : 'Andamento da leitura do Gmail');
       if (pct != null) { barra.setAttribute('aria-valuemin', '0'); barra.setAttribute('aria-valuemax', '100'); barra.setAttribute('aria-valuenow', String(pct)); }
       var cheio = el('div', 'andamento-cheio');
       if (pct != null) cheio.style.width = pct + '%';
@@ -6412,8 +6716,9 @@
       card.appendChild(barra);
 
       var info = [];
-      if (ativo) info.push(FASE_ROTULO[a.fase] || a.fase || '');
+      if (ativo && !disparo) info.push(FASE_ROTULO[a.fase] || a.fase || '');
       if (salvar && a.arquivos) info.push((a.fase === 'baixando' ? 'baixando ' : a.fase === 'salvando' ? 'salvando ' : '') + 'arquivo ' + (Number(a.arquivo) || 0) + ' de ' + a.arquivos);
+      else if (disparo && total) info.push(feito + ' de ' + total + ' e-mails');
       else if (total && !salvar) info.push('e-mail ' + feito + ' de ' + total);
       if (ativo && pct != null && pct < 100) info.push('faltam ' + (100 - pct) + '%');
       if (ativo && total && feito >= (salvar ? 2 : 5) && feito < total && a.inicio) {
@@ -6437,6 +6742,8 @@
         }
       }
       box.appendChild(card);
+      // o disparo também aparece na página dele
+      if (disparo && dispBox) { dispBox.appendChild(card.cloneNode(true)); dispBox.hidden = false; }
     }
 
     if (filaAtiva) {

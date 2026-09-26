@@ -558,9 +558,24 @@ service cloud.firestore {
     // (extrato/comprovante/aplicação em falta). Antes só admin/contábil; a
     // Nilma pediu em 2026-09-22 que a aba Pendências ficasse aberta pra
     // equipe inteira. Exclusão continua só com admin.
+    // Disparo (um texto e um arquivo pra vários clientes, Robô do Gmail ›
+    // Disparo): só admin pede, e em nome próprio. Pedido de disparo só o
+    // admin altera. O arquivo vem em pedaços em partes/{n}; o vigia apaga
+    // depois de enviar.
     match /solicitacoesEmail/{id} {
-      allow read, create, update: if membro();
+      allow read: if membro();
+      allow create: if membro() &&
+        (request.resource.data.get('tipo', '') != 'disparo' ||
+         (ehAdmin() && request.resource.data.get('criadoPorUid', '') == request.auth.uid));
+      allow update: if membro() &&
+        ((resource.data.get('tipo', '') != 'disparo' && request.resource.data.get('tipo', '') != 'disparo') || ehAdmin());
       allow delete: if ehAdmin();
+      match /partes/{n} {
+        allow create: if ehAdmin() && n.matches('^([0-9]|1[01])$')
+          && request.resource.data.keys().hasOnly(['dados'])
+          && request.resource.data.dados is string && request.resource.data.dados.size() <= 900000;
+        allow read, delete: if ehAdmin();
+      }
     }
 
     // ---------- controle mensal de documentos por cliente ----------
