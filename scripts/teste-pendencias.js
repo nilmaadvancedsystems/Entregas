@@ -32,7 +32,7 @@ function montar(clientes, status) {
   const corpo =
     pega('bancosDoCliente') + pega('bancosRecebidos') + pega('bancosFaltando') + pega('faltaPorBanco') +
     pega('nomesDeBancos') + pega('nomeDeBanco') + pega('tipoComBancos') +
-    pega('tiposExigidos') + pega('naoSeAplica') + pega('faltandoDe') + pega('completoNoMes') +
+    pega('tiposExigidos') + pega('naoSeAplica') + pega('faltandoDe') + pega('extratoIncompleto') + pega('completoNoMes') +
     '; return { bancosFaltando: bancosFaltando, faltaPorBanco: faltaPorBanco, faltandoDe: faltandoDe, completoNoMes: completoNoMes };';
   return new Function('clientesPorId', 'statusCache', 'TIPOS', 'window',
     'function statusDoCliente(id) { return statusCache.get(id) || {}; }\n' + corpo
@@ -131,6 +131,13 @@ igual('tirar banco posto à mão só sai',
   ficam({ bancos: ['bb', 'itau'], bancosPeloRobo: [] }, ['bb']), { bancos: ['bb'], bancosRecusados: [] });
 igual('pôr de volta tira da lista de recusados',
   ficam({ bancos: [], bancosRecusados: ['itau'] }, ['itau']), { bancos: ['itau'], bancosRecusados: [] });
+
+// ---------- extrato que veio só de parte do mês ----------
+const inc = montar([{ id: 'x', nome: 'LOJA' }], { x: { extratoIncompleto: { texto: 'só até 15/08' } } });
+igual('extrato de parte do mês: a cobrança diz até onde veio',
+  inc.faltandoDe('x').map(t => t.label), ['Extrato Bancário — veio só até 15/08, falta o resto do mês', 'Comprovante', 'Aplicação']);
+const incMarcado = montar([{ id: 'x', nome: 'LOJA' }], { x: { extrato: true, extratoIncompleto: { texto: 'só até 15/08' } } });
+igual('extrato marcado à mão (inteiro): não pede mais', incMarcado.faltandoDe('x').map(t => t.chave), ['comprovante', 'aplicacao']);
 
 console.log(falhas ? falhas + ' de ' + total + ' FALHARAM' : total + ' testes, todos passaram');
 process.exit(falhas ? 1 : 0);
