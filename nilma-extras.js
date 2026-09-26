@@ -21,7 +21,6 @@
                          aoMudarFoto: dataUrl => ..., responder: pergunta => Promise<html>,
                          exemplos: [...], exemplosIA: [...] });
      NilmaShell.ao('busca', NilmaExtras.abrirIA);
-     NilmaShell.ao('conta', NilmaExtras.abrirConta);
    ========================================================================== */
 (function () {
   'use strict';
@@ -353,8 +352,6 @@
     if (janela.NilmaConfig) janela.NilmaConfig.ligar(o);
     if (typeof NilmaShell !== 'undefined') {
       NilmaShell.ao('busca', abrirIA);
-      NilmaShell.ao('conta', abrirConta);
-      var bc = $('menuContaBtn'); if (bc) bc.hidden = false;
     }
   }
   function sair() {

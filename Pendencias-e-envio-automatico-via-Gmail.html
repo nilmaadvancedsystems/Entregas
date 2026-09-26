@@ -33,7 +33,7 @@
 <!-- Mesmo sistema do Entregas: o script vem ANTES da folha e sem defer,
      senão a tela pisca no tema errado. -->
 <script src="bancos-nilma.js"></script>
-<script src="nilma-ui.js?v=345"></script>
+<script src="nilma-ui.js?v=347"></script>
 <link rel="stylesheet" href="nilma-ui.css?v=345">
 <style>
   /* ==========================================================================
@@ -1152,6 +1152,7 @@
   .email-painel-anexo small { color: var(--ink-muted); }
   .email-painel-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
   .email-painel-acoes .anexo-acao { display: contents; }
+  .email-painel-acoes select { width: auto; max-width: 260px; height: 32px; font-size: var(--t-sm); }
   .email-painel-texto { flex: 1; min-height: 120px; overflow: auto; padding: 16px; font-size: 14px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
   .email-painel-texto .espera { display: flex; align-items: center; gap: 8px; color: var(--ink-muted); }
   .email-painel-texto .espera + .previa { margin-top: 12px; color: var(--ink-muted); }
@@ -1199,11 +1200,11 @@
 <body>
 <!-- Casca comum (barra de cima, menu ☰ e menu da conta): nilma-shell.js -->
 <script src="nilma-dialogo.js?v=345"></script>
-<script src="nilma-shell.js?v=346"></script>
-<script src="nilma-config.js?v=346"></script>
-<script src="nilma-extras.js?v=346"></script>
+<script src="nilma-shell.js?v=347"></script>
+<script src="nilma-config.js?v=347"></script>
+<script src="nilma-extras.js?v=347"></script>
 <script>
-  var VERSAO_APP = '2.346 · 25/09/2026';
+  var VERSAO_APP = '2.347 · 26/09/2026';
   NilmaShell.montar({ modulo: 'Pendências', moduloId: 'pendencias', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false, versao: VERSAO_APP });
   // antes do login só a tela de entrada; a barra aparece junto com o app
   document.getElementById('topo').hidden = true;
@@ -2575,7 +2576,7 @@
   }
   // Configurações e Sair ficam no menu da conta (avatar, no alto à direita).
   // A janela é a comum (nilma-config.js), a mesma do Entregas e do Fiscal.
-  NilmaShell.ao('aparencia', function () { NilmaConfig.abrir('preferencias'); });
+  NilmaShell.ao('aparencia', function () { NilmaConfig.abrir('conta'); });
   NilmaShell.ao('sair', function () { auth.signOut(); });
   // Pendências é esta mesma página: tocar nela no menu ☰ só fecha o menu.
   NilmaShell.ao('modulo', function (id) { return id === 'pendencias'; });
@@ -4019,7 +4020,7 @@
         linha.appendChild(celulaAssunto(r));
         var tdA = el('td'); tdA.appendChild(el('span', null, (r.arquivos || []).join(', '))); tdA.style.fontSize = 'var(--t-sm)'; linha.appendChild(tdA);
         linha.appendChild(el('td', 'num', r.data ? dataSo(r.data) : ''));
-        abreEmail(linha, { mensagemId: r.mensagemId, em: r.data, remetente: r.remetente, nome: r.nome, assunto: r.assunto, trecho: r.trecho, arquivos: r.arquivos });
+        abreEmail(linha, { mensagemId: r.mensagemId, em: r.data, remetente: r.remetente, nome: r.nome, assunto: r.assunto, trecho: r.trecho, arquivos: r.arquivos }, { semCliente: r });
         var tdP = el('td');
         var parecido = clienteParecido(r);
         if (parecido) {
@@ -6236,7 +6237,7 @@
     });
     linha.appendChild(tdB);
     // o painel salva pro cliente escolhido aqui (sem escolha, não oferece salvar)
-    abreEmail(linha, c, { clienteDe: function () { return sel.value || null; } });
+    abreEmail(linha, c, { clienteDe: function () { return sel.value || null; }, candidatos: candidatosDe(c) });
     return linha;
   }
 
@@ -6278,7 +6279,7 @@
   }
 
   function abrirPainelEmail(item, opcoes) {
-    emailAberto = { item: item, opcoes: opcoes };
+    emailAberto = { item: item, opcoes: opcoes, escolhido: null };
     desenharPainelEmail();
     var dlg = $('painelEmail');
     if (!dlg.open) { if (typeof dlg.show === 'function') dlg.show(); else dlg.setAttribute('open', ''); }
@@ -6303,7 +6304,7 @@
     var it = emailAberto.item, op = emailAberto.opcoes;
     var lido = textosEmail[it.mensagemId];
     var pronto = lido && lido.status === 'pronto';
-    var clienteId = op.clienteDe ? op.clienteDe() : op.clienteId;
+    var clienteId = clienteDoPainel();
     var cli = clienteId ? clientesPorId.get(clienteId) : null;
 
     $('emailPainelAssunto').textContent = (pronto && lido.assunto) || it.assunto || '(sem assunto)';
@@ -6326,7 +6327,7 @@
       bC.addEventListener('click', function () { fecharPainelEmail(); abrirDetalhe(cli.id, 'abaComunicacao'); });
       linhaMeta('Cliente', bC);
     } else {
-      linhaMeta('Cliente', op.clienteDe ? 'escolha na lista de qual cliente é' : 'nenhum cliente com este e-mail');
+      linhaMeta('Cliente', op.candidatos && op.candidatos.length ? 'escolha abaixo de qual cliente é' : 'nenhum cliente com este e-mail');
     }
     if (op.spam) linhaMeta('Pasta', 'Spam do Gmail');
 
@@ -6369,14 +6370,71 @@
     }
   }
 
+  // De qual cliente é o e-mail aberto: o escolhido no painel, o escolhido na
+  // linha (e-mail de matriz e filial) ou o que o robô reconheceu.
+  function clienteDoPainel() {
+    var op = emailAberto.opcoes;
+    return emailAberto.escolhido || (op.clienteDe ? op.clienteDe() : null) || op.clienteId || null;
+  }
+
   // Só os botões: o robô grava o estado a cada 2 s enquanto lê o Gmail, e
-  // redesenhar o painel inteiro jogaria o texto de volta pro começo.
+  // redesenhar o painel inteiro jogaria o texto de volta pro começo. Com uma
+  // lista aberta no painel, espera: remontar fecharia a escolha no meio.
   function desenharAcoesEmail() {
     if (!emailAberto) return;
-    var it = emailAberto.item, op = emailAberto.opcoes;
-    var clienteId = op.clienteDe ? op.clienteDe() : op.clienteId;
     var acoes = $('emailPainelAcoes');
+    if (acoes.contains(document.activeElement) && document.activeElement.tagName === 'SELECT') return;
+    var it = emailAberto.item, op = emailAberto.opcoes;
+    var clienteId = clienteDoPainel();
     acoes.innerHTML = '';
+    function lista(rotulo, clientes, aoEscolher) {
+      var sel = el('select', 'select');
+      sel.setAttribute('aria-label', rotulo);
+      sel.appendChild(new Option(rotulo, ''));
+      clientes.forEach(function (c) { sel.appendChild(new Option(clienteLabel(c), c.id)); });
+      sel.addEventListener('change', function () { var c = clientesPorId.get(sel.value); if (c) aoEscolher(c, sel); });
+      acoes.appendChild(sel);
+      return sel;
+    }
+
+    // Mesmo e-mail servindo matriz e filial: diz aqui de qual é, e o salvar
+    // (que também marca o documento) vale pra esse cliente.
+    if (op.candidatos && op.candidatos.length) {
+      var selC = lista('De qual cliente?', op.candidatos, function (c) { emailAberto.escolhido = c.id; desenharPainelEmail(); });
+      selC.value = clienteId || '';
+    }
+
+    // Remetente sem cliente: vincular ao cliente (o palpite pede um segundo
+    // toque, como na lista) ou, pro admin, marcar como spam.
+    if (op.semCliente) {
+      var r = op.semCliente;
+      var vincular = function (c, sel) {
+        vincularRemetente(r, c).then(fecharPainelEmail).catch(function () { if (sel) sel.value = ''; });
+      };
+      var parecido = clienteParecido(r);
+      if (parecido) {
+        var bP = el('button', 'btn btn-secondary btn-sm'); bP.type = 'button';
+        bP.appendChild(ico('ph-link')); bP.appendChild(document.createTextNode(' ' + nomeExibicao(parecido.cliente)));
+        bP.title = 'Vincular ' + r.remetente + ' a ' + clienteLabel(parecido.cliente);
+        bP.addEventListener('click', function () {
+          if (bP.dataset.certeza) { vincular(parecido.cliente); return; }
+          bP.dataset.certeza = '1';
+          var rotulo = bP.lastChild.nodeValue;
+          bP.lastChild.nodeValue = ' Vincular mesmo?';
+          setTimeout(function () { delete bP.dataset.certeza; bP.lastChild.nodeValue = rotulo; }, 4000);
+        });
+        acoes.appendChild(bP);
+      }
+      lista('Vincular a cliente…', clientesCache, vincular);
+    }
+    if (souAdmin && !clienteId && (op.semCliente || op.spam) && it.remetente) {
+      var bS = el('button', 'btn btn-secondary btn-sm'); bS.type = 'button';
+      bS.appendChild(ico('ph-prohibit')); bS.appendChild(document.createTextNode(' É spam'));
+      bS.title = 'Não mostrar mais ' + it.remetente;
+      bS.addEventListener('click', function () { marcarIgnorado(it.remetente, true); fecharPainelEmail(); });
+      acoes.appendChild(bS);
+    }
+
     if (clienteId && clientesPorId.get(clienteId) && (it.arquivos || []).length) acoes.appendChild(acaoSalvar(it.mensagemId, clienteId));
     // o "abrir no Gmail" que já vem no acaoSalvar sobra aqui
     acoes.querySelectorAll('.anexo-acao > a').forEach(function (a) { a.remove(); });

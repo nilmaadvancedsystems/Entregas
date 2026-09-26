@@ -49,43 +49,19 @@ igual('desmarcar banco posto à mão não vira recusado', ficam({ bancos: ['bb',
 igual('marcar de novo tira da lista de recusados', ficam({ bancos: [], bancosRecusados: ['itau'] }, ['itau']), { bancos: ['itau'], bancosRecusados: [] });
 
 // ---------- PIX do escritório (mostrado na página do cliente) ----------
-const pix = new Function(pega('crc16Pix_') + pega('pixValido_') + pega('pixCopiaECola_') + '; return { gerar: pixCopiaECola_, valido: pixValido_ };')();
+const pix = new Function(pega('normalizarChavePix_') + pega('crc16Pix_') + pega('pixValido_') + pega('pixCopiaECola_') + '; return { gerar: pixCopiaECola_, valido: pixValido_ };')();
 const codigoPix = pix.gerar('nilma@exemplo.com.br', 'Nilma Contabilidade', 'Taiobeiras');
 igual('o PIX gerado passa no verificador do próprio app', pix.valido(codigoPix), true);
 igual('a chave vai dentro do código', codigoPix.indexOf('nilma@exemplo.com.br') !== -1, true);
 igual('nome sem acento, em maiúscula e cortado em 25', pix.gerar('x', 'Contabilidade Ação Muito Comprida Demais', 'Taiobeiras').indexOf('CONTABILIDADE ACAO MUITO ') !== -1, true);
 igual('sem chave não há código', pix.gerar('', 'X', 'Y'), '');
 
-// ---------- ordem fixa da rota: casar o apelido com a razão social ----------
-const listaVazias = s.match(/var VAZIAS_NO_NOME_ = (\[[^\]]+\]);/)[1];
-const zonasDaRota = s.slice(s.indexOf('var ZONAS_DA_ROTA_ = ['), s.indexOf('];', s.indexOf('var ZONAS_DA_ROTA_ = [')) + 2);
-const rota = new Function(
-  zonasDaRota + 'var VAZIAS_NO_NOME_ = ' + listaVazias + ';' +
-  pega('palavrasDoNome_') + pega('quantoCombina_') + pega('acharClienteDaLinha_') + pega('zonaDaMarca_') + pega('lerListaDaRota_') +
-  '; return { ler: lerListaDaRota_, combina: quantoCombina_, zona: zonaDaMarca_ };')();
-
-const carteira = [
-  { id: 'a', nome: 'ASSOCIACAO DOS DIRIGENTES LOJISTAS' },
-  { id: 'b', nome: 'LOCADORA DANUBIO LTDA ME' },
-  { id: 'c', nome: 'MADEIREIRA MIRANDA COMERCIO DE MADEIRAS LTDA' },
-  { id: 'd', nome: 'EMPORIO DAS CARNES EIRELI' },
-  { id: 'e', nome: 'JANIO JOSE DE ALMEIDA' },
-  { id: 'f', nome: 'POSTO BEIRA RIO LTDA' }
-];
-igual('acento e Ltda não atrapalham', rota.combina('madeireira Miranda', carteira[2]), 1);
-igual('nome que não existe não casa', rota.combina('padaria do zé', carteira[0]) < 0.6, true);
-igual('marca de região é reconhecida', [rota.zona('encima'), rota.zona('parte inferior'), rota.zona('centro -'), rota.zona('selma')],
-  ['superior', 'inferior', 'central', null]);
-
-const lidas = rota.ler(['encima','associacao dos dirigentes','locadora danubio','nao existe esse ai','','parte inferior','madeireira Miranda','','centro','emporio das carnes','janio jose de almeida'].join(String.fromCharCode(10)), carteira);
-igual('cada linha vai pra sua região, na ordem', lidas.map(function (x) { return x.zona + ':' + (x.cliente ? x.cliente.id : '-'); }),
-  ['superior:a', 'superior:b', 'superior:-', 'inferior:c', 'central:d', 'central:e']);
-igual('linha sem cliente fica marcada pra conferência', lidas.filter(function (x) { return !x.cliente; }).length, 1);
-
 // ---------- a rota sai na ordem fixa quando ninguém arrastou ----------
 const mapaDasZonas = s.slice(s.indexOf('var ORDEM_DAS_ZONAS_ ='), s.indexOf(';', s.indexOf('var ORDEM_DAS_ZONAS_ =')) + 1);
-const ordenar = new Function('rotaFixa_', mapaDasZonas + pega('posicaoNaRotaFixa_') + pega('ordenarPendentes_') + '; return ordenarPendentes_;')(
-  { zonas: { c1: 'superior', c2: 'central', c3: 'inferior' }, ordem: { c1: 2, c2: 1, c3: 1 } });
+// clientes sem endereço confiável: a proximidade não mexe em nada
+const ordenar = new Function('rotaFixa_', 'clientesCache', mapaDasZonas + pega('posicaoNaRotaFixa_') + pega('ordenarPendentes_') +
+  pega('encaixarPorProximidade_') + pega('distanciaKm_') + '; return ordenarPendentes_;')(
+  { zonas: { c1: 'superior', c2: 'central', c3: 'inferior' }, ordem: { c1: 2, c2: 1, c3: 1 } }, new Map());
 const naRota = [
   { id: 'e1', clienteId: 'c3', criadoEm: '2026-09-01T10:00:00Z' },
   { id: 'e2', clienteId: 'c2', criadoEm: '2026-09-01T09:00:00Z' },
@@ -95,6 +71,17 @@ const naRota = [
 igual('cima, centro, baixo — e quem não está na lista vai pro fim', ordenar(naRota).map(function (e) { return e.id; }), ['e3', 'e2', 'e1', 'e4']);
 igual('o que foi arrastado hoje manda mais que a ordem fixa',
   ordenar(naRota.concat([{ id: 'e5', clienteId: 'c3', ordemRota: 0, criadoEm: '2026-09-02T07:00:00Z' }]))[0].id, 'e5');
+
+// com endereço confiável, quem está fora da ordem fixa entra logo depois da parada mais perto
+const geo = lat => ({ geo: { lat: lat, lng: 0 } });
+const ordenarPerto = new Function('rotaFixa_', 'clientesCache', mapaDasZonas + pega('posicaoNaRotaFixa_') + pega('ordenarPendentes_') +
+  pega('encaixarPorProximidade_') + pega('distanciaKm_') + '; return ordenarPendentes_;')(
+  { zonas: { c1: 'superior', c2: 'central', c3: 'inferior' }, ordem: { c1: 2, c2: 1, c3: 1 } },
+  new Map([['c1', geo(0)], ['c2', geo(1)], ['c3', geo(2)], ['perto', geo(1.01)], ['cidade', { geo: { lat: 1, lng: 0, precisao: 'cidade' } }]]));
+igual('fora da lista, perto do centro: entra depois da parada do centro',
+  ordenarPerto(naRota.slice(0, 3).concat([{ id: 'e6', clienteId: 'perto', criadoEm: '2026-09-01T06:00:00Z' }])).map(function (e) { return e.id; }), ['e3', 'e2', 'e6', 'e1']);
+igual('ponto no centro da cidade não conta: vai pro fim',
+  ordenarPerto(naRota.slice(0, 3).concat([{ id: 'e7', clienteId: 'cidade', criadoEm: '2026-09-01T06:00:00Z' }])).map(function (e) { return e.id; }), ['e3', 'e2', 'e1', 'e7']);
 
 console.log(falhas ? falhas + ' de ' + total + ' FALHARAM' : total + ' testes, todos passaram');
 process.exit(falhas ? 1 : 0);

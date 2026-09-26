@@ -160,12 +160,10 @@
         '</div>' +
         '<nav class="gaveta-corpo" aria-label="Conta">' +
           '<button type="button" class="gaveta-item" id="menuPerfilBtn" hidden><i class="ph ph-identification-badge" aria-hidden="true"></i><span>Meu perfil</span></button>' +
-          // Solicitações moram aqui (pedido do escritório): escondido por
-          // padrão, a página que tem Solicitações mostra e ouve 'solicitacoes'.
-          '<button type="button" class="gaveta-item" id="menuSolicitacoesBtn" hidden><i class="ph ph-envelope-simple" aria-hidden="true"></i><span>Solicitações</span><span class="tab-badge" id="menuSolicitacoesBadge" hidden>0</span></button>' +
-          // As duas abrem a mesma janela de Configurações (nilma-config.js),
-          // uma em Minha conta e a outra em Preferências.
-          '<button type="button" class="gaveta-item" id="menuContaBtn"><i class="ph ph-user-circle" aria-hidden="true"></i><span>Minha conta</span></button>' +
+          // Solicitações moram aqui (pedido do escritório), em todas as telas:
+          // o Entregas abre a aba dele; as outras telas levam pra lá.
+          '<button type="button" class="gaveta-item" id="menuSolicitacoesBtn"><i class="ph ph-envelope-simple" aria-hidden="true"></i><span>Solicitações</span><span class="tab-badge" id="menuSolicitacoesBadge" hidden>0</span></button>' +
+          // A janela de Configurações (nilma-config.js): abre em Minha conta.
           '<button type="button" class="gaveta-item" id="menuAparenciaBtn"><i class="ph ph-gear-six" aria-hidden="true"></i><span>Configurações</span></button>' +
           '<div class="gaveta-fio" role="separator"></div>' +
           '<button type="button" class="gaveta-item perigo" id="menuSairBtn"><i class="ph ph-sign-out" aria-hidden="true"></i><span>Sair da conta</span></button>' +
@@ -321,9 +319,13 @@
     botao('menuBuscaBtn', 'buscaGlobal');
     botao('menuInstalarBtn', 'instalar');
     botao('menuPerfilBtn', 'perfil');
-    botao('menuSolicitacoesBtn', 'solicitacoes');
+    // Tela sem Solicitações próprias: vai pra aba do Entregas.
+    var solBtn = $('menuSolicitacoesBtn');
+    if (solBtn) solBtn.addEventListener('click', function (ev) {
+      fecharGaveta(true);
+      if (!chamar('solicitacoes', ev)) janela.location.href = 'entregas.html#solicitacoes';
+    });
     botao('menuAparenciaBtn', 'aparencia');
-    botao('menuContaBtn', 'conta');
     botao('menuSairBtn', 'sair');
     var buscaBtn = $('topoBusca');
     if (buscaBtn) buscaBtn.addEventListener('click', function (ev) { chamar('busca', ev); });

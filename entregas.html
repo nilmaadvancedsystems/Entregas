@@ -58,8 +58,8 @@
      rápida · anotações · avatar) e as duas gavetas. Nasce aqui, antes do
      resto, porque os scripts do app procuram #notasBtn, #topo etc. -->
 <script src="nilma-dialogo.js?v=345"></script>
-<script src="nilma-shell.js?v=346"></script>
-<script src="nilma-config.js?v=346"></script>
+<script src="nilma-shell.js?v=347"></script>
+<script src="nilma-config.js?v=347"></script>
 <script>NilmaShell.montar({ modulo: 'Entregas', moduloId: 'entregas', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle' });</script>
 <!-- Abas do módulo, sublinhadas, logo abaixo da barra. -->
 <nav class="tabs" id="tabsNav" role="tablist">
@@ -11819,7 +11819,7 @@
     }
   }
 
-  var VERSAO_APP_ = '2.346 · 25/09/2026';
+  var VERSAO_APP_ = '2.347 · 26/09/2026';
   // Configurações do usuário: a janela comum (nilma-config.js), a mesma da
   // Pendências e do Fiscal. 'conta' abre em Minha conta; o resto, em
   // Preferências.
@@ -12799,7 +12799,8 @@
     try { localStorage.setItem(CHAVE_ULTIMA_FUNCAO, valor); } catch (e) {}
   }
   function podeContabil_() { return temPapel('admin') || temPapel('contabil'); }
-  // Ordem: o endereço pedido (entregas.html#clientes / #contabil, vindo do
+  // Ordem: o endereço pedido (entregas.html#clientes / #contabil /
+  // #solicitacoes, vindo do
   // menu de outra página), depois o último módulo usado, e Entregas por padrão.
   function abrirModuloInicial_() {
     closeModal();
@@ -12810,7 +12811,8 @@
     // valores antigos (da tela de cartões) ainda gravados no aparelho
     ultima = { hubEntregas: 'entregas', hubClientes: 'clientes', hubContabil: 'contabil' }[ultima] || ultima;
     var alvo = pedido || ultima;
-    if (alvo === 'clientes') entrarModoClientes_();
+    if (pedido === 'solicitacoes') abrirSolicitacoes_();
+    else if (alvo === 'clientes') entrarModoClientes_();
     else if (/^contabil(\/|$)/.test(alvo) && podeContabil_()) entrarModoSecundario_('contabil', alvo.indexOf('/') !== -1 ? 'tabbtn-' + alvo.split('/')[1] : '');
     else entrarNaFuncao('entregas');
     avisarSeRoboParado_();
@@ -13737,18 +13739,20 @@
   });
   NilmaShell.ao('buscaGlobal', function () { abrirBuscaGlobal_(); });
   NilmaShell.ao('notas', function () { abrirNotas(); });
-  // Solicitações: no menu da foto, junto de Aparência e Conta. Abre a tela
-  // de Solicitações do Entregas de onde a pessoa estiver.
-  (function () { var b = document.getElementById('menuSolicitacoesBtn'); if (b) b.hidden = false; })();
-  NilmaShell.ao('solicitacoes', function () {
-    if (!auth.currentUser || !appStarted) return;
+  // Solicitações: no menu da foto, junto de Configurações. Abre a tela de
+  // Solicitações do Entregas de onde a pessoa estiver (as outras telas
+  // chegam por entregas.html#solicitacoes).
+  function abrirSolicitacoes_() {
     sairDeAbaSecundaria_();
     entrarNaFuncao('entregas');
     var aba = document.querySelector('[data-tab="solicitacoes"]');
     if (aba) aba.click();
+  }
+  NilmaShell.ao('solicitacoes', function () {
+    if (auth.currentUser && appStarted) abrirSolicitacoes_();
+    return true;
   });
-  NilmaShell.ao('aparencia', function () { abrirConfiguracoes('personalizacao'); });
-  NilmaShell.ao('conta', function () { abrirConfiguracoes('conta'); });
+  NilmaShell.ao('aparencia', function () { abrirConfiguracoes('conta'); });
   NilmaShell.ao('instalar', function () { instalarApp_(); });
   NilmaShell.ao('sair', function () { auth.signOut(); });
   NilmaShell.versao(VERSAO_APP_);

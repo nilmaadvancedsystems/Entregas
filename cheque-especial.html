@@ -8,7 +8,8 @@
 <link rel="stylesheet" href="nilma-icones.css?v=345">
 <!-- Aparência (tema, cor, texto, espaçamento, animação) igual à das outras
      telas. Sem defer: precisa valer antes da primeira pintura. -->
-<script src="nilma-ui.js?v=345"></script>
+<script src="nilma-ui.js?v=347"></script>
+<script src="nilma-config.js?v=347"></script>
 <link rel="stylesheet" href="nilma-ui.css?v=345">
 <style>
   /* ==================================================================
@@ -216,7 +217,7 @@
     </div>
     <div class="topbar-meta is-empty" id="topbarMeta"></div>
     <a class="btn btn-outline-neutral" href="entregas.html" title="Voltar pra escolher outra função"><i class="ph ph-squares-four" aria-hidden="true"></i> Trocar de função</a>
-      <button type="button" class="btn btn-ghost" id="configBtn" aria-label="Aparência" title="Aparência: tema, cor, texto" style="padding:8px;line-height:0;"></button>
+      <button type="button" class="btn btn-ghost" id="configBtn" aria-label="Configurações" title="Configurações" style="padding:8px;line-height:0;"></button>
   </header>
 
   <main class="fluxo">
@@ -804,9 +805,11 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
   if (configBtn) {
     configBtn.innerHTML = GEAR_SVG;
     configBtn.addEventListener('click', function () {
-      // a janela de Aparência é a mesma das outras telas (nilma-ui.js):
-      // cor, tema, tamanho do texto, espaçamento e animações
-      if (window.NilmaUI) window.NilmaUI.abrirAparencia();
+      // a janela de Configurações é a mesma do Entregas, da Pendências e do
+      // Fiscal (nilma-config.js); dentro do Entregas, a dele
+      var cfg = window.NilmaConfig;
+      try { if (window.parent !== window && window.parent.NilmaConfig) cfg = window.parent.NilmaConfig; } catch (e) {}
+      if (cfg) cfg.abrir('conta');
     });
   }
 
@@ -822,6 +825,14 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
     firebase.initializeApp(firebaseConfig);
     var auth = firebase.auth();
     var db = firebase.firestore();
+    var contaCfg = { nome: '', foto: '', cargos: [] };
+    if (window.NilmaConfig) window.NilmaConfig.ligar({
+      db: db, auth: auth, firebase: firebase,
+      usuario: function () { return contaCfg; },
+      cargos: function () { return contaCfg.cargos; },
+      sair: function () { auth.signOut(); },
+      versao: '2.347 · 26/09/2026'
+    });
 
     auth.onAuthStateChanged(function (user) {
       if (!user) { location.replace('entregas.html'); return; }
@@ -837,6 +848,7 @@ if(xr(e,"index.xml"))throw new Error("Unsupported NUMBERS 09 file");throw new Er
           };
         }
         var roles = Array.isArray(data.roles) && data.roles.length ? data.roles : (data.role ? [data.role] : ['staff']);
+        contaCfg = { nome: data.nome || user.email || '', foto: data.fotoPerfil || '', cargos: roles };
         var liberado = roles.indexOf('admin') !== -1 || roles.indexOf('contabil') !== -1;
         if (!liberado) bloquear('Só admins e a equipe contábil abrem essa ferramenta. Peça a um admin pra te dar o cargo "Contábil" em Configurações → Quem tem acesso.');
       }).catch(function () {

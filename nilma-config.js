@@ -28,7 +28,7 @@
        aplicar: (campo, valor) => ...,      // a tela aplica tema etc. na hora
        salvar: (campo, valor) => bool,      // opcional: true = a tela gravou
        toast: (msg, tipo) => ...,
-       notificacoes: { ativar: () => ... }, // só o Entregas registra o aparelho
+       notificacoes: { ativar: () => ... }, // opcional: sem isto, registra aqui
        instalar: { pode: () => bool, fazer: () => ... },
        versao: '2.346', sair: () => ...
      });
@@ -399,12 +399,8 @@
     var selo = est === 'granted' ? '<span class="ncfg-selo ok">Ligadas</span>'
       : est === 'denied' ? '<span class="ncfg-selo ruim">Bloqueadas</span>'
       : est === 'sem' ? '<span class="ncfg-selo">Sem suporte</span>' : '<span class="ncfg-selo">Desligadas</span>';
-    var botao = '';
-    if (est !== 'sem' && est !== 'denied') {
-      botao = o.notificacoes && typeof o.notificacoes.ativar === 'function'
-        ? '<button type="button" class="ncfg-botao" id="ncfgNotifAtivar"><i class="ph ph-bell-simple-ringing" aria-hidden="true"></i> ' + (est === 'granted' ? 'Reativar' : 'Ativar') + '</button>'
-        : '<a class="ncfg-botao" href="entregas.html?config=notificacoes"><i class="ph ph-arrow-square-out" aria-hidden="true"></i> Ativar pelo Entregas</a>';
-    }
+    var botao = est === 'sem' || est === 'denied' ? ''
+      : '<button type="button" class="ncfg-botao" id="ncfgNotifAtivar"><i class="ph ph-bell-simple-ringing" aria-hidden="true"></i> ' + (est === 'granted' ? 'Reativar' : 'Ativar') + '</button>';
     var desc = est === 'denied' ? 'O navegador bloqueou. Libere nas permissões do site (cadeado ao lado do endereço) e volte aqui.'
       : est === 'sem' ? 'Este navegador não recebe avisos. No iPhone, instale o app na tela inicial primeiro.'
       : 'Paradas novas, entrega não realizada, lembretes e documentos vencendo, conforme o seu cargo.';
@@ -507,7 +503,9 @@
     if (id === 'notificacoes') {
       var at = $('ncfgNotifAtivar');
       if (at) at.addEventListener('click', function () {
-        Promise.resolve(o.notificacoes.ativar()).catch(function () {}).then(function () {
+        at.disabled = true;
+        var ativar = o.notificacoes && typeof o.notificacoes.ativar === 'function' ? o.notificacoes.ativar : ativarAvisos;
+        Promise.resolve(ativar()).catch(function () {}).then(function () {
           // a permissão responde depois do clique: redesenha quando chegar
           setTimeout(function () { if (caixa.open && secaoAtual === 'notificacoes') desenharPagina(); }, 1500);
         });
@@ -523,6 +521,49 @@
         limpar.catch(function () {}).then(function () { location.reload(); });
       });
     }
+  }
+
+  // ------------------------------------------------------------ avisos
+  // O mesmo registro do Entregas, para as telas que não têm o dele: pede a
+  // permissão, pega o endereço de aviso deste aparelho e guarda na conta
+  // (usuarios/{uid}.fcmTokens), de onde o robô manda os avisos. O pedaço do
+  // Firebase que faz isso só é baixado aqui, no clique.
+  var FCM_VAPID_KEY = 'BPSiqKKKrLipFLe-AwrGaCrNLqANd2YcA1wk-sniuxxA2mUCdSRTzKdEaxkpMzf6I8mdE6ucfVJyurGwgKZ_inQ';
+  var SDK_MENSAGENS = 'https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js';
+  function carregarMensagens() {
+    if (o.firebase && typeof o.firebase.messaging === 'function') return Promise.resolve();
+    return new Promise(function (ok, falha) {
+      var sc = doc.createElement('script');
+      sc.src = SDK_MENSAGENS;
+      sc.onload = function () { ok(); };
+      sc.onerror = function () { falha(new Error('não consegui baixar o módulo de avisos')); };
+      doc.head.appendChild(sc);
+    });
+  }
+  function ativarAvisos() {
+    var u = contaFirebase();
+    if (!u || !o.db || !o.firebase || !('serviceWorker' in navigator) || !('Notification' in janela)) {
+      avisar('Este navegador não recebe avisos.', 'error');
+      return Promise.resolve();
+    }
+    return Notification.requestPermission().then(function (perm) {
+      if (perm !== 'granted') { avisar('Permissão de notificação negada.', 'error'); return; }
+      return carregarMensagens()
+        .then(function () { return navigator.serviceWorker.register('firebase-messaging-sw.js'); })
+        .then(function (registro) {
+          var m = o.firebase.messaging();
+          // token velho guardado no navegador pode estar morto: pede um novo
+          return m.deleteToken().catch(function () {}).then(function () {
+            return m.getToken({ vapidKey: FCM_VAPID_KEY, serviceWorkerRegistration: registro });
+          });
+        })
+        .then(function (token) {
+          if (!token) throw new Error('o navegador não devolveu o endereço de aviso');
+          return o.db.collection('usuarios').doc(u.uid).update({ fcmTokens: o.firebase.firestore.FieldValue.arrayUnion(token) });
+        })
+        .then(function () { avisar('Avisos ligados: chegam mesmo com o app fechado.'); })
+        .catch(function (err) { avisar('Não foi possível ligar os avisos: ' + erroDe(err, 'erro'), 'error'); });
+    });
   }
 
   // ------------------------------------------------------------ foto e senha
