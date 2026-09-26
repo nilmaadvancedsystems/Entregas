@@ -30,6 +30,7 @@ const { getDb } = require('./firestore-client');
 // dono, anexo que não baixa) — hoje no banco, não mais em arquivo. Ver lá.
 const estadoRobo = require('./estado-robo.js');
 const { consertarAcentos } = require('./acentos');
+const { textoDoEmail } = require('./leituras-gmail');
 
 const PASTA_DESTINO = 'G:\\Meu Drive\\Claudio Secretario';
 // No PC a pasta do Drive é uma unidade montada (G:) e gravar nela é gravar em
@@ -262,6 +263,55 @@ function desempatarPorDocumento(candidatos, texto) {
     return doc.length >= 11 && digitos.includes(doc);
   });
   return achados.length === 1 ? achados[0] : null;
+}
+
+// Sem o CNPJ no e-mail, o nome da empresa também decide: "A7 COMÉRCIO DE
+// VEÍCULOS LTDA" no assunto é da A7, não da outra empresa do mesmo dono.
+// Mesma regra de antes: só decide quando aponta pra exatamente um candidato;
+// com o nome das duas no texto, ninguém é marcado.
+const FIM_DO_NOME = new Set(['LTDA', 'ME', 'EPP', 'EIRELI', 'SA', 'S', 'A', 'MEI', 'SLU', 'SS', 'CIA']);
+const LIGACAO = new Set(['DE', 'DA', 'DO', 'DAS', 'DOS', 'E', 'EM', 'LTDA', 'ME', 'EPP', 'EIRELI', 'SA', 'MEI', 'SLU', 'CIA']);
+function palavras(t) {
+  return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase()
+    .replace(/[^A-Z0-9]+/g, ' ').trim().split(' ').filter(Boolean);
+}
+// o nome sem "LTDA", "- ME", "S/A" no fim
+function nucleoDoNome(nome) {
+  const p = palavras(nome);
+  while (p.length > 1 && FIM_DO_NOME.has(p[p.length - 1])) p.pop();
+  return p;
+}
+function desempatarPorNome(candidatos, texto) {
+  const corrido = ' ' + palavras(texto).join(' ') + ' ';
+  if (corrido.trim() === '') return null;
+  const nucleos = candidatos.map(c => [c.nome, c.nomeFantasia].filter(Boolean).map(nucleoDoNome).filter(n => n.length));
+  // 1) o nome inteiro aparece
+  const achou = nucleos.map(ns => ns.filter(n => corrido.includes(' ' + n.join(' ') + ' ')).map(n => n.join(' ')));
+  const comNome = candidatos.map((c, i) => ({ c, frases: achou[i] })).filter(x => x.frases.length);
+  if (comNome.length === 1) return comNome[0].c;
+  if (comNome.length > 1) {
+    // "A7 VEICULOS" dentro de "A7 VEICULOS PECAS": vale o nome mais comprido,
+    // se ele contém os outros; senão são duas empresas citadas
+    const maior = comNome.map(x => ({ c: x.c, f: x.frases.sort((a, b) => b.length - a.length)[0] })).sort((a, b) => b.f.length - a.f.length);
+    const resto = maior.slice(1);
+    return resto.every(x => (' ' + maior[0].f + ' ').includes(' ' + x.f + ' ') && x.f.length < maior[0].f.length) ? maior[0].c : null;
+  }
+  // 2) as palavras que só aquela empresa tem ("A7", "VEICULOS") aparecem todas
+  const presentes = new Set(corrido.trim().split(' '));
+  const proprias = nucleos.map(ns => new Set([].concat(...ns).filter(w => !LIGACAO.has(w) && (w.length >= 3 || /\d/.test(w)))));
+  const emTodos = w => proprias.every(ws => ws.has(w));
+  const porPalavra = candidatos.filter((c, i) => {
+    const so = Array.from(proprias[i]).filter(w => !emTodos(w));
+    return so.length && so.every(w => presentes.has(w));
+  });
+  return porPalavra.length === 1 ? porPalavra[0] : null;
+}
+// Texto do e-mail sem o nome de quem mandou: o dono assina com o nome dele,
+// e a empresa no nome da pessoa física ganharia todas.
+function semAssinatura(texto, nomeRemetente) {
+  const nome = palavras(nomeRemetente);
+  if (nome.length < 2) return texto;
+  return (' ' + palavras(texto).join(' ') + ' ').split(' ' + nome.join(' ') + ' ').join(' ');
 }
 
 function montarIndices(clientesSnap) {
@@ -571,8 +621,18 @@ async function main() {
       let textoPdf = null;
       const lerPdf = async () => (textoPdf !== null ? textoPdf : (textoPdf = await textoDosPdfs(anexos)));
 
+      // Mais de uma empresa com este e-mail: CNPJ no assunto/texto, nome da
+      // empresa no assunto ou nos arquivos, CNPJ no PDF e, por último, nome
+      // da empresa no texto do e-mail (sem a assinatura).
       let cliente = candidatos.length === 1 ? candidatos[0] : desempatarPorDocumento(candidatos, textoNomes);
+      if (!cliente && candidatos.length > 1) cliente = desempatarPorNome(candidatos, assunto + ' ' + anexos.map(a => a.filename).join(' '));
       if (!cliente && candidatos.length > 1 && anexos.length) cliente = desempatarPorDocumento(candidatos, await lerPdf());
+      if (!cliente && candidatos.length > 1) {
+        let corpo = '';
+        try { corpo = textoDoEmail(msg.data.payload).slice(0, 20000); } catch (e) {}
+        cliente = desempatarPorNome(candidatos, semAssinatura(trecho + ' ' + corpo, extrairNome(from)));
+      }
+      if (cliente && candidatos.length > 1) console.log('  mais de uma empresa com este e-mail; é de', cliente.codigoOrigem || cliente.nome);
 
       let tipos = anexos.length ? detectarTipos(textoNomes) : [];
       // Assunto e nomes de arquivo primeiro; o corpo do e-mail só entra sem
@@ -804,7 +864,7 @@ if (require.main === module) {
 
 module.exports = {
   competenciaDoTexto, competenciaPresumida, mesesDoPortal, faltamNoMes, detectarTipos, coletarAnexos, IMAGEM_DE_ASSINATURA, AUTOMATICO,
-  desempatarPorDocumento, decodificarEntidades, extrairEmail, extrairNome, dominioDe, DOMINIOS_PUBLICOS, montarSpam, MAX_SPAM,
+  desempatarPorDocumento, desempatarPorNome, semAssinatura, decodificarEntidades, extrairEmail, extrairNome, dominioDe, DOMINIOS_PUBLICOS, montarSpam, MAX_SPAM,
   // usados por envios-do-portal.js (documento que o cliente manda pelo link)
   PASTA_DESTINO, sanitizar, salvarArquivo, atualizarPortal, bancosNovos,
 };

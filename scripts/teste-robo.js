@@ -194,6 +194,14 @@ const filial = { id: 'b', documento: '12.345.678/0002-76' };
 igual('CNPJ da filial no texto decide', (r.desempatarPorDocumento([matriz, filial], 'extrato filial 12.345.678/0002-76 agosto') || {}).id, 'b');
 igual('sem CNPJ no texto, não decide', r.desempatarPorDocumento([matriz, filial], 'extrato agosto'), null);
 igual('os dois CNPJs no texto, não decide', r.desempatarPorDocumento([matriz, filial], '12345678000195 e 12345678000276'), null);
+const a7 = { id: 'a7', nome: 'A7 COMERCIO DE VEICULOS LTDA' }, pecas = { id: 'pc', nome: 'A7 AUTO PECAS LTDA' }, dono = { id: 'pf', nome: 'ALISSON RODRIGUES' };
+const porNome = (c, t) => (r.desempatarPorNome(c, t) || {}).id || null;
+igual('nome da empresa no assunto decide', porNome([a7, pecas], 'NOTAS FISCAIS ENTRADA - A7 COMÉRCIO DE VEÍCULOS LTDA (MÊS: AGOSTO/2026)'), 'a7');
+igual('palavras só daquela empresa decidem', porNome([a7, pecas], 'notas da A7 auto peças de agosto'), 'pc');
+igual('sem nome no texto, não decide', porNome([a7, pecas], 'extrato de agosto'), null);
+igual('os dois nomes no texto, não decide', porNome([a7, pecas], 'A7 COMERCIO DE VEICULOS e A7 AUTO PECAS'), null);
+igual('nome mais comprido vence o que está dentro dele', porNome([{ id: 'm', nome: 'PADARIA SAO JOSE LTDA' }, { id: 'f', nome: 'PADARIA SAO JOSE FILIAL LTDA' }], 'extrato PADARIA SAO JOSE FILIAL'), 'f');
+igual('assinatura do dono não escolhe a pessoa física', porNome([a7, dono], r.semAssinatura('Segue o extrato.\nAtt,\nAlisson Rodrigues', 'Alisson Rodrigues')), null);
 
 // ---------- régua de cobrança automática ----------
 const rg = require('./regua-cobranca');
