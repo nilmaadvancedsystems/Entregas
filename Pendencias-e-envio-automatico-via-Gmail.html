@@ -239,6 +239,15 @@
   .lado-vazio { font-size: 14px; color: var(--ink-muted); text-align: center; }
   .caixa-p > .caixa-cab:last-child { border-bottom: 0; }
   #viewRobo .card-grupo[hidden] { display: none; }
+  /* busca nos e-mails */
+  .robo-busca-linha { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .robo-busca { flex: 0 1 520px; }
+  .robo-busca-info { font-size: 13px; color: var(--ink-muted); }
+  #viewRobo.robo-buscando #roboAbas { display: none; }
+  #viewRobo.robo-buscando .robo-vazio-cat, #viewRobo.robo-buscando .card-grupo > section.sem-achado { display: none; }
+  #viewRobo.robo-buscando .card-grupo:not([data-grupo="historico"]) { display: flex; flex-direction: column; gap: 16px; }
+  #viewRobo.robo-buscando .card-grupo + .card-grupo { margin-top: 16px; }
+  #viewRobo tr.fora-da-busca { display: none; }
   #viewRobo .card-grupo:has(> section:not(.robo-vazio-cat):not([hidden])) > .robo-vazio-cat { display: none; }
   #roboAviso:empty, #hojeAvisos:empty, #arqPedido:empty { display: none; }
 
@@ -1349,7 +1358,7 @@
 <script src="nilma-solicitacoes.js?v=358"></script>
 <script src="nilma-extras.js?v=355"></script>
 <script>
-  var VERSAO_APP = '2.365 · 26/09/2026';
+  var VERSAO_APP = '2.366 · 26/09/2026';
   NilmaShell.montar({ modulo: 'Pendências', moduloId: 'pendencias', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false, versao: VERSAO_APP });
   // antes do login só a tela de entrada; a barra aparece junto com o app
   document.getElementById('topo').hidden = true;
@@ -1792,6 +1801,13 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
       <div id="roboAndamento" aria-live="polite" hidden></div>
       <!-- Submenu padrão: o que pede ação, o que o robô marcou e o histórico.
            Categoria sem nada dentro some (atualizarSubmenuRobo). -->
+      <!-- Busca nos e-mails que o robô já leu: com texto, as listas aparecem
+           todas juntas, só com o que bate (aplicarBuscaRobo). -->
+      <div class="robo-busca-linha">
+        <label class="disp-busca robo-busca"><i class="ph ph-magnifying-glass" aria-hidden="true"></i>
+          <input type="search" id="roboBusca" placeholder="Buscar nos e-mails: remetente, assunto, arquivo ou cliente" aria-label="Buscar nos e-mails do robô" autocomplete="off"></label>
+        <span class="robo-busca-info" id="roboBuscaInfo" aria-live="polite"></span>
+      </div>
       <nav class="cliente-menu" role="tablist" aria-label="Seções do robô" id="roboAbas">
         <button type="button" class="secao-btn" role="tab" data-grupo="entrada" aria-selected="true"><i class="ph ph-tray" aria-hidden="true"></i><span>E-mails de clientes</span><span class="cont" id="roboAbaClientesN"></span></button>
         <button type="button" class="secao-btn" role="tab" data-grupo="semcliente" aria-selected="false"><i class="ph ph-user-circle-plus" aria-hidden="true"></i><span>Sem cliente</span><span class="cont" id="roboAbaSemClienteN"></span></button>
@@ -2886,6 +2902,8 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
     document.querySelectorAll('#viewRobo .card-grupo').forEach(function (g) { g.hidden = g.dataset.grupo !== grupo; });
   }
   function atualizarSubmenuRobo() {
+    // buscando: as listas ficam todas juntas, só com o que bate
+    if (roboModo !== 'historico' && termoBuscaRobo()) { aplicarBuscaRobo(); return; }
     // Histórico é página própria no menu de cima: sem submenu
     if (roboModo === 'historico') { $('roboAbas').hidden = true; mostrarGrupoRobo('historico'); return; }
     var visiveis = [];
@@ -2902,6 +2920,57 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
   document.querySelectorAll('#roboAbas .secao-btn').forEach(function (b) {
     b.addEventListener('click', function () { fecharPainelEmail(); mostrarGrupoRobo(b.dataset.grupo); });
   });
+
+  // ---------- busca nos e-mails do robô ----------
+  // Procura em E-mails de clientes, Sem cliente, Spam e Marcados pelo que o
+  // robô já leu (remetente, nome, assunto, resumo, todos os arquivos, cliente).
+  // Não lê nada do banco: filtra as linhas que já estão na tela.
+  var GRUPOS_DA_BUSCA = ['entrada', 'semcliente', 'spam', 'marcados'];
+  function termoBuscaRobo() { var i = $('roboBusca'); return i ? normalizarBusca(i.value.trim()) : ''; }
+  function aplicarBuscaRobo() {
+    var t = termoBuscaRobo();
+    var view = $('viewRobo');
+    var buscando = !!t && roboModo !== 'historico';
+    view.classList.toggle('robo-buscando', buscando);
+    var total = 0;
+    GRUPOS_DA_BUSCA.forEach(function (grupo) {
+      var g = view.querySelector('.card-grupo[data-grupo="' + grupo + '"]');
+      if (!g) return;
+      g.querySelectorAll(':scope > section').forEach(function (sec) {
+        var achou = 0;
+        sec.querySelectorAll('tbody tr').forEach(function (tr) {
+          var bate = !buscando || (tr.dataset.busca || normalizarBusca(tr.textContent)).indexOf(t) !== -1;
+          tr.classList.toggle('fora-da-busca', !bate);
+          if (bate) achou++;
+        });
+        sec.classList.toggle('sem-achado', buscando && achou === 0);
+        if (buscando && !sec.hidden) total += achou;
+      });
+      if (buscando) g.hidden = false;
+    });
+    var info = $('roboBuscaInfo');
+    info.textContent = !buscando ? '' : total ? plural(total, 'e-mail encontrado', 'e-mails encontrados') : 'Nenhum e-mail com "' + $('roboBusca').value.trim() + '" nas listas do robô.';
+    if (!buscando) { view.classList.remove('robo-buscando'); atualizarSubmenuRoboSemBusca(); }
+  }
+  function atualizarSubmenuRoboSemBusca() {
+    var guardado = $('roboBusca').value;
+    $('roboBusca').value = '';
+    atualizarSubmenuRobo();
+    $('roboBusca').value = guardado;
+  }
+  var relogioBuscaRobo = null;
+  $('roboBusca').addEventListener('input', function () { clearTimeout(relogioBuscaRobo); relogioBuscaRobo = setTimeout(aplicarBuscaRobo, 150); });
+  $('roboBusca').addEventListener('keydown', function (ev) { if (ev.key === 'Escape' && this.value) { ev.preventDefault(); this.value = ''; aplicarBuscaRobo(); } });
+  // as listas são redesenhadas quando o robô grava: a busca vale de novo
+  (function () {
+    var pedido = false;
+    var obs = new MutationObserver(function () {
+      if (pedido || !termoBuscaRobo()) return;
+      pedido = true;
+      requestAnimationFrame(function () { pedido = false; aplicarBuscaRobo(); });
+    });
+    ['tabCaixa', 'tabNaoRec', 'tabSpam', 'tabRobo'].forEach(function (id) { var t = $(id); if (t) obs.observe(t, { childList: true, subtree: true }); });
+  })();
   (function () {
     var obs = new MutationObserver(atualizarSubmenuRobo);
     document.querySelectorAll('#viewRobo .card-grupo > section').forEach(function (sec) { obs.observe(sec, { attributes: true, attributeFilter: ['hidden'] }); });
@@ -7156,6 +7225,10 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
   }
   function abreEmail(linha, c, opcoes) {
     if (!c || !c.mensagemId) return;
+    // o que a busca do robô procura nesta linha (inclusive todos os arquivos)
+    var cli = c.clienteId && clientesPorId.get(c.clienteId);
+    linha.dataset.busca = normalizarBusca([c.remetente, c.nome, c.assunto, c.trecho, (c.arquivos || []).join(' '),
+      c.clienteNome, cli ? clienteLabel(cli) + ' ' + (cli.nomeFantasia || '') : '', (c.candidatos || []).join(' ')].join(' '));
     linha.classList.add('email-abre');
     linha.dataset.mensagem = c.mensagemId;
     if (emailAberto && emailAberto.item.mensagemId === c.mensagemId) linha.classList.add('email-aberto');
