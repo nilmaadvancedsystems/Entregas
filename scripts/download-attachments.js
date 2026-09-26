@@ -56,6 +56,14 @@ function andamento(o) {
   if (UMA_MENSAGEM) return;
   try { process.stdout.write('ANDAMENTO:' + JSON.stringify(o) + '\n'); } catch (e) {}
 }
+// "Salvar no Drive" (--mensagem): o andamento conta arquivo por arquivo —
+// baixar do Gmail é a primeira metade, gravar no Drive a segunda.
+function andamentoDoSalvar(fase, feito, n, texto) {
+  if (!UMA_MENSAGEM) return;
+  const o = { fase, feito, total: 2 * n, arquivos: n, arquivo: Math.min(n, fase === 'baixando' ? feito : feito - n) };
+  if (texto) o.texto = texto;
+  try { process.stdout.write('ANDAMENTO:' + JSON.stringify(o) + '\n'); } catch (e) {}
+}
 const CLIENTE_FORCADO = valorDe('--cliente');
 const DIAS = parseInt(ARGS.find((a, i) => /^\d+$/.test(a) && !['--mensagem', '--cliente'].includes(ARGS[i - 1])), 10) || 10;
 const MAX_CAIXA = 150;                       // e-mails com anexo que a tela lista
@@ -306,6 +314,32 @@ function desempatarPorNome(candidatos, texto) {
   });
   return porPalavra.length === 1 ? porPalavra[0] : null;
 }
+// Empresas "irmãs": o dono manda do mesmo e-mail os documentos das outras
+// empresas dele, mas o e-mail pode estar cadastrado só numa (A7 MOBILE e A7
+// COMERCIO DE VEICULOS). Irmã é quem está no mesmo grupo (grupoLocal), tem a
+// mesma raiz de CNPJ (matriz e filial) ou divide uma palavra rara do nome
+// ("A7" aparece em 2 clientes; "COMERCIO", em dezenas, não conta).
+function palavrasDoCliente(c) {
+  return new Set([].concat(...[c.nome, c.nomeFantasia].filter(Boolean).map(nucleoDoNome))
+    .filter(w => !LIGACAO.has(w) && (w.length >= 3 || /\d/.test(w))));
+}
+function frequenciaDePalavras(clientes) {
+  const freq = new Map();
+  clientes.forEach(c => palavrasDoCliente(c).forEach(w => freq.set(w, (freq.get(w) || 0) + 1)));
+  return freq;
+}
+function empresasIrmas(cliente, clientes, freq) {
+  const raiz = c => { const d = String(c.documento || '').replace(/\D/g, ''); return d.length === 14 ? d.slice(0, 8) : ''; };
+  const minhas = Array.from(palavrasDoCliente(cliente)).filter(w => (freq.get(w) || 0) <= 3);
+  return clientes.filter(x => {
+    if (x.id === cliente.id) return false;
+    if (x.grupoLocal === cliente.id || (cliente.grupoLocal && (cliente.grupoLocal === x.id || x.grupoLocal === cliente.grupoLocal))) return true;
+    if (raiz(cliente) && raiz(x) === raiz(cliente)) return true;
+    const delas = palavrasDoCliente(x);
+    return minhas.some(w => delas.has(w));
+  });
+}
+
 // Texto do e-mail sem o nome de quem mandou: o dono assina com o nome dele,
 // e a empresa no nome da pessoa física ganharia todas.
 function semAssinatura(texto, nomeRemetente) {
@@ -522,6 +556,8 @@ async function main() {
   if (!UMA_MENSAGEM) console.log(`E-mails na janela de ${DIAS} dias: ${ids.length}`);
   const clientesPorId = new Map();
   clientesSnap.forEach(d => clientesPorId.set(d.id, Object.assign({ id: d.id }, d.data())));
+  const todosClientes = Array.from(clientesPorId.values());
+  const freqPalavras = frequenciaDePalavras(todosClientes);
 
   // O que a tela mostra como "caixa": todo e-mail com anexo que o robô viu, e o
   // que já foi salvo no Drive (robo/estado.caixa e robo/estado.salvos).
@@ -580,7 +616,11 @@ async function main() {
 
       const forcado = CLIENTE_FORCADO ? clientesPorId.get(CLIENTE_FORCADO) : null;
       if (CLIENTE_FORCADO && !forcado) throw new Error('cliente ' + CLIENTE_FORCADO + ' não encontrado ou inativo');
-      const candidatos = forcado ? [forcado] : (porEmail.get(remetente) || porDominio.get(dominioDe(remetente)) || []);
+      const cadastrados = forcado ? [forcado] : (porEmail.get(remetente) || porDominio.get(dominioDe(remetente)) || []);
+      // as irmãs entram na disputa: o texto ou o PDF dizem de qual empresa é
+      const irmas = forcado ? [] : cadastrados.reduce((acc, c) => acc.concat(empresasIrmas(c, todosClientes, freqPalavras)
+        .filter(x => !cadastrados.some(k => k.id === x.id) && !acc.some(k => k.id === x.id))), []);
+      const candidatos = cadastrados.concat(irmas);
       // trecho: o começo do e-mail (~240 letras), pro resumo na lista da tela
       const resumoCaixa = { em, remetente, nome: extrairNome(from), assunto, trecho, arquivos: anexos.map(a => a.filename) };
 
@@ -606,10 +646,12 @@ async function main() {
       // Baixa os bytes antes de decidir: o desempate de filiais e a detecção
       // do tipo podem precisar ler o PDF.
       let faltouAnexo = false;
-      for (const a of anexos) {
+      andamentoDoSalvar('baixando', 0, anexos.length, 'Baixando ' + anexos.length + (anexos.length === 1 ? ' anexo' : ' anexos') + ' do Gmail');
+      for (const [k, a] of anexos.entries()) {
         try {
           const att = await comRetentativa(() => gmail.users.messages.attachments.get({ userId: 'me', messageId: id, id: a.attachmentId }));
           a.buffer = Buffer.from(att.data.data, 'base64');
+          andamentoDoSalvar('baixando', k + 1, anexos.length, 'Baixado: ' + a.filename);
         } catch (err) {
           cont.erros++;
           faltouAnexo = true;
@@ -632,7 +674,9 @@ async function main() {
         try { corpo = textoDoEmail(msg.data.payload).slice(0, 20000); } catch (e) {}
         cliente = desempatarPorNome(candidatos, semAssinatura(trecho + ' ' + corpo, extrairNome(from)));
       }
-      if (cliente && candidatos.length > 1) console.log('  mais de uma empresa com este e-mail; é de', cliente.codigoOrigem || cliente.nome);
+      // Nada no e-mail aponta pra outra empresa: fica com a do cadastro, como antes.
+      if (!cliente && cadastrados.length === 1) cliente = cadastrados[0];
+      else if (cliente && candidatos.length > 1) console.log('  mais de uma empresa possível; é de', (cliente.codigoOrigem || cliente.nome) + (irmas.includes(cliente) ? ' (empresa irmã de ' + cadastrados.map(c => c.nome).join(', ') + ')' : ''));
 
       let tipos = anexos.length ? detectarTipos(textoNomes) : [];
       // Assunto e nomes de arquivo primeiro; o corpo do e-mail só entra sem
@@ -656,7 +700,8 @@ async function main() {
         if (anexos.length) naCaixa(id, Object.assign({ clienteId: null, candidatos: candidatos.map(c => c.nome) }, resumoCaixa));
         if (UMA_MENSAGEM) throw new Error('o remetente serve mais de um cliente (' + candidatos.map(c => c.codigoOrigem || c.nome).join(', ') + '); escolha o cliente na tela do cliente');
         console.log(`  ambíguo: ${remetente} serve ${candidatos.map(c => c.codigoOrigem || c.id).join(', ')} — conversa registrada, nada marcado`);
-        for (const c of candidatos) {
+        // a conversa vai só pras empresas que têm este e-mail no cadastro
+        for (const c of cadastrados) {
           await gravar(db, c.id + '_' + competencia, {
             clienteId: c.id, clienteNome: c.nome, competencia, mensagens: FV.arrayUnion(mensagem),
           });
@@ -678,7 +723,11 @@ async function main() {
         // PIS/Cofins de agosto juntos): cada um vai pro mês do próprio nome.
         const pastas = new Set();
         let salvos = 0;
-        for (const a of comBytes) {
+        // anexo que não baixou já conta como passo feito (não trava a barra)
+        const n = anexos.length, pulados = n - comBytes.length;
+        andamentoDoSalvar('salvando', n + pulados, n, 'Salvando no Drive de ' + cliente.nome);
+        for (const [k, a] of comBytes.entries()) {
+          if (k) andamentoDoSalvar('salvando', n + pulados + k, n, 'Salvo: ' + comBytes[k - 1].filename);
           const compArquivo = competenciaDoTexto(a.filename, msg.data.internalDate) || competencia;
           try {
             if (USAR_DRIVE_API) {
@@ -704,6 +753,7 @@ async function main() {
             console.error('  falha ao salvar', a.filename, '-', err.message);
           }
         }
+        andamentoDoSalvar('salvando', 2 * n, n, comBytes.length ? 'Salvo: ' + comBytes[comBytes.length - 1].filename : null);
         const listaPastas = Array.from(pastas);
         salvosNovos[id] = { em: new Date().toISOString(), pasta: listaPastas.join(' e '), pastas: listaPastas, arquivos: salvos, clienteId: cliente.id };
         resultado = { mensagemId: id, pasta: listaPastas.join(' e '), arquivos: salvos, cliente: cliente.nome };
@@ -864,7 +914,7 @@ if (require.main === module) {
 
 module.exports = {
   competenciaDoTexto, competenciaPresumida, mesesDoPortal, faltamNoMes, detectarTipos, coletarAnexos, IMAGEM_DE_ASSINATURA, AUTOMATICO,
-  desempatarPorDocumento, desempatarPorNome, semAssinatura, decodificarEntidades, extrairEmail, extrairNome, dominioDe, DOMINIOS_PUBLICOS, montarSpam, MAX_SPAM,
+  desempatarPorDocumento, desempatarPorNome, semAssinatura, empresasIrmas, frequenciaDePalavras, decodificarEntidades, extrairEmail, extrairNome, dominioDe, DOMINIOS_PUBLICOS, montarSpam, MAX_SPAM,
   // usados por envios-do-portal.js (documento que o cliente manda pelo link)
   PASTA_DESTINO, sanitizar, salvarArquivo, atualizarPortal, bancosNovos,
 };

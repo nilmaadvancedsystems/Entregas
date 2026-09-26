@@ -329,22 +329,41 @@ function rodarRobo(dias, motivo) {
 // Salvar no Drive os anexos de UM e-mail de cliente (botão "Salvar no Drive").
 // Roda o próprio robô no modo --mensagem, que já sabe achar o cliente, o mês do
 // documento e a pasta; a última linha dele diz o que foi salvo.
+// O andamento (baixando do Gmail, salvando no Drive, arquivo a arquivo) vai
+// pro mesmo robo/estado.andamento da leitura, com o mesmo freio de 2 s.
 function salvarMensagem(p) {
   return new Promise((resolve, reject) => {
     const argsRobo = [ROBO, '--mensagem', String(p.mensagemId)];
     if (p.clienteId) argsRobo.push('--cliente', String(p.clienteId));
+    andamentoAtual = null;
+    publicarAndamento({
+      ativo: true, tipo: 'salvar', mensagemId: String(p.mensagemId), motivo: 'pedido por ' + (p.criadoPor || 'alguém'),
+      inicio: agora(), fase: 'começando', feito: 0, total: 0, texto: 'Abrindo o e-mail no Gmail',
+    }, true);
     const saida = [];
     const filho = spawn(process.execPath, argsRobo, { cwd: __dirname });
-    const guardar = b => String(b).split(/\r?\n/).filter(Boolean).forEach(l => saida.push(l));
-    filho.stdout.on('data', guardar);
-    filho.stderr.on('data', guardar);
+    const restos = { out: '', err: '' };
+    const guardarDe = qual => b => {
+      const linhas = (restos[qual] + String(b)).split(/\r?\n/);
+      restos[qual] = linhas.pop();
+      linhas.filter(Boolean).forEach(l => { if (!lerLinhaDeAndamento(l)) saida.push(l); });
+    };
+    filho.stdout.on('data', guardarDe('out'));
+    filho.stderr.on('data', guardarDe('err'));
+    const terminar = (ok, texto) => publicarAndamento({
+      ativo: false, fim: agora(), fase: ok ? 'concluida' : 'erro',
+      feito: (andamentoAtual && andamentoAtual.total) || 0, texto,
+    }, true);
+    filho.on('error', err => { terminar(false, 'Não consegui começar: ' + err.message); reject(err); });
     filho.on('close', () => {
+      [restos.out, restos.err].filter(Boolean).forEach(l => { if (!lerLinhaDeAndamento(l)) saida.push(l); });
       const linha = saida.filter(l => l.startsWith('RESULTADO:')).pop();
       let r = null;
       try { r = linha ? JSON.parse(linha.slice('RESULTADO:'.length)) : null; } catch (e) { r = null; }
-      if (!r) return reject(new Error(saida.slice(-1)[0] || 'o robô não respondeu'));
-      if (r.erro) return reject(new Error(r.erro));
+      const erro = !r ? (saida.slice(-1)[0] || 'o robô não respondeu') : r.erro;
+      if (erro) { terminar(false, 'Não salvou: ' + traduzirErro({ message: String(erro).replace(/^ERRO:\s*/, '') })); return reject(new Error(erro)); }
       log('salvo no Drive:', r.arquivos, 'arquivo(s) em', r.pasta);
+      terminar(true, 'Salvo no Drive: ' + r.arquivos + (r.arquivos === 1 ? ' arquivo' : ' arquivos') + (r.pasta ? ' em ' + r.pasta : ''));
       resolve({ status: 'concluido', concluidoEm: agora(), pasta: r.pasta, arquivos: r.arquivos, cliente: r.cliente });
     });
   });

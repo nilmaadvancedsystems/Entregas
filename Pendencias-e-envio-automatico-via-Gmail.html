@@ -1288,7 +1288,7 @@
 <script src="nilma-solicitacoes.js?v=358"></script>
 <script src="nilma-extras.js?v=355"></script>
 <script>
-  var VERSAO_APP = '2.358 · 26/09/2026';
+  var VERSAO_APP = '2.359 · 26/09/2026';
   NilmaShell.montar({ modulo: 'Pendências', moduloId: 'pendencias', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false, versao: VERSAO_APP });
   // antes do login só a tela de entrada; a barra aparece junto com o app
   document.getElementById('topo').hidden = true;
@@ -6344,8 +6344,23 @@
   // ---------- andamento do robô: o que ele faz agora e quanto falta ----------
   var FASE_ROTULO = {
     'começando': 'Começando', preparando: 'Carregando os clientes', listando: 'Procurando e-mails',
-    lendo: 'Lendo os e-mails', finalizando: 'Juntando o que foi lido', spam: 'Conferindo o spam', gravando: 'Guardando o resumo'
+    lendo: 'Lendo os e-mails', finalizando: 'Juntando o que foi lido', spam: 'Conferindo o spam', gravando: 'Guardando o resumo',
+    baixando: 'Baixando os anexos do Gmail', salvando: 'Salvando no Drive'
   };
+  // Porcentagem do andamento (leitura ou "Salvar no Drive"); null = ainda sem conta.
+  function pctDoAndamento(a, ativo) {
+    var total = Number(a.total) || 0, feito = Math.min(Number(a.feito) || 0, total);
+    return total ? Math.round(feito / total * 100) : (ativo ? null : 100);
+  }
+  // O botão "Salvando..." do e-mail que está sendo salvo mostra a porcentagem.
+  function pintarBotoesSalvando(a, ativo) {
+    document.querySelectorAll('button[data-salvar-msg]').forEach(function (b) {
+      if (!b.disabled) return;
+      var pct = a && a.tipo === 'salvar' && ativo && a.mensagemId === b.dataset.salvarMsg ? pctDoAndamento(a, true) : null;
+      var t = ' Salvando...' + (pct != null ? ' ' + pct + '%' : '');
+      if (b.lastChild && b.lastChild.nodeValue !== t) b.lastChild.nodeValue = t;
+    });
+  }
   function duracaoCurta(ms) {
     var s = Math.max(0, Math.round(ms / 1000));
     if (s < 60) return s + ' s';
@@ -6361,6 +6376,8 @@
     // "ativo" sem notícia há mais de 10 min é robô que caiu no meio: não finge que está lendo
     var ativo = !!(a && a.ativo && idade(a.em) < 10 * 60000);
     var acabouAgora = !!(a && !a.ativo && idade(a.fim) < 5 * 60000);
+    var salvar = !!(a && a.tipo === 'salvar');
+    pintarBotoesSalvando(a, ativo);
     var filaAtiva = !!(f && f.ativo && idade(f.em) < 30 * 60000);
     box.innerHTML = '';
     box.hidden = !ativo && !acabouAgora && !filaAtiva;
@@ -6372,20 +6389,22 @@
       var cab = el('div', 'andamento-cab');
       cab.appendChild(ico(ativo ? 'ph-spinner-gap girando' : erro ? 'ph-warning-circle' : 'ph-check-circle'));
       var tit = el('div', 'andamento-titulo');
-      tit.appendChild(el('strong', null, ativo ? 'Lendo o Gmail' : erro ? 'A leitura deu erro' : 'Leitura concluída'));
+      tit.appendChild(el('strong', null, salvar
+        ? (ativo ? 'Salvando no Drive' : erro ? 'O salvamento deu erro' : 'Salvo no Drive')
+        : (ativo ? 'Lendo o Gmail' : erro ? 'A leitura deu erro' : 'Leitura concluída')));
       var sub = [];
       if (a.motivo) sub.push(a.motivo);
       if (a.inicio) sub.push(ativo ? 'há ' + duracaoCurta(agoraMs - Date.parse(a.inicio)) : 'levou ' + duracaoCurta(Date.parse(a.fim) - Date.parse(a.inicio)));
       tit.appendChild(el('span', 'andamento-sub', sub.join(' · ')));
       cab.appendChild(tit);
       var total = Number(a.total) || 0, feito = Math.min(Number(a.feito) || 0, total);
-      var pct = total ? Math.round(feito / total * 100) : (ativo ? null : 100);
+      var pct = pctDoAndamento(a, ativo);
       if (pct != null) cab.appendChild(el('span', 'andamento-pct', pct + '%'));
       card.appendChild(cab);
 
       var barra = el('div', 'andamento-barra' + (pct == null ? ' indeterminada' : ''));
       barra.setAttribute('role', 'progressbar');
-      barra.setAttribute('aria-label', 'Andamento da leitura do Gmail');
+      barra.setAttribute('aria-label', salvar ? 'Andamento do salvamento no Drive' : 'Andamento da leitura do Gmail');
       if (pct != null) { barra.setAttribute('aria-valuemin', '0'); barra.setAttribute('aria-valuemax', '100'); barra.setAttribute('aria-valuenow', String(pct)); }
       var cheio = el('div', 'andamento-cheio');
       if (pct != null) cheio.style.width = pct + '%';
@@ -6394,9 +6413,10 @@
 
       var info = [];
       if (ativo) info.push(FASE_ROTULO[a.fase] || a.fase || '');
-      if (total) info.push('e-mail ' + feito + ' de ' + total);
+      if (salvar && a.arquivos) info.push((a.fase === 'baixando' ? 'baixando ' : a.fase === 'salvando' ? 'salvando ' : '') + 'arquivo ' + (Number(a.arquivo) || 0) + ' de ' + a.arquivos);
+      else if (total && !salvar) info.push('e-mail ' + feito + ' de ' + total);
       if (ativo && pct != null && pct < 100) info.push('faltam ' + (100 - pct) + '%');
-      if (ativo && total && feito >= 5 && feito < total && a.inicio) {
+      if (ativo && total && feito >= (salvar ? 2 : 5) && feito < total && a.inicio) {
         var gasto = agoraMs - Date.parse(a.inicio);
         info.push('cerca de ' + duracaoCurta(gasto / feito * (total - feito)) + ' pra terminar');
       }
@@ -6484,10 +6504,14 @@
     var b = el('button', 'btn btn-sm ' + (salvo ? 'btn-ghost' : 'btn-secondary'));
     b.type = 'button';
     b.appendChild(ico(salvando ? 'ph-hourglass' : 'ph-cloud-arrow-up'));
-    b.appendChild(document.createTextNode(salvando ? ' Salvando...' : salvo ? ' Salvar de novo' : ' Salvar no Drive'));
+    var andS = configRobo.andamento;
+    var pctS = salvando && andS && andS.ativo && andS.tipo === 'salvar' && andS.mensagemId === String(mensagemId) ? pctDoAndamento(andS, true) : null;
+    b.appendChild(document.createTextNode(salvando ? ' Salvando...' + (pctS != null ? ' ' + pctS + '%' : '') : salvo ? ' Salvar de novo' : ' Salvar no Drive'));
     b.disabled = salvando;
+    b.dataset.salvarMsg = String(mensagemId);
     b.addEventListener('click', function () {
       b.disabled = true;
+      b.lastChild.nodeValue = ' Salvando...';
       pedirEnvio({ tipo: 'salvar', mensagemId: mensagemId, clienteId: clienteId || null }, {
         fila: 'Pedido para salvar os anexos no Drive.',
         ok: function (d) { return 'Salvo no Drive: ' + plural(d.arquivos || 0, 'arquivo', 'arquivos') + ' em Claudio Secretario › ' + String(d.pasta || '').split(/[\\/]/).join(' › ') + '.'; },

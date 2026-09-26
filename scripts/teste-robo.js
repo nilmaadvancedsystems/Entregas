@@ -202,6 +202,15 @@ igual('sem nome no texto, não decide', porNome([a7, pecas], 'extrato de agosto'
 igual('os dois nomes no texto, não decide', porNome([a7, pecas], 'A7 COMERCIO DE VEICULOS e A7 AUTO PECAS'), null);
 igual('nome mais comprido vence o que está dentro dele', porNome([{ id: 'm', nome: 'PADARIA SAO JOSE LTDA' }, { id: 'f', nome: 'PADARIA SAO JOSE FILIAL LTDA' }], 'extrato PADARIA SAO JOSE FILIAL'), 'f');
 igual('assinatura do dono não escolhe a pessoa física', porNome([a7, dono], r.semAssinatura('Segue o extrato.\nAtt,\nAlisson Rodrigues', 'Alisson Rodrigues')), null);
+const base = [{ id: 'm', nome: 'A7 MOBILE LTDA' }, { id: 'c', nome: 'A7 COMERCIO DE VEICULOS LTDA' }, { id: 'x', nome: 'PADARIA COMERCIO LTDA' },
+  { id: 'y', nome: 'SUPERMERCADO COMERCIO LTDA' }, { id: 'z', nome: 'FERRAGENS COMERCIO LTDA' }, { id: 'w', nome: 'OUTRO COMERCIO LTDA' },
+  { id: 'g', nome: 'LOJA DO ZE', grupoLocal: 'x' }, { id: 'f1', nome: 'MATRIZ SA', documento: '12.345.678/0001-95' }, { id: 'f2', nome: 'LOJA NOVA', documento: '12.345.678/0002-76' }];
+const irmas = id => r.empresasIrmas(base.find(c => c.id === id), base, r.frequenciaDePalavras(base)).map(c => c.id);
+igual('irmã pela palavra rara do nome (A7)', irmas('c'), ['m']);
+igual('irmã pelo grupo local', irmas('x'), ['g']);
+igual('irmã pela raiz do CNPJ (filial)', irmas('f1'), ['f2']);
+igual('palavra comum (COMERCIO) não faz irmã', irmas('w'), []);
+igual('e-mail da A7 Comércio com nota da A7 Mobile vai pra Mobile', porNome([base[1], base[0]], 'NOTAS FISCAIS DE SAÍDA - A7 MOBILE LTDA - AGOSTO/2026'), 'm');
 
 // ---------- régua de cobrança automática ----------
 const rg = require('./regua-cobranca');
