@@ -22,13 +22,13 @@ const PASTA_LOGOS = path.join(__dirname, 'logos-bancos');
 const PASTA_ICONES = path.join(__dirname, 'icones-email');
 const COR = {
   tinta: '#1C1917', suave: '#57534E', fraca: '#8A8580', borda: '#E7E2DD', fundo: '#EFEBE7',
-  vinho: '#8C2620', vinhoClaro: '#F6E9E7', ok: '#17603A', okClaro: '#E6F2EA', falta: '#A4480F', faltaClaro: '#FBEFE4',
+  vinho: '#8C2620', vinhoClaro: '#F6E9E7', ok: '#17603A', okClaro: '#E6F2EA', falta: '#A4480F', faltaClaro: '#FBEFE4', faltaBorda: '#F0D3BD',
 };
 const FONTE = "-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
 const TIPOS = {
-  extrato: { nome: 'Extrato bancário', icone: 'extrato', rotulos: /extrato banc|extrato do banco/i },
-  comprovante: { nome: 'Comprovantes de pagamento', icone: 'comprovante', rotulos: /comprovante/i },
-  aplicacao: { nome: 'Extrato de aplicação', icone: 'aplicacao', rotulos: /aplica/i },
+  extrato: { nome: 'Extrato bancário', icone: 'extrato', rotulos: /extrato banc|extrato do banco/i, dica: 'O mês inteiro, de cada conta.' },
+  comprovante: { nome: 'Comprovantes de pagamento', icone: 'comprovante', rotulos: /comprovante/i, dica: 'Dos pagamentos feitos no mês.' },
+  aplicacao: { nome: 'Extrato de aplicação', icone: 'aplicacao', rotulos: /aplica/i, dica: 'Das aplicações e investimentos.' },
 };
 const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
 const MES_CURTO = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
@@ -46,53 +46,47 @@ function imagem(imagens, pasta, nome, lado, estilo) {
   return '<img src="cid:' + cid + '" width="' + lado + '" height="' + lado + '" alt="" style="display:block;width:' + lado + 'px;height:' + lado + 'px;border:0;' + (estilo || '') + '">';
 }
 
-function marcaDoBanco(b, imagens) {
-  return imagem(imagens, PASTA_LOGOS, b.id, 36, 'border-radius:9px;border:1px solid ' + COR.borda) ||
-    '<div style="width:36px;height:36px;line-height:36px;border-radius:9px;background:' + b.cor + ';color:' + b.tinta +
-    ';font:700 9px/36px ' + FONTE + ';text-align:center;white-space:nowrap;overflow:hidden">' + esc(b.sigla) + '</div>';
+function marcaDoBanco(b, imagens, lado) {
+  lado = lado || 18;
+  return imagem(imagens, PASTA_LOGOS, b.id, lado, 'display:inline-block;vertical-align:middle;border-radius:5px;margin-right:6px') ||
+    '<span style="display:inline-block;vertical-align:middle;width:' + lado + 'px;height:' + lado + 'px;border-radius:5px;margin-right:6px;background:' + b.cor + ';color:' + b.tinta +
+    ';font:700 7px/' + lado + 'px ' + FONTE + ';text-align:center;white-space:nowrap;overflow:hidden">' + esc(b.sigla) + '</span>';
 }
 
-// Um banco na grade: logo, nome, recebido/falta.
-function celulaDoBanco(b, recebido, imagens) {
-  const icone = imagem(imagens, PASTA_ICONES, recebido ? 'ok' : 'falta', 14, 'display:inline-block;vertical-align:-2px;margin-right:4px');
-  return '<td width="50%" style="padding:4px;vertical-align:top">' +
-    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:' + (recebido ? COR.okClaro : '#FFFFFF') +
-      ';border:1px solid ' + (recebido ? COR.okClaro : COR.borda) + ';border-radius:10px"><tr>' +
-      '<td width="44" style="padding:10px 0 10px 10px;vertical-align:middle">' + marcaDoBanco(b, imagens) + '</td>' +
-      '<td style="padding:10px 10px 10px 8px;vertical-align:middle">' +
-        '<div style="font:600 14px/1.25 ' + FONTE + ';color:' + COR.tinta + '">' + esc(b.nome) + '</div>' +
-        '<div style="font:600 12px/1.4 ' + FONTE + ';color:' + (recebido ? COR.ok : COR.falta) + ';margin-top:2px">' + (icone || '') + (recebido ? 'Recebido' : 'Falta') + '</div>' +
-      '</td></tr></table></td>';
+// Um banco dentro da linha do documento: selo pequeno com o logo e se chegou.
+function seloDoBanco(b, recebido, imagens) {
+  return '<span style="display:inline-block;margin:8px 6px 0 0;padding:4px 10px 4px 4px;border-radius:99px;white-space:nowrap;' +
+    'border:1px solid ' + (recebido ? COR.okClaro : COR.faltaBorda) + ';background:' + (recebido ? COR.okClaro : '#FFFFFF') + ';font:600 13px/18px ' + FONTE + ';color:' + COR.tinta + '">' +
+    marcaDoBanco(b, imagens) + '<span style="vertical-align:middle">' + esc(b.nome) + '</span>' +
+    '<span style="vertical-align:middle;color:' + (recebido ? COR.ok : COR.falta) + '">&nbsp;·&nbsp;' + (recebido ? '✓ Recebido' : 'Falta') + '</span></span>';
 }
 
-// Cartão de um documento que falta. Com bancos conhecidos vira grade — e
-// vale pros três documentos, que saem todos do banco.
-function cartaoDoDocumento(tipo, cliente, recebidosPorTipo, imagens) {
+// Uma linha por documento que falta, todas numa lista só: ícone, nome, o que
+// mandar e, com bancos conhecidos, um selo por banco (os que faltam primeiro).
+// Vale pros três documentos, que saem todos do banco.
+function linhaDoDocumento(tipo, cliente, recebidosPorTipo, imagens) {
   const t = TIPOS[tipo];
   const recebidos = (recebidosPorTipo && recebidosPorTipo[tipo]) || [];
   const bancos = (cliente.bancos || []).map(id => POR_ID.get(id)).filter(Boolean);
   const faltam = bancos.filter(b => !recebidos.includes(b.id)).length;
-  const icone = imagem(imagens, PASTA_ICONES, t.icone, 22) || '';
-  const resumo = bancos.length
-    ? (faltam === 1 ? 'Falta 1 banco' : faltam ? 'Faltam ' + faltam + ' bancos' : 'Todos os bancos chegaram')
-    : 'Falta enviar';
-  let grade = '';
-  if (bancos.length) {
-    // bancos que faltam primeiro: é o que o cliente precisa ver
-    const ordem = bancos.slice().sort((a, b) => recebidos.includes(a.id) - recebidos.includes(b.id));
-    const linhas = [];
-    for (let i = 0; i < ordem.length; i += 2) {
-      linhas.push('<tr>' + celulaDoBanco(ordem[i], recebidos.includes(ordem[i].id), imagens) +
-        (ordem[i + 1] ? celulaDoBanco(ordem[i + 1], recebidos.includes(ordem[i + 1].id), imagens) : '<td width="50%"></td>') + '</tr>');
-    }
-    grade = '<tr><td colspan="3" style="padding:4px 10px 10px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0">' + linhas.join('') + '</table></td></tr>';
-  }
-  return '<tr><td style="padding:0 0 10px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#FFFFFF;border:1px solid ' + COR.borda + ';border-radius:12px">' +
-    '<tr><td width="46" style="padding:14px 0 14px 14px;vertical-align:middle"><div style="width:36px;height:36px;border-radius:10px;background:' + COR.vinhoClaro + '">' +
-      (icone ? '<table role="presentation" width="36" height="36" cellpadding="0" cellspacing="0"><tr><td align="center" valign="middle">' + icone + '</td></tr></table>' : '') + '</div></td>' +
-    '<td style="padding:14px 8px;vertical-align:middle;font:600 16px/1.3 ' + FONTE + ';color:' + COR.tinta + '">' + esc(t.nome) + '</td>' +
-    '<td align="right" style="padding:14px 14px 14px 0;vertical-align:middle;white-space:nowrap"><span style="font:600 12px ' + FONTE + ';color:' + COR.falta +
-      ';background:' + COR.faltaClaro + ';padding:4px 10px;border-radius:99px">' + resumo + '</span></td></tr>' + grade + '</table></td></tr>';
+  const icone = imagem(imagens, PASTA_ICONES, t.icone, 20) || '';
+  // com um banco só, o selo já diz qual: o resumo fica "Falta"
+  const resumo = bancos.length > 1
+    ? (faltam === 1 ? 'Falta 1 banco' : faltam ? 'Faltam ' + faltam + ' bancos' : 'Todos chegaram')
+    : 'Falta';
+  const ordem = bancos.slice().sort((a, b) => recebidos.includes(a.id) - recebidos.includes(b.id));
+  const selos = ordem.map(b => seloDoBanco(b, recebidos.includes(b.id), imagens)).join('');
+  return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>' +
+    '<td width="44" style="vertical-align:top;padding-top:1px"><table role="presentation" width="34" height="34" cellpadding="0" cellspacing="0" style="background:' + COR.vinhoClaro + ';border-radius:9px"><tr><td align="center" valign="middle" style="height:34px">' + icone + '</td></tr></table></td>' +
+    '<td style="vertical-align:top">' +
+      '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>' +
+        '<td style="vertical-align:top;font:600 15px/1.35 ' + FONTE + ';color:' + COR.tinta + '">' + esc(t.nome) +
+          '<div style="font:13px/1.45 ' + FONTE + ';color:' + COR.suave + ';font-weight:400;margin-top:1px">' + esc(t.dica) + '</div></td>' +
+        '<td align="right" style="vertical-align:top;white-space:nowrap;padding-left:8px"><span style="display:inline-block;font:600 12px/1 ' + FONTE + ';color:' + COR.falta +
+          ';background:' + COR.faltaClaro + ';padding:6px 10px;border-radius:99px">' + resumo + '</span></td>' +
+      '</tr></table>' +
+      (selos ? '<div style="margin-top:2px">' + selos + '</div>' : '') +
+    '</td></tr></table>';
 }
 
 // Quanto já chegou: cada documento conta um por banco conhecido. Cliente
@@ -141,15 +135,20 @@ function htmlDaCobranca(o) {
   const blocos = [];
   let paragrafo = [], cartoes = null;
   const fechaP = () => { if (paragrafo.length) blocos.push('<p style="margin:0 0 14px;font:15px/1.6 ' + FONTE + ';color:' + COR.tinta + '">' + paragrafo.map(esc).join('<br>') + '</p>'); paragrafo = []; };
-  const fechaC = () => { if (cartoes) blocos.push('<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:4px 0 12px">' + cartoes.join('') + '</table>'); cartoes = null; };
+  // a lista "- Extrato Bancário" vira uma caixa só, uma linha por documento
+  const fechaC = () => {
+    if (cartoes && cartoes.length) blocos.push('<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:4px 0 18px;background:#FFFFFF;border:1px solid ' + COR.borda + ';border-radius:12px">' +
+      cartoes.map((c, k) => '<tr><td style="padding:14px 16px;' + (k ? 'border-top:1px solid ' + COR.borda : '') + '">' + c + '</td></tr>').join('') + '</table>');
+    cartoes = null;
+  };
   linhas.forEach((bruta, i) => {
     const l = bruta.trim();
     if (/^-\s+/.test(l)) {
       fechaP();
       const tipo = tipoDaLinha(l);
       cartoes = cartoes || [];
-      if (tipo && !cartoes.some(c => c.tipo === tipo)) { const c = new String(cartaoDoDocumento(tipo, cliente, recebidos, imagens)); c.tipo = tipo; cartoes.push(c); }
-      else if (!tipo) cartoes.push('<tr><td style="padding:0 0 10px;font:600 15px ' + FONTE + ';color:' + COR.tinta + '">' + esc(l.replace(/^-\s+/, '')) + '</td></tr>');
+      if (tipo && !cartoes.some(c => c.tipo === tipo)) { const c = new String(linhaDoDocumento(tipo, cliente, recebidos, imagens)); c.tipo = tipo; cartoes.push(c); }
+      else if (!tipo) cartoes.push('<div style="font:600 15px/1.4 ' + FONTE + ';color:' + COR.tinta + '">' + esc(l.replace(/^-\s+/, '')) + '</div>');
     } else if (/^https?:\/\//.test(l)) {
       fechaP(); fechaC();                                   // o link vira o botão lá embaixo
     } else if (l.endsWith(':') && /^https?:\/\//.test((linhas[i + 1] || '').trim())) {
