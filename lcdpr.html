@@ -325,7 +325,7 @@ table.t-cfg tbody tr.vazio:hover { background: none; }
 <script src="nilma-config.js?v=347"></script>
 <script src="nilma-extras.js?v=347"></script>
 <script>
-  NilmaShell.montar({ modulo: 'Fiscal', moduloId: 'fiscal', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false, versao: '2.347 · 26/09/2026' });
+  NilmaShell.montar({ modulo: 'Fiscal', moduloId: 'fiscal', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false, versao: '2.348 · 26/09/2026' });
   // o LCDPR é um submódulo do Fiscal: "Nilma / Fiscal / Importador LCDPR"
   NilmaShell.definirSubmodulo('fiscal/lcdpr', 'Importador LCDPR');
   document.getElementById('topo').hidden = true;
@@ -733,7 +733,7 @@ NilmaExtras.ligar({
   toast: function(msg){ toast(msg); },
   cargos: function(){ return contaAtual.cargos || []; },
   sair: function(){ if (auth) auth.signOut().then(function(){ location.href = 'entregas.html'; }); },
-  versao: '2.347 · 26/09/2026',
+  versao: '2.348 · 26/09/2026',
   exemplosIA: ['Quais clientes têm mais pendências este mês?', 'Resuma as entregas do mês passado']
 });
 

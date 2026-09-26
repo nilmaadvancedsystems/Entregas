@@ -440,5 +440,12 @@ igual('texto: e-mail em ISO-8859-1 não vira ???', lg.textoDoEmail({ mimeType: '
 igual('texto: só HTML sai sem as marcas', lg.htmlParaTexto('<head><style>p{}</style></head><p>Bom dia&nbsp;&amp; tudo</p><div>Linha 2<br>Linha 3</div><ul><li>um</li></ul>&#233;'),
   'Bom dia & tudo\nLinha 2\nLinha 3\n• um\né');
 
+// ---------- uso do banco (cartão Saúde do sistema) ----------
+const ub = require('./uso-banco');
+igual('cota do dia começa à meia-noite da Califórnia (verão: 7h UTC)', ub.inicioDoDiaDaCota(new Date('2026-09-26T03:30:00Z')).toISOString(), '2026-09-25T07:00:00.000Z');
+igual('cota do dia no inverno (8h UTC)', ub.inicioDoDiaDaCota(new Date('2026-12-10T20:00:00Z')).toISOString(), '2026-12-10T08:00:00.000Z');
+igual('soma os pontos de todas as séries', ub.somaDaResposta({ timeSeries: [{ points: [{ value: { int64Value: '1200' } }, { value: { int64Value: '34' } }] }, { points: [{ value: { int64Value: '6' } }] }] }), 1240);
+igual('sem série é zero', ub.somaDaResposta({}), 0);
+
 console.log(falhas ? '\n' + falhas + ' de ' + total + ' testes FALHARAM' : total + ' testes, todos passaram');
 process.exit(falhas ? 1 : 0);

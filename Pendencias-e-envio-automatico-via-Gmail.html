@@ -446,28 +446,70 @@
   @keyframes brilho { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
   .linha-cliente.nasce, .cartao.nasce { animation: popIn .2s ease-out both; animation-delay: calc(var(--i, 0) * 24ms); }
 
-  /* cartões (visão alternativa) */
-  .cartoes { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); padding: 16px; }
+  /* cartões (visão alternativa): mais ar, o mês aberto documento a documento
+     e os últimos meses com uma peça por documento em cada coluna */
+  .cartoes { display: grid; gap: 20px; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); padding: 20px; }
   .cartao {
-    display: flex; flex-direction: column; gap: 8px; padding: 16px; text-align: left; cursor: pointer;
-    border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: inherit; font: inherit;
-    transition: background .12s ease, border-color .12s ease;
+    display: flex; flex-direction: column; gap: 16px; padding: 20px; text-align: left; cursor: pointer;
+    border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: inherit; font: inherit;
+    transition: background .12s ease, border-color .12s ease, box-shadow .12s ease;
   }
-  .cartao:hover { background: var(--surface-2); }
+  .cartao:hover { background: var(--surface-2); border-color: var(--border-strong); }
   .cartao.selecionado { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
-  .cartao-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
-  .cartao-nome { font-size: 14px; font-weight: 600; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .cartao-cab { display: flex; flex-direction: column; gap: 4px; }
+  .cartao-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .cartao-nome { font-size: 15px; font-weight: 600; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .cartao-topo .badge { flex: none; }
   .cartao-doc { font-size: 12px; color: var(--ink-muted); font-family: var(--font-num); font-variant-numeric: tabular-nums; }
-  .cartao-resumo { display: flex; align-items: baseline; gap: 6px; }
-  .cartao-num { font-size: 24px; font-weight: 600; line-height: 1.25; font-variant-numeric: tabular-nums; }
-  .cartao-rotulo { font-size: 12px; color: var(--ink-muted); }
-  .grafico { display: flex; align-items: flex-end; gap: 4px; }
-  .grafico-col { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; }
-  .grafico-trilho { width: 100%; height: 44px; display: flex; align-items: flex-end; border-radius: 4px; background: var(--surface-3); overflow: hidden; }
-  .grafico-barra { width: 100%; min-height: 2px; border-radius: 4px 4px 0 0; background: var(--success); }
-  .grafico-barra.parcial { background: var(--warn); }
-  .grafico-barra.vazio { background: var(--border-strong); }
+  /* o mês aberto: anel com o placar e a lista do que chegou e do que falta */
+  .cartao-mes { display: flex; align-items: center; gap: 16px; padding: 14px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .cartao-anel { position: relative; flex: none; width: 64px; height: 64px; }
+  .cartao-anel svg { width: 64px; height: 64px; transform: rotate(-90deg); }
+  .cartao-anel .trilha { fill: none; stroke: var(--surface-3); stroke-width: 7; }
+  .cartao-anel .arco { fill: none; stroke: var(--success); stroke-width: 7; stroke-linecap: round; transition: stroke-dasharray .3s ease; }
+  .cartao-anel.parcial .arco { stroke: var(--warn); }
+  .cartao-num {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink);
+  }
+  .cartao-docs { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
+  .cartao-rotulo { font-size: 12px; font-weight: 600; color: var(--ink-muted); }
+  .cartao-docs li { display: flex; align-items: center; gap: 8px; font-size: 13px; line-height: 18px; }
+  .cartao-docs li .ph { flex: none; font-size: 16px; }
+  .cartao-docs li .nome-doc { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cartao-docs li .estado { flex: none; font-size: 12px; color: var(--ink-muted); }
+  .cartao-docs li.chegou .ph { color: var(--success); }
+  .cartao-docs li.falta .ph { color: var(--ink-faint, var(--ink-muted)); }
+  .cartao-docs li.parte .ph { color: var(--warn); }
+  /* últimos meses: uma coluna por mês, uma peça por documento exigido */
+  .grafico-bloco-c { display: flex; flex-direction: column; gap: 10px; }
+  .grafico-cab { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--ink-muted); }
+  .grafico-cab b { font-weight: 600; color: var(--ink); }
+  .grafico { display: flex; align-items: flex-end; gap: 8px; }
+  .grafico-col { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .grafico-trilho { width: 100%; height: 64px; display: flex; flex-direction: column-reverse; gap: 2px; }
+  .grafico-peca { flex: 1; min-height: 0; border-radius: 2px; background: var(--surface-3); }
+  .grafico-peca:first-child { border-radius: 2px 2px 4px 4px; }
+  .grafico-peca:last-child { border-radius: 4px 4px 2px 2px; }
+  .grafico-peca:only-child { border-radius: 4px; }
+  .grafico-peca.chegou { background: var(--success); }
+  .grafico-peca.sm {
+    background: repeating-linear-gradient(135deg, var(--border-strong) 0 3px, var(--surface-3) 3px 6px);
+  }
   .grafico-mes { font-size: 12px; color: var(--ink-muted); }
+  .grafico-col.atual .grafico-mes { font-weight: 600; color: var(--ink); }
+  .grafico-col.atual .grafico-trilho { outline: 1px solid var(--border-strong); outline-offset: 3px; border-radius: 4px; }
+  /* legenda única, em cima da grade (uma por cartão seria ruído) */
+  .cartoes-legenda { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; padding: 16px 20px 0; font-size: 12px; color: var(--ink-muted); }
+  .cartoes-legenda:has(+ #painelCartoes[hidden]) { display: none; }
+  .cartoes-legenda span { display: inline-flex; align-items: center; gap: 6px; }
+  .cartoes-legenda i.amostra { width: 12px; height: 12px; border-radius: 3px; background: var(--surface-3); }
+  .cartoes-legenda i.amostra.chegou { background: var(--success); }
+  .cartoes-legenda i.amostra.sm { background: repeating-linear-gradient(135deg, var(--border-strong) 0 3px, var(--surface-3) 3px 6px); }
+  @media (max-width: 480px) {
+    .cartoes { grid-template-columns: 1fr; gap: 12px; padding: 12px; }
+    .cartao { padding: 16px; }
+  }
   .cartao-sem-email { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--danger); }
 
   /* ---------- Hoje ---------- */
@@ -1204,7 +1246,7 @@
 <script src="nilma-config.js?v=347"></script>
 <script src="nilma-extras.js?v=347"></script>
 <script>
-  var VERSAO_APP = '2.347 · 26/09/2026';
+  var VERSAO_APP = '2.348 · 26/09/2026';
   NilmaShell.montar({ modulo: 'Pendências', moduloId: 'pendencias', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false, versao: VERSAO_APP });
   // antes do login só a tela de entrada; a barra aparece junto com o app
   document.getElementById('topo').hidden = true;
@@ -1353,6 +1395,7 @@
               <nav class="az-regua" id="azRegua" aria-label="Ir para a letra" hidden></nav>
             </div>
           </div>
+          <div class="cartoes-legenda" aria-hidden="true"><span><i class="amostra chegou"></i>Chegou</span><span><i class="amostra"></i>Falta</span><span><i class="amostra sm"></i>Sem movimento</span><span>Cada coluna é um mês; cada peça, um documento</span></div>
           <div id="painelCartoes" class="cartoes" hidden></div>
           <div id="listaAviso" class="vazio" hidden></div>
           </section>
@@ -3485,43 +3528,65 @@
   }
 
   // ---------- cartões ----------
+  // Em cima, o cliente; no meio, o mês aberto (anel com o placar e cada
+  // documento dizendo se chegou); embaixo, os últimos meses com uma peça por
+  // documento exigido em cada coluna.
+  var SVG_NS = 'http://www.w3.org/2000/svg';
+  var RAIO_ANEL = 26, VOLTA_ANEL = 2 * Math.PI * RAIO_ANEL;
   function criarCartao(cliente) {
     var cartao = el('button', 'cartao');
     cartao.type = 'button';
     cartao.id = 'cd-' + cliente.id;
 
+    var cab = el('div', 'cartao-cab');
     var topo = el('div', 'cartao-topo');
     var nome = el('div', 'cartao-nome');
     var situ = el('span');
     topo.appendChild(nome); topo.appendChild(situ);
-    var doc = el('div', 'cartao-doc', cliente.documento || 'sem CNPJ');
+    cab.appendChild(topo);
+    cab.appendChild(el('div', 'cartao-doc', cliente.documento || 'sem CNPJ'));
 
-    var resumo = el('div', 'cartao-resumo');
+    var mes = el('div', 'cartao-mes');
+    var anel = el('div', 'cartao-anel');
+    var svg = document.createElementNS(SVG_NS, 'svg');
+    svg.setAttribute('viewBox', '0 0 64 64');
+    svg.setAttribute('aria-hidden', 'true');
+    var trilha = document.createElementNS(SVG_NS, 'circle');
+    var arco = document.createElementNS(SVG_NS, 'circle');
+    [trilha, arco].forEach(function (c) { c.setAttribute('cx', '32'); c.setAttribute('cy', '32'); c.setAttribute('r', String(RAIO_ANEL)); });
+    trilha.setAttribute('class', 'trilha'); arco.setAttribute('class', 'arco');
+    svg.appendChild(trilha); svg.appendChild(arco);
     var num = el('span', 'cartao-num');
-    var rotulo = el('span', 'cartao-rotulo');
-    resumo.appendChild(num); resumo.appendChild(rotulo);
+    anel.appendChild(svg); anel.appendChild(num);
+    var docsLista = el('ul', 'cartao-docs');
+    mes.appendChild(anel); mes.appendChild(docsLista);
 
+    var bloco = el('div', 'grafico-bloco-c');
+    var gcab = el('div', 'grafico-cab');
+    var gTitulo = el('span', null, 'Últimos ' + MESES_NO_GRAFICO + ' meses');
+    var gResumo = el('span');
+    gcab.appendChild(gTitulo); gcab.appendChild(gResumo);
     var grafico = el('div', 'grafico');
     var colunas = [];
     for (var i = 0; i < MESES_NO_GRAFICO; i++) {
       var col = el('div', 'grafico-col');
       var trilho = el('div', 'grafico-trilho');
-      var barra = el('div', 'grafico-barra');
-      trilho.appendChild(barra);
-      var mes = el('span', 'grafico-mes');
-      col.appendChild(trilho); col.appendChild(mes);
+      var rotMes = el('span', 'grafico-mes');
+      col.appendChild(trilho); col.appendChild(rotMes);
       grafico.appendChild(col);
-      colunas.push({ barra: barra, mes: mes, trilho: trilho });
+      colunas.push({ col: col, trilho: trilho, mes: rotMes });
     }
+    bloco.appendChild(gcab); bloco.appendChild(grafico);
 
     var semEmail = el('div', 'cartao-sem-email');
     semEmail.appendChild(ico('ph-warning-circle'));
     semEmail.appendChild(document.createTextNode('sem e-mail cadastrado'));
 
-    cartao.appendChild(topo); cartao.appendChild(doc); cartao.appendChild(resumo); cartao.appendChild(grafico); cartao.appendChild(semEmail);
+    cartao.appendChild(cab); cartao.appendChild(mes); cartao.appendChild(bloco); cartao.appendChild(semEmail);
     cartao.addEventListener('click', function () { abrirDetalhe(cliente.id); });
 
-    cartoes.set(cliente.id, { cartao: cartao, nome: nome, situ: situ, num: num, rotulo: rotulo, colunas: colunas, semEmail: semEmail });
+    cartoes.set(cliente.id, { cartao: cartao, nome: nome, situ: situ, anel: anel, arco: arco, num: num, docs: docsLista,
+      resumo: gResumo, colunas: colunas, semEmail: semEmail });
     return cartao;
   }
 
@@ -3533,23 +3598,62 @@
     var s = situacao(cliente.id);
     c.situ.textContent = '';
     c.situ.appendChild(badge(s.texto, s.classe));
-    var recebidos = recebidosDe(cliente.id);
-    var exig = tiposExigidos(cliente.id).length;
-    c.num.textContent = semMovimento(cliente.id) ? 'SM' : recebidos + '/' + exig;
-    c.num.className = 'cartao-num';
-    c.rotulo.textContent = 'documentos em ' + MESES[competenciaAtual.getMonth()];
-    var docs = docsDe(cliente.id);
     var exigidos = tiposExigidos(cliente.id);
-    competenciasDoGrafico().forEach(function (comp, i) {
+    var sm = semMovimento(cliente.id);
+    var recebidos = recebidosDe(cliente.id);
+    var exig = exigidos.length;
+
+    // mês aberto: anel e a lista documento a documento
+    var fracao = exig ? recebidos / exig : 1;
+    c.arco.setAttribute('stroke-dasharray', (fracao * VOLTA_ANEL) + ' ' + VOLTA_ANEL);
+    c.anel.classList.toggle('parcial', fracao > 0 && fracao < 1);
+    c.arco.style.opacity = fracao > 0 ? '' : '0';   // zero: sem o pingo da ponta arredondada
+    c.num.textContent = sm ? 'SM' : recebidos + '/' + exig;
+    var faltam = {};
+    faltandoDe(cliente.id).forEach(function (t) { faltam[t.chave] = true; });
+    var status = statusDoCliente(cliente.id);
+    c.docs.textContent = '';
+    c.docs.appendChild(el('li', 'cartao-rotulo', MESES[competenciaAtual.getMonth()].replace(/^./, function (x) { return x.toUpperCase(); })));
+    if (sm) {
+      var liSm = el('li', 'chegou'); liSm.appendChild(ico('ph-minus-circle'));
+      liSm.appendChild(el('span', 'nome-doc', 'Sem movimento')); c.docs.appendChild(liSm);
+    } else if (!exig) {
+      c.docs.appendChild(el('li', null, 'Nenhum documento se aplica'));
+    } else {
+      exigidos.forEach(function (t) {
+        var chegou = !faltam[t.chave];
+        var parte = !chegou && !!status[t.chave];   // chegou de um banco, falta de outro
+        var li = el('li', chegou ? 'chegou' : parte ? 'parte' : 'falta');
+        li.appendChild(ico(chegou ? 'ph-check-circle' : parte ? 'ph-hourglass' : 'ph-circle'));
+        li.appendChild(el('span', 'nome-doc', t.curto || t.label));
+        li.appendChild(el('span', 'estado', chegou ? 'chegou' : parte ? 'falta banco' : 'falta'));
+        c.docs.appendChild(li);
+      });
+    }
+
+    // últimos meses: uma peça por documento exigido, de baixo pra cima
+    var docs = docsDe(cliente.id);
+    var completos = 0;
+    var comps = competenciasDoGrafico();
+    comps.forEach(function (comp, i) {
       var col = c.colunas[i];
       var dado = docs[comp] || {};
+      var partes = [];
+      col.trilho.textContent = '';
+      (exigidos.length ? exigidos : [null]).forEach(function (t) {
+        var classe = dado.semMovimento ? 'sm' : (t && dado[t.chave]) ? 'chegou' : '';
+        col.trilho.appendChild(el('span', 'grafico-peca' + (classe ? ' ' + classe : '')));
+        if (t) partes.push((t.curto || t.label) + ': ' + (dado.semMovimento ? 'sem movimento' : dado[t.chave] ? 'chegou' : 'falta'));
+      });
       var n = dado.semMovimento ? exigidos.length : exigidos.filter(function (t) { return dado[t.chave]; }).length;
-      var tot = exigidos.length || 1;
-      col.barra.style.height = (n === 0 ? 6 : (n / tot) * 100) + '%';
-      col.barra.className = 'grafico-barra' + (n === 0 ? ' vazio' : n < tot ? ' parcial' : '');
+      if (exigidos.length && n === exigidos.length) completos++;
+      col.col.classList.toggle('atual', i === comps.length - 1);
       col.mes.textContent = rotuloCurtoDoMes(comp).split('/')[0];
-      col.trilho.title = rotuloCurtoDoMes(comp) + ': ' + n + ' de ' + TIPOS.length + ' documentos';
+      col.col.title = rotuloCurtoDoMes(comp) + (partes.length ? ' · ' + partes.join(' · ') : '');
     });
+    c.resumo.innerHTML = '';
+    c.resumo.appendChild(el('b', null, String(completos)));
+    c.resumo.appendChild(document.createTextNode(' de ' + comps.length + ' completos'));
   }
 
   var primeiraMontagem = true;

@@ -1062,17 +1062,25 @@
   // Envolve get() e onSnapshot pra somar os documentos que chegam. Fica no
   // aparelho, por dia; serve pro cartão "Saúde do sistema" avisar antes de
   // bater no teto gratuito (50 mil por dia, que já parou o app uma vez).
-  var LIMITE_LEITURAS_DIA_ = 50000;
   var leiturasHoje_ = { dia: '', n: 0 };
+  // O dia é o da cota do Google (vira à meia-noite da Califórnia, não daqui).
   function chaveLeituras_() {
-    var d = new Date();
-    return 'nilma_leituras_' + d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    var dia = '';
+    try { dia = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' }); } catch (e) {}
+    return 'nilma_leituras_' + (dia || new Date().toISOString().slice(0, 10));
   }
   function lerContadorDeLeituras_() {
     var chave = chaveLeituras_();
-    if (leiturasHoje_.dia === chave) return leiturasHoje_.n;
-    var guardado = 0;
-    try { guardado = Number(localStorage.getItem(chave) || 0) || 0; } catch (e) {}
+    var guardado = leiturasHoje_.dia === chave ? leiturasHoje_.n : 0;
+    // lê do aparelho a cada vez: com duas abas abertas, as duas somam no
+    // mesmo número (guardar só na memória fazia uma apagar a conta da outra)
+    try { var noAparelho = localStorage.getItem(chave); if (noAparelho !== null) guardado = Number(noAparelho) || 0; } catch (e) {}
+    if (leiturasHoje_.dia !== chave) {
+      // dia novo: some com os contadores dos dias anteriores
+      try {
+        Object.keys(localStorage).forEach(function (k) { if (k.indexOf('nilma_leituras_') === 0 && k !== chave) localStorage.removeItem(k); });
+      } catch (e) {}
+    }
     leiturasHoje_ = { dia: chave, n: guardado };
     return guardado;
   }
@@ -11819,7 +11827,7 @@
     }
   }
 
-  var VERSAO_APP_ = '2.347 · 26/09/2026';
+  var VERSAO_APP_ = '2.348 · 26/09/2026';
   // Configurações do usuário: a janela comum (nilma-config.js), a mesma da
   // Pendências e do Fiscal. 'conta' abre em Minha conta; o resto, em
   // Preferências.
@@ -12860,23 +12868,51 @@
   function barraDeUso_(pct, cor) {
     return '<span class="saude-barra" aria-hidden="true"><span style="width:' + Math.min(100, Math.max(2, pct)) + '%;background:' + cor + '"></span></span>';
   }
+  // Limites grátis do Firestore por dia; zeram à meia-noite da Califórnia.
+  var LIMITES_DO_DIA_ = { leituras: 50000, gravacoes: 20000, exclusoes: 20000 };
+  function linhaDeUso_(nome, usado, limite, sub, titulo) {
+    var pct = Math.round(usado / limite * 100);
+    var cor = pct >= 80 ? 'var(--danger)' : (pct >= 50 ? 'var(--warning)' : 'var(--success)');
+    return '<div class="entrega-row saude-linha"' + (titulo ? ' title="' + escapeHtml_(titulo) + '"' : '') + '>' +
+      '<div><div class="er-nome">' + escapeHtml_(nome) + '</div>' +
+      '<div class="er-sub">' + usado.toLocaleString('pt-BR') + ' de ' + limite.toLocaleString('pt-BR') + ' (' + pct + '%)' + (sub ? ' · ' + escapeHtml_(sub) : '') + '</div></div>' +
+      barraDeUso_(pct, cor) +
+      '<span class="status-pill ' + (pct >= 80 ? 'falha' : 'entregue') + '">' + (pct >= 80 ? 'ver' : 'ok') + '</span></div>';
+  }
+  function desenharUsoDoBanco_(uso) {
+    var caixa = $('saudeUsoLinhas');
+    if (!caixa) return;
+    var emMs = uso && uso.em ? Date.parse(uso.em) : 0;
+    var desdeMs = uso && uso.desde ? Date.parse(uso.desde) : 0;
+    // número do Google vale se é recente e ainda é do mesmo dia da cota
+    var valido = uso && !uso.erro && typeof uso.leituras === 'number' && emMs && (Date.now() - emMs) < 45 * 60000 &&
+      desdeMs && (Date.now() - desdeMs) < 864e5;
+    if (valido) {
+      var zera = new Date(desdeMs + 864e5).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      var quando = 'até ' + new Date(emMs).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + ', zera às ' + zera;
+      caixa.innerHTML =
+        linhaDeUso_('Leituras hoje', uso.leituras, LIMITES_DO_DIA_.leituras, quando, 'Todo o sistema: telas, aparelhos e robô, contado pelo Google') +
+        linhaDeUso_('Gravações hoje', uso.gravacoes || 0, LIMITES_DO_DIA_.gravacoes, '', 'Todo o sistema, contado pelo Google') +
+        ((uso.exclusoes || 0) > 1000 ? linhaDeUso_('Exclusões hoje', uso.exclusoes, LIMITES_DO_DIA_.exclusoes, '', 'Todo o sistema, contado pelo Google') : '');
+      return;
+    }
+    caixa.innerHTML = linhaDeUso_('Leituras deste aparelho hoje', lerContadorDeLeituras_(), LIMITES_DO_DIA_.leituras,
+      'o total do sistema aparece quando o robô da nuvem trouxer os números do Google',
+      'Só o que este navegador leu no Entregas; o limite vale pro sistema inteiro');
+  }
   function renderSaudeDoSistema_() {
     var card = $('saudeSistemaCard');
     if (!card) return;
     card.hidden = !(temPapel('admin') || temPapel('contabil'));
     if (card.hidden) return;
-    var lidas = lerContadorDeLeituras_();
-    var pct = Math.round(lidas / LIMITE_LEITURAS_DIA_ * 100);
-    var cor = pct >= 80 ? 'var(--danger)' : (pct >= 50 ? 'var(--warning)' : 'var(--success)');
     var corpo = $('saudeSistemaCorpo');
-    corpo.innerHTML =
-      '<div class="entrega-row saude-linha" title="Leituras do banco hoje, neste aparelho, no plano gratuito">' +
-        '<div><div class="er-nome">Leituras hoje</div>' +
-        '<div class="er-sub">' + lidas.toLocaleString('pt-BR') + ' de ' + LIMITE_LEITURAS_DIA_.toLocaleString('pt-BR') + ' (' + pct + '%)</div></div>' +
-        barraDeUso_(pct, cor) +
-        '<span class="status-pill ' + (pct >= 80 ? 'falha' : 'entregue') + '">' + (pct >= 80 ? 'ver' : 'ok') + '</span></div>' +
+    corpo.innerHTML = '<div id="saudeUsoLinhas"><div class="saude-msg">Consultando o uso do banco…</div></div>' +
       '<div id="saudeRoboLinhas"><div class="saude-msg">Consultando o robô…</div></div>';
-    if (!db) return;
+    if (!db) { desenharUsoDoBanco_(null); return; }
+    // O total do sistema inteiro vem do robô da nuvem (scripts/uso-banco.js),
+    // que pergunta ao Google a cada 15 min. Sem ele, o que este aparelho contou.
+    db.doc('robo/uso').get().then(function (snap) { desenharUsoDoBanco_(snap.exists ? snap.data() : null); })
+      .catch(function () { desenharUsoDoBanco_(null); });
     db.doc('robo/estado').get().then(function (snap) {
       var e = snap.exists ? snap.data() : {};
       var agora = new Date();
