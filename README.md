@@ -29,6 +29,16 @@ Módulo novo no menu ☰, **Tarefas** (`tarefas.html`), pra equipe toda:
 - Regras: `tarefas` a equipe lê, cria e edita; quem criou não muda; apagar
   só quem criou ou o admin.
 
+**Versão 2.372 — aba Bancos da empresa:**
+
+- Uma linha por banco, na largura toda: nome, os documentos com nome
+  ("Extrato", "Comprovantes", "Aplicação"; verde com ✓ quando chegou,
+  tracejado com relógio quando falta) e o recado do banco (Enter salva).
+- No alto: o mês com ‹ › para ver meses anteriores (lê o
+  `documentosMensal` daquele mês uma vez), o resumo "X de Y chegaram" /
+  "Tudo chegou" / "Sem movimento" e "Ver na Pendências". Extrato
+  incompleto vira um aviso amarelo.
+
 **Versão 2.371 — escolher data:**
 
 - O prazo da tarefa e as datas da ausência deixam o `<input type=date>`

@@ -253,6 +253,29 @@
   .tf-aviso { display: flex; align-items: flex-start; gap: 10px; margin: 0 0 16px; padding: 10px 14px; border-radius: 6px; border: 1px solid color-mix(in srgb, var(--warn) 40%, transparent); background: var(--warn-soft); font-size: 14px; }
   .tf-aviso .ph { flex: none; font-size: 18px; color: var(--warn); margin-top: 1px; }
   .tf-emp-cartoes { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; align-items: start; }
+  .tf-bco-cab { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 12px; }
+  .tf-bco-mes { display: inline-flex; align-items: center; gap: 4px; }
+  .tf-bco-mes b { min-width: 150px; text-align: center; font-size: 14px; }
+  .tf-bco-resumo { display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border-radius: 2em; font-size: 12px; font-weight: 600; background: var(--surface-3); color: var(--ink-muted); }
+  .tf-bco-resumo.ok { background: var(--success-soft); color: var(--success-ink, var(--success)); }
+  .tf-bco-resumo.meio, .tf-bco-resumo.nada { background: var(--warn-soft); color: var(--warn); }
+  .tf-bco-ir { margin-left: auto; text-decoration: none; }
+  .tf-bco-lista { border: 1px solid var(--border); border-radius: 6px; background: var(--surface); }
+  .tf-bco { display: grid; grid-template-columns: minmax(160px, 220px) auto minmax(0, 1fr); align-items: center; gap: 16px; padding: 12px 16px; }
+  .tf-bco + .tf-bco { border-top: 1px solid var(--border-muted, var(--border)); }
+  .tf-bco-nome { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .tf-bco-nome b { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tf-bco-docs { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tf-bco-doc { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 10px; border-radius: 2em; border: 1px dashed var(--border-strong); font-size: 12px; color: var(--ink-muted); white-space: nowrap; }
+  .tf-bco-doc .ph { font-size: 14px; }
+  .tf-bco-doc.ok { border: 1px solid color-mix(in srgb, var(--success) 45%, transparent); background: var(--success-soft); color: var(--success-ink, var(--success)); }
+  .tf-bco-recado { display: flex; align-items: center; gap: 8px; min-width: 0; height: 32px; padding: 0 10px; border-radius: 6px; color: var(--ink-muted); cursor: text; }
+  .tf-bco-recado:hover { background: var(--hover-bg); }
+  .tf-bco-recado:focus-within { background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--accent); }
+  .tf-bco-recado.vazio { cursor: default; font-size: 13px; }
+  .tf-bco-recado.vazio:hover { background: none; }
+  .tf-bco-recado input { flex: 1; min-width: 0; height: auto; min-height: 0; margin: 0; padding: 0; border: 0; outline: 0; box-shadow: none; background: none; color: var(--ink); font: inherit; font-size: 13px; }
+  @media (max-width: 900px) { .tf-bco { grid-template-columns: minmax(0, 1fr); gap: 8px; } .tf-bco-recado { padding: 0 8px; margin: 0 -8px; } .tf-bco-ir { margin-left: 0; } }
   .tf-legenda { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin: 0 0 12px; font-size: 13px; color: var(--ink-muted); }
   .tf-legenda b { color: var(--warn); font-weight: 600; }
   .tf-ver-todas { display: block; width: 100%; padding: 8px 14px; border: 0; border-top: 1px solid var(--border); background: none; color: var(--accent); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
@@ -332,7 +355,7 @@
 <script src="nilma-solicitacoes.js?v=358"></script>
 <script src="nilma-extras.js?v=355"></script>
 <script>
-  var VERSAO_APP = '2.371 · 27/09/2026';
+  var VERSAO_APP = '2.372 · 27/09/2026';
   NilmaShell.montar({ modulo: 'Tarefas', moduloId: 'tarefas', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false, versao: VERSAO_APP });
   document.getElementById('topo').hidden = true;
 </script>
@@ -1193,7 +1216,7 @@
   var feitasDaEmpresa = {};
   // ---- caderno da empresa (empresas/{id}): ouvido só com a página aberta
   var caderno = { id: null, dados: {}, parar: null };
-  var docsDoMes = {};                     // clienteId -> documentosMensal do mês (lido 1 vez)
+  var docsDoMes = {};                     // 'clienteId_AAAA-MM' -> documentosMensal (lido 1 vez)
   function ouvirCaderno(id) {
     if (caderno.id === id) return;
     if (caderno.parar) caderno.parar();
@@ -1212,12 +1235,14 @@
     return db.collection('empresas').doc(caderno.id).set(dados, { merge: true }).catch(function (err) { toast('Não salvou: ' + erroDe(err), 'erro'); throw err; });
   }
   function competenciaDeHoje() { var d = new Date(); return d.getFullYear() + '-' + pad2(d.getMonth() + 1); }
-  function lerDocsDoMes(id) {
-    if (docsDoMes[id]) return;
-    docsDoMes[id] = { carregando: true };
-    db.collection('documentosMensal').doc(id + '_' + competenciaDeHoje()).get()
-      .then(function (d) { docsDoMes[id] = d.exists ? d.data() : {}; })
-      .catch(function () { docsDoMes[id] = { erro: true }; })
+  var mesBancos = competenciaDeHoje();   // mês olhado na aba Bancos
+  function lerDocsDoMes(id, mes) {
+    var k = id + '_' + mes;
+    if (docsDoMes[k]) return;
+    docsDoMes[k] = { carregando: true };
+    db.collection('documentosMensal').doc(k).get()
+      .then(function (d) { docsDoMes[k] = d.exists ? d.data() : {}; })
+      .catch(function () { docsDoMes[k] = { erro: true }; })
       .then(function () { if (pagina === 'empresa' && empresaAberta === id) desenhar(); });
   }
   function corDoNome(txt) {
@@ -1392,53 +1417,84 @@
   }
 
   function empresaBancos(box, c) {
-    lerDocsDoMes(c.id);
-    var dm = docsDoMes[c.id] || {};
-    var mesTxt = new Date().toLocaleDateString('pt-BR', { month: 'long' });
+    lerDocsDoMes(c.id, mesBancos);
+    var dm = docsDoMes[c.id + '_' + mesBancos] || {};
+    var pm = mesBancos.split('-').map(Number);
+    var mesTxt = new Date(pm[0], pm[1] - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
     var bancos = Array.isArray(c.bancos) ? c.bancos : [];
     var naoAplica = Array.isArray(c.documentosNaoAplicaveis) ? c.documentosNaoAplicaveis : [];
-    var TIPOS_DOC = [['extrato', 'E', 'Extrato'], ['comprovante', 'C', 'Comprovantes'], ['aplicacao', 'A', 'Aplicação']].filter(function (t) { return naoAplica.indexOf(t[0]) === -1; });
+    var TIPOS_DOC = [['extrato', 'Extrato', 'ph-file-text'], ['comprovante', 'Comprovantes', 'ph-receipt'], ['aplicacao', 'Aplicação', 'ph-chart-line-up']].filter(function (t) { return naoAplica.indexOf(t[0]) === -1; });
     function chegou(tipo, banco) {
       if (!dm[tipo]) return false;
       var por = (dm.bancosPorTipo || {})[tipo];
       if (!banco || !Array.isArray(por) || !por.length) return true;
       return por.indexOf(banco) !== -1;
     }
-    var legenda = el('div', 'tf-legenda');
-    legenda.appendChild(document.createTextNode(dm.carregando ? 'Lendo os documentos de ' + mesTxt + '…'
-      : TIPOS_DOC.map(function (t) { return t[1] + ' = ' + t[2].toLowerCase(); }).join(' · ') + '. Verde: chegou em ' + mesTxt + '.'));
-    if (dm.semMovimento) legenda.appendChild(el('b', null, ' Sem movimento no mês.'));
-    if (dm.extratoIncompleto && dm.extratoIncompleto.texto) legenda.appendChild(el('b', null, ' Extrato chegou ' + dm.extratoIncompleto.texto + '.'));
-    box.appendChild(legenda);
-    var grade = el('div', 'tf-emp-cartoes');
+    // cabeçalho: mês (‹ ›), quanto chegou, atalho pra Pendências
+    var cab = el('div', 'tf-bco-cab');
+    var nav = el('div', 'tf-bco-mes');
+    function mudarMes(delta) { var d = new Date(pm[0], pm[1] - 1 + delta, 1); mesBancos = d.getFullYear() + '-' + pad2(d.getMonth() + 1); desenhar(); }
+    var ant = el('button', 'btn btn-ghost btn-icone btn-sm'); ant.type = 'button'; ant.setAttribute('aria-label', 'Mês anterior'); ant.appendChild(ico('ph-caret-left'));
+    ant.addEventListener('click', function () { mudarMes(-1); });
+    var prox = el('button', 'btn btn-ghost btn-icone btn-sm'); prox.type = 'button'; prox.setAttribute('aria-label', 'Próximo mês'); prox.appendChild(ico('ph-caret-right'));
+    prox.disabled = mesBancos >= competenciaDeHoje();
+    prox.addEventListener('click', function () { mudarMes(1); });
+    nav.appendChild(ant); nav.appendChild(el('b', null, mesTxt.charAt(0).toUpperCase() + mesTxt.slice(1))); nav.appendChild(prox);
+    cab.appendChild(nav);
+    var total = 0, ok = 0;
+    (bancos.length ? bancos : [null]).forEach(function (bid) { TIPOS_DOC.forEach(function (t) { total++; if (chegou(t[0], bid)) ok++; }); });
+    var resumo = el('span', 'tf-bco-resumo' + (dm.carregando ? '' : ok === total ? ' ok' : ok ? ' meio' : ' nada'));
+    resumo.textContent = dm.carregando ? 'Lendo…' : dm.erro ? 'Não foi possível ler' : dm.semMovimento ? 'Sem movimento no mês' : ok === total ? 'Tudo chegou' : ok + ' de ' + total + ' chegaram';
+    cab.appendChild(resumo);
+    var ir = el('a', 'btn btn-ghost btn-sm tf-bco-ir'); ir.href = 'Pendencias-e-envio-automatico-via-Gmail.html#cliente/' + encodeURIComponent(c.id);
+    ir.appendChild(ico('ph-arrow-square-out')); ir.appendChild(document.createTextNode(' Ver na Pendências'));
+    cab.appendChild(ir);
+    box.appendChild(cab);
+    if (dm.extratoIncompleto && dm.extratoIncompleto.texto) {
+      var avI = el('div', 'tf-aviso'); avI.appendChild(ico('ph-warning'));
+      avI.appendChild(el('div', null, 'O extrato chegou ' + dm.extratoIncompleto.texto + '. Falta o resto do mês.'));
+      box.appendChild(avI);
+    }
+
+    function pilula(tipo, bid) {
+      var sim = chegou(tipo[0], bid);
+      var p = el('span', 'tf-bco-doc' + (sim ? ' ok' : ''));
+      p.appendChild(ico(sim ? 'ph-check-circle' : 'ph-clock'));
+      p.appendChild(el('span', null, tipo[1]));
+      p.title = tipo[1] + (sim ? ' chegou' : ' ainda não chegou') + ' (' + mesTxt + ')';
+      return p;
+    }
+    var lista = el('div', 'tf-bco-lista');
     bancos.forEach(function (id) {
       var info = (window.BancosNilma && BancosNilma.porId[id]) || { nome: id, sigla: id, cor: 'var(--surface-3)', tinta: 'var(--ink)' };
-      var cx = el('section', 'tf-caixa');
-      var bx = el('div', 'tf-caixa-corpo');
-      var lin = el('div', 'tf-banco-lin');
+      var lin = el('div', 'tf-bco');
+      var nome = el('div', 'tf-bco-nome');
       var sg = el('span', 'tf-banco-sigla', info.sigla); sg.style.background = info.cor; sg.style.color = info.tinta;
-      lin.appendChild(sg); lin.appendChild(el('span', 'tf-banco-nome', info.nome));
-      var dcs = el('span', 'tf-docs');
-      TIPOS_DOC.forEach(function (t) { var ok = chegou(t[0], id); var d = el('span', 'tf-doc' + (ok ? ' ok' : ''), t[1]); d.title = t[2] + (ok ? ' chegou' : ' falta') + ' em ' + mesTxt; dcs.appendChild(d); });
-      lin.appendChild(dcs);
-      bx.appendChild(lin);
-      var nota = el('input', 'input tf-banco-nota'); nota.dataset.banco = id; nota.placeholder = 'Recado (ex.: extrato vem pelo e-mail do sócio)';
+      nome.appendChild(sg); nome.appendChild(el('b', null, info.nome));
+      lin.appendChild(nome);
+      var docs = el('div', 'tf-bco-docs');
+      TIPOS_DOC.forEach(function (t) { docs.appendChild(pilula(t, id)); });
+      lin.appendChild(docs);
+      var nw = el('label', 'tf-bco-recado'); nw.appendChild(ico('ph-note-pencil'));
+      var nota = el('input'); nota.className = 'tf-banco-nota'; nota.dataset.banco = id; nota.placeholder = 'Adicionar recado (ex.: extrato vem pelo e-mail do sócio)';
       nota.value = (caderno.dados.bancosNotas || {})[id] || ''; nota.setAttribute('aria-label', 'Recado sobre o ' + info.nome);
+      nota.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') nota.blur(); });
       nota.addEventListener('change', function () {
         var notas = Object.assign({}, caderno.dados.bancosNotas || {}); notas[id] = nota.value.trim().slice(0, 300);
         gravarCaderno({ bancosNotas: notas }).then(function () { toast('Recado do ' + info.nome + ' salvo.'); }).catch(function () {});
       });
-      bx.appendChild(nota);
-      cx.appendChild(bx); grade.appendChild(cx);
+      nw.appendChild(nota);
+      lin.appendChild(nw);
+      lista.appendChild(lin);
     });
-    if (bancos.length) box.appendChild(grade);
-    else {
-      var vz = el('div', 'tf-vazio', 'Nenhum banco no cadastro. ');
-      var dcs2 = el('span', 'tf-docs');
-      TIPOS_DOC.forEach(function (t) { var ok = chegou(t[0]); var d = el('span', 'tf-doc' + (ok ? ' ok' : ''), t[1]); d.title = t[2] + (ok ? ' chegou' : ' falta'); dcs2.appendChild(d); });
-      vz.appendChild(dcs2);
-      box.appendChild(vz);
+    if (!bancos.length) {
+      var lin0 = el('div', 'tf-bco');
+      var n0 = el('div', 'tf-bco-nome'); n0.appendChild(el('b', null, 'Documentos do mês')); lin0.appendChild(n0);
+      var d0 = el('div', 'tf-bco-docs'); TIPOS_DOC.forEach(function (t) { d0.appendChild(pilula(t, null)); }); lin0.appendChild(d0);
+      lin0.appendChild(el('div', 'tf-bco-recado vazio', 'Nenhum banco no cadastro do cliente.'));
+      lista.appendChild(lin0);
     }
+    box.appendChild(lista);
   }
 
   function empresaCadastro(box, c) {
@@ -1829,7 +1885,7 @@
     if (p === 'empresa' && (pagina === 'empresas' || pagina === 'minhasempresas')) origemEmpresa = pagina;
     if (p === 'empresa' && pagina !== 'empresa' && pagina !== 'empresas' && pagina !== 'minhasempresas') origemEmpresa = souAdmin() ? 'empresas' : 'minhasempresas';
     pagina = p;
-    if (p === 'empresa' && empresaId !== empresaAberta) abaEmpresa = 'geral';
+    if (p === 'empresa' && empresaId !== empresaAberta) { abaEmpresa = 'geral'; mesBancos = competenciaDeHoje(); }
     empresaAberta = p === 'empresa' ? empresaId : null;
     if (p !== 'empresa') soltarCaderno();
     history.replaceState(null, '', '#' + (p === 'empresa' ? 'empresa/' + empresaId : p));
