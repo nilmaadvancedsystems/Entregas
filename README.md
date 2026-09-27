@@ -29,6 +29,11 @@ Módulo novo no menu ☰, **Tarefas** (`tarefas.html`), pra equipe toda:
 - Regras: `tarefas` a equipe lê, cria e edita; quem criou não muda; apagar
   só quem criou ou o admin.
 
+**Versão 2.380:** a faixa "Atendendo: ... · N pedidos na fila" da tela do
+Robô só aparece quando há pedido de verdade na fila (pendente ou em
+andamento), com o número contado da própria fila; antes o aviso gravado por
+um robô que reiniciou ficava até meia hora na tela.
+
 **Versão 2.379 — "lendo" preso depois de reiniciar:** o vigia reiniciado no
 meio da leitura (atualização do robô) deixava `robo/estado.status = 'lendo'`,
 o andamento e o "Atendendo: ..." de pé, e o botão "Verificar Gmail agora"

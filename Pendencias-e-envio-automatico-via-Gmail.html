@@ -1359,7 +1359,7 @@
 <script src="nilma-solicitacoes.js?v=358"></script>
 <script src="nilma-extras.js?v=355"></script>
 <script>
-  var VERSAO_APP = '2.379 · 27/09/2026';
+  var VERSAO_APP = '2.380 · 27/09/2026';
   NilmaShell.montar({ modulo: 'Pendências', moduloId: 'pendencias', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false, versao: VERSAO_APP });
   // antes do login só a tela de entrada; a barra aparece junto com o app
   document.getElementById('topo').hidden = true;
@@ -6989,7 +6989,7 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
         cancelandoLeitura = todos.some(function (f) { return f.tipo === 'cancelar' && f.status === 'pendente'; });
         filaEmail = todos.filter(function (f) { return f.tipo !== 'cancelar'; });
         renderVigia();
-        if (configRobo.andamento && configRobo.andamento.ativo) renderAndamentoRobo();
+        renderAndamentoRobo();
       }, function () {});
   }
 
@@ -7033,7 +7033,10 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
     pintarBotoesSalvando(a, ativo);
     var dispBox = $('dispAndamento');
     if (dispBox) { dispBox.innerHTML = ''; dispBox.hidden = true; }
-    var filaAtiva = !!(f && f.ativo && idade(f.em) < 30 * 60000);
+    // "Atendendo" só com pedido de verdade na fila (pendente ou em andamento):
+    // o robô que reiniciou no meio deixava esse aviso de pé por meia hora
+    var naFila = filaEmail.length;
+    var filaAtiva = !!(f && f.ativo && idade(f.em) < 30 * 60000 && naFila);
     box.innerHTML = '';
     box.hidden = !ativo && !acabouAgora && !filaAtiva;
     if (box.hidden) return;
@@ -7109,7 +7112,7 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
     if (filaAtiva) {
       var fl = el('div', 'andamento-fila');
       fl.appendChild(ico('ph-hourglass-medium'));
-      fl.appendChild(el('span', null, 'Atendendo: ' + (f.atual || 'pedido da tela') + ' · ' + plural(f.restantes || 1, 'pedido na fila', 'pedidos na fila')));
+      fl.appendChild(el('span', null, 'Atendendo: ' + (f.atual || 'pedido da tela') + ' · ' + plural(naFila, 'pedido na fila', 'pedidos na fila')));
       box.appendChild(fl);
     }
   }
