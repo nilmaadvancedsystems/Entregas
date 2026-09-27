@@ -88,12 +88,12 @@ function linhaDoDocumento(tipo, cliente, recebidosPorTipo, imagens, nota) {
   const ordem = bancos.slice().sort((a, b) => recebidos.includes(a.id) - recebidos.includes(b.id));
   const selos = ordem.map(b => seloDoBanco(b, recebidos.includes(b.id), imagens)).join('');
   return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>' +
-    '<td width="44" style="vertical-align:top;padding-top:1px"><table role="presentation" width="32" height="32" cellpadding="0" cellspacing="0" style="background:' + COR.vinhoClaro + ';border-radius:6px"><tr><td align="center" valign="middle" style="height:32px">' + icone + '</td></tr></table></td>' +
+    '<td width="48" style="vertical-align:top;padding-top:1px"><table role="presentation" width="36" height="36" cellpadding="0" cellspacing="0" style="background:' + COR.vinhoClaro + ';border-radius:9px"><tr><td align="center" valign="middle" style="height:36px">' + icone + '</td></tr></table></td>' +
     '<td style="vertical-align:top">' +
       '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>' +
-        '<td style="vertical-align:top;font:600 15px/1.35 ' + FONTE + ';color:' + COR.tinta + '">' + esc(t.nome) +
+        '<td class="nm" style="vertical-align:top;font:600 15px/1.35 ' + FONTE + ';color:' + COR.tinta + '">' + esc(t.nome) +
           '<div style="font:13px/1.45 ' + FONTE + ';color:' + COR.suave + ';font-weight:400;margin-top:1px">' + esc(t.dica) + '</div></td>' +
-        '<td align="right" style="vertical-align:top;white-space:nowrap;padding-left:8px">' + selo(resumo, 'falta') + '</td>' +
+        '<td class="res" align="right" style="vertical-align:top;white-space:nowrap;padding-left:8px">' + selo(resumo, 'falta') + '</td>' +
       '</tr></table>' +
       (selos ? '<div style="margin-top:2px">' + selos + '</div>' : '') +
     '</td></tr></table>';
@@ -127,47 +127,64 @@ function textoDoPrazo(competencia, diaLimite, agora) {
   return { texto: 'Prazo: até ' + data + ' (' + (dias === 1 ? 'amanhã' : 'faltam ' + dias + ' dias') + ')', atrasado: false };
 }
 
-// Moldura comum dos e-mails do escritório, no desenho do app: faixa clara com
-// o logo e o nome, título da página, o conteúdo em cartões e o rodapé.
-// { assinatura, caixa, chip, previa, titulo, sobre, cabecalho, corpo, imagens }
+// Moldura comum dos e-mails do escritório: barra da marca (vinho, com o logo
+// e o nome), o título grande, o conteúdo em cartões e o rodapé. Um <style>
+// pequeno arruma o celular (Gmail, Apple Mail e Outlook novo respeitam);
+// quem ignora fica com o estilo inline, que já funciona.
+// { assinatura, caixa, chip, previa, titulo, sobre, cabecalho, corpo, imagens, rodape }
 function moldura(o) {
-  const logo = imagem(o.imagens, PASTA_ICONES, 'marca', [15, 24], 'display:inline-block;vertical-align:middle;margin-right:10px') || '';
+  const logo = imagem(o.imagens, PASTA_ICONES, 'marca', [15, 24], 'display:block;margin:0 auto') || '';
   const nome = o.assinatura || 'Nilma Contabilidade';
+  const css = '@media only screen and (max-width:520px){' +
+    '.px{padding-left:18px!important;padding-right:18px!important}' +
+    '.titulo{font-size:22px!important;line-height:28px!important}' +
+    '.nm,.res{display:block!important;width:100%!important;box-sizing:border-box}.res{text-align:left!important;padding:8px 0 0!important}' +
+    '.cta a{display:block!important;text-align:center!important}' +
+    '.fora{padding:12px 8px 24px!important}}';
   return '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
-    '<meta name="color-scheme" content="light"><title>' + esc(o.titulo || nome) + '</title></head>' +
+    '<meta name="color-scheme" content="light only"><meta name="supported-color-schemes" content="light"><title>' + esc(o.titulo || nome) + '</title>' +
+    '<style>' + css + '</style></head>' +
     '<body style="margin:0;padding:0;background:' + COR.fundo + ';-webkit-text-size-adjust:100%">' +
     // pré-cabeçalho: a linha cinza que aparece na lista do Gmail
-    (o.previa ? '<div style="display:none;max-height:0;overflow:hidden">' + esc(o.previa) + '</div>' : '') +
-    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:' + COR.fundo + '"><tr><td align="center" style="padding:24px 12px 32px">' +
-    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#FFFFFF;border:1px solid ' + COR.borda + ';border-radius:6px">' +
+    (o.previa ? '<div style="display:none;max-height:0;overflow:hidden;mso-hide:all">' + esc(o.previa) + '&#8199;&#65279;&#847;'.repeat(20) + '</div>' : '') +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:' + COR.fundo + '"><tr><td class="fora" align="center" style="padding:28px 12px 36px">' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#FFFFFF;border:1px solid ' + COR.borda + ';border-radius:12px;border-collapse:separate;overflow:hidden">' +
 
-    // barra de cima, como a do app
-    '<tr><td style="background:' + COR.fundo + ';border-bottom:1px solid ' + COR.borda + ';border-radius:6px 6px 0 0;padding:12px 20px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>' +
-      '<td style="font:600 15px/24px ' + FONTE + ';color:' + COR.tinta + '">' + logo + '<span style="vertical-align:middle">' + esc(nome) + '</span></td>' +
-      (o.chip ? '<td align="right">' + selo(o.chip) + '</td>' : '') +
+    // barra da marca
+    '<tr><td class="px" style="background:' + COR.vinho + ';border-radius:11px 11px 0 0;padding:14px 28px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>' +
+      '<td style="font:700 15px/28px ' + FONTE + ';color:#FFFFFF">' +
+        (logo ? '<table role="presentation" cellpadding="0" cellspacing="0" style="display:inline-table;vertical-align:middle;margin-right:10px"><tr><td width="28" height="28" align="center" valign="middle" style="width:28px;height:28px;background:#FFFFFF;border-radius:7px">' + logo + '</td></tr></table>' : '') +
+        '<span style="vertical-align:middle">' + esc(nome) + '</span></td>' +
+      (o.chip ? '<td align="right" style="white-space:nowrap"><span style="display:inline-block;padding:3px 10px;border-radius:2em;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.35);font:600 12px/16px ' + FONTE + ';color:#FFFFFF;letter-spacing:.04em">' + esc(o.chip) + '</span></td>' : '') +
     '</tr></table></td></tr>' +
 
-    // título da página
-    '<tr><td style="padding:24px 20px 20px;border-bottom:1px solid ' + COR.borda + '">' +
-      (o.sobre ? '<div style="font:12px/16px ' + FONTE + ';color:' + COR.suave + '">' + esc(o.sobre) + '</div>' : '') +
-      '<div style="font:600 20px/28px ' + FONTE + ';color:' + COR.tinta + ';margin-top:4px">' + esc(o.titulo || '') + '</div>' +
+    // título
+    '<tr><td class="px" style="padding:28px 28px 22px;border-bottom:1px solid ' + COR.borda + '">' +
+      (o.sobre ? '<div style="font:600 12px/16px ' + FONTE + ';color:' + COR.vinho + ';text-transform:uppercase;letter-spacing:.06em">' + esc(o.sobre) + '</div>' : '') +
+      '<h1 class="titulo" style="margin:6px 0 0;font:700 24px/31px ' + FONTE + ';color:' + COR.tinta + '">' + esc(o.titulo || '') + '</h1>' +
       (o.cabecalho || '') +
     '</td></tr>' +
 
-    '<tr><td style="padding:20px 20px 4px">' + o.corpo + '</td></tr>' +
+    '<tr><td class="px" style="padding:24px 28px 8px">' + o.corpo + '</td></tr>' +
 
     // rodapé
-    '<tr><td style="border-top:1px solid ' + COR.borda + ';padding:14px 20px;font:12px/1.55 ' + FONTE + ';color:' + COR.suave + '">' +
-      esc(nome) + (o.caixa ? ' · <a href="mailto:' + esc(o.caixa) + '" style="color:' + COR.suave + '">' + esc(o.caixa) + '</a>' : '') +
+    '<tr><td class="px" style="background:' + COR.fundo + ';border-top:1px solid ' + COR.borda + ';border-radius:0 0 11px 11px;padding:16px 28px;font:12px/1.6 ' + FONTE + ';color:' + COR.suave + '">' +
+      '<b style="color:' + COR.tinta + '">' + esc(nome) + '</b>' + (o.caixa ? ' · <a href="mailto:' + esc(o.caixa) + '" style="color:' + COR.suave + '">' + esc(o.caixa) + '</a>' : '') +
       (o.rodape ? '<br>' + esc(o.rodape) : '') +
     '</td></tr>' +
     '</table></td></tr></table></body></html>';
 }
 
+// Botão do e-mail (tabela com fundo: o Outlook não pinta <a>).
+function botao(texto, href) {
+  return '<table role="presentation" class="cta" cellpadding="0" cellspacing="0" style="margin:18px 0 2px"><tr><td style="background:' + COR.vinho + ';border-radius:8px">' +
+    '<a href="' + esc(href) + '" style="display:inline-block;padding:12px 22px;font:600 15px/20px ' + FONTE + ';color:#FFFFFF;text-decoration:none;border-radius:8px">' + esc(texto) + ' &rarr;</a></td></tr></table>';
+}
+
 // Cartão do app: cabeçalho cinza com título e o conteúdo embaixo.
 function cartao(titulo, conteudo, iconeHtml) {
-  return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 16px;border:1px solid ' + COR.borda + ';border-radius:6px">' +
-    '<tr><td style="background:' + COR.fundo + ';border-bottom:1px solid ' + COR.borda + ';border-radius:6px 6px 0 0;padding:10px 16px;font:600 14px/20px ' + FONTE + ';color:' + COR.tinta + '">' +
+  return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 18px;border:1px solid ' + COR.borda + ';border-radius:10px;border-collapse:separate">' +
+    '<tr><td style="background:' + COR.fundo + ';border-bottom:1px solid ' + COR.borda + ';border-radius:9px 9px 0 0;padding:11px 16px;font:600 14px/20px ' + FONTE + ';color:' + COR.tinta + '">' +
       (iconeHtml || '') + '<span style="vertical-align:middle">' + esc(titulo) + '</span></td></tr>' +
     '<tr><td style="padding:14px 16px">' + conteudo + '</td></tr></table>';
 }
@@ -198,7 +215,7 @@ function htmlDaCobranca(o) {
   const fechaP = () => { if (paragrafo.length) blocos.push('<p style="margin:0 0 14px;font:15px/1.6 ' + FONTE + ';color:' + COR.tinta + '">' + paragrafo.map(esc).join('<br>') + '</p>'); paragrafo = []; };
   // a lista "- Extrato Bancário" vira uma caixa só, uma linha por documento
   const fechaC = () => {
-    if (cartoes && cartoes.length) blocos.push('<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:4px 0 18px;background:#FFFFFF;border:1px solid ' + COR.borda + ';border-radius:6px">' +
+    if (cartoes && cartoes.length) blocos.push('<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:4px 0 20px;background:#FFFFFF;border:1px solid ' + COR.borda + ';border-radius:10px;border-collapse:separate">' +
       cartoes.map((c, k) => '<tr><td style="padding:14px 16px;' + (k ? 'border-top:1px solid ' + COR.borda : '') + '">' + c + '</td></tr>').join('') + '</table>');
     cartoes = null;
   };
@@ -229,17 +246,21 @@ function htmlDaCobranca(o) {
   const prazo = textoDoPrazo(o.competencia, o.diaLimite, o.agora);
   const nomeCliente = (cliente.nomeFantasia || '').trim() || cliente.nome || '';
   const pct = p.total ? Math.round(p.feitos / p.total * 100) : 0;
-  const barra = '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:14px 0 6px;border-radius:99px;background:' + COR.faixa + '"><tr>' +
-    (pct > 0 ? '<td width="' + pct + '%" style="height:6px;line-height:6px;font-size:0;background:' + COR.ok + ';border-radius:99px">&nbsp;</td>' : '') +
-    (pct < 100 ? '<td style="height:6px;line-height:6px;font-size:0">&nbsp;</td>' : '') + '</tr></table>';
+  const barra = '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:18px 0 8px;border-radius:99px;background:' + COR.faixa + '"><tr>' +
+    (pct > 0 ? '<td width="' + pct + '%" style="height:10px;line-height:10px;font-size:0;background:' + COR.ok + ';border-radius:99px">&nbsp;</td>' : '') +
+    (pct < 100 ? '<td style="height:10px;line-height:10px;font-size:0">&nbsp;</td>' : '') + '</tr></table>';
   const iconePrazo = prazo ? imagem(imagens, PASTA_ICONES, 'prazo', 16, 'display:inline-block;vertical-align:-3px;margin-right:6px') : '';
   const iconeAnexo = imagem(imagens, PASTA_ICONES, 'anexo', 16, 'display:inline-block;vertical-align:middle;margin-right:8px') || '';
   const passo = (n, texto) => '<tr><td width="30" style="padding:4px 0;vertical-align:top"><div style="width:20px;height:20px;border-radius:99px;border:1px solid ' + COR.borda +
     ';background:' + COR.fundo + ';color:' + COR.tinta + ';font:600 11px/20px ' + FONTE + ';text-align:center">' + n + '</div></td><td style="padding:5px 0 4px;font:14px/1.45 ' + FONTE + ';color:' + COR.suave + '">' + texto + '</td></tr>';
 
   const cabecalho = barra +
-    '<div style="font:12px ' + FONTE + ';color:' + COR.suave + '">' + p.feitos + ' de ' + p.total + ' já chegaram</div>' +
-    (prazo ? '<div style="margin-top:12px;font:600 14px ' + FONTE + ';color:' + (prazo.atrasado ? COR.falta : COR.tinta) + '">' + (iconePrazo || '') + esc(prazo.texto) + '</div>' : '');
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>' +
+      '<td style="font:13px/18px ' + FONTE + ';color:' + COR.suave + '">' + p.feitos + ' de ' + p.total + ' já chegaram</td>' +
+      '<td align="right" style="font:700 13px/18px ' + FONTE + ';color:' + COR.ok + '">' + pct + '%</td></tr></table>' +
+    (prazo ? '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:16px"><tr><td style="padding:10px 14px;border-radius:8px;background:' + (prazo.atrasado ? COR.faltaClaro : COR.fundo) +
+      ';border:1px solid ' + (prazo.atrasado ? COR.faltaBorda : COR.borda) + ';font:600 14px/20px ' + FONTE + ';color:' + (prazo.atrasado ? COR.falta : COR.tinta) + '">' + (iconePrazo || '') + esc(prazo.texto) + '</td></tr></table>' : '') +
+    (link ? botao('Enviar pela sua página', link) : '');
 
   const comoMandar = cartao('Como mandar',
     '<table role="presentation" width="100%" cellpadding="0" cellspacing="0">' +
@@ -247,8 +268,7 @@ function htmlDaCobranca(o) {
       passo(2, 'Anexe os PDFs ou as fotos dos documentos.') +
       passo(3, 'Pronto: o recebimento é marcado sozinho, sem precisar avisar.') +
     '</table>' +
-    (link ? '<table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:14px"><tr><td style="background:' + COR.vinho + ';border-radius:6px">' +
-      '<a href="' + esc(link) + '" style="display:inline-block;padding:9px 16px;font:500 14px/20px ' + FONTE + ';color:#FFFFFF;text-decoration:none">Enviar ou conferir pela sua página</a></td></tr></table>' +
+    (link ? botao('Enviar ou conferir pela sua página', link) +
       '<div style="font:12px/1.5 ' + FONTE + ';color:' + COR.suave + ';margin-top:8px">Na página dá pra mandar a foto do documento direto do celular e ver o que já chegou.</div>' : ''),
     iconeAnexo);
 
@@ -271,11 +291,15 @@ function htmlDoDisparo(o) {
   const a = o.anexo || null;
   const kb = a && a.tamanho ? (a.tamanho >= 1048576 ? (a.tamanho / 1048576).toFixed(1).replace('.', ',') + ' MB' : Math.max(1, Math.round(a.tamanho / 1024)) + ' KB') : '';
   const iconeAnexo = imagem(imagens, PASTA_ICONES, 'anexo', 16, 'display:inline-block;vertical-align:middle;margin-right:8px') || '';
+  const ext = a ? (String(a.nome || '').match(/\.([a-z0-9]{2,5})$/i) || [, 'arq'])[1].toUpperCase() : '';
   const arquivo = a ? cartao('Arquivo anexado',
-    '<div style="font:500 14px/20px ' + FONTE + ';color:' + COR.tinta + ';overflow-wrap:anywhere">' + esc(a.nome) + '</div>' +
-    '<div style="font:12px/16px ' + FONTE + ';color:' + COR.suave + ';margin-top:2px">' + (kb ? kb + ' · ' : '') + 'está no fim deste e-mail, é só abrir ou baixar.</div>', iconeAnexo) : '';
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>' +
+      '<td width="54" style="vertical-align:middle"><table role="presentation" width="42" height="42" cellpadding="0" cellspacing="0" style="background:' + COR.vinhoClaro + ';border-radius:9px"><tr><td align="center" valign="middle" style="height:42px;font:800 11px/1 ' + FONTE + ';color:' + COR.vinho + ';letter-spacing:.03em">' + esc(ext.slice(0, 4)) + '</td></tr></table></td>' +
+      '<td style="vertical-align:middle"><div style="font:600 14px/20px ' + FONTE + ';color:' + COR.tinta + ';overflow-wrap:anywhere">' + esc(a.nome) + '</div>' +
+      '<div style="font:12px/16px ' + FONTE + ';color:' + COR.suave + ';margin-top:2px">' + (kb ? kb + ' · ' : '') + 'está no fim deste e-mail, é só abrir ou baixar.</div></td>' +
+    '</tr></table>', iconeAnexo) : '';
   const html = moldura({
-    imagens, assinatura: o.assinatura, caixa: o.caixa,
+    imagens, assinatura: o.assinatura, caixa: o.caixa, sobre: 'Comunicado',
     previa: String(o.corpo || '').replace(/\s+/g, ' ').trim().slice(0, 140),
     titulo: o.assunto || '', corpo: paragrafos(o.corpo) + arquivo,
     rodape: 'Mensagem enviada pelo sistema do escritório para os clientes.',

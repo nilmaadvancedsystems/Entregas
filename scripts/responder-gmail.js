@@ -26,7 +26,7 @@ const semQuebra = t => String(t || '').replace(/[\r\n]+/g, ' ').trim();
 
 // A resposta pronta, sem tocar em nada (testável).
 // headers: os do e-mail original; -> { para, cc, assunto, corpo, html, cabecalhos }
-function montarResposta({ headers, textoOriginal, corpo, todos, caixa, dataOriginal }) {
+function montarResposta({ headers, textoOriginal, corpo, todos, caixa, dataOriginal, assinatura }) {
   const h = n => cabecalho(headers, n);
   const minha = String(caixa || '').toLowerCase();
   const de = enderecos(h('Reply-To'))[0] || enderecos(h('From'))[0] || '';
@@ -47,7 +47,13 @@ function montarResposta({ headers, textoOriginal, corpo, todos, caixa, dataOrigi
   const texto = String(corpo || '').trim();
   const corpoTexto = texto + '\n\n' + linhaCitacao + '\n' + original.split('\n').map(l => '> ' + l).join('\n');
   // HTML no formato do Gmail: a citação fica recolhida em "..." lá
-  const html = '<div dir="ltr">' + esc(texto).replace(/\n/g, '<br>') + '</div><br>' +
+  // assinatura discreta do escritório (só no HTML; o texto puro fica como foi escrito)
+  const nomeEsc = esc(assinatura || 'Nilma Contabilidade');
+  const fonte = "-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif";
+  const assin = '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:18px 0 6px"><tr>' +
+    '<td style="border-left:3px solid #B0262D;padding:2px 0 2px 10px;font:13px/1.5 ' + fonte + ';color:#5E5D64">' +
+    '<b style="color:#1D1C1F">' + nomeEsc + '</b>' + (caixa ? '<br><a href="mailto:' + esc(caixa) + '" style="color:#5E5D64">' + esc(caixa) + '</a>' : '') + '</td></tr></table>';
+  const html = '<div dir="ltr" style="font:14px/1.6 ' + fonte + ';color:#1D1C1F">' + esc(texto).replace(/\n/g, '<br>') + '</div>' + assin + '<br>' +
     '<div class="gmail_quote"><div dir="ltr" class="gmail_attr">' + esc(linhaCitacao) + '<br></div>' +
     '<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px solid #ccc;padding-left:1ex">' +
     esc(original).replace(/\n/g, '<br>') + '</blockquote></div>';
@@ -67,7 +73,7 @@ async function responder({ db, gmail, p, caixa, montarMime, anexo }) {
   const msg = await gmail.users.messages.get({ userId: 'me', id, format: 'full' });
   const payload = msg.data.payload || {};
   const r = montarResposta({
-    headers: payload.headers || [], textoOriginal: textoDoEmail(payload), corpo, todos: !!p.todos, caixa,
+    headers: payload.headers || [], textoOriginal: textoDoEmail(payload), corpo, todos: !!p.todos, caixa, assinatura: p.assinatura,
     dataOriginal: Number(msg.data.internalDate) || null,
   });
   const raw = montarMime({ de: caixa, para: r.para, cc: r.cc, assunto: r.assunto, corpo: r.corpo, html: r.html, cabecalhos: r.cabecalhos, anexos: anexo ? [anexo] : [] });

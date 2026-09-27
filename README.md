@@ -29,6 +29,17 @@ Módulo novo no menu ☰, **Tarefas** (`tarefas.html`), pra equipe toda:
 - Regras: `tarefas` a equipe lê, cria e edita; quem criou não muda; apagar
   só quem criou ou o admin.
 
+**Versão 2.385 — HTML dos e-mails do robô:** moldura nova
+(`scripts/email-html.js`): barra da marca em vinho com o logo num quadrado
+branco e o mês, rótulo do cliente/"Comunicado" em vinho e título maior,
+cartões com cantos de 10px e rodapé cinza. Cobrança: barra de progresso mais
+grossa com a porcentagem, prazo numa faixa (laranja quando venceu) e o botão
+"Enviar pela sua página" já no alto (e de novo em "Como mandar"). Disparo:
+cartão do arquivo com o tipo (PDF, XLSX…). Um `<style>` de celular deixa os
+selos "Faltam N bancos" embaixo do nome, títulos menores e botões inteiros;
+quem ignora o `<style>` fica com o inline de antes. Resposta pelo app: sai
+com a assinatura do escritório (nome e e-mail, filete vinho) no HTML.
+
 **Versão 2.384 — acabamento (Pendências e painel da tarefa):**
 
 - Robô do Gmail: datas curtas ("hoje 14:32", "ontem", "qui 09:10",
