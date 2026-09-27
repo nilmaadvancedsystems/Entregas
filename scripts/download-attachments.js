@@ -591,6 +591,7 @@ async function main() {
   const gmail = getGmail();
   const db = getDb('entregas-2e5e2');
   const FV = FieldValue;
+  const parcelamentosLidos = new Map();   // clienteId -> parcelamentos (1 leitura por cliente nesta execução)
 
   andamento({ fase: 'preparando', texto: 'Carregando os clientes' });
   // do arquivo que o vigia mantém, quando está fresco; senão, do banco
@@ -843,6 +844,19 @@ async function main() {
         resultado = { mensagemId: id, pasta: listaPastas.join(' e '), arquivos: salvos, cliente: cliente.nome };
       }
 
+      // Comprovante de parcela (PGFN, Simples, Receita...): marca a parcela
+      // paga no parcelamento cadastrado do cliente (scripts/parcela-paga.js).
+      if (comBytes.length) {
+        try {
+          const pagas = await require('./parcela-paga').conferirGuias({
+            db, FV, cliente, anexos: comBytes, textoDe: textoDoPdf, dicas: assunto + ' ' + trecho, tipos,
+            mensagemId: id, dataMs: msg.data.internalDate, simular: SIMULAR, log: m => console.log('  ' + m), cache: parcelamentosLidos,
+          });
+          pagas.forEach(x => andamento({ texto: cliente.nome + ': ' + x.texto, destaque: true }));
+          cont.parcelas = (cont.parcelas || 0) + pagas.length;
+        } catch (err) { console.error('  parcelamento: não consegui conferir -', err.message); }
+      }
+
       if (tipos.length && comBytes.length) {
         const agora = new Date().toISOString();
         // De que banco(s) veio o anexo. Vale pros TRÊS documentos: extrato,
@@ -991,6 +1005,7 @@ async function main() {
   const resumo = [
     cont.marcados + (cont.marcados === 1 ? ' marcado' : ' marcados'),
     cont.baixados + (cont.baixados === 1 ? ' anexo lido' : ' anexos lidos'),
+    cont.parcelas ? cont.parcelas + (cont.parcelas === 1 ? ' parcela paga' : ' parcelas pagas') : null,
     cont.erros ? cont.erros + (cont.erros === 1 ? ' erro' : ' erros') : null,
   ].filter(Boolean).join(', ');
 

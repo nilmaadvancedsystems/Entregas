@@ -40,13 +40,22 @@ function iniciarAvisos(db, log) {
     return alvos;
   }
 
-  async function enviar(papel, menosEmail, titulo, corpo, tag) {
-    const alvos = await tokensDe(papel, menosEmail);
+  async function enviar(papel, menosEmail, titulo, corpo, tag, link) {
+    return mandar(await tokensDe(papel, menosEmail), titulo, corpo, tag, link);
+  }
+  // pra pessoas certas (o responsável da tarefa, quem cobre as férias)
+  async function enviarPara(uids, titulo, corpo, tag, link) {
+    const quero = new Set(uids || []);
+    const alvos = [];
+    (await usuarios()).forEach(d => { if (quero.has(d.id)) (Array.isArray(d.data().fcmTokens) ? d.data().fcmTokens : []).forEach(t => alvos.push({ uid: d.id, token: t })); });
+    return mandar(alvos, titulo, corpo, tag, link);
+  }
+  async function mandar(alvos, titulo, corpo, tag, link) {
     if (!alvos.length) return;
     // Só "data": o service worker do app monta o aviso e sabe o que abrir no toque
     const r = await getMessaging().sendEachForMulticast({
       tokens: alvos.map(a => a.token),
-      data: { titulo, corpo, tag, link: 'https://nilmaadvancedsystems.github.io/Entregas/entregas.html' },
+      data: { titulo, corpo, tag, link: link || 'https://nilmaadvancedsystems.github.io/Entregas/entregas.html' },
       webpush: { headers: { Urgency: 'high' } },
     });
     const erro = (r.responses.find(x => x.error) || {}).error;
@@ -120,7 +129,7 @@ function iniciarAvisos(db, log) {
 
   log('avisos no celular ligados (parada nova pro office boy, entrega não realizada pro admin)');
   // quem mais quiser avisar (o vigia de CNPJ) usa o mesmo envio
-  return { enviar };
+  return { enviar, enviarPara };
 }
 
 module.exports = { iniciarAvisos };

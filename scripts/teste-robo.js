@@ -533,6 +533,61 @@ igual('cota do dia no inverno (8h UTC)', ub.inicioDoDiaDaCota(new Date('2026-12-
 igual('soma os pontos de todas as séries', ub.somaDaResposta({ timeSeries: [{ points: [{ value: { int64Value: '1200' } }, { value: { int64Value: '34' } }] }, { points: [{ value: { int64Value: '6' } }] }] }), 1240);
 igual('sem série é zero', ub.somaDaResposta({}), 0);
 
+// ---------- parcela paga pelo comprovante (parcela-paga.js) ----------
+const ppg = require('./parcela-paga');
+const guiaPgfn = ppg.lerGuiaPaga('Comprovante de Pagamento\nDocumento de Arrecadação de Receitas Federais - DARF\nPGFN - Transação Excepcional\nParcela 012/060\nNúmero da negociação: 1234567\nValor total: R$ 1.302,45\nData do pagamento: 25/09/2026\nAutenticação: ABC123');
+igual('comprovante PGFN: órgão, valor, parcela, nº e data', guiaPgfn, { orgao: 'pgfn', valor: 1302.45, parcela: 12, de: 60, numero: '1234567', pagoEm: '2026-09-25', soPeloNumero: false });
+igual('DAS do parcelamento do Simples', ppg.lerGuiaPaga('COMPROVANTE DE PAGAMENTO\nDocumento de Arrecadação do Simples Nacional\nParcelamento do Simples Nacional - Parcela 6\nValor pago R$ 480,00\nPago em 29/09/2026').orgao, 'simples');
+igual('DAS do mês não é parcela', ppg.lerGuiaPaga('COMPROVANTE DE PAGAMENTO\nDocumento de Arrecadação do Simples Nacional\nPeríodo de apuração 08/2026\nValor pago R$ 2.130,00\nPago em 20/09/2026'), null);
+igual('guia a pagar (sem pagamento) não conta', ppg.lerGuiaPaga('DARF\nPGFN Parcela 13/60\nVencimento 30/10/2026 Valor R$ 1.300,00'), null);
+const guiaRef = ppg.lerGuiaPaga('BANCO DO BRASIL\nCOMPROVANTE DE PAGAMENTO DE DARF\nCODIGO DA RECEITA 1124\nNUMERO DE REFERENCIA 10010.000123/2026\nVALOR TOTAL 350,90\nDATA DO PAGAMENTO 18/09/2026');
+igual('DARF de banco sem "parcela" vale só pelo nº de referência', [guiaRef.soPeloNumero, guiaRef.numero, guiaRef.valor], [true, '10010.000123/2026', 350.9]);
+const parcsT = [
+  { id: 'p1', orgao: 'pgfn', numero: '1234567', parcelas: 60, primeira: '2025-10', valorParcela: 1234.56, pagas: { '2025-10': {}, '2025-11': {} } },
+  { id: 'p2', orgao: 'simples', parcelas: 12, primeira: '2026-04', valorParcela: 480, pagas: { '2026-04': {}, '2026-05': {}, '2026-06': {}, '2026-07': {}, '2026-08': {} } },
+  { id: 'p3', orgao: 'receita', numero: '10010.000123/2026', parcelas: 24, primeira: '2026-09', valorParcela: 350.9, pagas: {} },
+];
+const achou = (g, dia) => { const r = ppg.acharParcela(parcsT, g, dia); return r.p ? r.p.id + ' ' + r.ym : r.motivo; };
+igual('PGFN: a parcela 12 escrita no comprovante', achou(guiaPgfn, '2026-09-26'), 'p1 2026-09');
+igual('Simples sem nº da parcela: a mais antiga em aberto até o mês pago', achou({ orgao: 'simples', valor: 480, pagoEm: '2026-09-29' }, '2026-09-29'), 'p2 2026-09');
+igual('DARF de banco acha pelo nº de referência', achou(guiaRef, '2026-09-18'), 'p3 2026-09');
+igual('nº de referência de outro débito não marca', achou({ orgao: 'receita', numero: '99999999', soPeloNumero: true, valor: 350.9 }, '2026-09-18'), 'o nº de referência 99999999 não é de nenhum parcelamento cadastrado');
+igual('valor muito diferente não marca', achou({ orgao: 'simples', valor: 1500, pagoEm: '2026-09-29' }, '2026-09-29'), 'valor 1500.00 não bate com nenhum parcelamento de simples');
+igual('parcela já paga não marca de novo', achou({ orgao: 'pgfn', valor: 1234.56, parcela: 2, de: 60 }, '2026-09-26'), 'a parcela de 2025-11 já estava paga');
+igual('dois parecidos: não marca', ppg.acharParcela([{ orgao: 'pgfn', parcelas: 10, primeira: '2026-01', valorParcela: 500, pagas: {} }, { orgao: 'pgfn', parcelas: 10, primeira: '2026-01', valorParcela: 510, pagas: {} }], { orgao: 'pgfn', valor: 505 }, '2026-09-10').motivo, 'mais de um parcelamento de pgfn com valor parecido');
+igual('situação: atrasadas e a do mês', (() => { const x = ppg.situacao(parcsT[0], '2026-09-26'); return [x.nPagas, x.atrasadas.length, x.atual, x.vencAtual]; })(), [2, 9, '2026-09', '2026-09-30']);
+igual('vencimento no último dia útil (fim de semana volta pra sexta)', ppg.vencimentoDe({ dia: 'util' }, '2026-05'), '2026-05-29');
+igual('vencimento em dia fixo', ppg.vencimentoDe({ dia: 20 }, '2026-02'), '2026-02-20');
+
+// ---------- aviso diário de atrasados (avisos-atrasados.js) ----------
+const aa = require('./avisos-atrasados');
+const clientesAA = new Map([['c1', { id: 'c1', nome: 'PADARIA SAO JOSE LTDA', nomeFantasia: 'Padaria São José', responsavelUid: 'ana' }], ['c2', { id: 'c2', nome: 'A7 MOBILE LTDA', responsavelUid: 'nilma' }]]);
+const montado = aa.montarAvisos({
+  tarefas: [
+    { titulo: 'DCTFWeb', prazo: '2026-09-25', responsavelUid: 'ana', aberta: true },
+    { titulo: 'Certidão', prazo: '2026-09-28', responsavelUid: 'nilma', aberta: true },
+    { titulo: 'Sem dono', prazo: '2026-09-01', aberta: true },
+    { titulo: 'Futura', prazo: '2026-10-10', responsavelUid: 'nilma', aberta: true },
+  ],
+  parcelamentos: [
+    Object.assign({ clienteId: 'c1', aberto: true, status: 'ativo' }, parcsT[0]),
+    { clienteId: 'c2', orgao: 'receita', parcelas: 5, primeira: '2026-09', valorParcela: 100, dia: 30, pagas: {}, aberto: true, status: 'ativo' },
+  ],
+  clientes: clientesAA,
+  ausencias: new Map([['ana', { de: '2026-09-20', ate: '2026-10-05', cobreUid: 'carlos' }]]),
+  admins: ['nilma'], hoje: '2026-09-28',
+});
+const comoLista = m => Object.fromEntries([...m.porPessoa].map(([u, x]) => [u, x && Object.fromEntries(Object.entries(x).filter(([, v]) => v.length))]));
+igual('aviso: férias vão pra quem cobre, sem dono vai pro admin, parcela perto do vencimento', comoLista(montado), {
+  carlos: { tarefasAtrasadas: ['DCTFWeb'], parcelasAtrasadas: ['PGFN de Padaria São José'] },
+  nilma: { tarefasAtrasadas: ['Sem dono'], tarefasHoje: ['Certidão'], parcelasPerto: ['Receita de A7 MOBILE LTDA'] },
+});
+igual('aviso: resumo do escritório', montado.escritorio, { tarefas: 2, parcelamentos: 1 });
+igual('aviso: texto do admin com o escritório', aa.textoDoAviso(montado.porPessoa.get('nilma'), montado.escritorio), {
+  titulo: 'Você tem coisa atrasada', corpo: 'Parcela vence esta semana: Receita de A7 MOBILE LTDA · 1 tarefa atrasada (Sem dono) · 1 tarefa vence hoje · Escritório: 2 tarefas atrasadas, 1 parcelamento atrasado',
+  link: 'https://nilmaadvancedsystems.github.io/Entregas/tarefas.html#minhas' });
+igual('aviso: nada pra dizer', aa.textoDoAviso(null, { tarefas: 0, parcelamentos: 0 }), null);
+
 // os testes que leem PDF são assíncronos: o resultado espera por eles
 esperarExtratos.then(() => {
   console.log(falhas ? '\n' + falhas + ' de ' + total + ' testes FALHARAM' : total + ' testes, todos passaram');

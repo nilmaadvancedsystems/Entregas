@@ -29,6 +29,32 @@ Módulo novo no menu ☰, **Tarefas** (`tarefas.html`), pra equipe toda:
 - Regras: `tarefas` a equipe lê, cria e edita; quem criou não muda; apagar
   só quem criou ou o admin.
 
+**Versão 2.377 — Parcelamentos, etapa 3 (robô) e fotos de perfil:**
+
+- **Parcela paga pelo comprovante** (`scripts/parcela-paga.js`): quando o
+  cliente manda por e-mail (ou pelo link) o comprovante do DARF / DAS / guia
+  da PGFN, o robô lê o PDF e, se for pagamento de parcela, marca a parcela
+  paga no parcelamento cadastrado (`pagas.AAAA-MM` com `auto: true`, o
+  arquivo, o valor e a data do pagamento). Reconhece: comprovante (não a
+  guia a pagar), órgão (PGFN, Simples, Receita, Estado, Prefeitura), valor,
+  "Parcela 12/60", nº da negociação/parcelamento e data. Comprovante de
+  banco sem a palavra "parcela" vale só se o nº de referência bater com o
+  nº do parcelamento cadastrado (o DAS do mês e o DARF comum nunca viram
+  parcela). Parcela escrita no comprovante manda; senão, a mais antiga em
+  aberto até o mês pago. Na dúvida (dois parcelamentos parecidos, valor
+  mais de 25% diferente, parcela já paga) não marca e fica no log. A tela
+  mostra "Parcela N marcada pelo robô" e um ponto verde na grade.
+- **Aviso diário de atrasados** (`scripts/avisos-atrasados.js`): dias úteis,
+  a partir das 8h, notificação no celular de cada pessoa com as tarefas
+  atrasadas / que vencem hoje e as parcelas atrasadas / que vencem hoje ou
+  nos próximos 3 dias das empresas dela. Quem está de férias não recebe:
+  vai pra quem cobre (ou pro admin). O admin recebe também o resumo do
+  escritório. Toque abre as Tarefas. `robo/estado.atrasadosEm` evita repetir.
+- `avisos-push.js` ganhou `enviarPara(uids, ...)` e link por aviso.
+- **Fotos de perfil** (`usuarios.fotoPerfil`) nos avatares da Equipe, das
+  linhas, do quadro, do painel e dos comentários. Iniciais ignoram
+  pontuação ("QA Claude (apagar)" → QA).
+
 **Versão 2.376 — acabamento das Tarefas (2ª rodada):**
 
 - Painel da tarefa mais largo, com a empresa (clicável, abre a página

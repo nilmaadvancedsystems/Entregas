@@ -92,6 +92,7 @@
   }
   .tf-linha .resp .tf-avatar { width: 28px; height: 28px; font-size: 11px; }
   .tf-avatar.cor { color: #FFFFFF; border-color: transparent; }
+  .tf-avatar.foto { background-size: cover; background-position: center; background-repeat: no-repeat; }
   .tf-linha .resp .tf-avatar.fora { border-color: var(--warn); box-shadow: 0 0 0 2px var(--warn-soft); }
   .tf-linha .tit .mini { flex: none; font-size: 12px; color: var(--ink-muted); }
   @media (max-width: 900px) {
@@ -374,6 +375,10 @@
   .tf-parc-grade .m.paga { background: var(--success-soft); border-color: color-mix(in srgb, var(--success) 45%, transparent); color: var(--success-ink, var(--success)); }
   .tf-parc-grade .m.atrasada { background: color-mix(in srgb, var(--destructive) 14%, transparent); border-color: color-mix(in srgb, var(--destructive) 50%, transparent); color: var(--destructive); }
   .tf-parc-grade .m.atual { box-shadow: 0 0 0 2px var(--accent); }
+  .tf-parc-grade .m { position: relative; }
+  .tf-parc-grade .m.auto::after { content: ""; position: absolute; top: 4px; right: 4px; width: 6px; height: 6px; border-radius: 50%; background: var(--success); }
+  .tf-parc-robo { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--success-ink, var(--success)); }
+  .tf-parc-robo .ph { font-size: 16px; }
   .tf-parc-grade .m:disabled { cursor: default; }
   .tf-parc-encerrados { margin-top: 20px; }
   .tf-parc-encerrados > summary { cursor: pointer; font-size: 14px; font-weight: 600; color: var(--ink-muted); margin-bottom: 12px; }
@@ -500,7 +505,7 @@
 <script src="nilma-solicitacoes.js?v=358"></script>
 <script src="nilma-extras.js?v=355"></script>
 <script>
-  var VERSAO_APP = '2.376 · 27/09/2026';
+  var VERSAO_APP = '2.377 · 27/09/2026';
   NilmaShell.montar({ modulo: 'Tarefas', moduloId: 'tarefas', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false, versao: VERSAO_APP });
   document.getElementById('topo').hidden = true;
 </script>
@@ -552,7 +557,7 @@
   function pad2(n) { return String(n).padStart(2, '0'); }
   function hojeIso() { var d = new Date(); return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
   function mesDe(iso) { return String(iso || '').slice(0, 7); }
-  function iniciais(nome) { var p = String(nome || '').trim().split(/[\s.@]+/).filter(Boolean); return p.length ? (p[0][0] + (p.length > 1 ? p[p.length - 1][0] : '')).toUpperCase() : '?'; }
+  function iniciais(nome) { var p = String(nome || '').replace(/[^\p{L}\p{N}\s.@]/gu, ' ').trim().split(/[\s.@]+/).filter(Boolean); return p.length ? (p[0][0] + (p.length > 1 ? p[p.length - 1][0] : '')).toUpperCase() : '?'; }
 
   var STATUS = [
     { id: 'afazer', rotulo: 'A fazer' },
@@ -588,6 +593,15 @@
   function gravarLocal(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
   function souAdmin() { return eu.roles.indexOf('admin') !== -1; }
   function nomeDoCliente(c) { return c ? ((c.codigoOrigem ? c.codigoOrigem + ' - ' : '') + (c.nome || c.nomeFantasia || '')) : ''; }
+  // avatar de pessoa: a foto de perfil (usuarios.fotoPerfil) ou as iniciais na cor do nome
+  function avatarPessoa(uid, nome, cls) {
+    var a = el('span', 'tf-avatar cor' + (cls ? ' ' + cls : ''), iniciais(nome));
+    a.style.backgroundColor = corDoNome(nome);
+    var p = equipe.filter(function (x) { return uid ? x.uid === uid : x.nome === nome; })[0];
+    var foto = (p && p.foto) || (uid && eu && uid === eu.uid && conta && conta.foto) || '';
+    if (foto) { a.classList.add('foto'); a.style.backgroundImage = 'url("' + String(foto).replace(/"/g, '%22') + '")'; a.textContent = ''; }
+    return a;
+  }
   function nomeDaPessoa(uid) { var p = equipe.filter(function (x) { return x.uid === uid; })[0]; return p ? p.nome : ''; }
   // férias/folga valendo hoje
   function ausenteHoje(uid) {
@@ -792,7 +806,7 @@
       equipe = snap.docs.map(function (d) {
         var x = d.data() || {};
         var roles = Array.isArray(x.roles) ? x.roles : (x.role ? [x.role] : []);
-        return { uid: d.id, nome: x.nome || String(x.email || '').split('@')[0] || 'sem nome', roles: roles, ativo: x.ativo !== false };
+        return { uid: d.id, nome: x.nome || String(x.email || '').split('@')[0] || 'sem nome', roles: roles, ativo: x.ativo !== false, foto: x.fotoPerfil || '' };
       }).filter(function (p) { return p.roles.length && p.ativo; })
         .sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); });
     }).catch(function () { equipe = [{ uid: eu.uid, nome: eu.nome }]; });
@@ -1161,7 +1175,7 @@
     // responsável: só as iniciais (o nome aparece ao parar o mouse)
     if (t.responsavelNome) {
       var fora = ausenteHoje(t.responsavelUid);
-      var av = el('span', 'tf-avatar cor' + (fora ? ' fora' : ''), iniciais(t.responsavelNome)); av.style.background = corDoNome(t.responsavelNome);
+      var av = avatarPessoa(t.responsavelUid, t.responsavelNome, fora ? 'fora' : '');
       av.title = t.responsavelNome + (fora ? ' · ' + rotuloAusencia(fora).toLowerCase() + ' até ' + dataCurta(fora.ate) + (fora.cobreNome ? ', quem cobre: ' + fora.cobreNome : '') : '');
       av.setAttribute('aria-label', 'Responsável: ' + av.title);
       resp.appendChild(av);
@@ -1247,7 +1261,7 @@
         tt.appendChild(document.createTextNode(t.titulo || '(sem título)'));
         c.appendChild(tt);
         var meta = el('div', 'meta');
-        if (t.responsavelNome) { var p = el('span', 'tf-pessoa'); var avq = el('span', 'tf-avatar cor', iniciais(t.responsavelNome)); avq.style.background = corDoNome(t.responsavelNome); p.appendChild(avq); p.appendChild(el('span', null, t.responsavelNome.split(' ')[0])); meta.appendChild(p); }
+        if (t.responsavelNome) { var p = el('span', 'tf-pessoa'); p.appendChild(avatarPessoa(t.responsavelUid, t.responsavelNome)); p.appendChild(el('span', null, t.responsavelNome.split(' ')[0])); meta.appendChild(p); }
         if (t.prazo && t.status !== 'feito') { var pz = el('span', 'prazo ' + classePrazo(t)); pz.appendChild(ico('ph-calendar-blank')); pz.appendChild(el('span', null, prazoTexto(t.prazo))); meta.appendChild(pz); }
         if ((t.prioridade || 'normal') !== 'normal') { var pr = el('span', 'tf-prio dir ' + t.prioridade, rotuloPrio(t.prioridade)); meta.appendChild(pr); }
         if (meta.childNodes.length) c.appendChild(meta);
@@ -1934,11 +1948,12 @@
         var ym = mesMais(p.primeira, i);
         var paga = !!(p.pagas || {})[ym];
         var atras = sx.atrasadas.indexOf(ym) !== -1;
-        var b = el('button', 'm' + (paga ? ' paga' : atras ? ' atrasada' : '') + (ym === sx.atual ? ' atual' : '')); b.type = 'button';
+        var info0 = (p.pagas || {})[ym];
+        var b = el('button', 'm' + (paga ? ' paga' : atras ? ' atrasada' : '') + (ym === sx.atual ? ' atual' : '') + (info0 && info0.auto ? ' auto' : '')); b.type = 'button';
         b.appendChild(el('b', null, String(i + 1)));
         b.appendChild(el('small', null, mesCurto(ym)));
         var info = (p.pagas || {})[ym];
-        b.title = 'Parcela ' + (i + 1) + ' · ' + mesCurto(ym) + ' · vence ' + dataCurta(vencimentoDe(p, ym)) + ' · ' + (paga ? 'paga' + (info && info.por ? ' (marcada por ' + info.por + ')' : '') : atras ? 'ATRASADA' : 'em aberto') + (ativo ? '\nClique pra ' + (paga ? 'desmarcar' : 'marcar como paga') : '');
+        b.title = 'Parcela ' + (i + 1) + ' · ' + mesCurto(ym) + ' · vence ' + dataCurta(vencimentoDe(p, ym)) + ' · ' + (paga ? 'paga' + (info && info.pagoEm ? ' em ' + dataCurta(info.pagoEm) : '') + (info && info.por ? ' (marcada por ' + info.por + (info.arquivo ? ', comprovante ' + info.arquivo : '') + ')' : '') : atras ? 'ATRASADA' : 'em aberto') + (ativo ? '\nClique pra ' + (paga ? 'desmarcar' : 'marcar como paga') : '');
         b.disabled = !ativo;
         b.addEventListener('click', function (ev) { ev.stopPropagation(); marcarParcela(p, ym, !paga).then(desenhar); });
         g.appendChild(b);
@@ -1969,6 +1984,14 @@
     meio.appendChild(barraProgresso(sx));
     meio.appendChild(el('span', 'tf-parc-per', 'De ' + mesCurto(p.primeira) + ' a ' + mesCurto(sx.fim) + (sx.nAtual ? ' · este mês é a parcela ' + sx.nAtual : '') + ' · falta ' + brl((sx.total - sx.nPagas) * (p.valorParcela || 0))));
     c.appendChild(meio);
+    // a última que o robô marcou pelo comprovante
+    var autos = Object.keys(p.pagas || {}).filter(function (k) { return p.pagas[k] && p.pagas[k].auto; }).sort();
+    if (autos.length) {
+      var ult = autos[autos.length - 1], inf = p.pagas[ult];
+      var rb = el('div', 'tf-parc-robo'); rb.appendChild(ico('ph-check-circle'));
+      rb.appendChild(el('span', null, 'Parcela ' + (difMeses(p.primeira, ult) + 1) + ' (' + mesCurto(ult) + ') marcada pelo robô' + (inf.pagoEm ? ', paga em ' + dataCurta(inf.pagoEm) : '') + (inf.arquivo ? ' · ' + inf.arquivo : '')));
+      c.appendChild(rb);
+    }
     if (p.obs) c.appendChild(el('div', 'tf-parc-obs', p.obs));
     var det = el('details', 'tf-parc-det'); if (aberto) det.open = true;
     var sm = el('summary', null, 'Parcelas mês a mês'); det.appendChild(sm);
@@ -2211,7 +2234,7 @@
     equipe.forEach(function (pp) {
       var c = el('section', 'tf-pessoa-cartao');
       var cab = el('div', 'tf-pessoa-cab');
-      var avP = el('span', 'tf-avatar', iniciais(pp.nome)); avP.style.background = corDoNome(pp.nome); avP.style.color = '#FFFFFF'; avP.style.borderColor = 'transparent';
+      var avP = avatarPessoa(pp.uid, pp.nome);
       cab.appendChild(avP);
       var nm = el('div'); nm.appendChild(el('b', null, pp.nome + (pp.uid === eu.uid ? ' (você)' : '')));
       nm.appendChild(el('small', null, (pp.roles || []).map(function (r) { var x = { admin: 'Admin', contabil: 'Contábil', office_boy: 'Office boy', fiscal: 'Fiscal', dp: 'Departamento pessoal' }[r] || String(r).replace(/_/g, ' '); return x.charAt(0).toUpperCase() + x.slice(1); }).join(' · ')));
@@ -2415,7 +2438,7 @@
     var resp = selectDe([['', 'Ninguém']].concat(equipe.map(function (x) { return [x.uid, x.nome]; })), t.responsavelUid || '', 'Responsável');
     resp.addEventListener('change', function () { campo({ responsavelUid: resp.value, responsavelNome: nomeDaPessoa(resp.value) }); });
     var respBox = el('div', 'tf-com-av');
-    if (t.responsavelNome) { var avR = el('span', 'tf-avatar', iniciais(t.responsavelNome)); avR.style.background = corDoNome(t.responsavelNome); avR.style.color = '#FFFFFF'; avR.style.borderColor = 'transparent'; respBox.appendChild(avR); }
+    if (t.responsavelNome) respBox.appendChild(avatarPessoa(t.responsavelUid, t.responsavelNome));
     respBox.appendChild(resp);
     prop(grade, 'ph-user', 'Responsável', respBox);
     prop(grade, 'ph-calendar-blank', 'Prazo', campoData(t.prazo, function (v) { if (v !== (t.prazo || '')) campo({ prazo: v }); }, { vazio: 'Sem prazo', rotulo: 'Prazo', textoLimpar: 'Sem prazo', marcarAtraso: t.status !== 'feito' }));
@@ -2494,7 +2517,7 @@
       corpo.appendChild(blocoTit('ph-chat-teardrop-text', 'Comentários', cms.length ? String(cms.length) : ''));
       cms.forEach(function (c) {
         var d = el('div', 'tf-coment');
-        var avC = el('span', 'tf-avatar', iniciais(c.por || '?')); avC.style.background = corDoNome(c.por); avC.style.color = '#FFFFFF'; avC.style.borderColor = 'transparent';
+        var avC = avatarPessoa(c.porUid, c.por || '?');
         d.appendChild(avC);
         var bx = el('div', 'bolha');
         var q = el('div', 'quem'); q.appendChild(el('b', null, c.por || 'alguém')); q.appendChild(document.createTextNode(' · ' + new Date(c.em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })));
@@ -2503,7 +2526,7 @@
         corpo.appendChild(d);
       });
       var nc = el('div', 'tf-coment-novo');
-      var avEu = el('span', 'tf-avatar', iniciais(eu.nome)); avEu.style.background = corDoNome(eu.nome); avEu.style.color = '#FFFFFF'; avEu.style.borderColor = 'transparent';
+      var avEu = avatarPessoa(eu.uid, eu.nome);
       nc.appendChild(avEu);
       var ta = el('textarea', 'input'); ta.placeholder = 'Escreva um comentário… (Ctrl+Enter envia)'; ta.setAttribute('aria-label', 'Novo comentário');
       var env = el('button', 'btn btn-secondary'); env.type = 'button'; env.textContent = 'Comentar';
