@@ -130,13 +130,14 @@
 
   /* empresas */
   .tf-emp-linha { display: grid; grid-template-columns: minmax(0, 1fr) 220px 90px 110px 110px; align-items: center; gap: 12px; min-height: 44px; padding: 6px 12px; cursor: pointer; }
+  .tf-tabela.sem-resp .tf-emp-linha { grid-template-columns: minmax(0, 1fr) 90px 110px 110px; }
   .tf-emp-linha + .tf-emp-linha { border-top: 1px solid var(--border-muted, var(--border)); }
   .tf-emp-linha:hover { background: var(--surface-2); }
   .tf-emp-linha.cab { cursor: default; min-height: 36px; font-size: 12px; font-weight: 600; color: var(--ink-muted); background: var(--surface-2); }
   .tf-emp-linha .nome { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 500; }
   .tf-emp-linha .num { font-size: 13px; font-variant-numeric: tabular-nums; color: var(--ink-muted); }
   .tf-emp-linha .select { height: 30px; min-height: 30px; font-size: 13px; width: 100%; }
-  @media (max-width: 900px) { .tf-emp-linha { grid-template-columns: minmax(0, 1fr) auto; } .tf-emp-linha > :nth-child(n+3) { display: none; } .tf-emp-linha.cab { display: none; } }
+  @media (max-width: 900px) { .tf-emp-linha, .tf-tabela.sem-resp .tf-emp-linha { grid-template-columns: minmax(0, 1fr) auto; } .tf-emp-linha > :nth-child(n+3) { display: none; } .tf-emp-linha.cab { display: none; } }
 
   .tf-emp-cab { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
   .tf-props-emp { display: flex; flex-wrap: wrap; gap: 8px 24px; margin: 8px 0 20px; font-size: 13px; color: var(--ink-muted); }
@@ -307,15 +308,16 @@
 <script src="nilma-solicitacoes.js?v=358"></script>
 <script src="nilma-extras.js?v=355"></script>
 <script>
-  var VERSAO_APP = '2.369 · 27/09/2026';
+  var VERSAO_APP = '2.370 · 27/09/2026';
   NilmaShell.montar({ modulo: 'Tarefas', moduloId: 'tarefas', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false, versao: VERSAO_APP });
   document.getElementById('topo').hidden = true;
 </script>
 <nav class="tabs" id="tabsNav" aria-label="Menu das Tarefas" hidden>
   <button type="button" class="tab menu-item" data-pagina="minhas"><span class="tab-ico"><i class="ph ph-user" aria-hidden="true"></i></span><span class="tab-label">Minhas tarefas</span><span class="tab-badge" id="numMinhas" hidden></span></button>
-  <button type="button" class="tab menu-item" data-pagina="todas"><span class="tab-ico"><i class="ph ph-list-checks" aria-hidden="true"></i></span><span class="tab-label">Todas as tarefas</span><span class="tab-badge" id="numTodas" hidden></span></button>
+  <button type="button" class="tab menu-item" data-pagina="todas" data-admin hidden><span class="tab-ico"><i class="ph ph-list-checks" aria-hidden="true"></i></span><span class="tab-label">Todas as tarefas</span><span class="tab-badge" id="numTodas" hidden></span></button>
   <button type="button" class="tab menu-item" data-pagina="requisicoes"><span class="tab-ico"><i class="ph ph-tray-arrow-down" aria-hidden="true"></i></span><span class="tab-label">Requisições</span><span class="tab-badge" id="numReq" hidden></span></button>
-  <button type="button" class="tab menu-item" data-pagina="empresas"><span class="tab-ico"><i class="ph ph-buildings" aria-hidden="true"></i></span><span class="tab-label">Empresas</span></button>
+  <button type="button" class="tab menu-item" data-pagina="minhasempresas"><span class="tab-ico"><i class="ph ph-folder-simple-user" aria-hidden="true"></i></span><span class="tab-label">Minhas empresas</span><span class="tab-badge" id="numMinhasEmp" hidden></span></button>
+  <button type="button" class="tab menu-item" data-pagina="empresas" data-admin hidden><span class="tab-ico"><i class="ph ph-buildings" aria-hidden="true"></i></span><span class="tab-label">Todas as empresas</span></button>
   <button type="button" class="tab menu-item" data-pagina="equipe"><span class="tab-ico"><i class="ph ph-users-three" aria-hidden="true"></i></span><span class="tab-label">Equipe e férias</span><span class="tab-badge" id="numAusentes" hidden></span></button>
 </nav>
 <nav class="abas-secao" id="abasSecao" role="tablist" aria-label="Visões" hidden></nav>
@@ -580,7 +582,8 @@
     minhas: ['Minhas tarefas', 'O que está com você.'],
     todas: ['Todas as tarefas', 'Tudo que está aberto no escritório.'],
     requisicoes: ['Requisições', 'Pedidos que chegaram dos clientes e ainda não foram resolvidos.'],
-    empresas: ['Empresas', 'Quem cuida de cada cliente e o que está aberto com ele.'],
+    empresas: ['Todas as empresas', 'Quem cuida de cada cliente e o que está aberto com ele.'],
+    minhasempresas: ['Minhas empresas', 'As empresas que estão com você, e as de quem você está cobrindo.'],
     equipe: ['Equipe e férias', 'Quem está com o quê, e quem cobre quem está fora.']
   };
   function desenhar() {
@@ -589,7 +592,7 @@
     var rolagem = window.scrollY;
     box.innerHTML = '';
     pintarMenu();
-    if (pagina === 'empresas') desenharEmpresas(box);
+    if (pagina === 'empresas' || pagina === 'minhasempresas') desenharEmpresas(box, pagina === 'minhasempresas');
     else if (pagina === 'empresa') desenharEmpresa(box);
     else if (pagina === 'equipe') desenharEquipe(box);
     else desenharTarefas(box);
@@ -597,7 +600,7 @@
   }
   function pintarMenu() {
     document.querySelectorAll('#tabsNav .menu-item').forEach(function (b) {
-      var ativo = b.dataset.pagina === (pagina === 'empresa' ? 'empresas' : pagina);
+      var ativo = b.dataset.pagina === (pagina === 'empresa' ? origemEmpresa : pagina);
       b.classList.toggle('active', ativo);
       if (ativo) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     });
@@ -605,16 +608,17 @@
     nav.innerHTML = '';
     var abas = pagina === 'equipe' ? [['equipe', 'Equipe e férias', 'ph-users-three']]
       : pagina === 'empresa' ? ABAS_EMPRESA
-      : pagina === 'empresas' ? [['empresas', 'Empresas', 'ph-buildings']]
+      : pagina === 'empresas' ? [['empresas', 'Todas as empresas', 'ph-buildings']]
+      : pagina === 'minhasempresas' ? [['minhasempresas', 'Minhas empresas', 'ph-folder-simple-user']]
       : [['lista', 'Lista', 'ph-list-bullets'], ['quadro', 'Quadro', 'ph-squares-four'], ['feitas', 'Feitas', 'ph-check-circle']];
     abas.forEach(function (a) {
       var b = el('button', 'aba-s'); b.type = 'button'; b.setAttribute('role', 'tab');
-      b.setAttribute('aria-selected', String(pagina === 'empresa' ? abaEmpresa === a[0] : ['empresas', 'equipe'].indexOf(pagina) !== -1 ? true : visao === a[0]));
+      b.setAttribute('aria-selected', String(pagina === 'empresa' ? abaEmpresa === a[0] : ['empresas', 'minhasempresas', 'equipe'].indexOf(pagina) !== -1 ? true : visao === a[0]));
       b.appendChild(ico(a[2])); b.appendChild(el('span', null, a[1]));
       if (pagina === 'empresa' && a[0] === 'tarefas') { var nAb = abertasDaEmpresa(empresaAberta).length; if (nAb) b.appendChild(el('span', 'tab-badge', String(nAb))); }
       b.addEventListener('click', function () {
         if (pagina === 'empresa') { abaEmpresa = a[0]; desenhar(); window.scrollTo(0, 0); return; }
-        if (a[0] === 'empresas' || a[0] === 'equipe') { irPara(a[0]); return; }
+        if (a[0] === 'empresas' || a[0] === 'minhasempresas' || a[0] === 'equipe') { irPara(a[0]); return; }
         visao = a[0]; gravarLocal('nilma_tarefas_visao', visao); desenhar();
       });
       nav.appendChild(b);
@@ -625,6 +629,7 @@
     var abertas = Array.from(tarefas.values());
     var n = function (id, v) { var b = $(id); b.textContent = v || ''; b.hidden = !v; };
     n('numMinhas', abertas.filter(function (t) { return t.responsavelUid === eu.uid; }).length);
+    n('numMinhasEmp', minhasEmpresas().length);
     n('numTodas', abertas.length);
     n('numReq', abertas.filter(function (t) { return t.tipo === 'requisicao'; }).length);
     var fora = 0; equipe.forEach(function (p) { if (ausenteHoje(p.uid)) fora++; });
@@ -945,35 +950,38 @@
     });
     return s;
   }
-  function desenharEmpresas(box) {
-    topo(box, TITULOS.empresas[0], TITULOS.empresas[1]);
+  // Minhas empresas: as que eu sou responsável e as de quem eu cubro (fora hoje).
+  function minhasEmpresas() {
+    var cubro = quemEuCubro().map(function (a) { return a.uid; });
+    return clientes.filter(function (c) { return c.responsavelUid && (c.responsavelUid === eu.uid || cubro.indexOf(c.responsavelUid) !== -1); });
+  }
+  function desenharEmpresas(box, minhas) {
+    var tt = TITULOS[minhas ? 'minhasempresas' : 'empresas'];
+    topo(box, tt[0], '');
     var b = el('div', 'tf-barra');
     var busca = el('label', 'tf-busca'); busca.appendChild(ico('ph-magnifying-glass'));
-    var inp = el('input'); inp.type = 'search'; inp.placeholder = 'Buscar empresa por nome, código ou CNPJ'; inp.value = buscaEmp; inp.setAttribute('aria-label', 'Buscar empresa');
+    var inp = el('input'); inp.type = 'search'; inp.placeholder = 'Buscar por nome, código ou CNPJ'; inp.value = buscaEmp; inp.setAttribute('aria-label', 'Buscar empresa');
     busca.appendChild(inp); b.appendChild(busca);
-    var r = selectDe([['', 'Responsável: todos'], ['-', 'Sem responsável']].concat(equipe.map(function (p) { return [p.uid, p.nome]; })), filtroEmpResp, 'Responsável');
-    r.classList.toggle('ativo', !!filtroEmpResp);
-    b.appendChild(r);
+    var r = null;
+    if (!minhas) {
+      r = selectDe([['', 'Responsável: todos'], ['-', 'Sem responsável']].concat(equipe.map(function (p) { return [p.uid, p.nome]; })), filtroEmpResp, 'Responsável');
+      r.classList.toggle('ativo', !!filtroEmpResp);
+      b.appendChild(r);
+    }
     box.appendChild(b);
-    var tab = el('div', 'tf-tabela');
-    box.appendChild(tab);
+    var alvo = el('div');
+    box.appendChild(alvo);
     var cont = contagensPorEmpresa();
-    function pintar() {
-      tab.innerHTML = '';
+    function tabela(lista, comResp) {
+      var tab = el('div', 'tf-tabela' + (comResp ? '' : ' sem-resp'));
       var cab = el('div', 'tf-emp-linha cab');
-      ['Empresa', 'Responsável', 'Tarefas', 'Requisições', 'Próximo prazo'].forEach(function (x) { cab.appendChild(el('div', null, x)); });
+      (comResp ? ['Empresa', 'Responsável', 'Tarefas', 'Requisições', 'Próximo prazo'] : ['Empresa', 'Tarefas', 'Requisições', 'Próximo prazo']).forEach(function (x) { cab.appendChild(el('div', null, x)); });
       tab.appendChild(cab);
-      var t = semAcento(buscaEmp.trim()), dig = buscaEmp.replace(/\D/g, '');
-      var lista = clientes.filter(function (c) {
-        if (filtroEmpResp === '-' ? c.responsavelUid : (filtroEmpResp && c.responsavelUid !== filtroEmpResp)) return false;
-        if (!t) return true;
-        return semAcento(nomeDoCliente(c) + ' ' + (c.nomeFantasia || '')).indexOf(t) !== -1 || (dig.length >= 3 && String(c.documento || '').replace(/\D/g, '').indexOf(dig) !== -1);
-      });
       lista.slice(0, 400).forEach(function (c) {
         var x = cont[c.id] || { tarefas: 0, req: 0, prazo: '' };
         var l = el('div', 'tf-emp-linha'); l.setAttribute('role', 'button'); l.tabIndex = 0;
         l.appendChild(el('div', 'nome', nomeDoCliente(c)));
-        var rc = el('div'); rc.appendChild(seletorResponsavel(c)); l.appendChild(rc);
+        if (comResp) { var rc = el('div'); rc.appendChild(seletorResponsavel(c)); l.appendChild(rc); }
         l.appendChild(el('div', 'num', x.tarefas ? String(x.tarefas) : '—'));
         l.appendChild(el('div', 'num', x.req ? String(x.req) : '—'));
         l.appendChild(el('div', 'num prazo ' + (x.prazo && x.prazo < hojeIso() ? 'atrasado' : ''), x.prazo ? prazoTexto(x.prazo) : '—'));
@@ -981,11 +989,42 @@
         l.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') irPara('empresa', c.id); });
         tab.appendChild(l);
       });
-      if (!lista.length) tab.appendChild(el('div', 'tf-vazio', 'Nenhuma empresa com esse filtro.'));
+      return tab;
+    }
+    function pintar() {
+      alvo.innerHTML = '';
+      var t = semAcento(buscaEmp.trim()), dig = buscaEmp.replace(/\D/g, '');
+      var achou = function (c) {
+        if (!t) return true;
+        return semAcento(nomeDoCliente(c) + ' ' + (c.nomeFantasia || '')).indexOf(t) !== -1 || (dig.length >= 3 && String(c.documento || '').replace(/\D/g, '').indexOf(dig) !== -1);
+      };
+      if (!minhas) {
+        var lista = clientes.filter(function (c) {
+          if (filtroEmpResp === '-' ? c.responsavelUid : (filtroEmpResp && c.responsavelUid !== filtroEmpResp)) return false;
+          return achou(c);
+        });
+        var tab = tabela(lista, true);
+        if (!lista.length) tab.appendChild(el('div', 'tf-vazio', 'Nenhuma empresa com esse filtro.'));
+        alvo.appendChild(tab);
+        return;
+      }
+      var suas = clientes.filter(function (c) { return c.responsavelUid === eu.uid && achou(c); });
+      var tabS = tabela(suas, false);
+      if (!suas.length) tabS.appendChild(el('div', 'tf-vazio', t ? 'Nenhuma das suas empresas com essa busca.' : 'Nenhuma empresa está com você ainda. O admin escolhe o responsável de cada empresa em "Todas as empresas".'));
+      alvo.appendChild(tabS);
+      quemEuCubro().forEach(function (a) {
+        var dela = clientes.filter(function (c) { return c.responsavelUid === a.uid && achou(c); });
+        if (!dela.length) return;
+        var h = el('div', 'tf-secao-tit tf-cobrindo'); h.appendChild(ico('ph-users'));
+        h.appendChild(el('span', null, 'Cobrindo ' + (a.nome || nomeDaPessoa(a.uid))));
+        h.appendChild(el('span', 'tf-ausente', rotuloAusencia(a) + ' até ' + dataCurta(a.ate)));
+        alvo.appendChild(h);
+        alvo.appendChild(tabela(dela, false));
+      });
     }
     var relogio = null;
     inp.addEventListener('input', function () { clearTimeout(relogio); relogio = setTimeout(function () { buscaEmp = inp.value; pintar(); }, 150); });
-    r.addEventListener('change', function () { filtroEmpResp = r.value; r.classList.toggle('ativo', !!filtroEmpResp); pintar(); });
+    if (r) r.addEventListener('change', function () { filtroEmpResp = r.value; r.classList.toggle('ativo', !!filtroEmpResp); pintar(); });
     pintar();
   }
   var feitasDaEmpresa = {};
@@ -1084,8 +1123,8 @@
     var c = clientesPorId.get(empresaAberta);
     if (!c) { box.appendChild(el('div', 'tf-vazio', 'Empresa não encontrada.')); return; }
     ouvirCaderno(c.id);
-    var voltar = el('button', 'tf-voltar'); voltar.type = 'button'; voltar.appendChild(ico('ph-arrow-left')); voltar.appendChild(document.createTextNode(' Empresas'));
-    voltar.addEventListener('click', function () { irPara('empresas'); });
+    var voltar = el('button', 'tf-voltar'); voltar.type = 'button'; voltar.appendChild(ico('ph-arrow-left')); voltar.appendChild(document.createTextNode(' ' + TITULOS[origemEmpresa][0]));
+    voltar.addEventListener('click', function () { irPara(origemEmpresa); });
     box.appendChild(voltar);
 
     // cabeçalho enxuto: nome, CNPJ · regime; situação só se não estiver ativa
@@ -1344,7 +1383,7 @@
         if (a && a.ate >= hojeIso()) acoes2.appendChild(botao('Voltou', 'ph-arrow-counter-clockwise', 'btn-ghost btn-sm', function () {
           db.collection('ausencias').doc(pp.uid).delete().then(function () { toast(pp.nome + ' de volta.'); }).catch(function (err) { toast('Não salvou: ' + erroDe(err), 'erro'); });
         }));
-        acoes2.appendChild(botao('Ver tarefas', 'ph-list-checks', 'btn-ghost btn-sm', function () { filtros = { busca: '', resp: pp.uid, prio: '', emp: '', rapido: '' }; pagina = 'todas'; visao = 'lista'; irPara('todas'); filtros.resp = pp.uid; desenhar(); }));
+        if (souAdmin()) acoes2.appendChild(botao('Ver tarefas', 'ph-list-checks', 'btn-ghost btn-sm', function () { filtros = { busca: '', resp: pp.uid, prio: '', emp: '', rapido: '' }; pagina = 'todas'; visao = 'lista'; irPara('todas'); filtros.resp = pp.uid; desenhar(); }));
         c.appendChild(acoes2);
       }
       grade.appendChild(c);
@@ -1622,7 +1661,12 @@
   }
 
   // ------------------------------------------------------------ navegação
+  var origemEmpresa = 'minhasempresas';
   function irPara(p, empresaId) {
+    if (!souAdmin() && p === 'todas') p = 'minhas';
+    if (!souAdmin() && p === 'empresas') p = 'minhasempresas';
+    if (p === 'empresa' && (pagina === 'empresas' || pagina === 'minhasempresas')) origemEmpresa = pagina;
+    if (p === 'empresa' && pagina !== 'empresa' && pagina !== 'empresas' && pagina !== 'minhasempresas') origemEmpresa = souAdmin() ? 'empresas' : 'minhasempresas';
     pagina = p;
     if (p === 'empresa' && empresaId !== empresaAberta) abaEmpresa = 'geral';
     empresaAberta = p === 'empresa' ? empresaId : null;
@@ -1648,7 +1692,7 @@
       return;
     }
     if (h.indexOf('empresa/') === 0) { irPara('empresa', h.slice(8)); return; }
-    if (['minhas', 'todas', 'requisicoes', 'empresas', 'equipe'].indexOf(h) !== -1) irPara(h);
+    if (['minhas', 'todas', 'requisicoes', 'minhasempresas', 'empresas', 'equipe'].indexOf(h) !== -1) irPara(h);
   }
 
   // ------------------------------------------------------------ entrada
@@ -1686,6 +1730,8 @@
         window.NilmaUI.aoSalvar = function (campo, valor) { var x = {}; x[campo] = valor; db.collection('usuarios').doc(user.uid).update(x).catch(function () {}); };
       }
       $('gate').hidden = true; $('app').hidden = false; $('topo').hidden = false; $('tabsNav').hidden = false;
+      // "Todas as tarefas" e "Todas as empresas" só pro admin
+      document.querySelectorAll('#tabsNav [data-admin]').forEach(function (b) { b.hidden = !souAdmin(); });
       $('pagina').appendChild(el('div', 'tf-vazio', 'Carregando…'));
       Promise.all([carregarEquipe(), carregarClientes().catch(function () { return []; })]).then(function () {
         ouvirTarefas();

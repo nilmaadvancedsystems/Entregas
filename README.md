@@ -29,6 +29,17 @@ Módulo novo no menu ☰, **Tarefas** (`tarefas.html`), pra equipe toda:
 - Regras: `tarefas` a equipe lê, cria e edita; quem criou não muda; apagar
   só quem criou ou o admin.
 
+**Versão 2.370 — Minhas empresas e o que é só do admin:**
+
+- **Minhas empresas** (menu novo): as empresas em que a pessoa é a
+  responsável e, embaixo, "Cobrindo Fulano" com as empresas de quem está
+  fora e deixou a pessoa cobrindo. A página da empresa volta para a lista de
+  onde veio.
+- Só o **admin** vê "Todas as tarefas", "Todas as empresas" (onde se escolhe
+  o responsável de cada empresa) e o botão "Ver tarefas" na Equipe. Quem não
+  é admin e abre `#todas`/`#empresas` cai em Minhas tarefas/Minhas empresas.
+  É restrição de tela; as regras do banco não mudaram.
+
 **Versão 2.369 — menos informação na tela:**
 
 - **Listas**: a barra fica só com a busca, os atalhos que têm algo
