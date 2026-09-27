@@ -29,6 +29,18 @@ Módulo novo no menu ☰, **Tarefas** (`tarefas.html`), pra equipe toda:
 - Regras: `tarefas` a equipe lê, cria e edita; quem criou não muda; apagar
   só quem criou ou o admin.
 
+**Versão 2.376 — acabamento das Tarefas (2ª rodada):**
+
+- Painel da tarefa mais largo, com a empresa (clicável, abre a página
+  dela) e o tipo no alto; status com a cor do status; responsável com o
+  avatar; blocos Descrição / Checklist / Comentários com ícone; checklist
+  com barra de progresso; comentários em balões com o avatar de quem
+  escreveu.
+- Requisições mostram embaixo do título "Pedido por Fulano · WhatsApp".
+- Avatares das pessoas coloridos (mesma cor em todo lugar).
+- Telas vazias com ícone, explicação e ação ("Limpar busca e filtros",
+  "Nova tarefa", "Nova requisição").
+
 **Versão 2.375 — Parcelamentos (etapa 2):**
 
 - Coleção `parcelamentos` (regras novas): empresa, órgão (PGFN, Simples,
