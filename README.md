@@ -29,6 +29,25 @@ Módulo novo no menu ☰, **Tarefas** (`tarefas.html`), pra equipe toda:
 - Regras: `tarefas` a equipe lê, cria e edita; quem criou não muda; apagar
   só quem criou ou o admin.
 
+**Versão 2.369 — menos informação na tela:**
+
+- **Listas**: a barra fica só com a busca, os atalhos que têm algo
+  (Atrasadas, Hoje, 7 dias, Sem responsável; os zerados somem) e o botão
+  **Filtros**, que abre responsável, prioridade e agrupar (mostra quantos
+  estão ligados e tem "Limpar"). Grupos vazios somem. O responsável na linha
+  é só a bolinha com as iniciais (nome e férias ao parar o mouse; borda
+  amarela se está fora). A linha "+ Nova tarefa" do grupo aparece ao passar
+  o mouse (no celular fica sempre).
+- **Empresa em abas** no menu de cima: **Visão geral** (onde parou,
+  particularidades, quem cuida e as 5 primeiras abertas), **Tarefas**
+  (requisições, tarefas e feitas), **Bancos** (documentos do mês e recado por
+  banco; só lê o `documentosMensal` ao abrir esta aba) e **Cadastro**
+  (contatos, Receita, certidões, atalhos). O cabeçalho mostra só nome,
+  CNPJ e regime; a situação na Receita só aparece se não estiver ativa.
+- **Painel da tarefa**: à vista só Status, Empresa, Responsável e Prazo;
+  Tipo, Prioridade, Repetir e os dados da requisição ficam em "Mais
+  propriedades", que já abre sozinho quando algum deles está preenchido.
+
 **Versão 2.368 — caderno da empresa e férias:**
 
 - **Página da empresa** vira o caderno de passagem de bastão: "Onde parou"
