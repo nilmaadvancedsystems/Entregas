@@ -341,6 +341,20 @@ function lerLinhaDeAndamento(l) {
   return true;
 }
 
+// Estado que ficou de pé sem nada rodando (vigia reiniciado no meio).
+async function limparEstadoPreso(texto) {
+  const r = (await roboRef.get()).data() || {};
+  const patch = {};
+  if (r.status === 'lendo') Object.assign(patch, { status: 'erro', statusEm: agora(), statusMsg: texto });
+  if (r.filaAndamento && r.filaAndamento.ativo) patch.filaAndamento = { ativo: false, em: agora() };
+  if (Object.keys(patch).length) await roboRef.set(patch, { merge: true });
+  if (r.andamento && r.andamento.ativo) {
+    andamentoAtual = r.andamento;
+    publicarAndamento({ ativo: false, fim: agora(), fase: 'erro', texto: 'A leitura parou: ' + texto + '.' }, true);
+  }
+  if (Object.keys(patch).length || (r.andamento && r.andamento.ativo)) log('estado preso limpo (' + texto + ')');
+}
+
 function rodarRobo(dias, motivo) {
   return new Promise(resolve => {
     lendo = true;
@@ -686,6 +700,9 @@ async function iniciar() {
     await d.ref.update({ status: 'erro', erro: 'o PC do robô desligou no meio do envio; confira no Gmail (Enviados) antes de mandar de novo', erroEm: agora() });
   }
   if (presos.size) log(presos.size, 'pedido(s) interrompido(s) marcados como erro');
+  // Vigia que caiu (ou foi atualizado) no meio da leitura deixava "lendo",
+  // o andamento e "Atendendo: ..." de pé, e a tela não deixava pedir outra.
+  await limparEstadoPreso('o robô reiniciou no meio da leitura; a próxima continua de onde parou').catch(err => log('não consegui limpar o estado:', err.message));
 
   baterPonto();
   setInterval(() => { baterPonto(); talvezMandarResumo(); if (filaFalhou) atenderFila(); }, 60 * 1000);
@@ -761,7 +778,8 @@ async function iniciar() {
         const quem = d.data().criadoPor || 'alguém';
         const parou = pararFilho('cancelada por ' + quem);
         d.ref.update({ status: 'concluido', concluidoEm: agora(), resultado: parou ? 'parada' : 'nada rodando' }).catch(() => {});
-        if (!parou) publicarAndamento({ ativo: false, fim: agora(), fase: 'concluida', texto: 'Nada estava rodando.' }, true);
+        // nada rodando: o que a tela mostra como "lendo" é resto; limpa pra poder pedir de novo
+        if (!parou && !lendo) limparEstadoPreso('nenhuma leitura estava rodando').catch(() => {});
       });
       if (snap.docs.some(d => d.data().tipo !== 'cancelar')) atenderFila();
     },

@@ -1359,7 +1359,7 @@
 <script src="nilma-solicitacoes.js?v=358"></script>
 <script src="nilma-extras.js?v=355"></script>
 <script>
-  var VERSAO_APP = '2.378 · 27/09/2026';
+  var VERSAO_APP = '2.379 · 27/09/2026';
   NilmaShell.montar({ modulo: 'Pendências', moduloId: 'pendencias', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false, versao: VERSAO_APP });
   // antes do login só a tela de entrada; a barra aparece junto com o app
   document.getElementById('topo').hidden = true;
@@ -7129,7 +7129,11 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
     caixa.appendChild(el('span', null, ligado
       ? 'Robô online na nuvem'
       : (v.desligadoEm || v.em ? 'Robô fora do ar desde ' + dataHora(v.desligadoEm || v.em) : 'O robô ainda não deu sinal')));
-    var lendo = configRobo.status === 'lendo';
+    // "lendo" só vale com notícia recente: robô que reiniciou no meio deixava
+    // o status preso e o botão travado pra sempre
+    var andR = configRobo.andamento || null;
+    var fresco = function (iso, min) { var t = Date.parse(iso || ''); return !isNaN(t) && Date.now() - t < min * 60000; };
+    var lendo = configRobo.status === 'lendo' && (andR ? !!(andR.ativo && fresco(andR.em, 10)) : fresco(configRobo.statusEm, 70));
     if (lendo) caixa.appendChild(el('span', null, '· lendo o Gmail agora'));
     var envios = filaEmail.filter(function (f) { return f.tipo !== 'verificar'; }).length;
     if (envios) caixa.appendChild(el('span', null, '· ' + plural(envios, 'e-mail na fila', 'e-mails na fila')));

@@ -29,6 +29,13 @@ Módulo novo no menu ☰, **Tarefas** (`tarefas.html`), pra equipe toda:
 - Regras: `tarefas` a equipe lê, cria e edita; quem criou não muda; apagar
   só quem criou ou o admin.
 
+**Versão 2.379 — "lendo" preso depois de reiniciar:** o vigia reiniciado no
+meio da leitura (atualização do robô) deixava `robo/estado.status = 'lendo'`,
+o andamento e o "Atendendo: ..." de pé, e o botão "Verificar Gmail agora"
+ficava travado. Agora o vigia limpa esse resto ao ligar e quando o Cancelar
+não acha nada rodando, e a tela só considera "lendo" com andamento de menos
+de 10 min.
+
 **Versão 2.378 — leitura do Gmail que não termina:**
 
 - O vigia (`vigia-robo.js`) rodava a leitura sem prazo e sem jeito de
