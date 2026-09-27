@@ -29,6 +29,23 @@ Módulo novo no menu ☰, **Tarefas** (`tarefas.html`), pra equipe toda:
 - Regras: `tarefas` a equipe lê, cria e edita; quem criou não muda; apagar
   só quem criou ou o admin.
 
+**Versão 2.374 — acabamento geral das Tarefas:**
+
+- Linhas das listas mais altas (título 15px); a empresa aparece com o
+  quadradinho colorido das iniciais, o nome curto (fantasia) e o código;
+  prazo com ícone de calendário; nas feitas, "feita dd/mm". Contadores dos
+  grupos em bolinha.
+- Quadro: cartões com a empresa no alto, título em destaque e rodapé com
+  responsável, prazo e prioridade.
+- Empresas: linha com avatar colorido, nome e, embaixo, fantasia · CNPJ ·
+  regime; tarefas e requisições em bolinhas; prazo com cor.
+- Equipe: avatar colorido, cargo por extenso ("Office boy", "Contábil"),
+  números em blocos (atrasadas em vermelho) e ações no rodapé do cartão.
+- Feitas: mês com ‹ › e o total do mês. Cadastro: links discretos,
+  certidões com separadores e atalhos como botões.
+- Iniciais de empresa ignoram LTDA/ME/EPP/"de" (A7 COMERCIO DE VEICULOS
+  LTDA → AC).
+
 **Versão 2.373 — Bancos com logo:** cada banco mostra o logo de
 `scripts/logos-bancos/<id>.png` (o mesmo da Pendências; sem o arquivo, fica o
 selo com a cor e a sigla) e o código COMPE. As linhas ficaram maiores, com
