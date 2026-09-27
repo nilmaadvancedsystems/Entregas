@@ -29,6 +29,12 @@ Módulo novo no menu ☰, **Tarefas** (`tarefas.html`), pra equipe toda:
 - Regras: `tarefas` a equipe lê, cria e edita; quem criou não muda; apagar
   só quem criou ou o admin.
 
+**Versão 2.373 — Bancos com logo:** cada banco mostra o logo de
+`scripts/logos-bancos/<id>.png` (o mesmo da Pendências; sem o arquivo, fica o
+selo com a cor e a sigla) e o código COMPE. As linhas ficaram maiores, com
+colunas Banco · Documentos do mês · Recado; em telas médias o recado desce
+para baixo dos documentos e no celular tudo empilha.
+
 **Versão 2.372 — aba Bancos da empresa:**
 
 - Uma linha por banco, na largura toda: nome, os documentos com nome

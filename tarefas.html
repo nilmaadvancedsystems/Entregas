@@ -255,27 +255,35 @@
   .tf-emp-cartoes { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; align-items: start; }
   .tf-bco-cab { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 12px; }
   .tf-bco-mes { display: inline-flex; align-items: center; gap: 4px; }
-  .tf-bco-mes b { min-width: 150px; text-align: center; font-size: 14px; }
+  .tf-bco-mes b { min-width: 170px; text-align: center; font-size: 16px; }
+  .tf-bco-cab { min-height: 44px; }
+  .tf-bco-resumo { height: 28px !important; padding: 0 12px !important; font-size: 13px !important; }
   .tf-bco-resumo { display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border-radius: 2em; font-size: 12px; font-weight: 600; background: var(--surface-3); color: var(--ink-muted); }
   .tf-bco-resumo.ok { background: var(--success-soft); color: var(--success-ink, var(--success)); }
   .tf-bco-resumo.meio, .tf-bco-resumo.nada { background: var(--warn-soft); color: var(--warn); }
   .tf-bco-ir { margin-left: auto; text-decoration: none; }
-  .tf-bco-lista { border: 1px solid var(--border); border-radius: 6px; background: var(--surface); }
-  .tf-bco { display: grid; grid-template-columns: minmax(160px, 220px) auto minmax(0, 1fr); align-items: center; gap: 16px; padding: 12px 16px; }
+  .tf-bco-lista { border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+  .tf-bco-lista-cab { display: grid; grid-template-columns: minmax(200px, 260px) 360px minmax(220px, 1fr); gap: 32px; padding: 10px 20px; border-bottom: 1px solid var(--border); background: var(--surface-2); border-radius: 8px 8px 0 0; font-size: 12px; font-weight: 600; color: var(--ink-muted); }
+  .tf-bco { display: grid; grid-template-columns: minmax(200px, 260px) 360px minmax(220px, 1fr); align-items: center; gap: 32px; min-height: 84px; padding: 16px 20px; }
   .tf-bco + .tf-bco { border-top: 1px solid var(--border-muted, var(--border)); }
-  .tf-bco-nome { display: flex; align-items: center; gap: 10px; min-width: 0; }
-  .tf-bco-nome b { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .tf-bco-docs { display: flex; flex-wrap: wrap; gap: 6px; }
-  .tf-bco-doc { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 10px; border-radius: 2em; border: 1px dashed var(--border-strong); font-size: 12px; color: var(--ink-muted); white-space: nowrap; }
-  .tf-bco-doc .ph { font-size: 14px; }
+  .tf-bco-nome { display: flex; align-items: center; gap: 14px; min-width: 0; }
+  .tf-bco-nome .tx { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .tf-bco-nome b { font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tf-bco-nome small { font-size: 12px; color: var(--ink-muted); }
+  .tf-bco-logo { position: relative; flex: none; width: 48px; height: 48px; border-radius: 10px; display: inline-grid; place-items: center; overflow: hidden; font-size: 11px; font-weight: 700; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 10%, transparent); }
+  .tf-bco-logo img { position: absolute; inset: 0; width: 100%; height: 100%; padding: 6px; object-fit: contain; background: inherit; }
+  .tf-bco-docs { display: flex; flex-wrap: wrap; gap: 8px; }
+  .tf-bco-doc { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 14px; border-radius: 2em; border: 1px dashed var(--border-strong); font-size: 13px; font-weight: 500; color: var(--ink-muted); white-space: nowrap; }
+  .tf-bco-doc .ph { font-size: 16px; }
   .tf-bco-doc.ok { border: 1px solid color-mix(in srgb, var(--success) 45%, transparent); background: var(--success-soft); color: var(--success-ink, var(--success)); }
-  .tf-bco-recado { display: flex; align-items: center; gap: 8px; min-width: 0; height: 32px; padding: 0 10px; border-radius: 6px; color: var(--ink-muted); cursor: text; }
-  .tf-bco-recado:hover { background: var(--hover-bg); }
-  .tf-bco-recado:focus-within { background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--accent); }
-  .tf-bco-recado.vazio { cursor: default; font-size: 13px; }
-  .tf-bco-recado.vazio:hover { background: none; }
-  .tf-bco-recado input { flex: 1; min-width: 0; height: auto; min-height: 0; margin: 0; padding: 0; border: 0; outline: 0; box-shadow: none; background: none; color: var(--ink); font: inherit; font-size: 13px; }
-  @media (max-width: 900px) { .tf-bco { grid-template-columns: minmax(0, 1fr); gap: 8px; } .tf-bco-recado { padding: 0 8px; margin: 0 -8px; } .tf-bco-ir { margin-left: 0; } }
+  .tf-bco-recado { display: flex; align-items: center; gap: 8px; min-width: 0; height: 40px; padding: 0 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-2); color: var(--ink-muted); cursor: text; }
+  .tf-bco-recado:hover { border-color: var(--border-strong); }
+  .tf-bco-recado:focus-within { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); background: var(--surface); }
+  .tf-bco-recado .ph { font-size: 16px; }
+  .tf-bco-recado.vazio { border: 0; background: none; cursor: default; font-size: 13px; }
+  .tf-bco-recado input { flex: 1; min-width: 0; height: auto; min-height: 0; margin: 0; padding: 0; border: 0; outline: 0; box-shadow: none; background: none; color: var(--ink); font: inherit; font-size: 14px; }
+  @media (min-width: 901px) and (max-width: 1250px) { .tf-bco { grid-template-columns: minmax(180px, 240px) minmax(0, 1fr); row-gap: 12px; } .tf-bco-recado { grid-column: 2; } .tf-bco-lista-cab { display: none; } }
+  @media (max-width: 900px) { .tf-bco { grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 16px; } .tf-bco-lista-cab { display: none; } .tf-bco-ir { margin-left: 0; } .tf-bco-doc { height: 32px; padding: 0 12px; } }
   .tf-legenda { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin: 0 0 12px; font-size: 13px; color: var(--ink-muted); }
   .tf-legenda b { color: var(--warn); font-weight: 600; }
   .tf-ver-todas { display: block; width: 100%; padding: 8px 14px; border: 0; border-top: 1px solid var(--border); background: none; color: var(--accent); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
@@ -355,7 +363,7 @@
 <script src="nilma-solicitacoes.js?v=358"></script>
 <script src="nilma-extras.js?v=355"></script>
 <script>
-  var VERSAO_APP = '2.372 · 27/09/2026';
+  var VERSAO_APP = '2.373 · 27/09/2026';
   NilmaShell.montar({ modulo: 'Tarefas', moduloId: 'tarefas', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false, versao: VERSAO_APP });
   document.getElementById('topo').hidden = true;
 </script>
@@ -1416,6 +1424,15 @@
     cxF.appendChild(alvo); box.appendChild(cxF);
   }
 
+  // selo com a cor do banco e, por cima, o logo de scripts/logos-bancos/<id>.png (se existir)
+  function logoDoBanco(id, info) {
+    var selo = el('span', 'tf-bco-logo', info.sigla);
+    selo.style.background = info.cor; selo.style.color = info.tinta;
+    var img = el('img'); img.alt = ''; img.loading = 'lazy'; img.src = 'scripts/logos-bancos/' + id + '.png';
+    img.addEventListener('error', function () { img.remove(); });
+    selo.appendChild(img);
+    return selo;
+  }
   function empresaBancos(box, c) {
     lerDocsDoMes(c.id, mesBancos);
     var dm = docsDoMes[c.id + '_' + mesBancos] || {};
@@ -1465,12 +1482,16 @@
       return p;
     }
     var lista = el('div', 'tf-bco-lista');
+    var lc = el('div', 'tf-bco-lista-cab'); ['Banco', 'Documentos de ' + mesTxt.split(' ')[0], 'Recado pra quem for mexer'].forEach(function (x) { lc.appendChild(el('div', null, x)); });
+    lista.appendChild(lc);
     bancos.forEach(function (id) {
       var info = (window.BancosNilma && BancosNilma.porId[id]) || { nome: id, sigla: id, cor: 'var(--surface-3)', tinta: 'var(--ink)' };
       var lin = el('div', 'tf-bco');
       var nome = el('div', 'tf-bco-nome');
-      var sg = el('span', 'tf-banco-sigla', info.sigla); sg.style.background = info.cor; sg.style.color = info.tinta;
-      nome.appendChild(sg); nome.appendChild(el('b', null, info.nome));
+      nome.appendChild(logoDoBanco(id, info));
+      var tx = el('div', 'tx'); tx.appendChild(el('b', null, info.nome));
+      if (info.compe) tx.appendChild(el('small', null, 'Banco ' + info.compe));
+      nome.appendChild(tx);
       lin.appendChild(nome);
       var docs = el('div', 'tf-bco-docs');
       TIPOS_DOC.forEach(function (t) { docs.appendChild(pilula(t, id)); });
