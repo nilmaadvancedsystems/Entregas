@@ -5,6 +5,33 @@ https://nilmaadvancedsystems.github.io/Entregas/entregas.html
 
 Para testar sem gravar nada no banco, abra com `?demo=1` no fim do link.
 
+## Tarefas: o "Notion" do escritório (versão 2.367, etapa 1)
+
+Módulo novo no menu ☰, **Tarefas** (`tarefas.html`), pra equipe toda:
+
+- **Tarefas e requisições** numa coleção só (`tarefas`, campo `tipo`):
+  título, status (A fazer, Em andamento, Aguardando cliente, Feito),
+  empresa, responsável, prazo, prioridade, repetir todo mês, descrição
+  (salva sozinha 1 s depois de parar de digitar), checklist e comentários.
+  Requisição tem ainda "pedido por" e "chegou por" (WhatsApp, e-mail...).
+- **Visões**: Minhas tarefas, Todas, Requisições; em Lista (agrupada por
+  status, prazo, responsável ou empresa, com criar rápido em cada grupo),
+  Quadro (colunas por status, arrastar muda o status) e Feitas (por mês).
+- **Painel lateral** ao abrir um item, com link próprio (`#tarefa/<id>`).
+- **Repetir todo mês**: marcada como feita, nasce a do mês seguinte (mesmo
+  dia, checklist zerado).
+- **Empresas**: responsável de cada cliente (`clientes.responsavelUid/Nome`,
+  só admin troca) e a página da empresa com requisições, tarefas e feitas.
+  Tarefa nova de uma empresa já vem com o responsável dela.
+- **Leituras**: ouve só as tarefas abertas (`aberta == true`); feitas são
+  lidas por mês ou por empresa quando se abre. Clientes vêm do cache do
+  aparelho (o do Entregas/Pendências), do banco no máximo a cada 12 h.
+- Regras: `tarefas` a equipe lê, cria e edita; quem criou não muda; apagar
+  só quem criou ou o admin.
+
+Próximas etapas: parcelamentos dos clientes (PGFN, Simples, Receita) na
+página da empresa; depois o robô marcando parcela paga e avisando atrasos.
+
 ## Filtros do Disparo, extrato incompleto e o robô que aprende (versão 2.365)
 
 - **Disparo › Para quem**: filtros de pendência no mês aberto (com, sem, falta

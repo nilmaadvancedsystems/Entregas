@@ -578,6 +578,24 @@ service cloud.firestore {
       }
     }
 
+    // ---------- tarefas e requisições por empresa (tarefas.html) ----------
+    // O "Notion" do escritório: a equipe toda lê, cria e mexe (status,
+    // responsável, prazo, checklist, comentários). Quem criou fica gravado e
+    // ninguém troca; apagar só quem criou ou o admin.
+    match /tarefas/{id} {
+      allow read: if membro();
+      allow create: if membro()
+        && request.resource.data.criadoPorUid == request.auth.uid
+        && request.resource.data.titulo is string && request.resource.data.titulo.size() > 0 && request.resource.data.titulo.size() <= 300
+        && request.resource.data.tipo in ['tarefa', 'requisicao']
+        && request.resource.data.aberta is bool;
+      allow update: if membro()
+        && request.resource.data.criadoPorUid == resource.data.criadoPorUid
+        && request.resource.data.tipo in ['tarefa', 'requisicao']
+        && request.resource.data.titulo is string && request.resource.data.titulo.size() > 0 && request.resource.data.titulo.size() <= 300;
+      allow delete: if ehAdmin() || (membro() && resource.data.criadoPorUid == request.auth.uid);
+    }
+
     // ---------- controle mensal de documentos por cliente ----------
     // Um documento por cliente+competência (id: "<clienteId>_<AAAA-MM>"),
     // com um booleano por tipo de documento (extrato/comprovante/aplicacao).

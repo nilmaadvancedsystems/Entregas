@@ -427,7 +427,7 @@
     return [['ultimo', 'Onde parei por último'], ['entregas', 'Entregas'], ['clientes', 'Clientes e ajustes']]
       .concat(adm || c.indexOf('contabil') !== -1 ? [['contabil', 'Contábil']] : [])
       .concat(adm || c.indexOf('fiscal') !== -1 ? [['fiscal', 'Fiscal']] : [])
-      .concat([['pendencias', 'Pendências']]);
+      .concat([['pendencias', 'Pendências'], ['tarefas', 'Tarefas']]);
   }
   function paginaTelas() {
     return cartao('Ao entrar', [

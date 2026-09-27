@@ -18,6 +18,8 @@
   var MODULOS_PADRAO = [
     { id: 'entregas',   rotulo: 'Entregas',           icone: 'ph-truck',           href: 'entregas.html' },
     { id: 'clientes',   rotulo: 'Clientes e ajustes', icone: 'ph-users',           href: 'entregas.html#clientes' },
+    // tarefas e requisições por empresa (tarefas.html): a equipe toda
+    { id: 'tarefas',    rotulo: 'Tarefas',            icone: 'ph-list-checks',     href: 'tarefas.html' },
     // papel = cargo que precisa ter pra ver o item (mesmos data-cargo da
     // antiga tela de cartões); sem papel, todo mundo vê
     // sub = submódulos: tocar no módulo não entra direto; a gaveta troca de

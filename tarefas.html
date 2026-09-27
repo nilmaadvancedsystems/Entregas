@@ -1,0 +1,1137 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#FFFFFF">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#17191A">
+<meta name="description" content="Tarefas e requisições por empresa, com responsável, prazo e status.">
+<title>Tarefas — Nilma</title>
+<script>
+(function () {
+  try {
+    var t = localStorage.getItem('nilma_tema');
+    if (t === 'claro') document.documentElement.dataset.theme = 'light';
+    else if (t === 'escuro') document.documentElement.dataset.theme = 'dark';
+    var p = localStorage.getItem('nilma_paleta');
+    if (p && p !== 'padrao') document.documentElement.dataset.paleta = p;
+    [['nilma_texto', 'texto', 'normal'], ['nilma_densidade', 'densidade', 'confortavel'], ['nilma_animacao', 'animacao', 'completa']].forEach(function (item) {
+      var v = localStorage.getItem(item[0]);
+      if (v && v !== item[2]) document.documentElement.dataset[item[1]] = v;
+    });
+  } catch (e) {}
+})();
+</script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<link rel="stylesheet" href="nilma-icones.css?v=345">
+<script src="nilma-ui.js?v=347"></script>
+<link rel="stylesheet" href="nilma-ui.css?v=357">
+<style>
+  /* ==========================================================================
+     Tarefas — o "Notion" do escritório: tarefas e requisições por empresa,
+     com responsável, prazo, prioridade e status. Lista (agrupada) e quadro
+     (colunas por status); cada item abre num painel lateral com as
+     propriedades, a descrição, o checklist e os comentários.
+     ========================================================================== */
+  main.conteudo { display: block; min-width: 0; padding: 0 32px 64px; }
+  main.conteudo > div { max-width: 1216px; margin: 0 auto; }
+  @media (max-width: 767px) { main.conteudo { padding: 0 16px 64px; } }
+
+  .pagina-topo { display: flex; align-items: center; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap; margin: 24px 0 16px; }
+  .pagina-topo h1 { margin: 0; font-size: 20px; font-weight: 600; line-height: 1.25; }
+  .pagina-sub { margin: 4px 0 0; font-size: 14px; color: var(--ink-muted); }
+  .pagina-sub:empty { display: none; }
+  .topo-acoes { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  /* barra de filtros */
+  .tf-barra { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  .tf-busca { flex: 1 1 240px; display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); }
+  .tf-busca:focus-within { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .tf-busca .ph { color: var(--ink-muted); }
+  .tf-busca input { flex: 1; min-width: 0; height: auto; min-height: 0; margin: 0; padding: 0; border: 0; outline: 0; box-shadow: none; background: none; color: var(--ink); font: inherit; font-size: 14px; }
+  .tf-barra .select { height: 32px; min-width: 0; max-width: 220px; font-size: 13px; }
+  .tf-barra .select.ativo { border-color: var(--accent); }
+  @media (max-width: 600px) { .tf-busca { flex-basis: 100%; } .tf-barra .select { flex: 1 1 40%; max-width: none; } }
+
+  /* lista (tabela do Notion), agrupada */
+  .tf-grupo { margin-bottom: 20px; }
+  .tf-grupo-cab { display: flex; align-items: center; gap: 8px; padding: 6px 4px; font-size: 13px; font-weight: 600; color: var(--ink-muted); }
+  .tf-grupo-cab .n { font-weight: 400; }
+  .tf-grupo-cab button.dobra { border: 0; background: none; color: inherit; padding: 2px; cursor: pointer; display: inline-flex; }
+  .tf-grupo.dobrado .tf-tabela { display: none; }
+  .tf-grupo.dobrado .dobra .ph { transform: rotate(-90deg); }
+  .tf-tabela { border: 1px solid var(--border); border-radius: 6px; background: var(--surface); overflow: hidden; }
+  .tf-linha { display: grid; grid-template-columns: 28px minmax(0, 1fr) minmax(0, 220px) 150px 96px 92px; align-items: center; gap: 8px; min-height: 40px; padding: 4px 12px 4px 8px; cursor: pointer; }
+  .tf-linha + .tf-linha { border-top: 1px solid var(--border-muted, var(--border)); }
+  .tf-linha:hover { background: var(--surface-2); }
+  .tf-linha.aberta-agora { background: var(--hover-bg); }
+  .tf-linha .tit { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 14px; }
+  .tf-linha .tit .txt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tf-linha.feita .tit .txt { text-decoration: line-through; color: var(--ink-muted); }
+  .tf-linha .tit .ph { flex: none; font-size: 14px; color: var(--ink-muted); }
+  .tf-linha .emp, .tf-linha .resp, .tf-linha .prazo { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--ink-muted); }
+  .tf-linha .emp { color: var(--ink); }
+  .tf-nova-linha { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-top: 1px solid var(--border-muted, var(--border)); color: var(--ink-muted); font-size: 13px; }
+  .tf-nova-linha input { flex: 1; min-width: 0; height: 28px; min-height: 0; padding: 2px 6px; border: 0; background: none; box-shadow: none; color: var(--ink); font: inherit; font-size: 14px; outline: 0; }
+  .tf-nova-linha:focus-within { background: var(--surface-2); }
+  @media (max-width: 900px) {
+    .tf-linha { grid-template-columns: 28px minmax(0, 1fr) auto; grid-template-areas: 'c t p' 'c e e'; row-gap: 2px; padding: 8px 12px 8px 8px; }
+    .tf-linha .ck { grid-area: c; align-self: start; } .tf-linha .tit { grid-area: t; } .tf-linha .prio { grid-area: p; }
+    .tf-linha .emp { grid-area: e; font-size: 12px; color: var(--ink-muted); }
+    .tf-linha .emp::after { content: attr(data-extra); }
+    .tf-linha .resp, .tf-linha .prazo { display: none; }
+  }
+
+  /* marcar feito */
+  .tf-check { width: 18px; height: 18px; margin: 0; padding: 0; border: 1.5px solid var(--border-strong); border-radius: 50%; background: none; cursor: pointer; display: inline-grid; place-items: center; color: transparent; }
+  .tf-check:hover { border-color: var(--success); color: var(--success); }
+  .tf-check .ph { font-size: 11px; }
+  .tf-check.feito { background: var(--success); border-color: var(--success); color: #FFFFFF; }
+
+  /* selos de status e prioridade */
+  .tf-status { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: 2em; font-size: 12px; font-weight: 500; white-space: nowrap; background: var(--surface-3); color: var(--ink); }
+  .tf-status::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; opacity: .8; }
+  .tf-status.afazer { color: var(--ink-muted); }
+  .tf-status.andamento { color: #1F6FEB; background: color-mix(in srgb, #1F6FEB 14%, transparent); }
+  .tf-status.aguardando { color: var(--warn); background: var(--warn-soft); }
+  .tf-status.feito { color: var(--success-ink, var(--success)); background: var(--success-soft); }
+  .tf-prio { display: inline-block; padding: 1px 8px; border-radius: 2em; font-size: 12px; font-weight: 500; white-space: nowrap; border: 1px solid var(--border); color: var(--ink-muted); }
+  .tf-prio.alta { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, transparent); }
+  .tf-prio.urgente { color: #FFFFFF; background: var(--accent); border-color: var(--accent); }
+  .tf-prio.baixa { opacity: .75; }
+  .prazo.atrasado { color: var(--destructive) !important; font-weight: 600; }
+  .prazo.hoje { color: var(--warn) !important; font-weight: 600; }
+  .tf-req { flex: none; padding: 0 6px; border-radius: 4px; font-size: 11px; font-weight: 600; color: var(--accent); background: var(--accent-soft); }
+  .tf-pessoa { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+  .tf-avatar { flex: none; width: 20px; height: 20px; border-radius: 50%; display: inline-grid; place-items: center; font-size: 10px; font-weight: 600; background: var(--surface-3); color: var(--ink); border: 1px solid var(--border); }
+
+  /* quadro */
+  .tf-quadro { display: grid; grid-template-columns: repeat(4, minmax(240px, 1fr)); gap: 12px; align-items: start; overflow-x: auto; padding-bottom: 8px; }
+  .tf-coluna { background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 8px; min-height: 120px; }
+  .tf-coluna.alvo { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .tf-coluna-cab { display: flex; align-items: center; gap: 8px; padding: 2px 4px 8px; font-size: 13px; color: var(--ink-muted); }
+  .tf-cartao { display: block; width: 100%; margin: 0 0 8px; padding: 10px 12px; text-align: left; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--ink); font: inherit; cursor: pointer; box-shadow: var(--shadow-xs); }
+  .tf-cartao:hover { border-color: var(--border-strong); }
+  .tf-cartao.arrastando { opacity: .5; }
+  .tf-cartao .tit { font-size: 14px; font-weight: 500; line-height: 1.35; overflow-wrap: anywhere; }
+  .tf-cartao .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 8px; font-size: 12px; color: var(--ink-muted); }
+  .tf-coluna .tf-add { width: 100%; justify-content: flex-start; color: var(--ink-muted); }
+  @media (max-width: 767px) { .tf-quadro { grid-template-columns: repeat(4, 82vw); scroll-snap-type: x mandatory; } .tf-coluna { scroll-snap-align: start; } }
+
+  /* empresas */
+  .tf-emp-linha { display: grid; grid-template-columns: minmax(0, 1fr) 220px 90px 110px 110px; align-items: center; gap: 12px; min-height: 44px; padding: 6px 12px; cursor: pointer; }
+  .tf-emp-linha + .tf-emp-linha { border-top: 1px solid var(--border-muted, var(--border)); }
+  .tf-emp-linha:hover { background: var(--surface-2); }
+  .tf-emp-linha.cab { cursor: default; min-height: 36px; font-size: 12px; font-weight: 600; color: var(--ink-muted); background: var(--surface-2); }
+  .tf-emp-linha .nome { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 500; }
+  .tf-emp-linha .num { font-size: 13px; font-variant-numeric: tabular-nums; color: var(--ink-muted); }
+  .tf-emp-linha .select { height: 30px; min-height: 30px; font-size: 13px; width: 100%; }
+  @media (max-width: 900px) { .tf-emp-linha { grid-template-columns: minmax(0, 1fr) auto; } .tf-emp-linha > :nth-child(n+3) { display: none; } .tf-emp-linha.cab { display: none; } }
+
+  .tf-emp-cab { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .tf-props-emp { display: flex; flex-wrap: wrap; gap: 8px 24px; margin: 8px 0 20px; font-size: 13px; color: var(--ink-muted); }
+  .tf-props-emp b { color: var(--ink); font-weight: 500; }
+  .tf-props-emp .select { height: 28px; min-height: 28px; font-size: 13px; }
+  .tf-secao-tit { display: flex; align-items: center; gap: 8px; margin: 20px 0 8px; font-size: 15px; font-weight: 600; }
+  .tf-vazio { padding: 24px 16px; text-align: center; font-size: 14px; color: var(--ink-muted); }
+  .tf-voltar { display: inline-flex; align-items: center; gap: 6px; margin-top: 20px; border: 0; background: none; color: var(--ink-muted); font: inherit; font-size: 13px; cursor: pointer; padding: 0; }
+  .tf-voltar:hover { color: var(--ink); }
+
+  /* painel lateral (o "peek" do Notion) */
+  .tf-peek-fundo { position: fixed; inset: 0; z-index: 60; background: #1F232833; }
+  .tf-peek { position: fixed; top: 0; right: 0; bottom: 0; z-index: 61; width: min(560px, 100vw); display: flex; flex-direction: column; background: var(--surface); border-left: 1px solid var(--border); box-shadow: var(--shadow-lg); animation: tfEntra .18s cubic-bezier(.2, .8, .2, 1); }
+  @keyframes tfEntra { from { transform: translateX(24px); opacity: 0; } }
+  .tf-peek-topo { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  .tf-peek-topo .esp { flex: 1; }
+  .tf-peek-corpo { flex: 1; overflow-y: auto; padding: 20px 24px 32px; }
+  .tf-titulo { width: 100%; margin: 0 0 16px; padding: 0; border: 0; outline: 0; background: none; box-shadow: none; resize: none; color: var(--ink); font: inherit; font-size: 22px; font-weight: 700; line-height: 1.3; min-height: 0; height: auto; overflow: hidden; }
+  .tf-titulo::placeholder { color: var(--ink-muted); opacity: .6; }
+  .tf-props { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 4px 12px; align-items: center; margin-bottom: 20px; }
+  .tf-props > .rot { display: flex; align-items: center; gap: 8px; min-height: 32px; font-size: 13px; color: var(--ink-muted); }
+  .tf-props > .rot .ph { font-size: 15px; }
+  .tf-props .select, .tf-props .input { width: 100%; height: 32px; min-height: 32px; font-size: 13px; border-color: transparent; background: none; box-shadow: none; }
+  .tf-props .select:hover, .tf-props .input:hover { background: var(--hover-bg); }
+  .tf-props .select:focus, .tf-props .input:focus { border-color: var(--accent); background: var(--surface); }
+  .tf-bloco-tit { margin: 20px 0 8px; font-size: 13px; font-weight: 600; color: var(--ink-muted); }
+  .tf-descricao { width: 100%; min-height: 120px; resize: vertical; font: inherit; font-size: 14px; line-height: 1.55; }
+  .tf-salvo { font-size: 12px; color: var(--ink-muted); min-height: 16px; }
+  .tf-check-item { display: flex; align-items: center; gap: 8px; min-height: 32px; font-size: 14px; }
+  .tf-check-item input[type=checkbox] { margin: 0; flex: none; }
+  .tf-check-item.ok span { text-decoration: line-through; color: var(--ink-muted); }
+  .tf-check-item .tirar { margin-left: auto; opacity: 0; }
+  .tf-check-item:hover .tirar { opacity: 1; }
+  .tf-check-novo { width: 100%; height: 32px; min-height: 32px; font-size: 14px; }
+  .tf-coment { padding: 10px 0; border-top: 1px solid var(--border-muted, var(--border)); font-size: 14px; }
+  .tf-coment .quem { font-size: 12px; color: var(--ink-muted); margin-bottom: 2px; }
+  .tf-coment .quem b { color: var(--ink); font-weight: 600; }
+  .tf-coment-novo { display: flex; gap: 8px; margin-top: 8px; }
+  .tf-coment-novo textarea { flex: 1; min-height: 38px; height: 38px; resize: vertical; font: inherit; font-size: 14px; }
+  .tf-rodape { margin-top: 24px; font-size: 12px; color: var(--ink-muted); }
+  .tf-peek-acoes { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 24px; border-top: 1px solid var(--border); background: var(--surface-2); }
+  @media (max-width: 600px) { .tf-props { grid-template-columns: 110px minmax(0, 1fr); } .tf-peek-corpo { padding: 16px; } }
+
+  /* empresa com busca (no painel) */
+  .tf-emp-escolha { position: relative; }
+  .tf-emp-lista { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 5; max-height: 260px; overflow-y: auto; padding: 4px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); box-shadow: var(--shadow-lg); }
+  .tf-emp-lista button { display: block; width: 100%; padding: 6px 10px; border: 0; border-radius: 4px; background: none; color: var(--ink); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+  .tf-emp-lista button:hover, .tf-emp-lista button.marcado { background: var(--hover-bg); }
+
+  .tf-toast { position: fixed; left: 16px; bottom: 16px; z-index: 9999; max-width: min(420px, calc(100% - 32px)); background: var(--surface); color: var(--ink); border: 1px solid var(--border); border-left: 4px solid var(--success); border-radius: 6px; padding: 12px 16px; font-size: 14px; box-shadow: var(--shadow-lg); }
+  .tf-toast.erro { border-left-color: var(--destructive); }
+
+  /* portão (sem login) */
+  .gate { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: 24px; background: var(--bg); z-index: 100; }
+  .gate-box { max-width: 360px; text-align: center; }
+  .gate-box svg { height: 48px; width: auto; margin-bottom: 16px; }
+  .gate-box h1 { margin: 0 0 8px; font-size: 22px; font-weight: 500; }
+  .gate-box p { margin: 0 0 16px; color: var(--ink-muted); font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="gate" id="gate">
+  <div class="gate-box">
+    <svg viewBox="0 0 720 1176" aria-hidden="true"><use href="#nshLogo"/></svg>
+    <h1 id="gateTitulo">Conectando…</h1>
+    <p id="gateTexto">Só um instante.</p>
+    <div id="gateAcao"></div>
+  </div>
+</div>
+<script src="nilma-dialogo.js?v=345"></script>
+<script src="nilma-shell.js?v=367"></script>
+<script src="nilma-config.js?v=367"></script>
+<script src="nilma-solicitacoes.js?v=358"></script>
+<script src="nilma-extras.js?v=355"></script>
+<script>
+  var VERSAO_APP = '2.367 · 26/09/2026';
+  NilmaShell.montar({ modulo: 'Tarefas', moduloId: 'tarefas', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false, versao: VERSAO_APP });
+  document.getElementById('topo').hidden = true;
+</script>
+<nav class="tabs" id="tabsNav" aria-label="Menu das Tarefas" hidden>
+  <button type="button" class="tab menu-item" data-pagina="minhas"><span class="tab-ico"><i class="ph ph-user" aria-hidden="true"></i></span><span class="tab-label">Minhas tarefas</span><span class="tab-badge" id="numMinhas" hidden></span></button>
+  <button type="button" class="tab menu-item" data-pagina="todas"><span class="tab-ico"><i class="ph ph-list-checks" aria-hidden="true"></i></span><span class="tab-label">Todas as tarefas</span><span class="tab-badge" id="numTodas" hidden></span></button>
+  <button type="button" class="tab menu-item" data-pagina="requisicoes"><span class="tab-ico"><i class="ph ph-tray-arrow-down" aria-hidden="true"></i></span><span class="tab-label">Requisições</span><span class="tab-badge" id="numReq" hidden></span></button>
+  <button type="button" class="tab menu-item" data-pagina="empresas"><span class="tab-ico"><i class="ph ph-buildings" aria-hidden="true"></i></span><span class="tab-label">Empresas</span></button>
+</nav>
+<nav class="abas-secao" id="abasSecao" role="tablist" aria-label="Visões" hidden></nav>
+<div id="app" hidden>
+  <main class="conteudo"><div id="pagina"></div></main>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  // ------------------------------------------------------------ base
+  var FIREBASE_CONFIG = {
+    apiKey: "AIzaSyD6xg7XhX8dKTKmaYup4hRX5k9XFHEkb98",
+    authDomain: "entregas-2e5e2.firebaseapp.com",
+    projectId: "entregas-2e5e2",
+    storageBucket: "entregas-2e5e2.firebasestorage.app",
+    messagingSenderId: "1009094556836",
+    appId: "1:1009094556836:web:d3b6a9283e934db064fa31"
+  };
+  firebase.initializeApp(FIREBASE_CONFIG);
+  var db = firebase.firestore();
+  var auth = firebase.auth();
+  // o mesmo cache do Entregas e da Pendências: clientes e equipe saem daqui sem reler o banco
+  db.enablePersistence({ synchronizeTabs: true }).catch(function () {});
+  var FV = firebase.firestore.FieldValue;
+
+  function $(id) { return document.getElementById(id); }
+  function el(tag, cls, texto) { var e = document.createElement(tag); if (cls) e.className = cls; if (texto != null) e.textContent = texto; return e; }
+  function ico(nome) { var i = el('i', 'ph ' + nome); i.setAttribute('aria-hidden', 'true'); return i; }
+  function semAcento(t) { return String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); }
+  function toast(msg, tipo) {
+    var t = el('div', 'tf-toast' + (tipo === 'erro' ? ' erro' : ''), msg);
+    t.setAttribute('role', 'status');
+    document.body.appendChild(t);
+    setTimeout(function () { t.remove(); }, 3200);
+  }
+  function erroDe(err) { return err && err.code === 'permission-denied' ? 'sem permissão (as regras novas do banco já foram publicadas?)' : (err && (err.message || err.code)) || 'erro'; }
+  function agoraIso() { return new Date().toISOString(); }
+  function pad2(n) { return String(n).padStart(2, '0'); }
+  function hojeIso() { var d = new Date(); return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
+  function mesDe(iso) { return String(iso || '').slice(0, 7); }
+  function iniciais(nome) { var p = String(nome || '').trim().split(/[\s.@]+/).filter(Boolean); return p.length ? (p[0][0] + (p.length > 1 ? p[p.length - 1][0] : '')).toUpperCase() : '?'; }
+
+  var STATUS = [
+    { id: 'afazer', rotulo: 'A fazer' },
+    { id: 'andamento', rotulo: 'Em andamento' },
+    { id: 'aguardando', rotulo: 'Aguardando cliente' },
+    { id: 'feito', rotulo: 'Feito' }
+  ];
+  var PRIORIDADES = [
+    { id: 'urgente', rotulo: 'Urgente' }, { id: 'alta', rotulo: 'Alta' }, { id: 'normal', rotulo: 'Normal' }, { id: 'baixa', rotulo: 'Baixa' }
+  ];
+  var CANAIS = [['', '—'], ['whatsapp', 'WhatsApp'], ['email', 'E-mail'], ['telefone', 'Telefone'], ['presencial', 'Presencial'], ['portal', 'Página do cliente']];
+  function rotuloStatus(id) { return (STATUS.filter(function (s) { return s.id === id; })[0] || STATUS[0]).rotulo; }
+  function rotuloPrio(id) { return (PRIORIDADES.filter(function (s) { return s.id === id; })[0] || PRIORIDADES[2]).rotulo; }
+  function pesoPrio(id) { return { urgente: 0, alta: 1, normal: 2, baixa: 3 }[id] != null ? { urgente: 0, alta: 1, normal: 2, baixa: 3 }[id] : 2; }
+
+  // ------------------------------------------------------------ estado
+  var eu = { uid: '', nome: '', roles: [] };
+  var equipe = [];                       // [{ uid, nome }]
+  var clientes = [];                     // ativos
+  var clientesPorId = new Map();
+  var tarefas = new Map();               // abertas (ouvidas)
+  var feitasCache = {};                  // 'mes' -> [tarefas feitas no mês]
+  var carregou = false;
+  var pagina = 'minhas';                 // minhas | todas | requisicoes | empresas | empresa
+  var empresaAberta = null;
+  var visao = lerLocal('nilma_tarefas_visao', 'lista');   // lista | quadro | feitas
+  var agrupar = lerLocal('nilma_tarefas_agrupar', 'status');
+  var filtros = { busca: '', resp: '', prio: '', emp: '' };
+  var dobrados = {};
+  var aberta = null;                     // tarefa no painel (ou rascunho)
+  function lerLocal(k, p) { try { return localStorage.getItem(k) || p; } catch (e) { return p; } }
+  function gravarLocal(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  function souAdmin() { return eu.roles.indexOf('admin') !== -1; }
+  function nomeDoCliente(c) { return c ? ((c.codigoOrigem ? c.codigoOrigem + ' - ' : '') + (c.nome || c.nomeFantasia || '')) : ''; }
+  function nomeDaPessoa(uid) { var p = equipe.filter(function (x) { return x.uid === uid; })[0]; return p ? p.nome : ''; }
+
+  // ------------------------------------------------------------ datas
+  function prazoTexto(iso) {
+    if (!iso) return '';
+    var hoje = hojeIso();
+    var d = new Date(iso + 'T12:00:00'), h = new Date(hoje + 'T12:00:00');
+    var dias = Math.round((d - h) / 864e5);
+    if (dias === 0) return 'Hoje';
+    if (dias === 1) return 'Amanhã';
+    if (dias === -1) return 'Ontem';
+    var dm = pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1);
+    return d.getFullYear() !== h.getFullYear() ? dm + '/' + d.getFullYear() : dm;
+  }
+  function classePrazo(t) {
+    if (!t.prazo || t.status === 'feito') return '';
+    var hoje = hojeIso();
+    return t.prazo < hoje ? 'atrasado' : t.prazo === hoje ? 'hoje' : '';
+  }
+  // mesmo dia no mês seguinte (31/01 -> 28/02)
+  function proximoMes(iso) {
+    var p = String(iso || hojeIso()).split('-').map(Number);
+    var fim = new Date(p[0], p[1] + 1, 0).getDate();
+    var d = new Date(p[0], p[1], Math.min(p[2], fim));
+    return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+  }
+
+  // ------------------------------------------------------------ dados
+  function ouvirTarefas() {
+    db.collection('tarefas').where('aberta', '==', true).onSnapshot(function (snap) {
+      tarefas = new Map();
+      snap.forEach(function (d) { tarefas.set(d.id, Object.assign({ id: d.id }, d.data())); });
+      carregou = true;
+      // o painel aberto acompanha o que outra pessoa mudou
+      if (aberta && aberta.id && tarefas.has(aberta.id) && !painelEditando()) aberta = tarefas.get(aberta.id);
+      desenhar();
+      pintarContadores();
+    }, function (err) { $('pagina').innerHTML = ''; $('pagina').appendChild(el('div', 'tf-vazio', 'Não foi possível carregar as tarefas: ' + erroDe(err))); });
+  }
+  function carregarEquipe() {
+    return db.collection('usuarios').get().then(function (snap) {
+      equipe = snap.docs.map(function (d) {
+        var x = d.data() || {};
+        var roles = Array.isArray(x.roles) ? x.roles : (x.role ? [x.role] : []);
+        return { uid: d.id, nome: x.nome || String(x.email || '').split('@')[0] || 'sem nome', roles: roles, ativo: x.ativo !== false };
+      }).filter(function (p) { return p.roles.length && p.ativo; })
+        .sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); });
+    }).catch(function () { equipe = [{ uid: eu.uid, nome: eu.nome }]; });
+  }
+  // Clientes: do cache do aparelho (o Entregas e a Pendências já leram); do
+  // banco só se o cache estiver vazio ou com mais de 12 horas.
+  function carregarClientes() {
+    var CHAVE = 'nilma_tarefas_clientes_em';
+    var velho = Date.now() - Number(lerLocal(CHAVE, '0')) > 12 * 36e5;
+    function usar(snap) {
+      clientes = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); })
+        .filter(function (c) { return c.ativo !== false; })
+        .sort(function (a, b) { return nomeDoCliente(a).localeCompare(nomeDoCliente(b), 'pt-BR'); });
+      clientesPorId = new Map(clientes.map(function (c) { return [c.id, c]; }));
+      return clientes;
+    }
+    function doBanco() { return db.collection('clientes').get().then(function (s) { gravarLocal(CHAVE, String(Date.now())); return usar(s); }); }
+    if (velho) return doBanco();
+    return db.collection('clientes').get({ source: 'cache' }).then(function (s) { return s.empty ? doBanco() : usar(s); }).catch(doBanco);
+  }
+  function carregarFeitas(mes) {
+    if (feitasCache[mes]) return Promise.resolve(feitasCache[mes]);
+    return db.collection('tarefas').where('feitaMes', '==', mes).get().then(function (snap) {
+      feitasCache[mes] = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); })
+        .sort(function (a, b) { return String(b.feitaEm || '').localeCompare(String(a.feitaEm || '')); });
+      return feitasCache[mes];
+    });
+  }
+
+  function salvar(t, campos) {
+    if (!t || !t.id) return Promise.resolve();
+    var dados = Object.assign({}, campos, { atualizadoEm: agoraIso(), atualizadoPor: eu.nome });
+    Object.assign(t, campos);
+    return db.collection('tarefas').doc(t.id).update(dados).catch(function (err) { toast('Não salvou: ' + erroDe(err), 'erro'); });
+  }
+  function mudarStatus(t, status) {
+    var campos = { status: status, aberta: status !== 'feito' };
+    if (status === 'feito') { campos.feitaEm = agoraIso(); campos.feitaPor = eu.nome; campos.feitaMes = mesDe(hojeIso()); }
+    else { campos.feitaEm = FV.delete(); campos.feitaPor = FV.delete(); campos.feitaMes = FV.delete(); }
+    var eraFeita = t.status === 'feito';
+    var p = salvar(t, campos);
+    if (status === 'feito') { delete feitasCache[mesDe(hojeIso())]; }
+    // tarefa de todo mês: feita, nasce a do mês seguinte
+    if (status === 'feito' && !eraFeita && t.repete === 'mensal' && !t.proximaCriada) {
+      var nova = {
+        titulo: t.titulo, tipo: t.tipo || 'tarefa', status: 'afazer', aberta: true, prioridade: t.prioridade || 'normal',
+        clienteId: t.clienteId || null, clienteNome: t.clienteNome || '', responsavelUid: t.responsavelUid || '', responsavelNome: t.responsavelNome || '',
+        prazo: proximoMes(t.prazo), repete: 'mensal', descricao: t.descricao || '',
+        checklist: (t.checklist || []).map(function (c) { return { texto: c.texto, feito: false }; }),
+        origemId: t.id, criadoEm: agoraIso(), criadoPor: eu.nome, criadoPorUid: eu.uid
+      };
+      db.collection('tarefas').add(nova).then(function () {
+        salvar(t, { proximaCriada: true });
+        toast('Feito. A de ' + prazoTexto(nova.prazo) + ' já está na lista.');
+      }).catch(function (err) { toast('A do próximo mês não foi criada: ' + erroDe(err), 'erro'); });
+    }
+    return p;
+  }
+
+  // ------------------------------------------------------------ o que aparece
+  function itensDaPagina() {
+    var lista = Array.from(tarefas.values());
+    if (pagina === 'minhas') lista = lista.filter(function (t) { return t.responsavelUid === eu.uid; });
+    if (pagina === 'requisicoes') lista = lista.filter(function (t) { return t.tipo === 'requisicao'; });
+    if (pagina === 'empresa') lista = lista.filter(function (t) { return t.clienteId === empresaAberta; });
+    return lista.filter(passaFiltros);
+  }
+  function passaFiltros(t) {
+    if (filtros.resp === '-') { if (t.responsavelUid) return false; }
+    else if (filtros.resp && t.responsavelUid !== filtros.resp) return false;
+    if (filtros.prio && (t.prioridade || 'normal') !== filtros.prio) return false;
+    if (filtros.emp && t.clienteId !== filtros.emp) return false;
+    if (filtros.busca) {
+      var txt = semAcento([t.titulo, t.clienteNome, t.responsavelNome, t.descricao, t.solicitante].join(' '));
+      if (txt.indexOf(filtros.busca) === -1) return false;
+    }
+    return true;
+  }
+  function ordenar(a, b) {
+    var pa = a.prazo || '9999', pb = b.prazo || '9999';
+    if (pa !== pb) return pa < pb ? -1 : 1;
+    var d = pesoPrio(a.prioridade) - pesoPrio(b.prioridade);
+    return d || String(a.criadoEm || '').localeCompare(String(b.criadoEm || ''));
+  }
+  function grupos(lista) {
+    var hoje = hojeIso();
+    var semana = new Date(); semana.setDate(semana.getDate() + 7);
+    var fimSemana = semana.getFullYear() + '-' + pad2(semana.getMonth() + 1) + '-' + pad2(semana.getDate());
+    var def;
+    if (agrupar === 'prazo') def = [
+      { id: 'atrasadas', rotulo: 'Atrasadas', f: function (t) { return t.prazo && t.prazo < hoje; } },
+      { id: 'hoje', rotulo: 'Hoje', f: function (t) { return t.prazo === hoje; } },
+      { id: 'semana', rotulo: 'Próximos 7 dias', f: function (t) { return t.prazo > hoje && t.prazo <= fimSemana; } },
+      { id: 'depois', rotulo: 'Depois', f: function (t) { return t.prazo > fimSemana; } },
+      { id: 'sem', rotulo: 'Sem prazo', f: function (t) { return !t.prazo; } }
+    ];
+    else if (agrupar === 'responsavel') {
+      def = equipe.map(function (p) { return { id: p.uid, rotulo: p.nome, f: function (t) { return t.responsavelUid === p.uid; } }; });
+      def.push({ id: '-', rotulo: 'Sem responsável', f: function (t) { return !t.responsavelUid || !equipe.some(function (p) { return p.uid === t.responsavelUid; }); } });
+    } else if (agrupar === 'empresa') {
+      var ids = []; lista.forEach(function (t) { var k = t.clienteId || '-'; if (ids.indexOf(k) === -1) ids.push(k); });
+      def = ids.map(function (k) { return { id: k, rotulo: k === '-' ? 'Sem empresa' : (nomeDoCliente(clientesPorId.get(k)) || lista.filter(function (t) { return t.clienteId === k; })[0].clienteNome || 'empresa'), f: function (t) { return (t.clienteId || '-') === k; } }; })
+        .sort(function (a, b) { return a.id === '-' ? 1 : b.id === '-' ? -1 : a.rotulo.localeCompare(b.rotulo, 'pt-BR'); });
+    } else def = STATUS.filter(function (s) { return s.id !== 'feito'; }).map(function (s) { return { id: s.id, rotulo: s.rotulo, status: s.id, f: function (t) { return (t.status || 'afazer') === s.id; } }; });
+    return def.map(function (g) { return Object.assign(g, { itens: lista.filter(g.f).sort(ordenar) }); });
+  }
+
+  // ------------------------------------------------------------ desenho
+  var TITULOS = {
+    minhas: ['Minhas tarefas', 'O que está com você.'],
+    todas: ['Todas as tarefas', 'Tudo que está aberto no escritório.'],
+    requisicoes: ['Requisições', 'Pedidos que chegaram dos clientes e ainda não foram resolvidos.'],
+    empresas: ['Empresas', 'Quem cuida de cada cliente e o que está aberto com ele.']
+  };
+  function desenhar() {
+    if (!carregou) return;
+    var box = $('pagina');
+    var rolagem = window.scrollY;
+    box.innerHTML = '';
+    pintarMenu();
+    if (pagina === 'empresas') desenharEmpresas(box);
+    else if (pagina === 'empresa') desenharEmpresa(box);
+    else desenharTarefas(box);
+    window.scrollTo(0, rolagem);
+  }
+  function pintarMenu() {
+    document.querySelectorAll('#tabsNav .menu-item').forEach(function (b) {
+      var ativo = b.dataset.pagina === (pagina === 'empresa' ? 'empresas' : pagina);
+      b.classList.toggle('active', ativo);
+      if (ativo) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+    });
+    var nav = $('abasSecao');
+    nav.innerHTML = '';
+    var abas = pagina === 'empresas' || pagina === 'empresa'
+      ? [['empresas', 'Empresas', 'ph-buildings']]
+      : [['lista', 'Lista', 'ph-list-bullets'], ['quadro', 'Quadro', 'ph-squares-four'], ['feitas', 'Feitas', 'ph-check-circle']];
+    abas.forEach(function (a) {
+      var b = el('button', 'aba-s'); b.type = 'button'; b.setAttribute('role', 'tab');
+      b.setAttribute('aria-selected', String(pagina === 'empresas' || pagina === 'empresa' ? true : visao === a[0]));
+      b.appendChild(ico(a[2])); b.appendChild(el('span', null, a[1]));
+      b.addEventListener('click', function () {
+        if (a[0] === 'empresas') { irPara('empresas'); return; }
+        visao = a[0]; gravarLocal('nilma_tarefas_visao', visao); desenhar();
+      });
+      nav.appendChild(b);
+    });
+    nav.hidden = $('app').hidden;
+  }
+  function pintarContadores() {
+    var abertas = Array.from(tarefas.values());
+    var n = function (id, v) { var b = $(id); b.textContent = v || ''; b.hidden = !v; };
+    n('numMinhas', abertas.filter(function (t) { return t.responsavelUid === eu.uid; }).length);
+    n('numTodas', abertas.length);
+    n('numReq', abertas.filter(function (t) { return t.tipo === 'requisicao'; }).length);
+  }
+
+  function topo(box, titulo, sub, botoes) {
+    var t = el('div', 'pagina-topo');
+    var e = el('div'); e.appendChild(el('h1', null, titulo)); e.appendChild(el('p', 'pagina-sub', sub || ''));
+    t.appendChild(e);
+    var ac = el('div', 'topo-acoes');
+    (botoes || []).forEach(function (b) { ac.appendChild(b); });
+    t.appendChild(ac);
+    box.appendChild(t);
+  }
+  function botao(texto, icone, cls, acao) {
+    var b = el('button', 'btn ' + (cls || 'btn-secondary')); b.type = 'button';
+    if (icone) b.appendChild(ico(icone));
+    b.appendChild(document.createTextNode(' ' + texto));
+    b.addEventListener('click', acao);
+    return b;
+  }
+  function selectDe(opcoes, valor, rotulo) {
+    var s = el('select', 'select'); s.setAttribute('aria-label', rotulo || '');
+    opcoes.forEach(function (o) { s.appendChild(new Option(o[1], o[0])); });
+    s.value = valor || '';
+    return s;
+  }
+  function barraDeFiltros(box, comAgrupar) {
+    var b = el('div', 'tf-barra');
+    var busca = el('label', 'tf-busca'); busca.appendChild(ico('ph-magnifying-glass'));
+    var inp = el('input'); inp.type = 'search'; inp.placeholder = 'Buscar por título, empresa, pessoa…'; inp.value = filtros.buscaTxt || '';
+    inp.setAttribute('aria-label', 'Buscar tarefas');
+    var relogio = null;
+    inp.addEventListener('input', function () {
+      clearTimeout(relogio);
+      relogio = setTimeout(function () {
+        filtros.buscaTxt = inp.value; filtros.busca = semAcento(inp.value.trim());
+        var pos = inp.selectionStart; desenhar();
+        var novo = document.querySelector('.tf-busca input'); if (novo) { novo.focus(); try { novo.setSelectionRange(pos, pos); } catch (e) {} }
+      }, 200);
+    });
+    busca.appendChild(inp); b.appendChild(busca);
+    if (pagina !== 'minhas') {
+      var r = selectDe([['', 'Responsável: todos'], ['-', 'Sem responsável']].concat(equipe.map(function (p) { return [p.uid, p.nome]; })), filtros.resp, 'Responsável');
+      r.classList.toggle('ativo', !!filtros.resp);
+      r.addEventListener('change', function () { filtros.resp = r.value; desenhar(); });
+      b.appendChild(r);
+    }
+    var pr = selectDe([['', 'Prioridade: todas']].concat(PRIORIDADES.map(function (p) { return [p.id, p.rotulo]; })), filtros.prio, 'Prioridade');
+    pr.classList.toggle('ativo', !!filtros.prio);
+    pr.addEventListener('change', function () { filtros.prio = pr.value; desenhar(); });
+    b.appendChild(pr);
+    if (comAgrupar) {
+      var ag = selectDe([['status', 'Agrupar por status'], ['prazo', 'Agrupar por prazo'], ['responsavel', 'Agrupar por responsável'], ['empresa', 'Agrupar por empresa']], agrupar, 'Agrupar');
+      ag.addEventListener('change', function () { agrupar = ag.value; gravarLocal('nilma_tarefas_agrupar', agrupar); desenhar(); });
+      b.appendChild(ag);
+    }
+    box.appendChild(b);
+  }
+
+  function desenharTarefas(box) {
+    var tt = TITULOS[pagina];
+    var req = pagina === 'requisicoes';
+    topo(box, tt[0], tt[1], [
+      botao(req ? 'Nova requisição' : 'Nova tarefa', 'ph-plus', 'btn-primary', function () { novaTarefa({ tipo: req ? 'requisicao' : 'tarefa' }); })
+    ]);
+    if (visao === 'feitas') { desenharFeitas(box); return; }
+    barraDeFiltros(box, visao === 'lista');
+    var lista = itensDaPagina();
+    if (visao === 'quadro') desenharQuadro(box, lista);
+    else desenharLista(box, lista);
+  }
+
+  function linhaTarefa(t) {
+    var l = el('div', 'tf-linha' + (t.status === 'feito' ? ' feita' : '') + (aberta && aberta.id === t.id ? ' aberta-agora' : ''));
+    l.setAttribute('role', 'button'); l.tabIndex = 0;
+    var ck = el('div', 'ck');
+    var bc = el('button', 'tf-check' + (t.status === 'feito' ? ' feito' : '')); bc.type = 'button';
+    bc.title = t.status === 'feito' ? 'Reabrir' : 'Marcar como feito'; bc.setAttribute('aria-label', bc.title);
+    bc.appendChild(ico('ph-check'));
+    bc.addEventListener('click', function (ev) { ev.stopPropagation(); mudarStatus(t, t.status === 'feito' ? 'afazer' : 'feito'); });
+    ck.appendChild(bc); l.appendChild(ck);
+    var tit = el('div', 'tit');
+    if (t.tipo === 'requisicao') tit.appendChild(el('span', 'tf-req', 'REQ'));
+    tit.appendChild(el('span', 'txt', t.titulo || '(sem título)'));
+    if (t.repete === 'mensal') { var r = ico('ph-arrows-clockwise'); r.title = 'Repete todo mês'; tit.appendChild(r); }
+    if ((t.checklist || []).length) { var feitos = t.checklist.filter(function (c) { return c.feito; }).length; tit.appendChild(el('span', 'prazo', feitos + '/' + t.checklist.length)); }
+    if ((t.comentarios || []).length) { var cm = ico('ph-chat-teardrop-text'); cm.title = t.comentarios.length + ' comentário(s)'; tit.appendChild(cm); }
+    l.appendChild(tit);
+    var emp = el('div', 'emp', t.clienteNome || '');
+    emp.dataset.extra = [t.responsavelNome, prazoTexto(t.prazo)].filter(Boolean).map(function (x) { return ' · ' + x; }).join('');
+    l.appendChild(emp);
+    var resp = el('div', 'resp');
+    if (t.responsavelNome) { var p = el('span', 'tf-pessoa'); p.appendChild(el('span', 'tf-avatar', iniciais(t.responsavelNome))); p.appendChild(el('span', null, t.responsavelNome)); resp.appendChild(p); }
+    l.appendChild(resp);
+    l.appendChild(el('div', 'prazo ' + classePrazo(t), prazoTexto(t.prazo)));
+    var prio = el('div', 'prio');
+    if ((t.prioridade || 'normal') !== 'normal') prio.appendChild(el('span', 'tf-prio ' + t.prioridade, rotuloPrio(t.prioridade)));
+    l.appendChild(prio);
+    l.addEventListener('click', function () { abrirPainel(t); });
+    l.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') abrirPainel(t); });
+    return l;
+  }
+
+  function desenharLista(box, lista) {
+    if (!lista.length && !filtros.busca && !filtros.resp && !filtros.prio) {
+      box.appendChild(el('div', 'tf-vazio', pagina === 'minhas' ? 'Nada com você agora. Crie uma tarefa ou pegue uma em "Todas as tarefas".' : 'Nada aberto aqui.'));
+    }
+    grupos(lista).forEach(function (g) {
+      if (!g.itens.length && agrupar !== 'status') return;
+      var sec = el('section', 'tf-grupo' + (dobrados[g.id] ? ' dobrado' : ''));
+      var cab = el('div', 'tf-grupo-cab');
+      var db_ = el('button', 'dobra'); db_.type = 'button'; db_.setAttribute('aria-label', 'Dobrar'); db_.appendChild(ico('ph-caret-down'));
+      db_.addEventListener('click', function () { dobrados[g.id] = !dobrados[g.id]; sec.classList.toggle('dobrado'); });
+      cab.appendChild(db_);
+      if (g.status) cab.appendChild(el('span', 'tf-status ' + g.status, g.rotulo)); else cab.appendChild(el('span', null, g.rotulo));
+      cab.appendChild(el('span', 'n', String(g.itens.length)));
+      sec.appendChild(cab);
+      var tab = el('div', 'tf-tabela');
+      g.itens.forEach(function (t) { tab.appendChild(linhaTarefa(t)); });
+      // criar rápido no grupo: digita e Enter
+      var nova = el('label', 'tf-nova-linha'); nova.appendChild(ico('ph-plus'));
+      var inp = el('input'); inp.placeholder = pagina === 'requisicoes' ? 'Nova requisição' : 'Nova tarefa'; inp.setAttribute('aria-label', 'Nova tarefa em ' + g.rotulo);
+      inp.addEventListener('keydown', function (ev) {
+        if (ev.key !== 'Enter' || !inp.value.trim()) return;
+        var base = { titulo: inp.value.trim(), tipo: pagina === 'requisicoes' ? 'requisicao' : 'tarefa' };
+        if (g.status) base.status = g.status;
+        if (agrupar === 'responsavel' && g.id !== '-') { base.responsavelUid = g.id; base.responsavelNome = g.rotulo; }
+        if (agrupar === 'empresa' && g.id !== '-') { var c = clientesPorId.get(g.id); if (c) { base.clienteId = c.id; base.clienteNome = nomeDoCliente(c); } }
+        if (agrupar === 'prazo') base.prazo = g.id === 'hoje' ? hojeIso() : '';
+        inp.disabled = true;
+        criar(base).then(function () { inp.value = ''; }).finally(function () { inp.disabled = false; });
+      });
+      nova.appendChild(inp);
+      tab.appendChild(nova);
+      sec.appendChild(tab);
+      box.appendChild(sec);
+    });
+  }
+
+  function desenharQuadro(box, lista) {
+    var q = el('div', 'tf-quadro');
+    var arrastada = null;
+    STATUS.forEach(function (s) {
+      var col = el('section', 'tf-coluna'); col.dataset.status = s.id;
+      var itens = s.id === 'feito'
+        ? (feitasCache[mesDe(hojeIso())] || []).filter(function (t) { return itensDaPaginaFeitas(t); }).slice(0, 15)
+        : lista.filter(function (t) { return (t.status || 'afazer') === s.id; }).sort(ordenar);
+      var cab = el('div', 'tf-coluna-cab'); cab.appendChild(el('span', 'tf-status ' + s.id, s.rotulo)); cab.appendChild(el('span', null, String(itens.length)));
+      col.appendChild(cab);
+      itens.forEach(function (t) {
+        var c = el('button', 'tf-cartao'); c.type = 'button'; c.draggable = true;
+        c.appendChild(el('div', 'tit', (t.tipo === 'requisicao' ? '[REQ] ' : '') + (t.titulo || '(sem título)')));
+        var meta = el('div', 'meta');
+        if (t.clienteNome) meta.appendChild(el('span', null, t.clienteNome));
+        if (t.responsavelNome) { var p = el('span', 'tf-pessoa'); p.appendChild(el('span', 'tf-avatar', iniciais(t.responsavelNome))); p.appendChild(el('span', null, t.responsavelNome.split(' ')[0])); meta.appendChild(p); }
+        if (t.prazo) meta.appendChild(el('span', 'prazo ' + classePrazo(t), prazoTexto(t.prazo)));
+        if ((t.prioridade || 'normal') !== 'normal') meta.appendChild(el('span', 'tf-prio ' + t.prioridade, rotuloPrio(t.prioridade)));
+        c.appendChild(meta);
+        c.addEventListener('click', function () { abrirPainel(t); });
+        c.addEventListener('dragstart', function (ev) { arrastada = t; c.classList.add('arrastando'); ev.dataTransfer.effectAllowed = 'move'; try { ev.dataTransfer.setData('text/plain', t.id); } catch (e) {} });
+        c.addEventListener('dragend', function () { c.classList.remove('arrastando'); document.querySelectorAll('.tf-coluna.alvo').forEach(function (x) { x.classList.remove('alvo'); }); });
+        col.appendChild(c);
+      });
+      if (s.id !== 'feito') {
+        var add = botao('Nova', 'ph-plus', 'btn-ghost btn-sm tf-add', function () { novaTarefa({ status: s.id, tipo: pagina === 'requisicoes' ? 'requisicao' : 'tarefa' }); });
+        col.appendChild(add);
+      }
+      col.addEventListener('dragover', function (ev) { if (!arrastada) return; ev.preventDefault(); col.classList.add('alvo'); });
+      col.addEventListener('dragleave', function (ev) { if (!col.contains(ev.relatedTarget)) col.classList.remove('alvo'); });
+      col.addEventListener('drop', function (ev) {
+        ev.preventDefault(); col.classList.remove('alvo');
+        if (arrastada && arrastada.status !== s.id) mudarStatus(arrastada, s.id);
+        arrastada = null;
+      });
+      q.appendChild(col);
+    });
+    box.appendChild(q);
+    // a coluna Feito mostra as últimas do mês (lidas uma vez)
+    if (!feitasCache[mesDe(hojeIso())]) carregarFeitas(mesDe(hojeIso())).then(desenhar).catch(function () {});
+  }
+  function itensDaPaginaFeitas(t) {
+    if (pagina === 'minhas' && t.responsavelUid !== eu.uid) return false;
+    if (pagina === 'requisicoes' && t.tipo !== 'requisicao') return false;
+    return passaFiltros(t);
+  }
+
+  var mesFeitas = mesDe(hojeIso());
+  function desenharFeitas(box) {
+    var b = el('div', 'tf-barra');
+    var meses = [];
+    for (var i = 0; i < 12; i++) { var d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - i); meses.push([d.getFullYear() + '-' + pad2(d.getMonth() + 1), d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })]); }
+    var s = selectDe(meses, mesFeitas, 'Mês');
+    s.addEventListener('change', function () { mesFeitas = s.value; desenhar(); });
+    b.appendChild(s);
+    box.appendChild(b);
+    var alvo = el('div'); box.appendChild(alvo);
+    if (!feitasCache[mesFeitas]) { alvo.appendChild(el('div', 'tf-vazio', 'Carregando…')); carregarFeitas(mesFeitas).then(desenhar).catch(function (err) { alvo.innerHTML = ''; alvo.appendChild(el('div', 'tf-vazio', 'Não foi possível carregar: ' + erroDe(err))); }); return; }
+    var lista = feitasCache[mesFeitas].filter(itensDaPaginaFeitas);
+    if (!lista.length) { alvo.appendChild(el('div', 'tf-vazio', 'Nada feito neste mês.')); return; }
+    var tab = el('div', 'tf-tabela');
+    lista.forEach(function (t) { tab.appendChild(linhaTarefa(t)); });
+    alvo.appendChild(tab);
+  }
+
+  // ---------------- empresas
+  var buscaEmp = '', filtroEmpResp = '';
+  function contagensPorEmpresa() {
+    var m = {};
+    tarefas.forEach(function (t) {
+      if (!t.clienteId) return;
+      var x = m[t.clienteId] || (m[t.clienteId] = { tarefas: 0, req: 0, prazo: '' });
+      if (t.tipo === 'requisicao') x.req++; else x.tarefas++;
+      if (t.prazo && (!x.prazo || t.prazo < x.prazo)) x.prazo = t.prazo;
+    });
+    return m;
+  }
+  function seletorResponsavel(c, aoMudar) {
+    var s = selectDe([['', 'Sem responsável']].concat(equipe.map(function (p) { return [p.uid, p.nome]; })), c.responsavelUid || '', 'Responsável por ' + nomeDoCliente(c));
+    s.disabled = !souAdmin();
+    if (!souAdmin()) s.title = 'Só o admin escolhe o responsável';
+    s.addEventListener('click', function (ev) { ev.stopPropagation(); });
+    s.addEventListener('change', function () {
+      var uid = s.value, nome = nomeDaPessoa(uid);
+      db.collection('clientes').doc(c.id).update({ responsavelUid: uid || FV.delete(), responsavelNome: nome || FV.delete() })
+        .then(function () { c.responsavelUid = uid; c.responsavelNome = nome; toast(nomeDoCliente(c) + ': ' + (nome ? 'responsável ' + nome : 'sem responsável') + '.'); if (aoMudar) aoMudar(); })
+        .catch(function (err) { s.value = c.responsavelUid || ''; toast('Não salvou: ' + erroDe(err), 'erro'); });
+    });
+    return s;
+  }
+  function desenharEmpresas(box) {
+    topo(box, TITULOS.empresas[0], TITULOS.empresas[1]);
+    var b = el('div', 'tf-barra');
+    var busca = el('label', 'tf-busca'); busca.appendChild(ico('ph-magnifying-glass'));
+    var inp = el('input'); inp.type = 'search'; inp.placeholder = 'Buscar empresa por nome, código ou CNPJ'; inp.value = buscaEmp; inp.setAttribute('aria-label', 'Buscar empresa');
+    busca.appendChild(inp); b.appendChild(busca);
+    var r = selectDe([['', 'Responsável: todos'], ['-', 'Sem responsável']].concat(equipe.map(function (p) { return [p.uid, p.nome]; })), filtroEmpResp, 'Responsável');
+    r.classList.toggle('ativo', !!filtroEmpResp);
+    b.appendChild(r);
+    box.appendChild(b);
+    var tab = el('div', 'tf-tabela');
+    box.appendChild(tab);
+    var cont = contagensPorEmpresa();
+    function pintar() {
+      tab.innerHTML = '';
+      var cab = el('div', 'tf-emp-linha cab');
+      ['Empresa', 'Responsável', 'Tarefas', 'Requisições', 'Próximo prazo'].forEach(function (x) { cab.appendChild(el('div', null, x)); });
+      tab.appendChild(cab);
+      var t = semAcento(buscaEmp.trim()), dig = buscaEmp.replace(/\D/g, '');
+      var lista = clientes.filter(function (c) {
+        if (filtroEmpResp === '-' ? c.responsavelUid : (filtroEmpResp && c.responsavelUid !== filtroEmpResp)) return false;
+        if (!t) return true;
+        return semAcento(nomeDoCliente(c) + ' ' + (c.nomeFantasia || '')).indexOf(t) !== -1 || (dig.length >= 3 && String(c.documento || '').replace(/\D/g, '').indexOf(dig) !== -1);
+      });
+      lista.slice(0, 400).forEach(function (c) {
+        var x = cont[c.id] || { tarefas: 0, req: 0, prazo: '' };
+        var l = el('div', 'tf-emp-linha'); l.setAttribute('role', 'button'); l.tabIndex = 0;
+        l.appendChild(el('div', 'nome', nomeDoCliente(c)));
+        var rc = el('div'); rc.appendChild(seletorResponsavel(c)); l.appendChild(rc);
+        l.appendChild(el('div', 'num', x.tarefas ? String(x.tarefas) : '—'));
+        l.appendChild(el('div', 'num', x.req ? String(x.req) : '—'));
+        l.appendChild(el('div', 'num prazo ' + (x.prazo && x.prazo < hojeIso() ? 'atrasado' : ''), x.prazo ? prazoTexto(x.prazo) : '—'));
+        l.addEventListener('click', function () { irPara('empresa', c.id); });
+        l.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') irPara('empresa', c.id); });
+        tab.appendChild(l);
+      });
+      if (!lista.length) tab.appendChild(el('div', 'tf-vazio', 'Nenhuma empresa com esse filtro.'));
+    }
+    var relogio = null;
+    inp.addEventListener('input', function () { clearTimeout(relogio); relogio = setTimeout(function () { buscaEmp = inp.value; pintar(); }, 150); });
+    r.addEventListener('change', function () { filtroEmpResp = r.value; r.classList.toggle('ativo', !!filtroEmpResp); pintar(); });
+    pintar();
+  }
+  var feitasDaEmpresa = {};
+  function desenharEmpresa(box) {
+    var c = clientesPorId.get(empresaAberta);
+    if (!c) { box.appendChild(el('div', 'tf-vazio', 'Empresa não encontrada.')); return; }
+    var voltar = el('button', 'tf-voltar'); voltar.type = 'button'; voltar.appendChild(ico('ph-arrow-left')); voltar.appendChild(document.createTextNode(' Empresas'));
+    voltar.addEventListener('click', function () { irPara('empresas'); });
+    box.appendChild(voltar);
+    topo(box, nomeDoCliente(c), c.documento || '', [
+      botao('Nova requisição', 'ph-tray-arrow-down', 'btn-secondary', function () { novaTarefa({ tipo: 'requisicao', clienteId: c.id }); }),
+      botao('Nova tarefa', 'ph-plus', 'btn-primary', function () { novaTarefa({ tipo: 'tarefa', clienteId: c.id }); })
+    ]);
+    var props = el('div', 'tf-props-emp');
+    var pr = el('span'); pr.appendChild(document.createTextNode('Responsável: '));
+    pr.appendChild(seletorResponsavel(c));
+    props.appendChild(pr);
+    if (c.email) { var pe = el('span'); pe.appendChild(document.createTextNode('E-mail: ')); pe.appendChild(el('b', null, c.email)); props.appendChild(pe); }
+    if (c.telefone) { var pt = el('span'); pt.appendChild(document.createTextNode('Telefone: ')); pt.appendChild(el('b', null, c.telefone)); props.appendChild(pt); }
+    box.appendChild(props);
+    var abertas = Array.from(tarefas.values()).filter(function (t) { return t.clienteId === c.id; });
+    [['requisicao', 'Requisições abertas', 'ph-tray-arrow-down'], ['tarefa', 'Tarefas abertas', 'ph-list-checks']].forEach(function (s) {
+      var h = el('div', 'tf-secao-tit'); h.appendChild(ico(s[2])); h.appendChild(el('span', null, s[1]));
+      var itens = abertas.filter(function (t) { return (t.tipo || 'tarefa') === s[0]; }).sort(ordenar);
+      h.appendChild(el('span', 'tf-status afazer', String(itens.length)));
+      box.appendChild(h);
+      var tab = el('div', 'tf-tabela');
+      itens.forEach(function (t) { tab.appendChild(linhaTarefa(t)); });
+      if (!itens.length) tab.appendChild(el('div', 'tf-vazio', s[0] === 'requisicao' ? 'Nenhuma requisição aberta.' : 'Nenhuma tarefa aberta.'));
+      box.appendChild(tab);
+    });
+    var h = el('div', 'tf-secao-tit'); h.appendChild(ico('ph-check-circle')); h.appendChild(el('span', null, 'Feitas recentemente'));
+    box.appendChild(h);
+    var alvo = el('div', 'tf-tabela'); box.appendChild(alvo);
+    if (!feitasDaEmpresa[c.id]) {
+      alvo.appendChild(el('div', 'tf-vazio', 'Carregando…'));
+      db.collection('tarefas').where('clienteId', '==', c.id).where('aberta', '==', false).limit(40).get().then(function (snap) {
+        feitasDaEmpresa[c.id] = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); })
+          .sort(function (a, b) { return String(b.feitaEm || '').localeCompare(String(a.feitaEm || '')); }).slice(0, 20);
+        if (pagina === 'empresa' && empresaAberta === c.id) desenhar();
+      }).catch(function () { alvo.innerHTML = ''; alvo.appendChild(el('div', 'tf-vazio', 'Não foi possível carregar.')); });
+    } else {
+      feitasDaEmpresa[c.id].forEach(function (t) { alvo.appendChild(linhaTarefa(t)); });
+      if (!feitasDaEmpresa[c.id].length) alvo.appendChild(el('div', 'tf-vazio', 'Nada feito ainda.'));
+    }
+  }
+
+  // ------------------------------------------------------------ criar
+  function base(extra) {
+    var b = {
+      titulo: '', tipo: 'tarefa', status: 'afazer', aberta: true, prioridade: 'normal', clienteId: null, clienteNome: '',
+      responsavelUid: '', responsavelNome: '', prazo: '', repete: '', descricao: '', checklist: [], comentarios: [],
+      solicitante: '', canal: ''
+    };
+    Object.assign(b, extra || {});
+    if (b.clienteId && !b.clienteNome) { var c = clientesPorId.get(b.clienteId); if (c) b.clienteNome = nomeDoCliente(c); }
+    // sem responsável: o da empresa; sem empresa, em "Minhas", quem criou
+    if (!b.responsavelUid && b.clienteId) { var ce = clientesPorId.get(b.clienteId); if (ce && ce.responsavelUid) { b.responsavelUid = ce.responsavelUid; b.responsavelNome = ce.responsavelNome || nomeDaPessoa(ce.responsavelUid); } }
+    if (!b.responsavelUid && pagina === 'minhas') { b.responsavelUid = eu.uid; b.responsavelNome = eu.nome; }
+    return b;
+  }
+  function criar(extra) {
+    var t = base(extra);
+    t.criadoEm = agoraIso(); t.criadoPor = eu.nome; t.criadoPorUid = eu.uid;
+    return db.collection('tarefas').add(t).then(function (ref) { t.id = ref.id; return t; })
+      .catch(function (err) { toast('Não foi criada: ' + erroDe(err), 'erro'); throw err; });
+  }
+  function novaTarefa(extra) { abrirPainel(Object.assign(base(extra), { rascunho: true })); }
+
+  // ------------------------------------------------------------ painel lateral
+  var relogioTexto = null;
+  function painelEditando() { var a = document.activeElement; return !!(a && a.closest && a.closest('.tf-peek') && /^(INPUT|TEXTAREA)$/.test(a.tagName)); }
+  function fecharPainel() {
+    var f = $('tfPeekFundo'), p = $('tfPeek');
+    if (f) f.remove(); if (p) p.remove();
+    aberta = null;
+    if (location.hash.indexOf('#tarefa/') === 0) history.replaceState(null, '', '#' + (pagina === 'empresa' ? 'empresa/' + empresaAberta : pagina));
+    desenhar();
+  }
+  function abrirPainel(t) {
+    aberta = t;
+    if (t.id) history.replaceState(null, '', '#tarefa/' + t.id);
+    desenharPainel(true);
+    document.querySelectorAll('.tf-linha.aberta-agora').forEach(function (l) { l.classList.remove('aberta-agora'); });
+  }
+  function prop(grade, icone, rotulo, controle) {
+    var r = el('div', 'rot'); r.appendChild(ico(icone)); r.appendChild(el('span', null, rotulo));
+    grade.appendChild(r); grade.appendChild(controle);
+  }
+  function escolhaDeEmpresa(t, aoEscolher) {
+    var caixa = el('div', 'tf-emp-escolha');
+    var inp = el('input', 'input'); inp.placeholder = 'Sem empresa — buscar por nome, código ou CNPJ'; inp.value = t.clienteNome || ''; inp.setAttribute('aria-label', 'Empresa');
+    var lista = el('div', 'tf-emp-lista'); lista.hidden = true;
+    var achados = [], marcado = 0;
+    function pintar() {
+      var q = semAcento(inp.value.trim()), dig = inp.value.replace(/\D/g, '');
+      achados = clientes.filter(function (c) { return !q || semAcento(nomeDoCliente(c) + ' ' + (c.nomeFantasia || '')).indexOf(q) !== -1 || (dig.length >= 3 && String(c.documento || '').replace(/\D/g, '').indexOf(dig) !== -1); }).slice(0, 40);
+      if (t.clienteId) achados.unshift(null);   // "sem empresa"
+      lista.innerHTML = ''; marcado = 0;
+      achados.forEach(function (c, i) {
+        var b = el('button', i === 0 ? 'marcado' : '', c ? nomeDoCliente(c) : '— Sem empresa'); b.type = 'button';
+        b.addEventListener('mousedown', function (ev) { ev.preventDefault(); escolher(i); });
+        lista.appendChild(b);
+      });
+      lista.hidden = !achados.length;
+    }
+    function escolher(i) {
+      var c = achados[i];
+      inp.value = c ? nomeDoCliente(c) : '';
+      lista.hidden = true; inp.blur();
+      aoEscolher(c);
+    }
+    inp.addEventListener('focus', function () { inp.select(); pintar(); });
+    inp.addEventListener('input', pintar);
+    inp.addEventListener('blur', function () { setTimeout(function () { lista.hidden = true; inp.value = t.clienteNome || ''; }, 150); });
+    inp.addEventListener('keydown', function (ev) {
+      var bs = lista.querySelectorAll('button');
+      if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') { ev.preventDefault(); marcado = Math.max(0, Math.min(bs.length - 1, marcado + (ev.key === 'ArrowDown' ? 1 : -1))); bs.forEach(function (b, i) { b.classList.toggle('marcado', i === marcado); }); }
+      else if (ev.key === 'Enter') { ev.preventDefault(); if (!lista.hidden && achados.length) escolher(marcado); }
+      else if (ev.key === 'Escape' && !lista.hidden) { ev.preventDefault(); ev.stopPropagation(); lista.hidden = true; }
+    });
+    caixa.appendChild(inp); caixa.appendChild(lista);
+    return caixa;
+  }
+  function desenharPainel(focarTitulo) {
+    var t = aberta;
+    if (!t) return;
+    var velho = $('tfPeek');
+    var rolagem = velho ? velho.querySelector('.tf-peek-corpo').scrollTop : 0;
+    if (velho) velho.remove();
+    if (!$('tfPeekFundo')) {
+      var fundo = el('div', 'tf-peek-fundo'); fundo.id = 'tfPeekFundo';
+      fundo.addEventListener('click', fecharPainel);
+      document.body.appendChild(fundo);
+    }
+    var p = el('aside', 'tf-peek'); p.id = 'tfPeek';
+    p.setAttribute('role', 'dialog'); p.setAttribute('aria-label', t.tipo === 'requisicao' ? 'Requisição' : 'Tarefa');
+    if (velho) p.style.animation = 'none';
+    var topoP = el('div', 'tf-peek-topo');
+    var fechar = el('button', 'btn btn-ghost btn-icone btn-sm'); fechar.type = 'button'; fechar.setAttribute('aria-label', 'Fechar'); fechar.appendChild(ico('ph-x'));
+    fechar.addEventListener('click', fecharPainel);
+    topoP.appendChild(fechar);
+    topoP.appendChild(el('span', 'tf-status ' + (t.status || 'afazer'), t.rascunho ? (t.tipo === 'requisicao' ? 'Nova requisição' : 'Nova tarefa') : rotuloStatus(t.status)));
+    topoP.appendChild(el('span', 'esp'));
+    if (t.id) {
+      var link = el('button', 'btn btn-ghost btn-sm'); link.type = 'button'; link.appendChild(ico('ph-link')); link.appendChild(document.createTextNode(' Copiar link'));
+      link.addEventListener('click', function () { try { navigator.clipboard.writeText(location.href.split('#')[0] + '#tarefa/' + t.id); toast('Link copiado.'); } catch (e) {} });
+      topoP.appendChild(link);
+    }
+    p.appendChild(topoP);
+
+    var corpo = el('div', 'tf-peek-corpo');
+    var titulo = el('textarea', 'tf-titulo'); titulo.rows = 1; titulo.placeholder = t.tipo === 'requisicao' ? 'O que o cliente pediu?' : 'Nome da tarefa';
+    titulo.value = t.titulo || ''; titulo.setAttribute('aria-label', 'Título');
+    var ajustar = function () { titulo.style.height = 'auto'; titulo.style.height = titulo.scrollHeight + 'px'; };
+    titulo.addEventListener('input', function () {
+      ajustar();
+      if (t.rascunho) { t.titulo = titulo.value; return; }
+      clearTimeout(relogioTexto);
+      relogioTexto = setTimeout(function () { if (titulo.value.trim() && titulo.value !== t.titulo) salvar(t, { titulo: titulo.value.trim() }); }, 900);
+    });
+    titulo.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { ev.preventDefault(); if (t.rascunho) criarDoPainel(); else titulo.blur(); } });
+    titulo.addEventListener('blur', function () { if (!t.rascunho && titulo.value.trim() && titulo.value.trim() !== t.titulo) { clearTimeout(relogioTexto); salvar(t, { titulo: titulo.value.trim() }); } });
+    corpo.appendChild(titulo);
+    setTimeout(ajustar, 0);
+
+    var grade = el('div', 'tf-props');
+    var campo = function (campos) { if (t.rascunho) { Object.assign(t, campos); desenharPainel(); } else { salvar(t, campos); desenharPainel(); } };
+    var tipo = selectDe([['tarefa', 'Tarefa'], ['requisicao', 'Requisição do cliente']], t.tipo || 'tarefa', 'Tipo');
+    tipo.addEventListener('change', function () { campo({ tipo: tipo.value }); });
+    prop(grade, 'ph-tag', 'Tipo', tipo);
+    var st = selectDe(STATUS.map(function (s) { return [s.id, s.rotulo]; }), t.status || 'afazer', 'Status');
+    st.addEventListener('change', function () { if (t.rascunho) campo({ status: st.value }); else { mudarStatus(t, st.value); desenharPainel(); } });
+    prop(grade, 'ph-circle-half', 'Status', st);
+    prop(grade, 'ph-buildings', 'Empresa', escolhaDeEmpresa(t, function (c) {
+      var campos = { clienteId: c ? c.id : null, clienteNome: c ? nomeDoCliente(c) : '' };
+      // empresa com responsável e tarefa sem: o dela
+      if (c && c.responsavelUid && !t.responsavelUid) { campos.responsavelUid = c.responsavelUid; campos.responsavelNome = c.responsavelNome || nomeDaPessoa(c.responsavelUid); }
+      campo(campos);
+    }));
+    var resp = selectDe([['', 'Ninguém']].concat(equipe.map(function (x) { return [x.uid, x.nome]; })), t.responsavelUid || '', 'Responsável');
+    resp.addEventListener('change', function () { campo({ responsavelUid: resp.value, responsavelNome: nomeDaPessoa(resp.value) }); });
+    prop(grade, 'ph-user', 'Responsável', resp);
+    var prazo = el('input', 'input'); prazo.type = 'date'; prazo.value = t.prazo || ''; prazo.setAttribute('aria-label', 'Prazo');
+    prazo.addEventListener('change', function () { campo({ prazo: prazo.value }); });
+    prop(grade, 'ph-calendar-blank', 'Prazo', prazo);
+    var prio = selectDe(PRIORIDADES.map(function (x) { return [x.id, x.rotulo]; }), t.prioridade || 'normal', 'Prioridade');
+    prio.addEventListener('change', function () { campo({ prioridade: prio.value }); });
+    prop(grade, 'ph-flag', 'Prioridade', prio);
+    var rep = selectDe([['', 'Não repete'], ['mensal', 'Todo mês (no mesmo dia)']], t.repete || '', 'Repetir');
+    rep.addEventListener('change', function () { campo({ repete: rep.value }); });
+    prop(grade, 'ph-arrows-clockwise', 'Repetir', rep);
+    if (t.tipo === 'requisicao') {
+      var sol = el('input', 'input'); sol.value = t.solicitante || ''; sol.placeholder = 'Quem pediu'; sol.setAttribute('aria-label', 'Pedido por');
+      sol.addEventListener('change', function () { campo({ solicitante: sol.value.trim() }); });
+      prop(grade, 'ph-user-circle', 'Pedido por', sol);
+      var canal = selectDe(CANAIS, t.canal || '', 'Canal');
+      canal.addEventListener('change', function () { campo({ canal: canal.value }); });
+      prop(grade, 'ph-chats-circle', 'Chegou por', canal);
+    }
+    corpo.appendChild(grade);
+
+    // descrição: salva sozinha 1 s depois de parar de digitar
+    corpo.appendChild(el('div', 'tf-bloco-tit', 'Descrição'));
+    var desc = el('textarea', 'input tf-descricao'); desc.value = t.descricao || ''; desc.placeholder = 'Detalhes, passo a passo, o que o cliente disse…'; desc.setAttribute('aria-label', 'Descrição');
+    var salvo = el('div', 'tf-salvo');
+    desc.addEventListener('input', function () {
+      if (t.rascunho) { t.descricao = desc.value; return; }
+      salvo.textContent = 'Editando…';
+      clearTimeout(relogioTexto);
+      relogioTexto = setTimeout(function () { salvar(t, { descricao: desc.value }).then(function () { salvo.textContent = 'Salvo'; }); }, 1000);
+    });
+    corpo.appendChild(desc); corpo.appendChild(salvo);
+
+    // checklist
+    var itens = t.checklist || [];
+    var feitosCk = itens.filter(function (c) { return c.feito; }).length;
+    corpo.appendChild(el('div', 'tf-bloco-tit', 'Checklist' + (itens.length ? ' · ' + feitosCk + '/' + itens.length : '')));
+    var gravarCk = function (lista) { if (t.rascunho) { t.checklist = lista; desenharPainel(); } else { salvar(t, { checklist: lista }); desenharPainel(); } };
+    itens.forEach(function (c, i) {
+      var linha = el('label', 'tf-check-item' + (c.feito ? ' ok' : ''));
+      var cb = el('input'); cb.type = 'checkbox'; cb.checked = !!c.feito;
+      cb.addEventListener('change', function () { var l = itens.map(function (x, k) { return k === i ? { texto: x.texto, feito: cb.checked } : x; }); gravarCk(l); });
+      linha.appendChild(cb); linha.appendChild(el('span', null, c.texto));
+      var tira = el('button', 'btn btn-ghost btn-icone btn-sm tirar'); tira.type = 'button'; tira.setAttribute('aria-label', 'Tirar item'); tira.appendChild(ico('ph-x'));
+      tira.addEventListener('click', function (ev) { ev.preventDefault(); gravarCk(itens.filter(function (x, k) { return k !== i; })); });
+      linha.appendChild(tira);
+      corpo.appendChild(linha);
+    });
+    var novoCk = el('input', 'input tf-check-novo'); novoCk.placeholder = '+ Item do checklist (Enter)'; novoCk.setAttribute('aria-label', 'Novo item do checklist');
+    novoCk.addEventListener('keydown', function (ev) {
+      if (ev.key !== 'Enter' || !novoCk.value.trim()) return;
+      ev.preventDefault();
+      gravarCk(itens.concat([{ texto: novoCk.value.trim().slice(0, 200), feito: false }]));
+      setTimeout(function () { var n = document.querySelector('.tf-check-novo'); if (n) n.focus(); }, 0);
+    });
+    corpo.appendChild(novoCk);
+
+    // comentários (só depois de criada)
+    if (!t.rascunho) {
+      var cms = t.comentarios || [];
+      corpo.appendChild(el('div', 'tf-bloco-tit', 'Comentários' + (cms.length ? ' · ' + cms.length : '')));
+      cms.forEach(function (c) {
+        var d = el('div', 'tf-coment');
+        var q = el('div', 'quem'); q.appendChild(el('b', null, c.por || 'alguém')); q.appendChild(document.createTextNode(' · ' + new Date(c.em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })));
+        d.appendChild(q); d.appendChild(el('div', null, c.texto));
+        corpo.appendChild(d);
+      });
+      var nc = el('div', 'tf-coment-novo');
+      var ta = el('textarea', 'input'); ta.placeholder = 'Escreva um comentário… (Ctrl+Enter envia)'; ta.setAttribute('aria-label', 'Novo comentário');
+      var env = el('button', 'btn btn-secondary'); env.type = 'button'; env.textContent = 'Comentar';
+      var enviar = function () {
+        var txt = ta.value.trim(); if (!txt) return;
+        env.disabled = true;
+        var c = { texto: txt.slice(0, 2000), por: eu.nome, porUid: eu.uid, em: agoraIso() };
+        db.collection('tarefas').doc(t.id).update({ comentarios: FV.arrayUnion(c), atualizadoEm: agoraIso(), atualizadoPor: eu.nome })
+          .then(function () { t.comentarios = (t.comentarios || []).concat([c]); desenharPainel(); })
+          .catch(function (err) { env.disabled = false; toast('Não comentou: ' + erroDe(err), 'erro'); });
+      };
+      env.addEventListener('click', enviar);
+      ta.addEventListener('keydown', function (ev) { if (ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)) { ev.preventDefault(); enviar(); } });
+      nc.appendChild(ta); nc.appendChild(env);
+      corpo.appendChild(nc);
+      var rod = el('div', 'tf-rodape', 'Criada por ' + (t.criadoPor || 'alguém') + (t.criadoEm ? ' em ' + new Date(t.criadoEm).toLocaleDateString('pt-BR') : '') +
+        (t.atualizadoPor ? ' · última mudança: ' + t.atualizadoPor : '') + (t.feitaPor ? ' · feita por ' + t.feitaPor : ''));
+      corpo.appendChild(rod);
+    }
+    p.appendChild(corpo);
+
+    var acoes = el('div', 'tf-peek-acoes');
+    if (t.rascunho) {
+      acoes.appendChild(botao('Cancelar', null, 'btn-secondary', fecharPainel));
+      acoes.appendChild(botao(t.tipo === 'requisicao' ? 'Criar requisição' : 'Criar tarefa', 'ph-check', 'btn-primary', criarDoPainel));
+    } else {
+      if (souAdmin() || t.criadoPorUid === eu.uid) {
+        acoes.appendChild(botao('Excluir', 'ph-trash', 'btn-ghost', async function () {
+          if (!(await NilmaDialogo.confirmar({ titulo: 'Excluir "' + (t.titulo || 'sem título') + '"?', texto: 'Some pra todo mundo. Não dá pra desfazer.', acao: 'Excluir', perigo: true }))) return;
+          db.collection('tarefas').doc(t.id).delete().then(function () { toast('Excluída.'); fecharPainel(); }).catch(function (err) { toast('Não excluiu: ' + erroDe(err), 'erro'); });
+        }));
+      }
+      acoes.appendChild(el('span', 'esp'));
+      acoes.lastChild.style.flex = '1';
+      acoes.appendChild(botao(t.status === 'feito' ? 'Reabrir' : 'Marcar como feito', t.status === 'feito' ? 'ph-arrow-counter-clockwise' : 'ph-check', t.status === 'feito' ? 'btn-secondary' : 'btn-primary',
+        function () { mudarStatus(t, t.status === 'feito' ? 'afazer' : 'feito'); desenharPainel(); }));
+    }
+    p.appendChild(acoes);
+    document.body.appendChild(p);
+    p.querySelector('.tf-peek-corpo').scrollTop = rolagem;
+    if (focarTitulo && t.rascunho) setTimeout(function () { titulo.focus(); }, 30);
+  }
+  function criarDoPainel() {
+    var t = aberta;
+    if (!t || !t.rascunho) return;
+    var tit = document.querySelector('.tf-titulo');
+    t.titulo = (tit ? tit.value : t.titulo || '').trim();
+    if (!t.titulo) { toast('Dê um nome.', 'erro'); if (tit) tit.focus(); return; }
+    var dados = Object.assign({}, t); delete dados.rascunho;
+    criar(dados).then(function (nova) { toast((nova.tipo === 'requisicao' ? 'Requisição' : 'Tarefa') + ' criada.'); aberta = nova; history.replaceState(null, '', '#tarefa/' + nova.id); desenharPainel(); }).catch(function () {});
+  }
+
+  // ------------------------------------------------------------ navegação
+  function irPara(p, empresaId) {
+    pagina = p;
+    empresaAberta = p === 'empresa' ? empresaId : null;
+    history.replaceState(null, '', '#' + (p === 'empresa' ? 'empresa/' + empresaId : p));
+    if ($('tfPeek')) { $('tfPeek').remove(); $('tfPeekFundo').remove(); aberta = null; }
+    desenhar();
+    window.scrollTo(0, 0);
+  }
+  document.querySelectorAll('#tabsNav .menu-item').forEach(function (b) {
+    b.addEventListener('click', function () { filtros = { busca: '', resp: '', prio: '', emp: '' }; irPara(b.dataset.pagina); });
+  });
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape' && $('tfPeek') && !document.querySelector('dialog[open]')) { ev.preventDefault(); fecharPainel(); }
+  });
+  function lerHash() {
+    var h = decodeURIComponent(location.hash.replace(/^#/, ''));
+    if (h.indexOf('tarefa/') === 0) {
+      var id = h.slice(7);
+      var abrir = function (t) { if (t) abrirPainel(t); else toast('Tarefa não encontrada (já foi feita?).', 'erro'); };
+      if (tarefas.has(id)) abrir(tarefas.get(id));
+      else db.collection('tarefas').doc(id).get().then(function (d) { abrir(d.exists ? Object.assign({ id: d.id }, d.data()) : null); }).catch(function () {});
+      return;
+    }
+    if (h.indexOf('empresa/') === 0) { irPara('empresa', h.slice(8)); return; }
+    if (['minhas', 'todas', 'requisicoes', 'empresas'].indexOf(h) !== -1) irPara(h);
+  }
+
+  // ------------------------------------------------------------ entrada
+  function portao(titulo, texto, acaoHtml) {
+    $('gateTitulo').textContent = titulo; $('gateTexto').textContent = texto; $('gateAcao').innerHTML = acaoHtml || '';
+    $('gate').hidden = false; $('app').hidden = true; $('topo').hidden = true; $('tabsNav').hidden = true; $('abasSecao').hidden = true;
+  }
+  NilmaShell.ao('aparencia', function () { NilmaConfig.abrir('conta'); });
+  NilmaShell.ao('sair', function () { auth.signOut().then(function () { location.href = 'entregas.html'; }); });
+  NilmaShell.ao('modulo', function (id) { return id === 'tarefas'; });
+  var conta = { nome: '', foto: '', iniciais: '', cargos: [] };
+  NilmaExtras.ligar({
+    db: db, auth: auth, firebase: firebase, origem: 'tarefas',
+    usuario: function () { return conta; },
+    aoMudarFoto: function (foto) { conta.foto = foto; NilmaShell.definirUsuario({ nome: conta.nome, iniciais: conta.iniciais, foto: foto }); },
+    toast: function (msg, tipo) { toast(msg, tipo === 'error' ? 'erro' : null); },
+    cargos: function () { return conta.cargos; },
+    aoMudarNome: function (nome) { conta.nome = nome; eu.nome = nome; NilmaShell.definirUsuario({ nome: nome, foto: conta.foto }); },
+    clientes: function () { return carregarClientes(); },
+    sair: function () { auth.signOut().then(function () { location.href = 'entregas.html'; }); },
+    versao: VERSAO_APP
+  });
+  auth.onAuthStateChanged(function (user) {
+    if (!user) { portao('Faça login', 'Entre pelo Entregas pra abrir as Tarefas.', '<a class="btn btn-primary" href="entregas.html">Ir para o login</a>'); return; }
+    db.collection('usuarios').doc(user.uid).get().then(function (snap) {
+      var d = snap.exists ? snap.data() : {};
+      var roles = Array.isArray(d.roles) ? d.roles : (d.role ? [d.role] : []);
+      if (!roles.length) { portao('Sem acesso', 'Sua conta ainda não faz parte da equipe.', '<a class="btn btn-secondary" href="entregas.html">Voltar ao Entregas</a>'); return; }
+      eu = { uid: user.uid, nome: d.nome || String(user.email || '').split('@')[0], roles: roles };
+      conta = { nome: eu.nome, foto: d.fotoPerfil || '', iniciais: iniciais(eu.nome), cargos: roles };
+      NilmaShell.definirUsuario({ nome: eu.nome, iniciais: conta.iniciais, foto: conta.foto,
+        podeVer: function (id, papel) { return !papel || roles.indexOf('admin') !== -1 || roles.indexOf(papel) !== -1; } });
+      if (window.NilmaUI) {
+        window.NilmaUI.daConta(d);
+        window.NilmaUI.aoSalvar = function (campo, valor) { var x = {}; x[campo] = valor; db.collection('usuarios').doc(user.uid).update(x).catch(function () {}); };
+      }
+      $('gate').hidden = true; $('app').hidden = false; $('topo').hidden = false; $('tabsNav').hidden = false;
+      $('pagina').appendChild(el('div', 'tf-vazio', 'Carregando…'));
+      Promise.all([carregarEquipe(), carregarClientes().catch(function () { return []; })]).then(function () {
+        ouvirTarefas();
+        var primeira = true;
+        var esperar = setInterval(function () {
+          if (!carregou) return;
+          clearInterval(esperar);
+          if (primeira) { primeira = false; if (location.hash) lerHash(); else desenhar(); }
+        }, 50);
+      });
+    }).catch(function () { portao('Erro ao entrar', 'Tente recarregar a página.', ''); });
+  });
+  window.addEventListener('hashchange', function () { if (carregou) lerHash(); });
+})();
+</script>
+</body>
+</html>
