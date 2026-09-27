@@ -283,6 +283,21 @@ async function dispararPara(p, ref) {
 
 // ---------- leitura do Gmail (roda o robô) ----------
 let lendo = false;
+// A leitura (ou o salvar) que está rodando agora: dá pra parar pela tela
+// (pedido tipo 'cancelar') e o vigia para sozinho a que travar.
+let filhoAtual = null;
+const TRAVADA_MS = 10 * 60 * 1000;      // 10 min sem nenhuma notícia do filho = travou
+const LEITURA_MAX_MS = 60 * 60 * 1000;  // e nenhuma leitura passa de 1 h
+function pararFilho(motivo) {
+  const f = filhoAtual;
+  if (!f || f.parado) return false;
+  f.parado = motivo;
+  log('parando a leitura:', motivo);
+  try { f.kill(); } catch (e) {}
+  // se não sair por bem em 5 s, sai à força
+  setTimeout(() => { try { if (f.exitCode === null) f.kill('SIGKILL'); } catch (e) {} }, 5000);
+  return true;
+}
 // Janela da leitura automática: cobre desde a última leitura que terminou,
 // com folga. PC desligado de sexta a terça (ou uma semana de feriado) não
 // deixa e-mail pra trás; o robô pula sozinho o que já leu.
@@ -335,10 +350,18 @@ function rodarRobo(dias, motivo) {
     publicarAndamento({ ativo: true, tipo: 'leitura', motivo, inicio: agora(), fase: 'começando', feito: 0, total: 0, texto: 'Começando a leitura do Gmail (' + motivo + ')' }, true);
     const saida = [];
     const filho = spawn(process.execPath, [ROBO, String(dias || 3)], { cwd: __dirname });
+    filhoAtual = filho;
+    const comecou = Date.now();
+    let ultimaNoticia = Date.now();
+    const vigiaTrava = setInterval(() => {
+      if (Date.now() - ultimaNoticia > TRAVADA_MS) pararFilho('travou (10 min sem andar)');
+      else if (Date.now() - comecou > LEITURA_MAX_MS) pararFilho('passou de 1 hora');
+    }, 30 * 1000);
     // A saída chega em pedaços: uma linha pode vir partida ao meio. O resto
     // sem quebra de linha espera o próximo pedaço.
     const restos = { out: '', err: '' };
     const guardarDe = qual => b => {
+      ultimaNoticia = Date.now();
       const linhas = (restos[qual] + String(b)).split(/\r?\n/);
       restos[qual] = linhas.pop();
       linhas.filter(Boolean).forEach(l => { if (lerLinhaDeAndamento(l)) return; saida.push(l); if (saida.length > 40) saida.shift(); });
@@ -352,6 +375,17 @@ function rodarRobo(dias, motivo) {
     });
     filho.on('close', async code => {
       lendo = false;
+      clearInterval(vigiaTrava);
+      if (filhoAtual === filho) filhoAtual = null;
+      if (filho.parado) {
+        const cancelada = /^cancelada/.test(filho.parado);
+        const texto = cancelada ? 'Leitura ' + filho.parado + '. O que já tinha sido lido ficou gravado.' : 'A leitura ' + filho.parado + ' e foi interrompida. A próxima leitura continua de onde parou.';
+        await roboRef.set({ status: cancelada ? 'ok' : 'erro', statusEm: agora(), statusMsg: texto }, { merge: true }).catch(() => {});
+        log(texto);
+        publicarAndamento({ ativo: false, fim: agora(), fase: cancelada ? 'concluida' : 'erro', feito: (andamentoAtual && andamentoAtual.feito) || 0, texto }, true);
+        if (!cancelada) await alertar('a leitura do Gmail travou', texto + '\nÚltima linha: ' + (saida.slice(-1)[0] || '-'));
+        return resolve({ ok: false, resumo: '', erro: texto, cancelada });
+      }
       const ultima = saida.filter(l => !/limite de uso/.test(l)).slice(-1)[0] || '';
       let robo = {};
       try { robo = (await roboRef.get()).data() || {}; } catch (err) { log('não consegui ler o estado depois da leitura:', err.message); }
@@ -389,6 +423,7 @@ function salvarMensagem(p) {
     }, true);
     const saida = [];
     const filho = spawn(process.execPath, argsRobo, { cwd: __dirname });
+    filhoAtual = filho;
     const restos = { out: '', err: '' };
     const guardarDe = qual => b => {
       const linhas = (restos[qual] + String(b)).split(/\r?\n/);
@@ -403,6 +438,8 @@ function salvarMensagem(p) {
     }, true);
     filho.on('error', err => { terminar(false, 'Não consegui começar: ' + err.message); reject(err); });
     filho.on('close', () => {
+      if (filhoAtual === filho) filhoAtual = null;
+      if (filho.parado) { terminar(false, 'Salvamento ' + filho.parado + '.'); return resolve({ status: 'cancelado', canceladoEm: agora(), erro: filho.parado }); }
       [restos.out, restos.err].filter(Boolean).forEach(l => { if (!lerLinhaDeAndamento(l)) saida.push(l); });
       const linha = saida.filter(l => l.startsWith('RESULTADO:')).pop();
       let r = null;
@@ -587,7 +624,7 @@ async function atenderFila() {
   try {
     for (;;) {
       const snap = await fila.where('status', '==', 'pendente').get();
-      const pendentes = snap.docs.sort((a, b) => String(a.data().criadoEm).localeCompare(String(b.data().criadoEm)));
+      const pendentes = snap.docs.filter(d => d.data().tipo !== 'cancelar').sort((a, b) => String(a.data().criadoEm).localeCompare(String(b.data().criadoEm)));
       if (!pendentes.length) break;
       const doc = pendentes[0];
       const p = doc.data();
@@ -612,8 +649,9 @@ async function atenderFila() {
         else if (p.tipo === 'verificar') {
           while (lendo) await new Promise(r => setTimeout(r, 2000));
           const r = await rodarRobo(p.dias || 3, 'pedido por ' + (p.criadoPor || 'alguém'));
-          if (!r.ok) throw new Error(r.erro || 'o robô terminou com erro');
-          resultado = { status: 'concluido', concluidoEm: agora(), resumo: r.resumo };
+          if (r.cancelada) resultado = { status: 'cancelado', canceladoEm: agora(), resumo: r.erro };
+          else if (!r.ok) throw new Error(r.erro || 'o robô terminou com erro');
+          else resultado = { status: 'concluido', concluidoEm: agora(), resumo: r.resumo };
         } else if (p.tipo === 'salvar') {
           // Não roda junto com uma leitura automática: as duas mexem no
           // mesmo controle de e-mails já lidos.
@@ -717,7 +755,16 @@ async function iniciar() {
   setInterval(limparFila, 24 * 36e5);
 
   fila.where('status', '==', 'pendente').onSnapshot(
-    snap => { if (!snap.empty) atenderFila(); },
+    snap => {
+      // "Cancelar" na tela: para a leitura/salvamento em curso agora, sem esperar a fila
+      snap.docs.filter(d => d.data().tipo === 'cancelar').forEach(d => {
+        const quem = d.data().criadoPor || 'alguém';
+        const parou = pararFilho('cancelada por ' + quem);
+        d.ref.update({ status: 'concluido', concluidoEm: agora(), resultado: parou ? 'parada' : 'nada rodando' }).catch(() => {});
+        if (!parou) publicarAndamento({ ativo: false, fim: agora(), fase: 'concluida', texto: 'Nada estava rodando.' }, true);
+      });
+      if (snap.docs.some(d => d.data().tipo !== 'cancelar')) atenderFila();
+    },
     err => { log('perdi a conexão com a fila:', err.message); process.exit(1); }
   );
 

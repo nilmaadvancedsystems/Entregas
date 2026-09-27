@@ -29,6 +29,19 @@ Módulo novo no menu ☰, **Tarefas** (`tarefas.html`), pra equipe toda:
 - Regras: `tarefas` a equipe lê, cria e edita; quem criou não muda; apagar
   só quem criou ou o admin.
 
+**Versão 2.378 — leitura do Gmail que não termina:**
+
+- O vigia (`vigia-robo.js`) rodava a leitura sem prazo e sem jeito de
+  parar: um PDF que o leitor não termina de ler deixava "Lendo o Gmail"
+  pra sempre. Agora: leitura 10 min sem nenhuma notícia, ou mais de 1 h, é
+  interrompida (aviso por e-mail, "A leitura travou e foi interrompida"); e a
+  tela do Robô tem **Cancelar** no cartão da leitura/salvamento (pedido
+  `solicitacoesEmail` tipo `cancelar`, atendido na hora, fora da fila). O que
+  já foi lido fica gravado; a próxima leitura continua de onde parou.
+- A conferência de comprovante de parcela só abre PDF de cliente que tem
+  parcelamento ativo (1 leitura por execução), só PDF até 3 MB e desiste do
+  PDF que não lê em 20 s.
+
 **Versão 2.377 — Parcelamentos, etapa 3 (robô) e fotos de perfil:**
 
 - **Parcela paga pelo comprovante** (`scripts/parcela-paga.js`): quando o

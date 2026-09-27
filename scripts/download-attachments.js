@@ -592,6 +592,11 @@ async function main() {
   const db = getDb('entregas-2e5e2');
   const FV = FieldValue;
   const parcelamentosLidos = new Map();   // clienteId -> parcelamentos (1 leitura por cliente nesta execução)
+  // Só quem tem parcelamento ativo tem comprovante de parcela pra conferir:
+  // os PDFs dos outros clientes nem são abertos por causa disso.
+  let comParcelamento = new Set();
+  try { comParcelamento = new Set((await db.collection('parcelamentos').where('aberto', '==', true).get()).docs.map(d => d.data().clienteId)); }
+  catch (err) { console.error('parcelamentos: não consegui ler -', err.message); }
 
   andamento({ fase: 'preparando', texto: 'Carregando os clientes' });
   // do arquivo que o vigia mantém, quando está fresco; senão, do banco
@@ -846,7 +851,7 @@ async function main() {
 
       // Comprovante de parcela (PGFN, Simples, Receita...): marca a parcela
       // paga no parcelamento cadastrado do cliente (scripts/parcela-paga.js).
-      if (comBytes.length) {
+      if (comBytes.length && comParcelamento.has(cliente.id)) {
         try {
           const pagas = await require('./parcela-paga').conferirGuias({
             db, FV, cliente, anexos: comBytes, textoDe: textoDoPdf, dicas: assunto + ' ' + trecho, tipos,

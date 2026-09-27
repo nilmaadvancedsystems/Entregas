@@ -614,6 +614,7 @@
   .andamento-robo { padding: 14px 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
   .andamento-robo.erro { border-color: var(--destructive, #cf222e); }
   .andamento-cab { display: flex; align-items: center; gap: 10px; }
+  .andamento-cancelar { flex: none; margin-left: 4px; }
   .andamento-cab > .ph { font-size: 20px; color: var(--ink-muted); flex: none; }
   .andamento-robo.ok .andamento-cab > .ph { color: var(--success, #2da44e); }
   .andamento-robo.erro .andamento-cab > .ph { color: var(--destructive, #cf222e); }
@@ -1358,7 +1359,7 @@
 <script src="nilma-solicitacoes.js?v=358"></script>
 <script src="nilma-extras.js?v=355"></script>
 <script>
-  var VERSAO_APP = '2.377 · 27/09/2026';
+  var VERSAO_APP = '2.378 · 27/09/2026';
   NilmaShell.montar({ modulo: 'Pendências', moduloId: 'pendencias', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false, versao: VERSAO_APP });
   // antes do login só a tela de entrada; a barra aparece junto com o app
   document.getElementById('topo').hidden = true;
@@ -6965,13 +6966,30 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
 
   // ---------- fila e vigia na página do robô ----------
   var filaEmail = [];
+  var cancelandoLeitura = false;
   var unsubFila = null;
+  // Parar a leitura do Gmail (ou o salvamento) que está rodando: o robô
+  // atende na hora, fora da ordem da fila, e o que já foi lido fica gravado.
+  async function cancelarLeitura(btn) {
+    var ok = window.NilmaDialogo ? await NilmaDialogo.confirmar({ titulo: 'Parar a leitura do Gmail?', texto: 'O que já foi lido fica gravado. A próxima leitura continua de onde parou.', acao: 'Parar leitura', perigo: true })
+      : confirm('Parar a leitura do Gmail?');
+    if (!ok) return;
+    btn.disabled = true;
+    db.collection('solicitacoesEmail').add({ tipo: 'cancelar', status: 'pendente', criadoEm: new Date().toISOString(), criadoPor: quemSou(),
+      criadoPorEmail: (auth.currentUser && auth.currentUser.email) || '' })
+      .then(function () { toast(vigiaLigado() ? 'Parando a leitura…' : 'O robô está fora do ar: não há leitura rodando.'); })
+      .catch(function (err) { btn.disabled = false; toast('Não consegui pedir: ' + (err.message || err), 'erro'); });
+  }
   function subscribeFila() {
     if (unsubFila) { unsubFila(); unsubFila = null; }
     unsubFila = db.collection('solicitacoesEmail').where('status', 'in', ['pendente', 'processando'])
       .onSnapshot(function (snap) {
-        filaEmail = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+        var todos = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+        // pedido de "cancelar" não é da fila: só avisa que o cancelamento foi pedido
+        cancelandoLeitura = todos.some(function (f) { return f.tipo === 'cancelar' && f.status === 'pendente'; });
+        filaEmail = todos.filter(function (f) { return f.tipo !== 'cancelar'; });
         renderVigia();
+        if (configRobo.andamento && configRobo.andamento.ativo) renderAndamentoRobo();
       }, function () {});
   }
 
@@ -7038,6 +7056,14 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
       var total = Number(a.total) || 0, feito = Math.min(Number(a.feito) || 0, total);
       var pct = pctDoAndamento(a, ativo);
       if (pct != null) cab.appendChild(el('span', 'andamento-pct', pct + '%'));
+      if (ativo && !disparo) {
+        var bc = el('button', 'btn btn-secondary btn-sm andamento-cancelar'); bc.type = 'button';
+        bc.appendChild(ico('ph-x')); bc.appendChild(document.createTextNode(cancelandoLeitura ? ' Parando…' : ' Cancelar'));
+        bc.disabled = cancelandoLeitura;
+        bc.title = salvar ? 'Parar o salvamento no Drive' : 'Parar a leitura do Gmail';
+        bc.addEventListener('click', function () { cancelarLeitura(bc); });
+        cab.appendChild(bc);
+      }
       card.appendChild(cab);
 
       var barra = el('div', 'andamento-barra' + (pct == null ? ' indeterminada' : ''));

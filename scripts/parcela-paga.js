@@ -126,14 +126,17 @@ const DICAS = /darf|\bdas\b|guia|parcel|pgfn|receita|simples|comprovante|pagamen
 // anexos: os que têm bytes; textoDe(a) devolve o texto do PDF (com cache).
 // -> [{ texto }] do que foi marcado (pra andamento da tela)
 async function conferirGuias({ db, FV, cliente, anexos, textoDe, dicas, tipos, mensagemId, dataMs, simular, log, cache }) {
-  const pdfs = (anexos || []).filter(a => a.mimeType === 'application/pdf' && a.buffer);
+  // comprovante é pequeno: PDF grande (extrato de 200 páginas) nem é aberto
+  const pdfs = (anexos || []).filter(a => a.mimeType === 'application/pdf' && a.buffer && a.buffer.length <= 3 * 1024 * 1024);
   if (!pdfs.length) return [];
   const temDica = DICAS.test(String(dicas || '') + ' ' + pdfs.map(a => a.filename).join(' ')) || (tipos || []).includes('comprovante');
   if (!temDica) return [];
   const feitos = [];
   let parcs = cache && cache.get(cliente.id);
   for (const a of pdfs) {
-    const guia = lerGuiaPaga(await textoDe(a));
+    // PDF que o leitor não termina de ler em 20 s fica de fora (não trava a leitura toda)
+    const textoPdf = await Promise.race([Promise.resolve(textoDe(a)).catch(() => ''), new Promise(r => setTimeout(() => r(''), 20000))]);
+    const guia = lerGuiaPaga(textoPdf);
     if (!guia) continue;
     if (!parcs) {
       const snap = await db.collection('parcelamentos').where('clienteId', '==', cliente.id).get();
