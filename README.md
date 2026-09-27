@@ -29,6 +29,24 @@ Módulo novo no menu ☰, **Tarefas** (`tarefas.html`), pra equipe toda:
 - Regras: `tarefas` a equipe lê, cria e edita; quem criou não muda; apagar
   só quem criou ou o admin.
 
+**Versão 2.387 — foto do Google de quem manda e-mail:**
+
+- O Gmail não dá a foto do remetente; a API de Contatos (People) dá: nos
+  contatos salvos e nos "outros contatos" (o Gmail cria com quem trocou
+  e-mail) vem a foto do perfil do Google. `scripts/fotos-remetentes.js` lê
+  as duas listas a cada 6 h e grava `robo/fotos.porEmail` (e-mail → foto). A
+  tela do Robô usa a foto no lugar das iniciais (lista de e-mails, "Sem
+  cliente", cabeçalho do e-mail aberto) e na lista de Clientes (pelo e-mail
+  do cadastro); sem foto, ou se não carregar, ficam as iniciais.
+- Permissões novas em `gmail-auth.js`: `contacts.other.readonly` e
+  `contacts.readonly` (só leitura). Precisa ligar a **People API** no projeto
+  do Google Cloud e refazer a autorização uma vez.
+- Trocar o token do robô da nuvem sem entrar na máquina
+  (`scripts/token-novo.js`): o `gmail-auth.js` imprime o token novo; ele vai
+  no metadado **gmail-token-novo** da máquina robo-nilma; a cada 5 min o robô
+  confere, guarda o atual em `gmail_token.json.anterior`, grava o novo e
+  religa. Token igual ao do disco não faz nada.
+
 **Versão 2.386 — cobrança só com o que falta:** por padrão o e-mail de
 cobrança não mostra mais o que já chegou (os selos "✓ Recebido" dos bancos,
 a barra "X de Y já chegaram"): cada documento lista só os bancos que faltam.

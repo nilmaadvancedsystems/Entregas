@@ -759,6 +759,10 @@ async function iniciar() {
   catch (err) { log('aviso de documento vencendo desligado:', err.message); }
   try { require('./lembretes').iniciarLembretes({ db, log, avisos }); }
   catch (err) { log('lembretes do escritório desligados:', err.message); }
+  try { require('./fotos-remetentes').iniciarFotosRemetentes(db, log); }
+  catch (err) { log('fotos dos remetentes desligadas:', err.message); }
+  try { require('./token-novo').iniciarTokenNovo(log); }
+  catch (err) { log('troca do token pelo metadado desligada:', err.message); }
   try { require('./avisos-atrasados').iniciarAvisosAtrasados({ db, log, avisos }); }
   catch (err) { log('aviso de tarefas e parcelas atrasadas desligado:', err.message); }
   try { require('./pedidos-do-portal').iniciarPedidosDoPortal(db, log, avisos); }

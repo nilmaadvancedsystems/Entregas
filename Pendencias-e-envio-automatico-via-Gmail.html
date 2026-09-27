@@ -662,7 +662,8 @@
   .anexo-acao { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
   .tab-simples .anexo-acao { flex-wrap: nowrap; }
   .tab-simples td.quando { white-space: nowrap; color: var(--ink-muted); font-size: 13px; }
-  .av-mini { flex: none; display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; font-size: 12px; font-weight: 700; color: #FFFFFF; }
+  .av-mini { position: relative; overflow: hidden; flex: none; display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; font-size: 12px; font-weight: 700; color: #FFFFFF; }
+  .av-mini img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: var(--surface-3); }
   .quem-linha { display: flex; align-items: center; gap: 10px; min-width: 0; }
   .quem-linha .qx { min-width: 0; }
   #tabCaixa .email-assunto, #tabSpam .email-assunto, #tabNaoRec .email-assunto { font-weight: 600; }
@@ -1399,7 +1400,7 @@
 <script src="nilma-solicitacoes.js?v=358"></script>
 <script src="nilma-extras.js?v=355"></script>
 <script>
-  var VERSAO_APP = '2.386 · 27/09/2026';
+  var VERSAO_APP = '2.387 · 27/09/2026';
   NilmaShell.montar({ modulo: 'Pendências', moduloId: 'pendencias', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false, versao: VERSAO_APP });
   // antes do login só a tela de entrada; a barra aparece junto com o app
   document.getElementById('topo').hidden = true;
@@ -2541,7 +2542,7 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
   }
   function celulaQuando(iso) { var td = el('td', 'num quando', quandoCurto(iso)); td.title = dataHora(iso); return td; }
   // bolinha com as iniciais, na mesma cor sempre pro mesmo nome
-  function avatarDe(nome, cls) {
+  function avatarDe(nome, cls, email) {
     var limpo = String(nome || '').replace(/<.*?>/g, '').replace(/[^\p{L}\p{N}\s.@-]/gu, ' ').trim();
     // empresa: sem LTDA, ME, "de"... ("PADARIA SAO JOSE LTDA" -> "PS")
     var palavras = limpo.replace(/@.*$/, '').split(/[\s.]+/).filter(function (w) { return w && !/^(ltda|me|epp|eireli|sa|mei|cia|de|da|do|das|dos|e|s)$/i.test(w); });
@@ -2550,8 +2551,19 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
     var h = 0; String(limpo).split('').forEach(function (ch) { h = (h * 31 + ch.charCodeAt(0)) % 360; });
     a.style.background = 'hsl(' + h + ' 45% 42%)';
     a.setAttribute('aria-hidden', 'true');
+    if (email) { a.dataset.email = String(email).trim().toLowerCase(); pintarFoto(a); }
     return a;
   }
+  // a foto por cima das iniciais; se não carregar, ficam as iniciais
+  function pintarFoto(a) {
+    var url = (fotosRemetentes || {})[a.dataset.email];
+    if (!url || a.querySelector('img')) return;
+    var img = document.createElement('img');
+    img.alt = ''; img.loading = 'lazy'; img.referrerPolicy = 'no-referrer'; img.src = url;
+    img.addEventListener('error', function () { img.remove(); a.classList.remove('com-foto'); });
+    a.appendChild(img); a.classList.add('com-foto');
+  }
+  function aplicarFotos() { document.querySelectorAll('.av-mini[data-email]').forEach(pintarFoto); }
   function dataSo(iso) {
     var d = new Date(iso);
     if (isNaN(d.getTime())) return '';
@@ -3426,7 +3438,19 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
   }
 
   // ---------- dados ----------
+  // Fotos de perfil do Google de quem manda e-mail (robo/fotos, montado pelo
+  // robô a partir dos contatos: scripts/fotos-remetentes.js).
+  var fotosRemetentes = {};
+  var unsubFotos = null;
+  function subscribeFotos() {
+    if (unsubFotos) return;
+    unsubFotos = db.collection('robo').doc('fotos').onSnapshot(function (doc) {
+      fotosRemetentes = (doc.exists && doc.data().porEmail) || {};
+      aplicarFotos();
+    }, function () {});
+  }
   function subscribeRobo() {
+    subscribeFotos();
     if (unsubRobo) { unsubRobo(); unsubRobo = null; }
     unsubRobo = db.collection('robo').doc('estado').onSnapshot(function (doc) {
       configRobo = doc.exists ? doc.data() : {};
@@ -3914,7 +3938,7 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
     var sub = el('div', 'lc-sub');
     info.appendChild(nome); info.appendChild(sub);
     info.addEventListener('click', function () { abrirDetalhe(cliente.id); });
-    row.appendChild(avatarDe(cliente.nomeFantasia || cliente.nome, 'lc-av'));
+    row.appendChild(avatarDe(cliente.nomeFantasia || cliente.nome, 'lc-av', cliente.email || (Array.isArray(cliente.emails) ? cliente.emails[0] : '')));
     row.appendChild(info);
 
     var inds = el('div', 'doc-inds col-docs');
@@ -4725,7 +4749,7 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
       var tbN = el('tbody');
       naoRec.slice(0, 40).forEach(function (r) {
         var linha = el('tr');
-        var td1 = el('td'); var q1 = el('div', 'quem-linha'); q1.appendChild(avatarDe(r.nome || r.remetente)); var x1 = el('div', 'qx');
+        var td1 = el('td'); var q1 = el('div', 'quem-linha'); q1.appendChild(avatarDe(r.nome || r.remetente, '', r.remetente)); var x1 = el('div', 'qx');
         x1.appendChild(el('div', null, r.remetente)); if (r.nome) x1.appendChild(el('div', 'sub', r.nome)); q1.appendChild(x1); td1.appendChild(q1); linha.appendChild(td1);
         linha.appendChild(celulaAssunto(r));
         linha.appendChild(celulaAnexos(r.arquivos));
@@ -7419,7 +7443,7 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
     var deNome = String(deTxt).replace(/<.*?>/, '').replace(/"/g, '').trim() || it.remetente || '';
     var deMail = (String(deTxt).match(/<([^>]+)>/) || [])[1] || it.remetente || '';
     var cabDe = $('emailDe'); cabDe.innerHTML = '';
-    cabDe.appendChild(avatarDe(deNome || deMail, 'grande'));
+    cabDe.appendChild(avatarDe(deNome || deMail, 'grande', deMail));
     var dx = el('div', 'dx');
     var l1 = el('div', 'l1'); l1.appendChild(el('b', null, deNome || deMail)); if (deMail && deMail !== deNome) l1.appendChild(el('span', 'mail', '<' + deMail + '>'));
     dx.appendChild(l1);
@@ -7857,7 +7881,7 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
       var linha = el('tr');
       linha.appendChild(celulaQuando(c.em));
       var tdC = el('td');
-      var quem = el('div', 'quem-linha'); quem.appendChild(avatarDe(nomeExibicao(cli)));
+      var quem = el('div', 'quem-linha'); quem.appendChild(avatarDe(nomeExibicao(cli), '', c.remetente));
       var qx = el('div', 'qx');
       var bC = el('button', 'link'); bC.type = 'button'; bC.textContent = nomeExibicao(cli);
       bC.addEventListener('click', function () { abrirDetalhe(cli.id, 'abaComunicacao'); });

@@ -15,6 +15,11 @@ const TOKEN_PATH = __dirname + '/gmail_token.json';
 // para achar o mês certo e reconhecer anexo repetido.  drive.file: gravar,
 // e só no que ele mesmo criar.
 //
+// contacts.other.readonly + contacts.readonly: só LER os contatos (os salvos
+// e os "outros contatos", que o Gmail cria com quem trocou e-mail) — é daí que
+// vem a foto de perfil do Google de quem manda e-mail, pra tela do Robô
+// (scripts/fotos-remetentes.js). Não dá pra criar, mudar nem apagar contato.
+//
 // Nenhum deles dá poder de apagar. Não existe aqui gmail.modify (que mexeria
 // nos e-mails do escritório) nem o drive inteiro (que apagaria arquivo). Se um
 // dia alguém precisar disso, terá de acrescentar nesta lista, à vista de todos,
@@ -24,6 +29,8 @@ const SCOPES = [
   'https://www.googleapis.com/auth/gmail.send',
   'https://www.googleapis.com/auth/drive.readonly',
   'https://www.googleapis.com/auth/drive.file',
+  'https://www.googleapis.com/auth/contacts.other.readonly',
+  'https://www.googleapis.com/auth/contacts.readonly',
 ];
 const PORT = 51733;
 
@@ -56,6 +63,11 @@ const server = http.createServer(async (req, res) => {
     try { fs.copyFileSync(TOKEN_PATH, TOKEN_PATH + '.anterior'); } catch (e) { /* primeira vez */ }
     fs.writeFileSync(TOKEN_PATH, JSON.stringify(tokens, null, 2));
     console.log('TOKEN_SALVO_OK');
+    // Robô na nuvem: o token novo vai pro metadado "gmail-token-novo" da
+    // máquina (Compute Engine › robo-nilma › Editar › Metadados); o robô troca
+    // sozinho em até 5 minutos (scripts/token-novo.js).
+    console.log('\nPara o robô da nuvem, copie o texto abaixo para o metadado "gmail-token-novo" da máquina robo-nilma:\n');
+    console.log(JSON.stringify(tokens));
     process.exit(0);
   } catch (err) {
     console.error('ERRO_TROCA_TOKEN:', err.message);

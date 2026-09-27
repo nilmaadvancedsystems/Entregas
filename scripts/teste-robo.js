@@ -616,6 +616,21 @@ igual('resposta a e-mail que a própria caixa mandou vai pro destinatário', rgm
 const mimeResp = Buffer.from(require('./mensagem-gmail').montarMensagem({ de: 'n@x.com', para: 'a@b.com', cc: ['c@d.com'], assunto: 'Re: x', corpo: 'oi', cabecalhos: ['In-Reply-To: <abc@x>', 'Bad\r\nInjected: y'] }).replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString();
 igual('mensagem: Cc e In-Reply-To entram; cabeçalho com quebra de linha não', [/\r\nCc: c@d.com\r\n/.test(mimeResp), /In-Reply-To: <abc@x>/.test(mimeResp), /Injected/.test(mimeResp)], [true, true, false]);
 
+// ---------- fotos dos remetentes e troca do token ----------
+const fr = require('./fotos-remetentes');
+igual('fotos: e-mail em minúsculas, tamanho 96, foto padrão fica de fora', fr.fotosDasPessoas([
+  { emailAddresses: [{ value: 'Jose@Padaria.com' }], photos: [{ url: 'https://lh3.googleusercontent.com/a/abc=s100', default: false }] },
+  { emailAddresses: [{ value: 'semfoto@x.com' }], photos: [{ url: 'https://lh3.googleusercontent.com/a/def=s100', default: true }] },
+  { emailAddresses: [{ value: 'b@x.com' }, { value: 'c@x.com' }], photos: [{ url: 'https://lh3.googleusercontent.com/a/ghi' }] },
+]), { 'jose@padaria.com': 'https://lh3.googleusercontent.com/a/abc=s96-c', 'b@x.com': 'https://lh3.googleusercontent.com/a/ghi=s96-c', 'c@x.com': 'https://lh3.googleusercontent.com/a/ghi=s96-c' });
+const tn = require('./token-novo');
+igual('token novo: troca quando o refresh_token ou as permissões mudam', [
+  !!tn.tokenParaTrocar('{"refresh_token":"b","scope":"x y"}', '{"refresh_token":"a","scope":"x"}'),
+  !!tn.tokenParaTrocar('{"refresh_token":"a","scope":"x y"}', '{"refresh_token":"a","scope":"x"}'),
+  tn.tokenParaTrocar('{"refresh_token":"a","scope":"x"}', '{"refresh_token":"a","scope":"x"}'),
+  tn.tokenParaTrocar('lixo', '{}'), tn.tokenParaTrocar('{"access_token":"so"}', '{}'),
+], [true, true, null, null, null]);
+
 // os testes que leem PDF são assíncronos: o resultado espera por eles
 esperarExtratos.then(() => {
   console.log(falhas ? '\n' + falhas + ' de ' + total + ' testes FALHARAM' : total + ' testes, todos passaram');
