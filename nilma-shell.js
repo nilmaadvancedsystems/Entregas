@@ -16,7 +16,7 @@
   'use strict';
 
   var MODULOS_PADRAO = [
-    { id: 'entregas',   rotulo: 'Entregas',           icone: 'ph-truck',           href: 'entregas.html' },
+    { id: 'entregas',   rotulo: 'Entregas',           icone: 'ph-truck',           href: 'entregas.html#entregas' },
     { id: 'clientes',   rotulo: 'Clientes e ajustes', icone: 'ph-users',           href: 'entregas.html#clientes' },
     // tarefas e requisições por empresa (tarefas.html): a equipe toda
     { id: 'tarefas',    rotulo: 'Tarefas',            icone: 'ph-list-checks',     href: 'tarefas.html' },

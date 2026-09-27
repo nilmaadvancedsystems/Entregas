@@ -29,6 +29,11 @@ Módulo novo no menu ☰, **Tarefas** (`tarefas.html`), pra equipe toda:
 - Regras: `tarefas` a equipe lê, cria e edita; quem criou não muda; apagar
   só quem criou ou o admin.
 
+**Versão 2.383:** "Entregas" no menu de módulos (☰) abre a tela de
+Entregas (`entregas.html#entregas`); antes abria a última tela usada no
+aparelho — quase sempre Clientes — e era preciso tocar de novo. O logo
+continua abrindo a última tela.
+
 **Versão 2.382 — tarefa: anexos e expandir:**
 
 - **Anexos na tarefa**: clicar na área "Clique, arraste ou cole", arrastar
