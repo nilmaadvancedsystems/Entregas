@@ -188,6 +188,44 @@
   .tf-peek-topo { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--border); }
   .tf-peek-topo .esp { flex: 1; }
   .tf-peek-corpo { flex: 1; overflow-y: auto; padding: 24px 28px 36px; }
+  .tf-peek-topo .tf-expandir { margin-left: 4px; }
+  @media (max-width: 760px) { .tf-peek-topo .tf-expandir { display: none; } }
+  /* expandido: janela grande no meio, no estilo das Configurações */
+  .tf-peek-fundo.grande { background: #1F232866; }
+  :root[data-theme="dark"] .tf-peek-fundo.grande { background: #01040999; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .tf-peek-fundo.grande { background: #01040999; } }
+  @media (min-width: 761px) {
+    .tf-peek.grande { top: 0; bottom: 0; left: 0; right: 0; margin: auto; width: min(1080px, calc(100vw - 48px)); height: min(760px, calc(100vh - 48px)); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; animation: popIn .16s ease-out both; }
+    .tf-peek.grande .tf-peek-corpo { display: grid; grid-template-columns: minmax(0, 1fr) 340px; grid-template-rows: auto 1fr; padding: 0; overflow: hidden; }
+    .tf-peek.grande .tf-titulo { grid-column: 1; grid-row: 1; margin: 0; padding: 28px 32px 8px; }
+    .tf-peek.grande .tf-peek-principal { grid-column: 1; grid-row: 2; overflow-y: auto; padding: 0 32px 32px; }
+    .tf-peek.grande .tf-peek-lado { grid-column: 2; grid-row: 1 / 3; overflow-y: auto; padding: 24px 20px; border-left: 1px solid var(--border); background: var(--surface-2); }
+    .tf-peek.grande .tf-peek-lado .tf-props { grid-template-columns: 1fr; gap: 2px; }
+    .tf-peek.grande .tf-peek-lado .tf-props > .rot { min-height: 22px; margin-top: 8px; font-size: 12px; }
+    .tf-peek.grande .tf-mais { margin: 12px 0 4px; }
+    .tf-peek.grande .tf-peek-principal > .tf-bloco-tit:first-child { margin-top: 12px; }
+  }
+  /* anexos */
+  .tf-anexos { display: flex; flex-direction: column; gap: 6px; }
+  .tf-anexo { display: flex; align-items: center; gap: 4px; padding: 4px 4px 4px 0; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); position: relative; overflow: hidden; }
+  .tf-anexo .abre { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 4px 10px; border: 0; background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+  .tf-anexo button.abre:hover b { color: var(--accent); }
+  .tf-anexo .abre > .ph { flex: none; font-size: 22px; color: var(--ink-muted); }
+  .tf-anexo .tx { min-width: 0; display: flex; flex-direction: column; }
+  .tf-anexo .tx b { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tf-anexo .tx small { font-size: 12px; color: var(--ink-muted); }
+  .tf-anexo.pendente, .tf-anexo.subindo { border-style: dashed; }
+  .tf-anexo.erro { border-color: var(--destructive); }
+  .tf-anexo .barra { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--surface-3); }
+  .tf-anexo .barra span { display: block; height: 100%; background: var(--accent); transition: width .2s; }
+  .tf-soltar { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1.5px dashed var(--border-strong); border-radius: 8px; color: var(--ink-muted); cursor: pointer; }
+  .tf-soltar:hover { border-color: var(--accent); color: var(--accent); }
+  .tf-soltar > .ph { font-size: 22px; flex: none; }
+  .tf-soltar span { display: flex; flex-direction: column; }
+  .tf-soltar b { font-size: 13px; color: var(--ink); }
+  .tf-soltar small { font-size: 12px; }
+  .tf-peek.soltando::after { content: "Solte pra anexar"; position: absolute; inset: 8px; z-index: 5; display: grid; place-items: center; border: 2px dashed var(--accent); border-radius: 10px; background: color-mix(in srgb, var(--surface) 85%, transparent); color: var(--accent); font-size: 18px; font-weight: 700; pointer-events: none; }
+  .tf-linha .tit .mini .ph { font-size: 12px; vertical-align: -1px; margin-right: 2px; }
   .tf-peek-trilha { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 13px; color: var(--ink-muted); }
   .tf-peek-trilha .sep { opacity: .5; }
   .tf-peek-emp { display: inline-flex; min-width: 0; max-width: 300px; padding: 4px 8px; border: 0; border-radius: 6px; background: none; color: var(--ink); font: inherit; cursor: pointer; }
@@ -505,7 +543,7 @@
 <script src="nilma-solicitacoes.js?v=358"></script>
 <script src="nilma-extras.js?v=355"></script>
 <script>
-  var VERSAO_APP = '2.381 · 27/09/2026';
+  var VERSAO_APP = '2.382 · 27/09/2026';
   NilmaShell.montar({ modulo: 'Tarefas', moduloId: 'tarefas', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false, versao: VERSAO_APP });
   document.getElementById('topo').hidden = true;
 </script>
@@ -1160,6 +1198,7 @@
     tit.appendChild(el('span', 'txt', t.titulo || '(sem título)'));
     if (t.repete === 'mensal') { var r = ico('ph-arrows-clockwise'); r.title = 'Repete todo mês'; tit.appendChild(r); }
     if ((t.checklist || []).length) { var feitos = t.checklist.filter(function (c) { return c.feito; }).length; var ckm = el('span', 'mini', feitos + '/' + t.checklist.length); ckm.title = 'Checklist'; tit.appendChild(ckm); }
+    if ((t.anexos || []).length) { var cl = el('span', 'mini'); cl.appendChild(ico('ph-paperclip')); cl.appendChild(document.createTextNode(String(t.anexos.length))); cl.title = t.anexos.length + ' anexo(s)'; tit.appendChild(cl); }
     var tw = el('div', 'tw'); tw.appendChild(tit);
     // requisição: quem pediu e por onde, embaixo do título
     if (t.tipo === 'requisicao' && (t.solicitante || t.canal)) {
@@ -2317,6 +2356,180 @@
     desenhar();
   }
   var maisProps = null;
+  var peekGrande = lerLocal('nilma_tarefa_grande', '') === '1';   // painel expandido (como as Configurações)
+
+  // ------------------------------------------------------------ anexos da tarefa
+  // O arquivo fica no próprio banco, em pedaços (anexosTarefas/{id} + partes/{n}),
+  // e a tarefa guarda a lista em tarefa.anexos. Até 5 MB por arquivo e 10 por
+  // tarefa. Anexa clicando, arrastando pro painel ou colando (Ctrl+V: print).
+  var ANEXO_MAX = 5 * 1024 * 1024, ANEXO_PEDACO = 850000, ANEXOS_POR_TAREFA = 10;
+  // Só tipos que não rodam nada no navegador (nada de HTML/SVG): o arquivo abre como blob desta página.
+  var TIPOS_ANEXO = { pdf: 'application/pdf', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp',
+    txt: 'text/plain', csv: 'text/csv', xml: 'application/xml', ofx: 'application/x-ofx', doc: 'application/msword',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', xls: 'application/vnd.ms-excel',
+    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', zip: 'application/zip', rar: 'application/vnd.rar', ret: 'text/plain', rem: 'text/plain' };
+  var ABRE_NO_NAVEGADOR = /^(application\/pdf|image\/(png|jpeg|gif|webp)|text\/plain)$/;
+  var enviandoAnexos = {};          // tarefaId (ou 'rascunho') -> [{ nome, pct, erro }]
+  var blobsDeAnexo = {};            // anexoId -> URL já montada
+  function extDe(nome) { var m = String(nome || '').toLowerCase().match(/\.([a-z0-9]+)$/); return m ? m[1] : ''; }
+  function tamanhoCurto(b) { return b >= 1048576 ? (b / 1048576).toFixed(1).replace('.', ',') + ' MB' : Math.max(1, Math.round((b || 0) / 1024)) + ' KB'; }
+  function iconeDoArquivo(nome) {
+    var e = extDe(nome);
+    return e === 'pdf' ? 'ph-file-pdf' : /^(png|jpe?g|gif|webp)$/.test(e) ? 'ph-file-image' : /^(xls|xlsx|csv|ofx)$/.test(e) ? 'ph-file-xls' : /^(doc|docx|txt|ret|rem)$/.test(e) ? 'ph-file-doc' : /^(zip|rar)$/.test(e) ? 'ph-file-zip' : 'ph-file';
+  }
+  function lerComoBase64(arquivo) {
+    return new Promise(function (ok, falha) { var r = new FileReader(); r.onload = function () { ok(String(r.result).split(',')[1] || ''); }; r.onerror = function () { falha(r.error); }; r.readAsDataURL(arquivo); });
+  }
+  function pintarPainelSeAberto(t) { if (aberta && (aberta === t || (t.id && aberta.id === t.id))) desenharPainel(); }
+  function anexarArquivos(t, arquivos) {
+    arquivos = Array.prototype.slice.call(arquivos || []).filter(Boolean);
+    if (!arquivos.length) return;
+    var ja = (t.anexos || []).length + (t.anexosPendentes || []).length;
+    if (ja + arquivos.length > ANEXOS_POR_TAREFA) { toast('No máximo ' + ANEXOS_POR_TAREFA + ' anexos por tarefa.', 'erro'); arquivos = arquivos.slice(0, Math.max(0, ANEXOS_POR_TAREFA - ja)); }
+    arquivos = arquivos.filter(function (f) {
+      var nome = f.name || ('print-' + new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-') + '.png');
+      if (!f.name) { try { f = new File([f], nome, { type: f.type || 'image/png' }); } catch (e) {} }
+      if (!TIPOS_ANEXO[extDe(nome)]) { toast(nome + ': tipo não aceito (PDF, imagem, Word, Excel, texto, OFX, ZIP).', 'erro'); return false; }
+      if (f.size > ANEXO_MAX) { toast(nome + ' passa de 5 MB.', 'erro'); return false; }
+      return true;
+    }).map(function (f) { return f.name ? f : new File([f], 'print-' + Date.now() + '.png', { type: 'image/png' }); });
+    if (!arquivos.length) return;
+    // tarefa ainda não criada: os arquivos esperam o "Criar"
+    if (t.rascunho) { t.anexosPendentes = (t.anexosPendentes || []).concat(arquivos); pintarPainelSeAberto(t); return; }
+    arquivos.forEach(function (f) { subirAnexo(t, f); });
+  }
+  async function subirAnexo(t, f) {
+    var fila = enviandoAnexos[t.id] || (enviandoAnexos[t.id] = []);
+    var item = { nome: f.name, pct: 0 };
+    fila.push(item); pintarPainelSeAberto(t);
+    try {
+      var b64 = await lerComoBase64(f);
+      var ref = db.collection('anexosTarefas').doc();
+      var n = Math.ceil(b64.length / ANEXO_PEDACO);
+      for (var i = 0; i < n; i++) {
+        await ref.collection('partes').doc(String(i)).set({ dados: b64.slice(i * ANEXO_PEDACO, (i + 1) * ANEXO_PEDACO), uid: eu.uid });
+        item.pct = Math.round((i + 1) / (n + 1) * 100); pintarPainelSeAberto(t);
+      }
+      var mime = TIPOS_ANEXO[extDe(f.name)] || 'application/octet-stream';
+      var meta = { tarefaId: t.id, nome: String(f.name).slice(0, 200), mime: mime, tamanho: f.size, partes: n, criadoEm: agoraIso(), criadoPor: eu.nome, criadoPorUid: eu.uid };
+      await ref.set(meta);
+      var resumo = { id: ref.id, nome: meta.nome, mime: mime, tamanho: f.size, em: meta.criadoEm, por: eu.nome, porUid: eu.uid };
+      await db.collection('tarefas').doc(t.id).update({ anexos: FV.arrayUnion(resumo), atualizadoEm: agoraIso(), atualizadoPor: eu.nome });
+      t.anexos = (t.anexos || []).concat([resumo]);
+      fila.splice(fila.indexOf(item), 1);
+      toast('Anexado: ' + meta.nome);
+    } catch (err) {
+      item.erro = erroDe(err);
+      toast('Não anexou ' + f.name + ': ' + erroDe(err), 'erro');
+      setTimeout(function () { var k = fila.indexOf(item); if (k !== -1) fila.splice(k, 1); pintarPainelSeAberto(t); }, 6000);
+    }
+    pintarPainelSeAberto(t);
+  }
+  async function abrirAnexo(a, baixar) {
+    // abre a janela já no clique (senão o navegador bloqueia) e põe o arquivo quando chegar
+    var abreAqui = !baixar && ABRE_NO_NAVEGADOR.test(a.mime || '');
+    var janela = abreAqui ? window.open('', '_blank') : null;
+    try {
+      var url = blobsDeAnexo[a.id];
+      if (!url) {
+        if (janela) janela.document.title = 'Abrindo ' + a.nome + '…';
+        var meta = await db.collection('anexosTarefas').doc(a.id).get();
+        if (!meta.exists) throw new Error('o arquivo não existe mais');
+        var m = meta.data(), pedacos = [];
+        for (var i = 0; i < m.partes; i++) pedacos.push(db.collection('anexosTarefas').doc(a.id).collection('partes').doc(String(i)).get());
+        var docs = await Promise.all(pedacos);
+        var b64 = docs.map(function (d) { if (!d.exists) throw new Error('o arquivo veio incompleto'); return d.data().dados; }).join('');
+        var bin = atob(b64), bytes = new Uint8Array(bin.length);
+        for (var k = 0; k < bin.length; k++) bytes[k] = bin.charCodeAt(k);
+        var tipo = ABRE_NO_NAVEGADOR.test(m.mime || '') ? m.mime : 'application/octet-stream';
+        url = blobsDeAnexo[a.id] = URL.createObjectURL(new Blob([bytes], { type: tipo }));
+      }
+      if (janela) { janela.location.href = url; return; }
+      var link = el('a'); link.href = url; link.download = a.nome; document.body.appendChild(link); link.click(); link.remove();
+    } catch (err) {
+      if (janela) janela.close();
+      toast('Não abriu ' + a.nome + ': ' + erroDe(err), 'erro');
+    }
+  }
+  async function tirarAnexo(t, a) {
+    if (!(await NilmaDialogo.confirmar({ titulo: 'Tirar "' + a.nome + '"?', texto: 'O arquivo some da tarefa pra todo mundo.', acao: 'Tirar', perigo: true }))) return;
+    try {
+      var resto = (t.anexos || []).filter(function (x) { return x.id !== a.id; });
+      await db.collection('tarefas').doc(t.id).update({ anexos: resto, atualizadoEm: agoraIso(), atualizadoPor: eu.nome });
+      t.anexos = resto; pintarPainelSeAberto(t);
+      var ref = db.collection('anexosTarefas').doc(a.id);
+      var m = await ref.get().catch(function () { return null; });
+      var n = m && m.exists ? m.data().partes : 10;
+      for (var i = 0; i < n; i++) await ref.collection('partes').doc(String(i)).delete().catch(function () {});
+      await ref.delete().catch(function () {});
+      toast('Anexo tirado.');
+    } catch (err) { toast('Não tirou: ' + erroDe(err), 'erro'); }
+  }
+  function blocoDeAnexos(t, alvo) {
+    var lista = (t.anexos || []);
+    var pend = t.rascunho ? (t.anexosPendentes || []) : [];
+    var subindo = enviandoAnexos[t.id || 'x'] || [];
+    alvo.appendChild(blocoTit('ph-paperclip', 'Anexos', (lista.length + pend.length) ? String(lista.length + pend.length) : ''));
+    var box = el('div', 'tf-anexos');
+    lista.forEach(function (a) {
+      var l = el('div', 'tf-anexo');
+      var b = el('button', 'abre'); b.type = 'button'; b.title = 'Abrir ' + a.nome;
+      b.appendChild(ico(iconeDoArquivo(a.nome)));
+      var tx = el('span', 'tx'); tx.appendChild(el('b', null, a.nome)); tx.appendChild(el('small', null, tamanhoCurto(a.tamanho) + ' · ' + (a.por || '') + (a.em ? ' · ' + dataCurta(String(a.em).slice(0, 10)) : '')));
+      b.appendChild(tx);
+      b.addEventListener('click', function () { abrirAnexo(a); });
+      l.appendChild(b);
+      var bx = el('button', 'btn btn-ghost btn-icone btn-sm'); bx.type = 'button'; bx.setAttribute('aria-label', 'Baixar ' + a.nome); bx.title = 'Baixar'; bx.appendChild(ico('ph-download-simple'));
+      bx.addEventListener('click', function () { abrirAnexo(a, true); });
+      l.appendChild(bx);
+      if (souAdmin() || a.porUid === eu.uid) {
+        var tr = el('button', 'btn btn-ghost btn-icone btn-sm'); tr.type = 'button'; tr.setAttribute('aria-label', 'Tirar ' + a.nome); tr.title = 'Tirar'; tr.appendChild(ico('ph-x'));
+        tr.addEventListener('click', function () { tirarAnexo(t, a); });
+        l.appendChild(tr);
+      }
+      box.appendChild(l);
+    });
+    pend.forEach(function (f, i) {
+      var l = el('div', 'tf-anexo pendente');
+      var b = el('span', 'abre'); b.appendChild(ico(iconeDoArquivo(f.name)));
+      var tx = el('span', 'tx'); tx.appendChild(el('b', null, f.name)); tx.appendChild(el('small', null, tamanhoCurto(f.size) + ' · sobe quando criar a tarefa')); b.appendChild(tx);
+      l.appendChild(b);
+      var tr = el('button', 'btn btn-ghost btn-icone btn-sm'); tr.type = 'button'; tr.setAttribute('aria-label', 'Tirar ' + f.name); tr.appendChild(ico('ph-x'));
+      tr.addEventListener('click', function () { t.anexosPendentes.splice(i, 1); desenharPainel(); });
+      l.appendChild(tr);
+      box.appendChild(l);
+    });
+    subindo.forEach(function (it) {
+      var l = el('div', 'tf-anexo subindo' + (it.erro ? ' erro' : ''));
+      var b = el('span', 'abre'); b.appendChild(ico(it.erro ? 'ph-warning-circle' : 'ph-cloud-arrow-up'));
+      var tx = el('span', 'tx'); tx.appendChild(el('b', null, it.nome)); tx.appendChild(el('small', null, it.erro ? 'não subiu: ' + it.erro : 'subindo… ' + it.pct + '%')); b.appendChild(tx);
+      l.appendChild(b);
+      if (!it.erro) { var bar = el('span', 'barra'); var fb = el('span'); fb.style.width = it.pct + '%'; bar.appendChild(fb); l.appendChild(bar); }
+      box.appendChild(l);
+    });
+    // a área de soltar/clicar
+    var zona = el('label', 'tf-soltar');
+    var inp = el('input'); inp.type = 'file'; inp.multiple = true; inp.hidden = true; inp.accept = Object.keys(TIPOS_ANEXO).map(function (x) { return '.' + x; }).join(',');
+    inp.addEventListener('change', function () { anexarArquivos(t, inp.files); inp.value = ''; });
+    zona.appendChild(inp);
+    zona.appendChild(ico('ph-cloud-arrow-up'));
+    var zt = el('span'); zt.appendChild(el('b', null, 'Clique, arraste ou cole (Ctrl+V)')); zt.appendChild(el('small', null, 'PDF, imagem, Word, Excel, OFX… até 5 MB cada'));
+    zona.appendChild(zt);
+    box.appendChild(zona);
+    alvo.appendChild(box);
+  }
+  // Arrastar arquivo pra qualquer lugar do painel, ou colar um print.
+  function ligarSoltarArquivos(p, t) {
+    var temArquivo = function (ev) { return ev.dataTransfer && [].indexOf.call(ev.dataTransfer.types || [], 'Files') !== -1; };
+    p.addEventListener('dragover', function (ev) { if (!temArquivo(ev)) return; ev.preventDefault(); p.classList.add('soltando'); });
+    p.addEventListener('dragleave', function (ev) { if (!p.contains(ev.relatedTarget)) p.classList.remove('soltando'); });
+    p.addEventListener('drop', function (ev) { if (!temArquivo(ev)) return; ev.preventDefault(); p.classList.remove('soltando'); anexarArquivos(t, ev.dataTransfer.files); });
+    p.addEventListener('paste', function (ev) {
+      var fs = ev.clipboardData && ev.clipboardData.files;
+      if (!fs || !fs.length) return;          // texto colado segue normal
+      ev.preventDefault(); anexarArquivos(t, fs);
+    });
+  }
   function abrirPainel(t) {
     if (!aberta || aberta.id !== t.id || !t.id) maisProps = null;
     aberta = t;
@@ -2379,7 +2592,8 @@
       fundo.addEventListener('click', fecharPainel);
       document.body.appendChild(fundo);
     }
-    var p = el('aside', 'tf-peek'); p.id = 'tfPeek';
+    var p = el('aside', 'tf-peek' + (peekGrande ? ' grande' : '')); p.id = 'tfPeek';
+    var fundoAtual = $('tfPeekFundo'); if (fundoAtual) fundoAtual.classList.toggle('grande', peekGrande);
     p.setAttribute('role', 'dialog'); p.setAttribute('aria-label', t.tipo === 'requisicao' ? 'Requisição' : 'Tarefa');
     if (velho) p.style.animation = 'none';
     var topoP = el('div', 'tf-peek-topo');
@@ -2405,6 +2619,13 @@
       link.addEventListener('click', function () { try { navigator.clipboard.writeText(location.href.split('#')[0] + '#tarefa/' + t.id); toast('Link copiado.'); } catch (e) {} });
       topoP.appendChild(link);
     }
+    {
+      var ex = el('button', 'btn btn-ghost btn-icone btn-sm tf-expandir'); ex.type = 'button';
+      ex.setAttribute('aria-label', peekGrande ? 'Voltar ao painel lateral' : 'Expandir'); ex.title = peekGrande ? 'Voltar ao painel lateral' : 'Expandir (abrir grande, como as Configurações)';
+      ex.appendChild(ico(peekGrande ? 'ph-arrows-in' : 'ph-arrows-out'));
+      ex.addEventListener('click', function () { peekGrande = !peekGrande; gravarLocal('nilma_tarefa_grande', peekGrande ? '1' : ''); desenharPainel(); });
+      topoP.appendChild(ex);
+    }
     p.appendChild(topoP);
 
     var corpo = el('div', 'tf-peek-corpo');
@@ -2420,6 +2641,8 @@
     titulo.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { ev.preventDefault(); if (t.rascunho) criarDoPainel(); else titulo.blur(); } });
     titulo.addEventListener('blur', function () { if (!t.rascunho && titulo.value.trim() && titulo.value.trim() !== t.titulo) { clearTimeout(relogioTexto); salvar(t, { titulo: titulo.value.trim() }); } });
     corpo.appendChild(titulo);
+    var lado = el('div', 'tf-peek-lado'); corpo.appendChild(lado);
+    var principal = el('div', 'tf-peek-principal'); corpo.appendChild(principal);
     setTimeout(ajustar, 0);
 
     // o essencial à vista; o resto em "Mais propriedades" (abre sozinho se tiver algo fora do padrão)
@@ -2442,7 +2665,7 @@
     respBox.appendChild(resp);
     prop(grade, 'ph-user', 'Responsável', respBox);
     prop(grade, 'ph-calendar-blank', 'Prazo', campoData(t.prazo, function (v) { if (v !== (t.prazo || '')) campo({ prazo: v }); }, { vazio: 'Sem prazo', rotulo: 'Prazo', textoLimpar: 'Sem prazo', marcarAtraso: t.status !== 'feito' }));
-    corpo.appendChild(grade);
+    lado.appendChild(grade);
 
     var foraDoPadrao = t.tipo === 'requisicao' || (t.prioridade || 'normal') !== 'normal' || !!t.repete;
     if (maisProps === null) maisProps = foraDoPadrao;
@@ -2451,7 +2674,7 @@
     var resumoMais = [t.tipo === 'requisicao' ? 'requisição' : '', (t.prioridade || 'normal') !== 'normal' ? 'prioridade ' + rotuloPrio(t.prioridade).toLowerCase() : '', t.repete ? 'repete todo mês' : ''].filter(Boolean).join(' · ');
     tg.appendChild(document.createTextNode(' Mais propriedades' + (!maisProps && resumoMais ? ' — ' + resumoMais : '')));
     tg.addEventListener('click', function () { maisProps = !maisProps; desenharPainel(); });
-    corpo.appendChild(tg);
+    lado.appendChild(tg);
     if (maisProps) {
       var g2 = el('div', 'tf-props');
       var tipo = selectDe([['tarefa', 'Tarefa'], ['requisicao', 'Requisição do cliente']], t.tipo || 'tarefa', 'Tipo');
@@ -2471,11 +2694,11 @@
         canal.addEventListener('change', function () { campo({ canal: canal.value }); });
         prop(g2, 'ph-chats-circle', 'Chegou por', canal);
       }
-      corpo.appendChild(g2);
+      lado.appendChild(g2);
     }
 
     // descrição: salva sozinha 1 s depois de parar de digitar
-    corpo.appendChild(blocoTit('ph-note', 'Descrição'));
+    principal.appendChild(blocoTit('ph-note', 'Descrição'));
     var desc = el('textarea', 'input tf-descricao'); desc.value = t.descricao || ''; desc.placeholder = 'Detalhes, passo a passo, o que o cliente disse…'; desc.setAttribute('aria-label', 'Descrição');
     var salvo = el('div', 'tf-salvo');
     desc.addEventListener('input', function () {
@@ -2484,13 +2707,14 @@
       clearTimeout(relogioTexto);
       relogioTexto = setTimeout(function () { salvar(t, { descricao: desc.value }).then(function () { salvo.textContent = 'Salvo'; }); }, 1000);
     });
-    corpo.appendChild(desc); corpo.appendChild(salvo);
+    principal.appendChild(desc); principal.appendChild(salvo);
+    blocoDeAnexos(t, principal);
 
     // checklist
     var itens = t.checklist || [];
     var feitosCk = itens.filter(function (c) { return c.feito; }).length;
-    corpo.appendChild(blocoTit('ph-list-checks', 'Checklist', itens.length ? feitosCk + '/' + itens.length : ''));
-    if (itens.length) { var pb = el('div', 'tf-ck-prog'); var pbf = el('span'); pbf.style.width = Math.round(feitosCk / itens.length * 100) + '%'; pb.appendChild(pbf); corpo.appendChild(pb); }
+    principal.appendChild(blocoTit('ph-list-checks', 'Checklist', itens.length ? feitosCk + '/' + itens.length : ''));
+    if (itens.length) { var pb = el('div', 'tf-ck-prog'); var pbf = el('span'); pbf.style.width = Math.round(feitosCk / itens.length * 100) + '%'; pb.appendChild(pbf); principal.appendChild(pb); }
     var gravarCk = function (lista) { if (t.rascunho) { t.checklist = lista; desenharPainel(); } else { salvar(t, { checklist: lista }); desenharPainel(); } };
     itens.forEach(function (c, i) {
       var linha = el('label', 'tf-check-item' + (c.feito ? ' ok' : ''));
@@ -2500,7 +2724,7 @@
       var tira = el('button', 'btn btn-ghost btn-icone btn-sm tirar'); tira.type = 'button'; tira.setAttribute('aria-label', 'Tirar item'); tira.appendChild(ico('ph-x'));
       tira.addEventListener('click', function (ev) { ev.preventDefault(); gravarCk(itens.filter(function (x, k) { return k !== i; })); });
       linha.appendChild(tira);
-      corpo.appendChild(linha);
+      principal.appendChild(linha);
     });
     var novoCk = el('input', 'input tf-check-novo'); novoCk.placeholder = '+ Item do checklist (Enter)'; novoCk.setAttribute('aria-label', 'Novo item do checklist');
     novoCk.addEventListener('keydown', function (ev) {
@@ -2509,12 +2733,12 @@
       gravarCk(itens.concat([{ texto: novoCk.value.trim().slice(0, 200), feito: false }]));
       setTimeout(function () { var n = document.querySelector('.tf-check-novo'); if (n) n.focus(); }, 0);
     });
-    corpo.appendChild(novoCk);
+    principal.appendChild(novoCk);
 
     // comentários (só depois de criada)
     if (!t.rascunho) {
       var cms = t.comentarios || [];
-      corpo.appendChild(blocoTit('ph-chat-teardrop-text', 'Comentários', cms.length ? String(cms.length) : ''));
+      principal.appendChild(blocoTit('ph-chat-teardrop-text', 'Comentários', cms.length ? String(cms.length) : ''));
       cms.forEach(function (c) {
         var d = el('div', 'tf-coment');
         var avC = avatarPessoa(c.porUid, c.por || '?');
@@ -2523,7 +2747,7 @@
         var q = el('div', 'quem'); q.appendChild(el('b', null, c.por || 'alguém')); q.appendChild(document.createTextNode(' · ' + new Date(c.em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })));
         bx.appendChild(q); bx.appendChild(el('div', 'txt', c.texto));
         d.appendChild(bx);
-        corpo.appendChild(d);
+        principal.appendChild(d);
       });
       var nc = el('div', 'tf-coment-novo');
       var avEu = avatarPessoa(eu.uid, eu.nome);
@@ -2541,10 +2765,10 @@
       env.addEventListener('click', enviar);
       ta.addEventListener('keydown', function (ev) { if (ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)) { ev.preventDefault(); enviar(); } });
       nc.appendChild(ta); nc.appendChild(env);
-      corpo.appendChild(nc);
+      principal.appendChild(nc);
       var rod = el('div', 'tf-rodape', 'Criada por ' + (t.criadoPor || 'alguém') + (t.criadoEm ? ' em ' + new Date(t.criadoEm).toLocaleDateString('pt-BR') : '') +
         (t.atualizadoPor ? ' · última mudança: ' + t.atualizadoPor : '') + (t.feitaPor ? ' · feita por ' + t.feitaPor : ''));
-      corpo.appendChild(rod);
+      principal.appendChild(rod);
     }
     p.appendChild(corpo);
 
@@ -2566,6 +2790,7 @@
     }
     p.appendChild(acoes);
     document.body.appendChild(p);
+    ligarSoltarArquivos(p, t);
     p.querySelector('.tf-peek-corpo').scrollTop = rolagem;
     if (focarTitulo && t.rascunho) setTimeout(function () { titulo.focus(); }, 30);
   }
@@ -2576,7 +2801,11 @@
     t.titulo = (tit ? tit.value : t.titulo || '').trim();
     if (!t.titulo) { toast('Dê um nome.', 'erro'); if (tit) tit.focus(); return; }
     var dados = Object.assign({}, t); delete dados.rascunho;
-    criar(dados).then(function (nova) { toast((nova.tipo === 'requisicao' ? 'Requisição' : 'Tarefa') + ' criada.'); aberta = nova; history.replaceState(null, '', '#tarefa/' + nova.id); desenharPainel(); }).catch(function () {});
+    var esperando = dados.anexosPendentes || []; delete dados.anexosPendentes;
+    criar(dados).then(function (nova) {
+      toast((nova.tipo === 'requisicao' ? 'Requisição' : 'Tarefa') + ' criada.'); aberta = nova; history.replaceState(null, '', '#tarefa/' + nova.id); desenharPainel();
+      esperando.forEach(function (f) { subirAnexo(nova, f); });
+    }).catch(function () {});
   }
 
   // ------------------------------------------------------------ navegação

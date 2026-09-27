@@ -622,6 +622,32 @@ service cloud.firestore {
       allow write: if membro() && (request.auth.uid == uid || ehAdmin());
     }
 
+    // ---------- anexos das tarefas (tarefas.html) ----------
+    // O arquivo fica em pedaços de até ~850 mil letras (base64) em
+    // anexosTarefas/{id}/partes/{n}; o documento guarda nome, tipo, tamanho e
+    // quantos pedaços. Até 5 MB por arquivo (10 pedaços). A equipe toda lê e
+    // anexa; tirar, só quem anexou ou o admin. Os pedaços sobem ANTES do
+    // documento, por isso cada um leva o uid de quem subiu.
+    match /anexosTarefas/{id} {
+      allow read: if membro();
+      allow create: if membro()
+        && request.resource.data.criadoPorUid == request.auth.uid
+        && request.resource.data.tarefaId is string
+        && request.resource.data.nome is string && request.resource.data.nome.size() > 0 && request.resource.data.nome.size() <= 200
+        && request.resource.data.tamanho is int && request.resource.data.tamanho <= 5242880
+        && request.resource.data.partes is int && request.resource.data.partes >= 1 && request.resource.data.partes <= 10;
+      allow update: if false;
+      allow delete: if ehAdmin() || (membro() && resource.data.criadoPorUid == request.auth.uid);
+      match /partes/{n} {
+        allow read: if membro();
+        allow create: if membro() && n.matches('^[0-9]$')
+          && request.resource.data.keys().hasOnly(['dados', 'uid'])
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.dados is string && request.resource.data.dados.size() <= 900000;
+        allow delete: if ehAdmin() || (membro() && resource.data.uid == request.auth.uid);
+      }
+    }
+
     // ---------- parcelamentos dos clientes (tarefas.html) ----------
     // Um documento por parcelamento (PGFN, Simples, Receita, Estado,
     // Prefeitura): 1ª parcela (AAAA-MM), quantidade, valor, vencimento e o

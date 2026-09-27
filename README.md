@@ -29,6 +29,20 @@ Módulo novo no menu ☰, **Tarefas** (`tarefas.html`), pra equipe toda:
 - Regras: `tarefas` a equipe lê, cria e edita; quem criou não muda; apagar
   só quem criou ou o admin.
 
+**Versão 2.382 — tarefa: anexos e expandir:**
+
+- **Anexos na tarefa**: clicar na área "Clique, arraste ou cole", arrastar
+  arquivos pra qualquer lugar do painel ou colar um print (Ctrl+V). Vários de
+  uma vez, com barra de progresso; até 5 MB cada e 10 por tarefa (PDF,
+  imagem, Word, Excel, texto, OFX, ZIP — nada de HTML/SVG). Tarefa nova: os
+  arquivos esperam e sobem ao criar. Clicar abre (PDF/imagem no navegador),
+  ⤓ baixa, ✕ tira (quem anexou ou admin). O arquivo fica no banco em
+  pedaços (`anexosTarefas/{id}` + `partes/{n}`, regras novas) e a tarefa
+  guarda a lista em `anexos`; a linha da lista mostra o clipe com o número.
+- **Expandir** (botão no alto do painel): a tarefa abre numa janela grande no
+  meio da tela, no estilo das Configurações — conteúdo à esquerda,
+  propriedades numa coluna à direita. O app lembra a escolha.
+
 **Versão 2.381 — responder e-mail pelo app:** o e-mail aberto na tela do
 Robô ganha a caixa **Responder** (admin e contábil): respostas prontas, texto,
 "responder a todos" (Cc de quem estava no Para/Cc, menos a própria caixa) e
