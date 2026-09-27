@@ -596,6 +596,29 @@ service cloud.firestore {
       allow delete: if ehAdmin() || (membro() && resource.data.criadoPorUid == request.auth.uid);
     }
 
+    // ---------- caderno de cada empresa (tarefas.html) ----------
+    // O que quem cobre as férias precisa saber: onde parou, as
+    // particularidades da empresa, um recado por banco e quem substitui o
+    // responsável. É anotação de trabalho da equipe (não é cadastro, que é do
+    // admin), então a equipe toda escreve. Sem senha aqui: o app pede pra não.
+    match /empresas/{id} {
+      allow read: if membro();
+      allow create, update: if membro()
+        && request.resource.data.keys().hasOnly(['particularidades', 'ondeParou', 'ondeParouPor', 'ondeParouPorUid', 'ondeParouEm',
+             'substitutoUid', 'substitutoNome', 'bancosNotas', 'atualizadoEm', 'atualizadoPor'])
+        && (!('particularidades' in request.resource.data) || request.resource.data.particularidades.size() <= 20000)
+        && (!('ondeParou' in request.resource.data) || request.resource.data.ondeParou.size() <= 20000);
+      allow delete: if ehAdmin();
+    }
+
+    // ---------- férias e folgas da equipe (tarefas.html) ----------
+    // Cada um marca a própria ausência e quem cobre; o admin marca de qualquer
+    // um. Quem cobre vê as tarefas da pessoa em "Minhas tarefas".
+    match /ausencias/{uid} {
+      allow read: if membro();
+      allow write: if membro() && (request.auth.uid == uid || ehAdmin());
+    }
+
     // ---------- controle mensal de documentos por cliente ----------
     // Um documento por cliente+competência (id: "<clienteId>_<AAAA-MM>"),
     // com um booleano por tipo de documento (extrato/comprovante/aplicacao).

@@ -29,6 +29,23 @@ Módulo novo no menu ☰, **Tarefas** (`tarefas.html`), pra equipe toda:
 - Regras: `tarefas` a equipe lê, cria e edita; quem criou não muda; apagar
   só quem criou ou o admin.
 
+**Versão 2.368 — caderno da empresa e férias:**
+
+- **Página da empresa** vira o caderno de passagem de bastão: "Onde parou"
+  (com quem escreveu e quando) e "Particularidades" (texto livre, salva
+  sozinho; sem senhas), na coleção `empresas/{clienteId}`, que a equipe toda
+  escreve. Ao lado: responsável e **substituto nas férias**, contatos (link
+  do WhatsApp), **bancos** com os documentos do mês por banco (E/C/A, do
+  `documentosMensal` do mês, 1 leitura) e um recado por banco, dados da
+  Receita, certidões e certificados com vencimento, e atalhos (documentos na
+  Pendências por `#cliente/<id>`, página do cliente).
+- **Equipe e férias**: cada pessoa marca a própria ausência (tipo, de, até e
+  quem cobre) em `ausencias/{uid}`; o admin marca de qualquer um. Quem cobre
+  vê "Cobrindo Fulano" em Minhas tarefas; a empresa de quem está fora avisa
+  no alto; a linha da tarefa mostra "férias" ao lado do responsável.
+- Listas com a faixa **Atrasadas / Hoje / Próximos 7 dias / Sem
+  responsável** (toca e filtra) e o status trocado direto na linha.
+
 Próximas etapas: parcelamentos dos clientes (PGFN, Simples, Receita) na
 página da empresa; depois o robô marcando parcela paga e avisando atrasos.
 

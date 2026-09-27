@@ -1358,7 +1358,7 @@
 <script src="nilma-solicitacoes.js?v=358"></script>
 <script src="nilma-extras.js?v=355"></script>
 <script>
-  var VERSAO_APP = '2.367 · 26/09/2026';
+  var VERSAO_APP = '2.368 · 27/09/2026';
   NilmaShell.montar({ modulo: 'Pendências', moduloId: 'pendencias', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false, versao: VERSAO_APP });
   // antes do login só a tela de entrada; a barra aparece junto com o app
   document.getElementById('topo').hidden = true;
@@ -3443,11 +3443,18 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
         clientesCache.sort(function (a, b) { return chaveDeOrdem(a).localeCompare(chaveDeOrdem(b), 'pt-BR'); });
         clientesPorId = new Map();
         clientesCache.forEach(function (c) { clientesPorId.set(c.id, c); });
+        var primeiraCarga = !clientesCarregados;
         clientesCarregados = true;
         sincronizarPortais();
         preencherSelectsDeFiltro();
         reconstruirLista();
         if (clienteSelecionadoId) renderDetalhe();
+        // link direto pra um cliente (vem da página da empresa, nas Tarefas)
+        var alvo = primeiraCarga && location.hash.match(/^#cliente\/(.+)$/);
+        if (alvo && clientesPorId.get(decodeURIComponent(alvo[1]))) {
+          abrirDetalhe(decodeURIComponent(alvo[1]));
+          history.replaceState(null, '', location.pathname + location.search);
+        }
       }, function (err) {
         $('lista').innerHTML = '';
         linhas.clear();
