@@ -154,4 +154,4 @@ function iniciarLeiturasGmail(db, log, getGmail, opcoes) {
   log('texto completo do e-mail pela tela ligado (apaga em ' + Math.round(TEXTO_DURA_MS / 60000) + ' min)');
 }
 
-module.exports = { iniciarLeiturasGmail, textoDoEmail, htmlParaTexto };
+module.exports = { iniciarLeiturasGmail, textoDoEmail, htmlParaTexto, mensagensDaTela, cabecalho };

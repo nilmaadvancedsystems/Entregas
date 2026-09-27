@@ -206,10 +206,43 @@ async function atenderLote(p) {
 // pedaços base64 em solicitacoesEmail/{id}/partes/{n} e é apagado depois.
 const TIPOS_DE_ANEXO = /^(application\/pdf|image\/(jpeg|png)|application\/(msword|vnd\.openxmlformats-officedocument\.(wordprocessingml\.document|spreadsheetml\.sheet))|application\/vnd\.ms-excel|text\/(plain|csv))$/;
 const MAX_ANEXO = 5 * 1024 * 1024;
+// o arquivo que a tela subiu em pedaços (solicitacoesEmail/{id}/partes/{n})
+async function lerAnexoDasPartes(p, ref) {
+  if (!p.anexo || !p.anexo.partes) return null;
+  const n = Math.min(Number(p.anexo.partes) || 0, 12);
+  const pedacos = [];
+  for (let i = 0; i < n; i++) {
+    const d = (await ref.collection('partes').doc(String(i)).get()).data();
+    if (!d || typeof d.dados !== 'string') throw new Error('o arquivo não chegou inteiro (falta a parte ' + (i + 1) + ' de ' + n + ')');
+    pedacos.push(d.dados);
+  }
+  const buffer = Buffer.from(pedacos.join(''), 'base64');
+  const mime = String(p.anexo.mime || '');
+  if (!buffer.length || buffer.length > MAX_ANEXO) throw new Error('o arquivo passa de 5 MB');
+  if (!TIPOS_DE_ANEXO.test(mime)) throw new Error('tipo de arquivo não aceito: ' + (mime || 'desconhecido'));
+  return { nome: String(p.anexo.nome || 'arquivo').split(/[\\/]/).pop().slice(0, 120), mime, buffer };
+}
+async function apagarPartes(p, ref) {
+  for (let i = 0; i < Math.min(Number(p.anexo && p.anexo.partes) || 0, 12); i++) await ref.collection('partes').doc(String(i)).delete().catch(() => {});
+}
+
+// Resposta a um e-mail, pela tela (scripts/responder-gmail.js)
+async function atenderResponder(p, ref) {
+  try {
+    if (!dentroDoLimite(1)) throw new Error('limite de ' + MAX_ENVIOS_POR_HORA + ' envios por hora atingido; tente mais tarde');
+    const anexo = await lerAnexoDasPartes(p, ref);
+    const r = await require('./responder-gmail').responder({ db, gmail: getGmail(), p, caixa: CAIXA, montarMime, anexo });
+    enviosRecentes.push(Date.now());
+    auditoria('resposta_gmail', r.assunto + ' · para ' + r.para + (r.cc.length ? ' (cc ' + r.cc.join(', ') + ')' : '') + (anexo ? ' · anexo ' + anexo.nome : ''), p);
+    log('resposta enviada para', r.para + (r.cc.length ? ' + ' + r.cc.length + ' em cópia' : ''), '(' + (p.criadoPor || '') + ')');
+    return { status: 'enviado', enviadoEm: agora(), gmailId: r.gmailId, para: r.para, cc: r.cc, assunto: r.assunto };
+  } finally { await apagarPartes(p, ref); }
+}
+
 async function atenderDisparo(p, ref) {
   // o arquivo não fica no banco, dando certo ou não
   try { return await dispararPara(p, ref); }
-  finally { for (let i = 0; i < Math.min(Number(p.anexo && p.anexo.partes) || 0, 12); i++) await ref.collection('partes').doc(String(i)).delete().catch(() => {}); }
+  finally { await apagarPartes(p, ref); }
 }
 async function dispararPara(p, ref) {
   const quem = p.criadoPorUid ? ((await db.collection('usuarios').doc(String(p.criadoPorUid)).get()).data() || {}) : {};
@@ -221,22 +254,7 @@ async function dispararPara(p, ref) {
   if (!assunto) throw new Error('o disparo não tem assunto');
   if (p.formato === 'html' && !String(p.html || '').trim()) throw new Error('o disparo em HTML veio sem o HTML');
 
-  // o arquivo, pedaço por pedaço
-  let anexo = null;
-  if (p.anexo && p.anexo.partes) {
-    const n = Math.min(Number(p.anexo.partes) || 0, 12);
-    const pedacos = [];
-    for (let i = 0; i < n; i++) {
-      const d = (await ref.collection('partes').doc(String(i)).get()).data();
-      if (!d || typeof d.dados !== 'string') throw new Error('o arquivo não chegou inteiro (falta a parte ' + (i + 1) + ' de ' + n + ')');
-      pedacos.push(d.dados);
-    }
-    const buffer = Buffer.from(pedacos.join(''), 'base64');
-    const mime = String(p.anexo.mime || '');
-    if (!buffer.length || buffer.length > MAX_ANEXO) throw new Error('o arquivo passa de 5 MB');
-    if (!TIPOS_DE_ANEXO.test(mime)) throw new Error('tipo de arquivo não aceito: ' + (mime || 'desconhecido'));
-    anexo = { nome: String(p.anexo.nome || 'arquivo').split(/[\\/]/).pop().slice(0, 120), mime, buffer };
-  }
+  const anexo = await lerAnexoDasPartes(p, ref);
 
   // destinatários: os clientes escolhidos, com todos os e-mails do cadastro
   const ids = new Set((Array.isArray(p.clienteIds) ? p.clienteIds : []).slice(0, 1000).map(String));
@@ -653,6 +671,7 @@ async function atenderFila() {
         verificar: 'Leitura do Gmail pedida por ' + (p.criadoPor || 'alguém'),
         salvar: 'Salvando no Drive um e-mail' + (p.clienteNome ? ' de ' + p.clienteNome : ''),
         disparo: 'Disparo "' + String(p.assunto || '').slice(0, 60) + '"',
+        responder: 'Resposta de e-mail' + (p.para ? ' para ' + p.para : ''),
       }[p.tipo] || 'Pedido da tela';
       atendeuAlgum = true;
       roboRef.set({ filaAndamento: { ativo: true, atual: oqueAgora, restantes: pendentes.length, desde: agora(), em: agora() } }, { merge: true }).catch(() => {});
@@ -673,13 +692,14 @@ async function atenderFila() {
           lendo = true;
           try { resultado = await salvarMensagem(p); } finally { lendo = false; }
         } else if (p.tipo === 'disparo') resultado = await atenderDisparo(p, doc.ref);
+        else if (p.tipo === 'responder') resultado = await atenderResponder(p, doc.ref);
         else throw new Error('tipo de pedido desconhecido: ' + p.tipo);
         await doc.ref.update(resultado);
       } catch (err) {
         const erro = traduzirErro(err);
         log('pedido', doc.id, 'falhou:', erro);
         await doc.ref.update({ status: 'erro', erro, erroEm: agora() }).catch(() => {});
-        const oque = { um: 'a cobrança de ' + (p.clienteNome || p.para), lote: 'a cobrança em lote', verificar: 'a verificação do Gmail', salvar: 'salvar anexo no Drive', disparo: 'o disparo "' + (p.assunto || '') + '"' }[p.tipo] || 'um pedido';
+        const oque = { um: 'a cobrança de ' + (p.clienteNome || p.para), lote: 'a cobrança em lote', verificar: 'a verificação do Gmail', salvar: 'salvar anexo no Drive', disparo: 'o disparo "' + (p.assunto || '') + '"', responder: 'a resposta de e-mail' + (p.para ? ' para ' + p.para : '') }[p.tipo] || 'um pedido';
         await alertar(oque + ' deu erro', 'Pedido de ' + (p.criadoPor || 'alguém') + ' em ' + new Date(p.criadoEm).toLocaleString('pt-BR') + ':\n' + erro);
       }
     }

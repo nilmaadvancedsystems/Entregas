@@ -18,12 +18,15 @@ function nomeCodificado(nome) {
   const limpo = String(nome || 'arquivo').replace(/["\r\n\\]/g, '');
   return /^[\x20-\x7e]*$/.test(limpo) ? limpo : '=?UTF-8?B?' + Buffer.from(limpo, 'utf8').toString('base64') + '?=';
 }
-function montarMensagem({ de, para, cco, assunto, corpo, html, imagens, anexos }) {
+// cabecalhos: linhas extras prontas ('In-Reply-To: <...>') — a resposta na mesma conversa
+function montarMensagem({ de, para, cc, cco, assunto, corpo, html, imagens, anexos, cabecalhos }) {
   const linhas = [
     'From: ' + de,
     'To: ' + (para || de),
   ];
+  if (cc && cc.length) linhas.push('Cc: ' + cc.join(', '));
   if (cco && cco.length) linhas.push('Bcc: ' + cco.join(', '));
+  (cabecalhos || []).forEach(l => { if (/^[\w-]+: [^\r\n]*$/.test(l)) linhas.push(l); });
   linhas.push('Subject: ' + codificarCabecalho(assunto), 'MIME-Version: 1.0');
   const texto = em76(Buffer.from(corpo || '', 'utf8'));
   const marca = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);

@@ -1291,6 +1291,28 @@
   /* página do e-mail: mensagem à esquerda, detalhes e anexos à direita */
   .email-grade { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 16px; align-items: start; }
   .email-lado { display: flex; flex-direction: column; gap: 16px; }
+  .email-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+  .email-resposta.soltando { outline: 2px dashed var(--accent); outline-offset: -4px; }
+  .email-resposta-corpo { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px 16px; }
+  .email-resposta-corpo .prontas { display: flex; flex-wrap: wrap; gap: 6px; }
+  .email-resposta-corpo .prontas button { height: 28px; padding: 0 10px; border: 1px solid var(--border); border-radius: 2em; background: var(--surface); color: var(--ink); font: inherit; font-size: 12px; cursor: pointer; }
+  .email-resposta-corpo .prontas button:hover { border-color: var(--accent); color: var(--accent); }
+  .email-resposta-corpo textarea { width: 100%; min-height: 130px; resize: vertical; font: inherit; font-size: 14px; line-height: 1.55; }
+  .email-resposta-corpo .todos { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: var(--ink-muted); cursor: pointer; }
+  .email-resposta-corpo .todos input { margin-top: 2px; }
+  .email-resposta-corpo .pe { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .email-resposta-corpo .pe .esp { flex: 1; }
+  .email-resposta-corpo .dica { font-size: 12px; color: var(--ink-muted); }
+  .email-resposta-corpo .anexo-chip { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; height: 28px; padding: 0 4px 0 10px; border-radius: 2em; background: var(--surface-2); font-size: 12px; }
+  .email-resposta-corpo .anexo-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .email-resposta-corpo .anexo-chip button { border: 0; background: none; color: var(--ink-muted); cursor: pointer; padding: 2px 6px; font: inherit; }
+  .email-respostas { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; padding-top: 12px; border-top: 1px solid var(--border-muted, var(--border)); }
+  .email-respostas .r { display: flex; gap: 10px; font-size: 13px; }
+  .email-respostas .r .ph { flex: none; margin-top: 2px; font-size: 16px; }
+  .email-respostas .r.ok .ph { color: var(--success, #2da44e); }
+  .email-respostas .r.erro .ph { color: var(--destructive, #cf222e); }
+  .email-respostas .r .quem { font-size: 12px; color: var(--ink-muted); }
+  .email-respostas .r .txt { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 4.8em; overflow: hidden; }
   @media (max-width: 1000px) { .email-grade { grid-template-columns: minmax(0, 1fr); } .email-lado { order: -1; } }
   .email-painel-meta { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; padding: 12px 16px; font-size: 13px; }
   .email-painel-meta dt { color: var(--ink-muted); }
@@ -1359,7 +1381,7 @@
 <script src="nilma-solicitacoes.js?v=358"></script>
 <script src="nilma-extras.js?v=355"></script>
 <script>
-  var VERSAO_APP = '2.380 · 27/09/2026';
+  var VERSAO_APP = '2.381 · 27/09/2026';
   NilmaShell.montar({ modulo: 'Pendências', moduloId: 'pendencias', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false, versao: VERSAO_APP });
   // antes do login só a tela de entrada; a barra aparece junto com o app
   document.getElementById('topo').hidden = true;
@@ -2060,10 +2082,18 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
         </div>
       </div>
       <div class="email-grade">
-        <section class="caixa-p email-mensagem">
-          <div class="caixa-cab"><h2><i class="ph ph-envelope-simple-open" aria-hidden="true"></i> Mensagem</h2></div>
-          <div class="email-painel-texto" id="emailPainelTexto"></div>
-        </section>
+        <div class="email-col">
+          <section class="caixa-p email-mensagem">
+            <div class="caixa-cab"><h2><i class="ph ph-envelope-simple-open" aria-hidden="true"></i> Mensagem</h2></div>
+            <div class="email-painel-texto" id="emailPainelTexto"></div>
+          </section>
+          <!-- Responder pelo app: o robô manda da caixa do escritório, na mesma
+               conversa do Gmail (scripts/responder-gmail.js). Só admin e contábil. -->
+          <section class="caixa-p email-resposta" id="emailResposta" hidden>
+            <div class="caixa-cab"><h2><i class="ph ph-chat-teardrop-text" aria-hidden="true"></i> Responder</h2><span class="cont" id="emailRespostaPara"></span></div>
+            <div class="email-resposta-corpo" id="emailRespostaCorpo"></div>
+          </section>
+        </div>
         <div class="email-lado">
           <section class="caixa-p">
             <div class="caixa-cab"><h2><i class="ph ph-info" aria-hidden="true"></i> Detalhes</h2></div>
@@ -7370,6 +7400,7 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
     $('emailSub').textContent = (cli ? nomeExibicao(cli) + ' · ' : '') + (quando ? dataHora(quando) : '');
 
     desenharAcoesEmail();
+    desenharRespostaEmail();
 
     var caixa = $('emailPainelTexto');
     caixa.innerHTML = '';
@@ -7393,6 +7424,151 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
       }
       caixa.appendChild(espera);
       if (it.trecho) caixa.appendChild(el('div', 'previa', it.trecho));
+    }
+  }
+
+  // ---------- responder pelo app ----------
+  // Rascunho por e-mail (sobrevive ao painel ser redesenhado quando o texto
+  // chega) e as respostas já pedidas deste e-mail (solicitacoesEmail).
+  var rascunhosResposta = {};    // mensagemId -> { texto, todos, anexo }
+  var respostasDoEmail = { id: null, lista: [], parar: null };
+  var RESPOSTAS_PRONTAS = ['Recebido, obrigado!', 'Recebemos os documentos, obrigado.', 'Pode nos enviar o extrato completo do mês, por favor?', 'Vou verificar e já te retorno.'];
+  function enderecosDe(t) { return (String(t || '').match(/[\w.+'-]+@[\w-]+(\.[\w-]+)+/g) || []).map(function (e) { return e.toLowerCase(); }); }
+  function ouvirRespostas(id) {
+    if (respostasDoEmail.id === id) return;
+    if (respostasDoEmail.parar) respostasDoEmail.parar();
+    respostasDoEmail = { id: id, lista: [], parar: null };
+    respostasDoEmail.parar = db.collection('solicitacoesEmail').where('mensagemId', '==', String(id)).onSnapshot(function (snap) {
+      respostasDoEmail.lista = snap.docs.map(function (d) { return d.data(); }).filter(function (d) { return d.tipo === 'responder'; })
+        .sort(function (a, b) { return String(a.criadoEm).localeCompare(String(b.criadoEm)); });
+      pintarRespostasEnviadas();
+    }, function () {});
+  }
+  function pintarRespostasEnviadas() {
+    var alvo = document.querySelector('#emailRespostaCorpo .email-respostas');
+    if (!alvo) return;
+    alvo.innerHTML = '';
+    alvo.hidden = !respostasDoEmail.lista.length;
+    respostasDoEmail.lista.forEach(function (r) {
+      var ok = r.status === 'enviado', erro = r.status === 'erro';
+      var d = el('div', 'r' + (ok ? ' ok' : erro ? ' erro' : ''));
+      d.appendChild(ico(ok ? 'ph-check-circle' : erro ? 'ph-warning-circle' : 'ph-hourglass'));
+      var b = el('div');
+      b.appendChild(el('div', 'quem', (r.criadoPor || 'alguém') + ' · ' + dataHora(r.enviadoEm || r.criadoEm) + ' · ' +
+        (ok ? 'enviada para ' + (r.para || '') + (r.cc && r.cc.length ? ' (+' + r.cc.length + ' em cópia)' : '') : erro ? 'não saiu: ' + (r.erro || 'erro') : 'na fila do robô') +
+        (r.anexo ? ' · 📎 ' + r.anexo.nome : '')));
+      b.appendChild(el('div', 'txt', r.corpo || ''));
+      d.appendChild(b);
+      alvo.appendChild(d);
+    });
+  }
+  function desenharRespostaEmail() {
+    var sec = $('emailResposta');
+    if (!emailAberto || !podeVerArquivo) { sec.hidden = true; return; }
+    var it = emailAberto.item, id = it.mensagemId;
+    var lido = textosEmail[id], pronto = lido && lido.status === 'pronto';
+    var r = rascunhosResposta[id] || (rascunhosResposta[id] = { texto: '', todos: false, anexo: null });
+    var remetente = (enderecosDe(pronto && lido.de)[0]) || String(it.remetente || '').toLowerCase();
+    var outros = pronto ? enderecosDe((lido.para || '') + ',' + (lido.cc || '')).filter(function (e, i, a) { return e !== CAIXA_GMAIL && e !== remetente && a.indexOf(e) === i; }) : [];
+    sec.hidden = false;
+    $('emailRespostaPara').textContent = remetente ? 'para ' + remetente : '';
+    ouvirRespostas(id);
+    var corpo = $('emailRespostaCorpo');
+    // já montado pra este e-mail: só atualiza o "responder a todos" (o texto chega depois)
+    if (corpo.dataset.msg === id) { pintarTodos(); return; }
+    corpo.dataset.msg = id;
+    corpo.innerHTML = '';
+    var prontas = el('div', 'prontas');
+    RESPOSTAS_PRONTAS.forEach(function (t) {
+      var b = el('button', null, t); b.type = 'button'; b.title = 'Pôr este texto na resposta';
+      b.addEventListener('click', function () { ta.value = ta.value.trim() ? ta.value.replace(/\s*$/, '\n\n') + t : t; r.texto = ta.value; ta.focus(); });
+      prontas.appendChild(b);
+    });
+    corpo.appendChild(prontas);
+    var ta = el('textarea', 'input'); ta.placeholder = 'Escreva a resposta…'; ta.setAttribute('aria-label', 'Texto da resposta'); ta.value = r.texto;
+    ta.addEventListener('input', function () { r.texto = ta.value; });
+    ta.addEventListener('keydown', function (ev) { if (ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)) { ev.preventDefault(); enviar(); } });
+    corpo.appendChild(ta);
+    var todos = el('label', 'todos'); todos.hidden = true;
+    var cb = el('input'); cb.type = 'checkbox'; cb.checked = r.todos; cb.addEventListener('change', function () { r.todos = cb.checked; });
+    var tTodos = el('span'); todos.appendChild(cb); todos.appendChild(tTodos);
+    corpo.appendChild(todos);
+    function pintarTodos() {
+      var lb = corpo.querySelector('.todos'); if (!lb) return;
+      var l2 = textosEmail[id], ok2 = l2 && l2.status === 'pronto';
+      var rem2 = (enderecosDe(ok2 && l2.de)[0]) || String(it.remetente || '').toLowerCase();
+      var out2 = ok2 ? enderecosDe((l2.para || '') + ',' + (l2.cc || '')).filter(function (e, i, a) { return e !== CAIXA_GMAIL && e !== rem2 && a.indexOf(e) === i; }) : [];
+      lb.hidden = !out2.length;
+      lb.lastChild.textContent = 'Responder a todos: com cópia para ' + out2.join(', ');
+      $('emailRespostaPara').textContent = rem2 ? 'para ' + rem2 : '';
+    }
+    pintarTodos();
+    var pe = el('div', 'pe');
+    var arq = el('input'); arq.type = 'file'; arq.hidden = true; arq.accept = Object.keys(DISP_TIPOS).map(function (x) { return '.' + x; }).join(',');
+    var bA = el('button', 'btn btn-ghost btn-sm'); bA.type = 'button'; bA.appendChild(ico('ph-paperclip')); bA.appendChild(document.createTextNode(' Anexar'));
+    bA.title = 'Escolher o arquivo (ou arraste pra cá)';
+    bA.addEventListener('click', function () { arq.click(); });
+    var chip = el('span', 'anexo-chip'); chip.hidden = true;
+    function pintarAnexo() {
+      chip.hidden = !r.anexo; bA.hidden = !!r.anexo; chip.innerHTML = '';
+      if (!r.anexo) return;
+      chip.appendChild(ico('ph-paperclip')); chip.appendChild(el('span', null, r.anexo.nome + ' · ' + tamanhoArquivo(r.anexo.tamanho)));
+      var x = el('button', null, '✕'); x.type = 'button'; x.setAttribute('aria-label', 'Tirar o anexo');
+      x.addEventListener('click', function () { r.anexo = null; arq.value = ''; pintarAnexo(); });
+      chip.appendChild(x);
+    }
+    arq.addEventListener('change', function () { usarArquivo(arq.files && arq.files[0]); });
+    // arrastar o arquivo pra caixa da resposta também anexa
+    sec.ondragover = function (ev) { if (ev.dataTransfer && [].indexOf.call(ev.dataTransfer.types || [], 'Files') !== -1) { ev.preventDefault(); sec.classList.add('soltando'); } };
+    sec.ondragleave = function (ev) { if (!sec.contains(ev.relatedTarget)) sec.classList.remove('soltando'); };
+    sec.ondrop = function (ev) { ev.preventDefault(); sec.classList.remove('soltando'); var f = ev.dataTransfer.files && ev.dataTransfer.files[0]; if (f) usarArquivo(f); };
+    function usarArquivo(f) {
+      if (!f) return;
+      var ext = String(f.name.split('.').pop() || '').toLowerCase();
+      if (!DISP_TIPOS[ext]) { toast('Tipo de arquivo não aceito (PDF, imagem, Word, Excel, CSV ou texto).', 'erro'); arq.value = ''; return; }
+      if (f.size > DISP_MAX) { toast('O arquivo passa de 5 MB.', 'erro'); arq.value = ''; return; }
+      var leitor = new FileReader();
+      leitor.onload = function () { r.anexo = { nome: f.name, mime: DISP_TIPOS[ext], tamanho: f.size, base64: String(leitor.result).split(',')[1] || '' }; pintarAnexo(); };
+      leitor.readAsDataURL(f);
+    }
+    pe.appendChild(arq); pe.appendChild(bA); pe.appendChild(chip);
+    pe.appendChild(el('span', 'dica', 'Sai do ' + CAIXA_GMAIL + ', na mesma conversa do Gmail.'));
+    pe.appendChild(el('span', 'esp'));
+    var bE = el('button', 'btn btn-primary btn-sm'); bE.type = 'button'; bE.appendChild(ico('ph-paper-plane-tilt')); bE.appendChild(document.createTextNode(' Enviar resposta'));
+    bE.title = 'Enviar (Ctrl+Enter)';
+    bE.addEventListener('click', enviar);
+    pe.appendChild(bE);
+    corpo.appendChild(pe);
+    var lista = el('div', 'email-respostas'); lista.hidden = true; corpo.appendChild(lista);
+    pintarAnexo();
+    pintarRespostasEnviadas();
+
+    async function enviar() {
+      var texto = ta.value.trim();
+      if (!texto) { toast('Escreva a resposta.', 'erro'); ta.focus(); return; }
+      if (!auth.currentUser) return;
+      bE.disabled = true;
+      try {
+        var ref = db.collection('solicitacoesEmail').doc();
+        var partes = 0;
+        if (r.anexo) {
+          partes = Math.ceil(r.anexo.base64.length / DISP_PEDACO);
+          for (var i = 0; i < partes; i++) await ref.collection('partes').doc(String(i)).set({ dados: r.anexo.base64.slice(i * DISP_PEDACO, (i + 1) * DISP_PEDACO) });
+        }
+        await ref.set({
+          tipo: 'responder', status: 'pendente', mensagemId: String(id), corpo: texto.slice(0, 20000), todos: !!(r.todos && !corpo.querySelector('.todos').hidden),
+          para: remetente || '', assunto: String(it.assunto || '').slice(0, 200), clienteId: clienteDoPainel() || null,
+          anexo: r.anexo ? { nome: r.anexo.nome, mime: r.anexo.mime, tamanho: r.anexo.tamanho, partes: partes } : null,
+          criadoEm: new Date().toISOString(), criadoPor: quemSou(), criadoPorEmail: (auth.currentUser && auth.currentUser.email) || '', criadoPorUid: auth.currentUser.uid
+        });
+        acompanharPedido(ref, { ok: function (d) { return 'Resposta enviada para ' + (d.para || remetente) + '.'; }, erro: 'A resposta não saiu' });
+        toast(vigiaLigado() ? 'Resposta na fila do robô.' : 'Resposta na fila: o robô está fora do ar e envia quando voltar.', 'ok');
+        rascunhosResposta[id] = { texto: '', todos: false, anexo: null };
+        r = rascunhosResposta[id];
+        ta.value = ''; cb.checked = false; arq.value = ''; pintarAnexo();
+      } catch (err) {
+        toast('Não consegui pôr a resposta na fila: ' + (err && err.code === 'permission-denied' ? 'falta publicar as regras novas do banco' : (err.message || err)), 'erro');
+      } finally { bE.disabled = false; }
     }
   }
 

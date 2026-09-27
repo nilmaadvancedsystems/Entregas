@@ -588,6 +588,23 @@ igual('aviso: texto do admin com o escritório', aa.textoDoAviso(montado.porPess
   link: 'https://nilmaadvancedsystems.github.io/Entregas/tarefas.html#minhas' });
 igual('aviso: nada pra dizer', aa.textoDoAviso(null, { tarefas: 0, parcelamentos: 0 }), null);
 
+// ---------- responder e-mail pela tela (responder-gmail.js) ----------
+const rgm = require('./responder-gmail');
+const hdr = (o) => Object.entries(o).map(([name, value]) => ({ name, value }));
+const resp1 = rgm.montarResposta({
+  headers: hdr({ From: 'José da Padaria <padaria@x.com>', To: 'nilmacontabilidade@gmail.com, socio@padaria.com', Cc: 'contador@y.com', Subject: 'Extrato de setembro', 'Message-ID': '<abc@mail.x.com>', References: '<zzz@mail.x.com>' }),
+  textoOriginal: 'Bom dia,\nsegue o extrato.', corpo: 'Recebido, obrigado!', todos: true, caixa: 'nilmacontabilidade@gmail.com', dataOriginal: Date.UTC(2026, 8, 25, 13, 5),
+});
+igual('resposta: para quem mandou, Cc dos outros sem a própria caixa', [resp1.para, resp1.cc], ['padaria@x.com', ['socio@padaria.com', 'contador@y.com']]);
+igual('resposta: "Re:" e na mesma conversa', [resp1.assunto, resp1.cabecalhos], ['Re: Extrato de setembro', ['In-Reply-To: <abc@mail.x.com>', 'References: <zzz@mail.x.com> <abc@mail.x.com>']]);
+igual('resposta: o original citado embaixo', resp1.corpo, 'Recebido, obrigado!\n\nEm 25/09/2026, 10:05, José da Padaria <padaria@x.com> escreveu:\n> Bom dia,\n> segue o extrato.');
+igual('resposta: HTML escapa o texto e recolhe a citação', /gmail_quote/.test(resp1.html) && !/<script/.test(rgm.montarResposta({ headers: hdr({ From: 'a@b.com', Subject: 'x' }), textoOriginal: '<script>', corpo: '<b>oi</b>', caixa: 'c@d.com' }).html), true);
+const resp2 = rgm.montarResposta({ headers: hdr({ From: 'a@b.com', 'Reply-To': 'financeiro@b.com', To: 'nilmacontabilidade@gmail.com', Subject: 'RE: Boleto' }), textoOriginal: '', corpo: 'ok', todos: false, caixa: 'nilmacontabilidade@gmail.com' });
+igual('resposta: Reply-To manda; "RE:" não vira "Re: RE:"; sem todos, sem Cc', [resp2.para, resp2.assunto, resp2.cc], ['financeiro@b.com', 'RE: Boleto', []]);
+igual('resposta a e-mail que a própria caixa mandou vai pro destinatário', rgm.montarResposta({ headers: hdr({ From: 'Nilma <nilmacontabilidade@gmail.com>', To: 'cliente@z.com', Subject: 'Cobrança' }), corpo: 'x', caixa: 'nilmacontabilidade@gmail.com' }).para, 'cliente@z.com');
+const mimeResp = Buffer.from(require('./mensagem-gmail').montarMensagem({ de: 'n@x.com', para: 'a@b.com', cc: ['c@d.com'], assunto: 'Re: x', corpo: 'oi', cabecalhos: ['In-Reply-To: <abc@x>', 'Bad\r\nInjected: y'] }).replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString();
+igual('mensagem: Cc e In-Reply-To entram; cabeçalho com quebra de linha não', [/\r\nCc: c@d.com\r\n/.test(mimeResp), /In-Reply-To: <abc@x>/.test(mimeResp), /Injected/.test(mimeResp)], [true, true, false]);
+
 // os testes que leem PDF são assíncronos: o resultado espera por eles
 esperarExtratos.then(() => {
   console.log(falhas ? '\n' + falhas + ' de ' + total + ' testes FALHARAM' : total + ' testes, todos passaram');

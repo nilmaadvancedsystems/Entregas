@@ -564,14 +564,17 @@ service cloud.firestore {
     // depois de enviar.
     match /solicitacoesEmail/{id} {
       allow read: if membro();
+      // disparo: só admin; responder e-mail: admin ou contábil (quem vê o texto do e-mail)
       allow create: if membro() &&
         (request.resource.data.get('tipo', '') != 'disparo' ||
-         (ehAdmin() && request.resource.data.get('criadoPorUid', '') == request.auth.uid));
+         (ehAdmin() && request.resource.data.get('criadoPorUid', '') == request.auth.uid)) &&
+        (request.resource.data.get('tipo', '') != 'responder' ||
+         ((ehAdmin() || temPapel('contabil')) && request.resource.data.get('criadoPorUid', '') == request.auth.uid));
       allow update: if membro() &&
-        ((resource.data.get('tipo', '') != 'disparo' && request.resource.data.get('tipo', '') != 'disparo') || ehAdmin());
+        ((!(resource.data.get('tipo', '') in ['disparo', 'responder']) && !(request.resource.data.get('tipo', '') in ['disparo', 'responder'])) || ehAdmin());
       allow delete: if ehAdmin();
       match /partes/{n} {
-        allow create: if ehAdmin() && n.matches('^([0-9]|1[01])$')
+        allow create: if (ehAdmin() || temPapel('contabil')) && n.matches('^([0-9]|1[01])$')
           && request.resource.data.keys().hasOnly(['dados'])
           && request.resource.data.dados is string && request.resource.data.dados.size() <= 900000;
         allow read, delete: if ehAdmin();

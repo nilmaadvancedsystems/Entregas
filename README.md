@@ -29,6 +29,20 @@ Módulo novo no menu ☰, **Tarefas** (`tarefas.html`), pra equipe toda:
 - Regras: `tarefas` a equipe lê, cria e edita; quem criou não muda; apagar
   só quem criou ou o admin.
 
+**Versão 2.381 — responder e-mail pelo app:** o e-mail aberto na tela do
+Robô ganha a caixa **Responder** (admin e contábil): respostas prontas, texto,
+"responder a todos" (Cc de quem estava no Para/Cc, menos a própria caixa) e
+um anexo de até 5 MB (botão ou arrastar). O pedido vai em
+`solicitacoesEmail` tipo `responder` (arquivo em `partes/{n}`, como no
+Disparo) e o vigia (`scripts/responder-gmail.js`) manda da caixa do
+escritório **na mesma conversa do Gmail** ("Re:", In-Reply-To/References,
+threadId e o original citado, recolhido). Só responde e-mail que o robô
+listou pra tela e confere o cargo de quem pediu; conta no limite de envios
+por hora e vai pra auditoria. Embaixo, as respostas já pedidas daquele
+e-mail (na fila / enviada / erro). Regras: `responder` só admin/contábil, e
+pedido `disparo`/`responder` não pode ser alterado por quem não é admin;
+`partes` também pra contábil.
+
 **Versão 2.380:** a faixa "Atendendo: ... · N pedidos na fila" da tela do
 Robô só aparece quando há pedido de verdade na fila (pendente ou em
 andamento), com o número contado da própria fila; antes o aviso gravado por
