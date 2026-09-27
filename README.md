@@ -29,6 +29,18 @@ Módulo novo no menu ☰, **Tarefas** (`tarefas.html`), pra equipe toda:
 - Regras: `tarefas` a equipe lê, cria e edita; quem criou não muda; apagar
   só quem criou ou o admin.
 
+**Versão 2.371 — escolher data:**
+
+- O prazo da tarefa e as datas da ausência deixam o `<input type=date>`
+  (que salvava a cada dígito e travava o ano em "0002") e usam um seletor
+  próprio: digitar `10/10`, `10/10/26`, `1010`, `15` (dia deste mês ou do
+  próximo), `amanhã` ou `+3`; atalhos Hoje, Amanhã, Sexta, Próx. segunda e
+  Fim do mês; calendário do mês; e "Sem prazo". Só grava quando a data é
+  escolhida. Sem ano, vale o ano atual (ou o próximo, se já passou há mais
+  de 2 meses).
+- O painel aberto passa a mostrar na hora o que mudou no banco (antes podia
+  ficar com o valor antigo).
+
 **Versão 2.370 — Minhas empresas e o que é só do admin:**
 
 - **Minhas empresas** (menu novo): as empresas em que a pessoa é a
