@@ -387,8 +387,10 @@
   @media (max-width: 899px) { .az-regua { top: calc(var(--topo-total) + 104px + var(--abas2)); } .az-letra { width: 24px; min-height: 20px; } }
 
   .linha-cliente {
-    position: relative; display: flex; align-items: center; gap: 12px; min-height: 40px; padding: 4px 8px 4px 16px;
+    position: relative; display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 6px 8px 6px 16px;
   }
+  .linha-cliente .lc-av { width: 30px; height: 30px; font-size: 11px; }
+  @media (max-width: 560px) { .linha-cliente .lc-av { display: none; } }
   /* fio só entre linhas visíveis (a lista esconde as filtradas) */
   .linha-cliente:not([hidden]) ~ .linha-cliente { border-top: 1px solid var(--border-muted); }
   .linha-cliente:hover { background: var(--surface-2); }
@@ -658,6 +660,12 @@
   .spam-acoes .anexo-acao .btn-icone { display: none; }
   #tabSpam td:last-child { width: 1%; }
   .anexo-acao { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+  .tab-simples .anexo-acao { flex-wrap: nowrap; }
+  .tab-simples td.quando { white-space: nowrap; color: var(--ink-muted); font-size: 13px; }
+  .av-mini { flex: none; display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; font-size: 12px; font-weight: 700; color: #FFFFFF; }
+  .quem-linha { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .quem-linha .qx { min-width: 0; }
+  #tabCaixa .email-assunto, #tabSpam .email-assunto, #tabNaoRec .email-assunto { font-weight: 600; }
   .anexo-acao .salvo { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--success); }
   .lista-anexos { list-style: none; margin: 0; padding: 0; }
   .lista-anexos li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 8px 16px; border-top: 1px solid var(--border-muted); }
@@ -1300,9 +1308,19 @@
   .email-resposta-corpo textarea { width: 100%; min-height: 130px; resize: vertical; font: inherit; font-size: 14px; line-height: 1.55; }
   .email-resposta-corpo .todos { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: var(--ink-muted); cursor: pointer; }
   .email-resposta-corpo .todos input { margin-top: 2px; }
-  .email-resposta-corpo .pe { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .email-resposta-corpo .pe .esp { flex: 1; }
-  .email-resposta-corpo .dica { font-size: 12px; color: var(--ink-muted); }
+  .email-resposta-corpo .pe { display: flex; align-items: center; gap: 8px; }
+  .email-resposta-corpo .pe > .btn-primary { margin-left: auto; flex: none; }
+  .email-resposta-corpo .dica { flex: 1 1 auto; min-width: 0; font-size: 12px; color: var(--ink-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  @media (max-width: 600px) { .email-resposta-corpo .pe { flex-wrap: wrap; } .email-resposta-corpo .dica { flex-basis: 100%; order: 3; white-space: normal; } }
+  .email-de { display: flex; align-items: center; gap: 12px; padding: 16px 16px 12px; border-bottom: 1px solid var(--border-muted, var(--border)); }
+  .email-de .av-mini.grande { width: 40px; height: 40px; font-size: 14px; }
+  .email-de .dx { flex: 1; min-width: 0; }
+  .email-de .l1 { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; font-size: 14px; }
+  .email-de .l1 .mail { font-size: 12px; color: var(--ink-muted); }
+  .email-de .l2 { margin-top: 2px; font-size: 12px; color: var(--ink-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .email-de .quando { flex: none; font-size: 12px; color: var(--ink-muted); }
+  .email-painel-texto { padding: 16px 16px 20px 68px !important; }
+  @media (max-width: 600px) { .email-painel-texto { padding-left: 16px !important; } }
   .email-resposta-corpo .anexo-chip { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; height: 28px; padding: 0 4px 0 10px; border-radius: 2em; background: var(--surface-2); font-size: 12px; }
   .email-resposta-corpo .anexo-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .email-resposta-corpo .anexo-chip button { border: 0; background: none; color: var(--ink-muted); cursor: pointer; padding: 2px 6px; font: inherit; }
@@ -1313,7 +1331,7 @@
   .email-respostas .r.erro .ph { color: var(--destructive, #cf222e); }
   .email-respostas .r .quem { font-size: 12px; color: var(--ink-muted); }
   .email-respostas .r .txt { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 4.8em; overflow: hidden; }
-  @media (max-width: 1000px) { .email-grade { grid-template-columns: minmax(0, 1fr); } .email-lado { order: -1; } }
+  @media (max-width: 1000px) { .email-grade { grid-template-columns: minmax(0, 1fr); } }
   .email-painel-meta { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; padding: 12px 16px; font-size: 13px; }
   .email-painel-meta dt { color: var(--ink-muted); }
   .email-painel-meta dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
@@ -1381,7 +1399,7 @@
 <script src="nilma-solicitacoes.js?v=358"></script>
 <script src="nilma-extras.js?v=355"></script>
 <script>
-  var VERSAO_APP = '2.383 · 27/09/2026';
+  var VERSAO_APP = '2.384 · 27/09/2026';
   NilmaShell.montar({ modulo: 'Pendências', moduloId: 'pendencias', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false, versao: VERSAO_APP });
   // antes do login só a tela de entrada; a barra aparece junto com o app
   document.getElementById('topo').hidden = true;
@@ -2084,7 +2102,7 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
       <div class="email-grade">
         <div class="email-col">
           <section class="caixa-p email-mensagem">
-            <div class="caixa-cab"><h2><i class="ph ph-envelope-simple-open" aria-hidden="true"></i> Mensagem</h2></div>
+            <div class="email-de" id="emailDe"></div>
             <div class="email-painel-texto" id="emailPainelTexto"></div>
           </section>
           <!-- Responder pelo app: o robô manda da caixa do escritório, na mesma
@@ -2499,6 +2517,31 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
     var d = new Date(iso);
     if (isNaN(d.getTime())) return 'sem data';
     return pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + '/' + d.getFullYear() + ' às ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+  }
+  // "hoje 14:32", "ontem 09:10", "qui 14:32" (esta semana), "27/09" (antes)
+  function quandoCurto(iso) {
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return 'sem data';
+    var hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    var dia = new Date(d); dia.setHours(0, 0, 0, 0);
+    var dias = Math.round((hoje - dia) / 864e5), hm = pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+    if (dias === 0) return 'hoje ' + hm;
+    if (dias === 1) return 'ontem ' + hm;
+    if (dias > 1 && dias < 7) return ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'][d.getDay()] + ' ' + hm;
+    return pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + (d.getFullYear() !== new Date().getFullYear() ? '/' + d.getFullYear() : '');
+  }
+  function celulaQuando(iso) { var td = el('td', 'num quando', quandoCurto(iso)); td.title = dataHora(iso); return td; }
+  // bolinha com as iniciais, na mesma cor sempre pro mesmo nome
+  function avatarDe(nome, cls) {
+    var limpo = String(nome || '').replace(/<.*?>/g, '').replace(/[^\p{L}\p{N}\s.@-]/gu, ' ').trim();
+    // empresa: sem LTDA, ME, "de"... ("PADARIA SAO JOSE LTDA" -> "PS")
+    var palavras = limpo.replace(/@.*$/, '').split(/[\s.]+/).filter(function (w) { return w && !/^(ltda|me|epp|eireli|sa|mei|cia|de|da|do|das|dos|e|s)$/i.test(w); });
+    var ini = palavras.length ? (palavras[0][0] + (palavras.length > 1 ? palavras[1][0] : (palavras[0][1] || ''))).toUpperCase() : '';
+    var a = el('span', 'av-mini' + (cls ? ' ' + cls : ''), ini || '?');
+    var h = 0; String(limpo).split('').forEach(function (ch) { h = (h * 31 + ch.charCodeAt(0)) % 360; });
+    a.style.background = 'hsl(' + h + ' 45% 42%)';
+    a.setAttribute('aria-hidden', 'true');
+    return a;
   }
   function dataSo(iso) {
     var d = new Date(iso);
@@ -3861,6 +3904,7 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
     var sub = el('div', 'lc-sub');
     info.appendChild(nome); info.appendChild(sub);
     info.addEventListener('click', function () { abrirDetalhe(cliente.id); });
+    row.appendChild(avatarDe(cliente.nomeFantasia || cliente.nome, 'lc-av'));
     row.appendChild(info);
 
     var inds = el('div', 'doc-inds col-docs');
@@ -4671,10 +4715,11 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
       var tbN = el('tbody');
       naoRec.slice(0, 40).forEach(function (r) {
         var linha = el('tr');
-        var td1 = el('td'); td1.appendChild(el('div', null, r.remetente)); if (r.nome) td1.appendChild(el('div', 'sub', r.nome)); linha.appendChild(td1);
+        var td1 = el('td'); var q1 = el('div', 'quem-linha'); q1.appendChild(avatarDe(r.nome || r.remetente)); var x1 = el('div', 'qx');
+        x1.appendChild(el('div', null, r.remetente)); if (r.nome) x1.appendChild(el('div', 'sub', r.nome)); q1.appendChild(x1); td1.appendChild(q1); linha.appendChild(td1);
         linha.appendChild(celulaAssunto(r));
         linha.appendChild(celulaAnexos(r.arquivos));
-        linha.appendChild(el('td', 'num', r.data ? dataSo(r.data) : ''));
+        linha.appendChild(r.data ? celulaQuando(r.data) : el('td'));
         abreEmail(linha, { mensagemId: r.mensagemId, em: r.data, remetente: r.remetente, nome: r.nome, assunto: r.assunto, trecho: r.trecho, arquivos: r.arquivos }, { semCliente: r });
         var tdP = el('td');
         var parecido = clienteParecido(r);
@@ -7239,7 +7284,7 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
   // salvar (que também marca o documento) passa a valer pra esse cliente.
   function linhaSemDono(c) {
     var linha = el('tr');
-    linha.appendChild(el('td', 'num', dataHora(c.em)));
+    linha.appendChild(celulaQuando(c.em));
     var tdC = el('td');
     var sel = el('select', 'select'); sel.style.cssText = 'height:30px;width:auto;max-width:240px;font-size:var(--t-sm)';
     sel.setAttribute('aria-label', 'De qual cliente é este e-mail');
@@ -7359,6 +7404,19 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
     var cli = clienteId ? clientesPorId.get(clienteId) : null;
 
     $('emailPainelAssunto').textContent = (pronto && lido.assunto) || it.assunto || '(sem assunto)';
+    // cabeçalho da mensagem, como no Gmail: quem mandou, pra quem e quando
+    var deTxt = (pronto && lido.de) || ((it.nome ? it.nome + ' ' : '') + (it.remetente ? '<' + it.remetente + '>' : ''));
+    var deNome = String(deTxt).replace(/<.*?>/, '').replace(/"/g, '').trim() || it.remetente || '';
+    var deMail = (String(deTxt).match(/<([^>]+)>/) || [])[1] || it.remetente || '';
+    var cabDe = $('emailDe'); cabDe.innerHTML = '';
+    cabDe.appendChild(avatarDe(deNome || deMail, 'grande'));
+    var dx = el('div', 'dx');
+    var l1 = el('div', 'l1'); l1.appendChild(el('b', null, deNome || deMail)); if (deMail && deMail !== deNome) l1.appendChild(el('span', 'mail', '<' + deMail + '>'));
+    dx.appendChild(l1);
+    if (pronto && lido.para) dx.appendChild(el('div', 'l2', 'para ' + lido.para + (lido.cc ? ' · cc ' + lido.cc : '')));
+    cabDe.appendChild(dx);
+    var quandoDe = (pronto && lido.em) || it.em || it.data;
+    if (quandoDe) { var qd = el('span', 'quando', quandoCurto(quandoDe)); qd.title = dataHora(quandoDe); cabDe.appendChild(qd); }
 
     var meta = $('emailPainelMeta');
     meta.innerHTML = '';
@@ -7369,10 +7427,9 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
       if (typeof valor === 'string') dd.textContent = valor; else dd.appendChild(valor);
       meta.appendChild(dd);
     }
-    linhaMeta('De', (pronto && lido.de) || ((it.nome ? it.nome + ' ' : '') + (it.remetente ? '<' + it.remetente + '>' : '')));
-    if (pronto) { linhaMeta('Para', lido.para); linhaMeta('Cc', lido.cc); }
+    // De, Para e quando já estão no cabeçalho da mensagem; aqui fica o resto
     var quando = (pronto && lido.em) || it.em || it.data;
-    linhaMeta('Quando', quando ? dataHora(quando) : '');
+    linhaMeta('Recebido', quando ? dataHora(quando) : '');
     if (cli) {
       var bC = el('button', 'link'); bC.type = 'button'; bC.textContent = nomeExibicao(cli);
       bC.addEventListener('click', function () { fecharPainelEmail(); abrirDetalhe(cli.id, 'abaComunicacao'); });
@@ -7532,8 +7589,7 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
       leitor.readAsDataURL(f);
     }
     pe.appendChild(arq); pe.appendChild(bA); pe.appendChild(chip);
-    pe.appendChild(el('span', 'dica', 'Sai do ' + CAIXA_GMAIL + ', na mesma conversa do Gmail.'));
-    pe.appendChild(el('span', 'esp'));
+    pe.appendChild(el('span', 'dica', 'Sai do ' + CAIXA_GMAIL + ', na mesma conversa do Gmail · Ctrl+Enter envia'));
     var bE = el('button', 'btn btn-primary btn-sm'); bE.type = 'button'; bE.appendChild(ico('ph-paper-plane-tilt')); bE.appendChild(document.createTextNode(' Enviar resposta'));
     bE.title = 'Enviar (Ctrl+Enter)';
     bE.addEventListener('click', enviar);
@@ -7713,7 +7769,7 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
       var tb = el('tbody');
       itens.forEach(function (c) {
         var linha = el('tr', c.cli ? 'spam-cliente' : null);
-        linha.appendChild(el('td', 'num', dataSo(c.em)));
+        linha.appendChild(celulaQuando(c.em));
         var tdD = el('td');
         if (c.cli) {
           var bC = el('button', 'link'); bC.type = 'button'; bC.textContent = nomeExibicao(c.cli);
@@ -7789,11 +7845,14 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
       if (!c.clienteId) { tb.appendChild(linhaSemDono(c)); return; }
       var cli = clientesPorId.get(c.clienteId);
       var linha = el('tr');
-      linha.appendChild(el('td', 'num', dataHora(c.em)));
+      linha.appendChild(celulaQuando(c.em));
       var tdC = el('td');
+      var quem = el('div', 'quem-linha'); quem.appendChild(avatarDe(nomeExibicao(cli)));
+      var qx = el('div', 'qx');
       var bC = el('button', 'link'); bC.type = 'button'; bC.textContent = nomeExibicao(cli);
       bC.addEventListener('click', function () { abrirDetalhe(cli.id, 'abaComunicacao'); });
-      tdC.appendChild(bC); tdC.appendChild(el('div', 'sub', c.remetente || ''));
+      qx.appendChild(bC); qx.appendChild(el('div', 'sub', c.remetente || ''));
+      quem.appendChild(qx); tdC.appendChild(quem);
       linha.appendChild(tdC);
       linha.appendChild(celulaAssunto(c));
       linha.appendChild(celulaAnexos(c.arquivos));

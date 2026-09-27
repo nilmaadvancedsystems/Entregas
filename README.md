@@ -29,6 +29,20 @@ Módulo novo no menu ☰, **Tarefas** (`tarefas.html`), pra equipe toda:
 - Regras: `tarefas` a equipe lê, cria e edita; quem criou não muda; apagar
   só quem criou ou o admin.
 
+**Versão 2.384 — acabamento (Pendências e painel da tarefa):**
+
+- Robô do Gmail: datas curtas ("hoje 14:32", "ontem", "qui 09:10",
+  "27/09"; a data completa no dedo/mouse), bolinha com as iniciais de quem
+  mandou/cliente (iniciais de empresa sem LTDA/ME), assunto em negrito e
+  "Salvar no Drive" + Gmail na mesma linha.
+- E-mail aberto: cabeçalho como o do Gmail (avatar, nome, e-mail, "para …"
+  e quando) no lugar do título "Mensagem"; "Detalhes" sem repetir De/Para;
+  resposta com "Enviar" à direita; no celular a mensagem vem primeiro.
+- Clientes: bolinha com as iniciais em cada linha, linhas um pouco maiores.
+- Painel da tarefa: descrição e "adicionar item" sem caixa pesada (estilo
+  Notion; a descrição cresce com o texto), comentário que cresce ao
+  escrever; expandido mostra todas as propriedades direto.
+
 **Versão 2.383:** "Entregas" no menu de módulos (☰) abre a tela de
 Entregas (`entregas.html#entregas`); antes abria a última tela usada no
 aparelho — quase sempre Clientes — e era preciso tocar de novo. O logo
