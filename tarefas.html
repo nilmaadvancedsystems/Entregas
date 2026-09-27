@@ -309,6 +309,80 @@
   .tf-bco-recado input { flex: 1; min-width: 0; height: auto; min-height: 0; margin: 0; padding: 0; border: 0; outline: 0; box-shadow: none; background: none; color: var(--ink); font: inherit; font-size: 14px; }
   @media (min-width: 901px) and (max-width: 1250px) { .tf-bco { grid-template-columns: minmax(180px, 240px) minmax(0, 1fr); row-gap: 12px; } .tf-bco-recado { grid-column: 2; } .tf-bco-lista-cab { display: none; } }
   @media (max-width: 900px) { .tf-bco { grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 16px; } .tf-bco-lista-cab { display: none; } .tf-bco-ir { margin-left: 0; } .tf-bco-doc { height: 32px; padding: 0 12px; } }
+  /* parcelamentos */
+  .tf-badge-ruim { background: var(--destructive) !important; color: #FFFFFF !important; }
+  .tf-parc-titulo { font-size: 16px; }
+  .tf-parc-selo { flex: none; display: inline-grid; place-items: center; min-width: 34px; height: 22px; padding: 0 6px; border-radius: 5px; font-size: 10px; font-weight: 800; letter-spacing: .02em; color: #FFFFFF; }
+  .tf-parc-selo.grande { width: 48px; height: 48px; border-radius: 10px; font-size: 12px; }
+  .tf-parc-lista { display: flex; flex-direction: column; gap: 12px; }
+  .tf-parc { border: 1px solid var(--border); border-radius: 10px; background: var(--surface); padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; }
+  .tf-parc.ruim { border-color: color-mix(in srgb, var(--destructive) 45%, var(--border)); box-shadow: inset 3px 0 0 var(--destructive); }
+  .tf-parc.encerrado { opacity: .8; }
+  .tf-parc-cab { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .tf-parc-cab .tx { flex: 1; min-width: 220px; display: flex; flex-direction: column; gap: 2px; }
+  .tf-parc-cab .tx b { font-size: 16px; font-weight: 600; }
+  .tf-parc-cab .tx small { font-size: 13px; color: var(--ink-muted); }
+  .tf-parc-cab .dir { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .tf-parc-estado { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 2em; font-size: 12px; font-weight: 600; white-space: nowrap; background: var(--surface-3); color: var(--ink-muted); }
+  .tf-parc-estado::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .tf-parc-estado.paga { background: var(--success-soft); color: var(--success-ink, var(--success)); }
+  .tf-parc-estado.atrasada { background: color-mix(in srgb, var(--destructive) 16%, transparent); color: var(--destructive); }
+  .tf-parc-estado.hoje, .tf-parc-estado.aberta { background: var(--warn-soft); color: var(--warn); }
+  .tf-parc-meio { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .tf-parc-prog { display: flex; align-items: center; gap: 10px; min-width: 200px; }
+  .tf-parc-prog .barra { flex: 1; min-width: 80px; height: 8px; border-radius: 4px; background: var(--surface-3); overflow: hidden; }
+  .tf-parc-prog .barra span { display: block; height: 100%; border-radius: 4px; background: var(--success); }
+  .tf-parc-prog .txt { font-size: 12px; font-weight: 600; color: var(--ink-muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .tf-parc-meio .tf-parc-prog { flex: 0 1 320px; }
+  .tf-parc-per { font-size: 13px; color: var(--ink-muted); }
+  .tf-parc-obs { padding: 10px 12px; border-radius: 6px; background: var(--surface-2); font-size: 13px; line-height: 1.5; white-space: pre-wrap; }
+  .tf-parc-det summary { cursor: pointer; font-size: 13px; font-weight: 600; color: var(--ink-muted); padding: 2px 0; }
+  .tf-parc-det summary:hover { color: var(--ink); }
+  .tf-parc-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(62px, 1fr)); gap: 6px; margin-top: 10px; }
+  .tf-parc-grade .m { display: flex; flex-direction: column; align-items: center; gap: 1px; height: 46px; justify-content: center; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-2); color: var(--ink-muted); font: inherit; cursor: pointer; }
+  .tf-parc-grade .m b { font-size: 13px; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .tf-parc-grade .m small { font-size: 10px; }
+  .tf-parc-grade .m:hover:not(:disabled) { border-color: var(--border-strong); }
+  .tf-parc-grade .m.paga { background: var(--success-soft); border-color: color-mix(in srgb, var(--success) 45%, transparent); color: var(--success-ink, var(--success)); }
+  .tf-parc-grade .m.atrasada { background: color-mix(in srgb, var(--destructive) 14%, transparent); border-color: color-mix(in srgb, var(--destructive) 50%, transparent); color: var(--destructive); }
+  .tf-parc-grade .m.atual { box-shadow: 0 0 0 2px var(--accent); }
+  .tf-parc-grade .m:disabled { cursor: default; }
+  .tf-parc-encerrados { margin-top: 20px; }
+  .tf-parc-encerrados > summary { cursor: pointer; font-size: 14px; font-weight: 600; color: var(--ink-muted); margin-bottom: 12px; }
+  .tf-parc-vazio { border: 1px dashed var(--border-strong); border-radius: 10px; }
+  .tf-parc-mini .lin { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 0; border: 0; background: none; color: var(--ink); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+  .tf-parc-mini .lin + .lin { border-top: 1px solid var(--border-muted, var(--border)); }
+  .tf-parc-mini .lin .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tf-parc-mini .lin:hover .nm { color: var(--accent); }
+  .tf-parc-linha { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) 210px 280px; align-items: center; gap: 16px; min-height: 64px; padding: 8px 16px; cursor: pointer; }
+  .tf-parc-linha + .tf-parc-linha { border-top: 1px solid var(--border-muted, var(--border)); }
+  .tf-parc-linha:hover { background: var(--surface-2); }
+  .tf-parc-linha.cab { cursor: default; min-height: 36px; font-size: 12px; font-weight: 600; color: var(--ink-muted); background: var(--surface-2); }
+  .tf-parc-linha .pc { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .tf-parc-linha .tf-emp-mini .nm { font-weight: 500; }
+  .tf-parc-linha .pc .tx { min-width: 0; display: flex; flex-direction: column; }
+  .tf-parc-linha .pc b { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tf-parc-linha .pc small { font-size: 12px; color: var(--ink-muted); }
+  .tf-parc-linha .valor { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .tf-parc-linha .and { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .tf-parc-linha .and .tf-parc-prog { min-width: 0; }
+  .tf-parc-linha .estado { display: flex; align-items: center; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+  .tf-parc-pagar { white-space: nowrap; }
+  .tf-parc-antes { display: flex; align-items: flex-start; gap: 8px; margin: -4px 0 8px; font-size: 13px; color: var(--ink-muted); cursor: pointer; }
+  .tf-parc-antes input { margin-top: 2px; }
+  .tf-parc-previa { min-height: 18px; margin-top: 8px; font-size: 13px; color: var(--ink-muted); }
+  .tf-parc-fixo { display: flex; align-items: center; min-height: 32px; padding: 0 10px; font-size: 13px; }
+  @media (max-width: 1100px) {
+    .tf-parc-linha { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; }
+    .tf-parc-linha > :nth-child(3) { display: none; }
+  }
+  @media (max-width: 700px) {
+    .tf-parc-linha { grid-template-columns: minmax(0, 1fr); gap: 8px; padding: 12px 14px; }
+    .tf-parc-linha.cab { display: none; }
+    .tf-parc-linha .estado { justify-content: flex-start; }
+    .tf-parc { padding: 14px; }
+    .tf-parc-cab .dir { width: 100%; }
+  }
   .tf-legenda { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin: 0 0 12px; font-size: 13px; color: var(--ink-muted); }
   .tf-legenda b { color: var(--warn); font-weight: 600; }
   .tf-ver-todas { display: block; width: 100%; padding: 8px 14px; border: 0; border-top: 1px solid var(--border); background: none; color: var(--accent); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
@@ -398,7 +472,7 @@
 <script src="nilma-solicitacoes.js?v=358"></script>
 <script src="nilma-extras.js?v=355"></script>
 <script>
-  var VERSAO_APP = '2.374 · 27/09/2026';
+  var VERSAO_APP = '2.375 · 27/09/2026';
   NilmaShell.montar({ modulo: 'Tarefas', moduloId: 'tarefas', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false, versao: VERSAO_APP });
   document.getElementById('topo').hidden = true;
 </script>
@@ -408,6 +482,7 @@
   <button type="button" class="tab menu-item" data-pagina="requisicoes"><span class="tab-ico"><i class="ph ph-tray-arrow-down" aria-hidden="true"></i></span><span class="tab-label">Requisições</span><span class="tab-badge" id="numReq" hidden></span></button>
   <button type="button" class="tab menu-item" data-pagina="minhasempresas"><span class="tab-ico"><i class="ph ph-folder-simple-user" aria-hidden="true"></i></span><span class="tab-label">Minhas empresas</span><span class="tab-badge" id="numMinhasEmp" hidden></span></button>
   <button type="button" class="tab menu-item" data-pagina="empresas" data-admin hidden><span class="tab-ico"><i class="ph ph-buildings" aria-hidden="true"></i></span><span class="tab-label">Todas as empresas</span></button>
+  <button type="button" class="tab menu-item" data-pagina="parcelamentos"><span class="tab-ico"><i class="ph ph-hand-coins" aria-hidden="true"></i></span><span class="tab-label">Parcelamentos</span><span class="tab-badge" id="numParc" hidden></span></button>
   <button type="button" class="tab menu-item" data-pagina="equipe"><span class="tab-ico"><i class="ph ph-users-three" aria-hidden="true"></i></span><span class="tab-label">Equipe e férias</span><span class="tab-badge" id="numAusentes" hidden></span></button>
 </nav>
 <nav class="abas-secao" id="abasSecao" role="tablist" aria-label="Visões" hidden></nav>
@@ -812,6 +887,7 @@
     todas: ['Todas as tarefas', 'Tudo que está aberto no escritório.'],
     requisicoes: ['Requisições', 'Pedidos que chegaram dos clientes e ainda não foram resolvidos.'],
     empresas: ['Todas as empresas', 'Quem cuida de cada cliente e o que está aberto com ele.'],
+    parcelamentos: ['Parcelamentos', ''],
     minhasempresas: ['Minhas empresas', 'As empresas que estão com você, e as de quem você está cobrindo.'],
     equipe: ['Equipe e férias', 'Quem está com o quê, e quem cobre quem está fora.']
   };
@@ -824,6 +900,7 @@
     if (pagina === 'empresas' || pagina === 'minhasempresas') desenharEmpresas(box, pagina === 'minhasempresas');
     else if (pagina === 'empresa') desenharEmpresa(box);
     else if (pagina === 'equipe') desenharEquipe(box);
+    else if (pagina === 'parcelamentos') desenharParcelamentos(box);
     else desenharTarefas(box);
     window.scrollTo(0, rolagem);
   }
@@ -839,15 +916,20 @@
       : pagina === 'empresa' ? ABAS_EMPRESA
       : pagina === 'empresas' ? [['empresas', 'Todas as empresas', 'ph-buildings']]
       : pagina === 'minhasempresas' ? [['minhasempresas', 'Minhas empresas', 'ph-folder-simple-user']]
+      : pagina === 'parcelamentos' ? [['parcelamentos', 'Parcelamentos', 'ph-hand-coins']]
       : [['lista', 'Lista', 'ph-list-bullets'], ['quadro', 'Quadro', 'ph-squares-four'], ['feitas', 'Feitas', 'ph-check-circle']];
     abas.forEach(function (a) {
       var b = el('button', 'aba-s'); b.type = 'button'; b.setAttribute('role', 'tab');
-      b.setAttribute('aria-selected', String(pagina === 'empresa' ? abaEmpresa === a[0] : ['empresas', 'minhasempresas', 'equipe'].indexOf(pagina) !== -1 ? true : visao === a[0]));
+      b.setAttribute('aria-selected', String(pagina === 'empresa' ? abaEmpresa === a[0] : ['empresas', 'minhasempresas', 'equipe', 'parcelamentos'].indexOf(pagina) !== -1 ? true : visao === a[0]));
       b.appendChild(ico(a[2])); b.appendChild(el('span', null, a[1]));
       if (pagina === 'empresa' && a[0] === 'tarefas') { var nAb = abertasDaEmpresa(empresaAberta).length; if (nAb) b.appendChild(el('span', 'tab-badge', String(nAb))); }
+      if (pagina === 'empresa' && a[0] === 'parcelamentos') {
+        var pe = Array.from(parcs.values()).filter(function (x) { return x.clienteId === empresaAberta; });
+        if (pe.length) { var bg = el('span', 'tab-badge' + (pe.some(function (x) { return situacaoParc(x).atrasadas.length; }) ? ' tf-badge-ruim' : ''), String(pe.length)); b.appendChild(bg); }
+      }
       b.addEventListener('click', function () {
         if (pagina === 'empresa') { abaEmpresa = a[0]; desenhar(); window.scrollTo(0, 0); return; }
-        if (a[0] === 'empresas' || a[0] === 'minhasempresas' || a[0] === 'equipe') { irPara(a[0]); return; }
+        if (a[0] === 'empresas' || a[0] === 'minhasempresas' || a[0] === 'equipe' || a[0] === 'parcelamentos') { irPara(a[0]); return; }
         visao = a[0]; gravarLocal('nilma_tarefas_visao', visao); desenhar();
       });
       nav.appendChild(b);
@@ -859,6 +941,9 @@
     var n = function (id, v) { var b = $(id); b.textContent = v || ''; b.hidden = !v; };
     n('numMinhas', abertas.filter(function (t) { return t.responsavelUid === eu.uid; }).length);
     n('numMinhasEmp', minhasEmpresas().length);
+    var atrasParc = parcsVisiveis().filter(function (x) { return situacaoParc(x).atrasadas.length; }).length;
+    n('numParc', atrasParc);
+    var bp = $('numParc'); if (bp) { bp.classList.toggle('tf-badge-ruim', !!atrasParc); bp.title = atrasParc ? atrasParc + ' com parcela atrasada' : ''; }
     n('numTodas', abertas.length);
     n('numReq', abertas.filter(function (t) { return t.tipo === 'requisicao'; }).length);
     var fora = 0; equipe.forEach(function (p) { if (ausenteHoje(p.uid)) fora++; });
@@ -1396,7 +1481,7 @@
 
   // A página da empresa em abas (no menu de cima): Visão geral · Tarefas · Bancos · Cadastro.
   var abaEmpresa = 'geral';
-  var ABAS_EMPRESA = [['geral', 'Visão geral', 'ph-info'], ['tarefas', 'Tarefas', 'ph-list-checks'], ['bancos', 'Bancos', 'ph-bank'], ['cadastro', 'Cadastro', 'ph-identification-card']];
+  var ABAS_EMPRESA = [['geral', 'Visão geral', 'ph-info'], ['tarefas', 'Tarefas', 'ph-list-checks'], ['parcelamentos', 'Parcelamentos', 'ph-hand-coins'], ['bancos', 'Bancos', 'ph-bank'], ['cadastro', 'Cadastro', 'ph-identification-card']];
   function desenharEmpresa(box) {
     var c = clientesPorId.get(empresaAberta);
     if (!c) { box.appendChild(el('div', 'tf-vazio', 'Empresa não encontrada.')); return; }
@@ -1434,6 +1519,7 @@
     }
 
     if (abaEmpresa === 'tarefas') empresaTarefas(box, c);
+    else if (abaEmpresa === 'parcelamentos') empresaParcelamentos(box, c);
     else if (abaEmpresa === 'bancos') empresaBancos(box, c);
     else if (abaEmpresa === 'cadastro') empresaCadastro(box, c);
     else empresaGeral(box, c, fora);
@@ -1475,6 +1561,7 @@
       cxA.appendChild(ver);
     }
     lado.appendChild(cxA);
+    var cxPa = caixaParcelamentosResumo(c); if (cxPa) lado.appendChild(cxPa);
     grade.appendChild(lado);
     box.appendChild(grade);
   }
@@ -1653,6 +1740,416 @@
     if (c.portalToken) atalho('Página do cliente', 'cliente.html?portal=' + encodeURIComponent(c.portalToken), 'ph-link', true);
     cxL.appendChild(corpoL); grade.appendChild(cxL);
     box.appendChild(grade);
+  }
+
+  // ---------------- parcelamentos (PGFN, Simples, Receita...)
+  // Coleção parcelamentos: um documento por parcelamento, com a competência
+  // da 1ª parcela ('primeira' = AAAA-MM), o total de parcelas e, em 'pagas',
+  // um mapa AAAA-MM -> { em, por } das parcelas pagas. A parcela do mês é a
+  // de número (meses desde a 1ª + 1). Vencimento: último dia útil do mês
+  // (padrão da PGFN, do Simples e da Receita) ou um dia fixo.
+  var ORGAOS = [
+    ['pgfn', 'PGFN', 'PGFN · Dívida ativa', '#1D4ED8'],
+    ['simples', 'SN', 'Simples Nacional', '#15803D'],
+    ['receita', 'RFB', 'Receita Federal', '#6D28D9'],
+    ['estadual', 'SEF', 'Estado (ICMS)', '#B45309'],
+    ['municipal', 'PREF', 'Prefeitura', '#0E7490'],
+    ['outro', '•••', 'Outro', '#4B5563']
+  ];
+  var MODALIDADES = {
+    pgfn: ['Transação excepcional', 'Transação por adesão', 'Transação individual', 'Parcelamento convencional'],
+    simples: ['Parcelamento ordinário', 'Parcelamento especial (PERT-SN)', 'Transação do Simples'],
+    receita: ['Parcelamento simplificado', 'Parcelamento ordinário', 'Parcelamento previdenciário', 'Parcelamento não previdenciário'],
+    estadual: ['Parcelamento de ICMS'],
+    municipal: ['Parcelamento de ISS', 'Parcelamento de IPTU/taxas'],
+    outro: []
+  };
+  var STATUS_PARC = [['ativo', 'Em dia / pagando'], ['quitado', 'Quitado'], ['rescindido', 'Rescindido'], ['cancelado', 'Cancelado']];
+  function orgaoDe(id) { return ORGAOS.filter(function (o) { return o[0] === id; })[0] || ORGAOS[ORGAOS.length - 1]; }
+  var parcs = new Map();                 // ativos (aberto == true), ouvidos sempre
+  var encerradosDaEmpresa = {};          // clienteId -> [quitados/cancelados] (lidos ao abrir a aba)
+  function ouvirParcelamentos() {
+    db.collection('parcelamentos').where('aberto', '==', true).onSnapshot(function (snap) {
+      parcs = new Map();
+      snap.forEach(function (d) { parcs.set(d.id, Object.assign({ id: d.id }, d.data())); });
+      pintarContadores();
+      if (pagina === 'parcelamentos' || pagina === 'empresa') { if (!painelParcEditando()) desenhar(); }
+    }, function () {});
+  }
+  function painelParcEditando() { var p = $('tfPeek'); return !!(p && p.dataset.parc); }
+  function mesMais(ym, n) { var p = String(ym).split('-').map(Number); var d = new Date(p[0], p[1] - 1 + n, 1); return d.getFullYear() + '-' + pad2(d.getMonth() + 1); }
+  function difMeses(a, b) { var x = String(a).split('-').map(Number), y = String(b).split('-').map(Number); return (y[0] - x[0]) * 12 + (y[1] - x[1]); }
+  function mesCurto(ym) { var p = String(ym).split('-').map(Number); return new Date(p[0], p[1] - 1, 1).toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }).replace('.', '').replace(' de ', '/'); }
+  function mesLongo(ym) { var p = String(ym).split('-').map(Number); return new Date(p[0], p[1] - 1, 1).toLocaleDateString('pt-BR', { month: 'long' }); }
+  function brl(v) { return Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
+  function lerValor(txt) {
+    var t = String(txt || '').replace(/[^\d,.-]/g, '');
+    if (t.indexOf(',') !== -1) t = t.replace(/\./g, '').replace(',', '.');
+    var n = Number(t); return isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : null;
+  }
+  function lerMesAno(txt) {
+    var m = String(txt || '').trim().match(/^(\d{1,2})\D+(\d{2}|\d{4})$/) || String(txt || '').trim().match(/^(\d{4})-(\d{2})$/);
+    if (!m) return null;
+    var mes, ano;
+    if (m[1].length === 4) { ano = Number(m[1]); mes = Number(m[2]); } else { mes = Number(m[1]); ano = Number(m[2]); if (ano < 100) ano += 2000; }
+    if (mes < 1 || mes > 12 || ano < 2000 || ano > 2100) return null;
+    return ano + '-' + pad2(mes);
+  }
+  function vencimentoDe(p, ym) {
+    var q = String(ym).split('-').map(Number);
+    var ult = new Date(q[0], q[1], 0, 12);
+    if (p.dia && p.dia !== 'util') return isoDe(new Date(q[0], q[1] - 1, Math.min(Number(p.dia), ult.getDate()), 12));
+    while (ult.getDay() === 0 || ult.getDay() === 6) ult.setDate(ult.getDate() - 1);
+    return isoDe(ult);
+  }
+  // situação de um parcelamento hoje
+  function situacaoParc(p) {
+    var hoje = hojeIso(), mesHoje = mesDe(hoje);
+    var total = Number(p.parcelas) || 0, ini = p.primeira;
+    var fim = mesMais(ini, total - 1);
+    var pagas = p.pagas || {};
+    var nPagas = 0, atrasadas = [];
+    for (var i = 0; i < total; i++) {
+      var ym = mesMais(ini, i);
+      if (pagas[ym]) { nPagas++; continue; }
+      if (ym < mesHoje || (ym === mesHoje && hoje > vencimentoDe(p, ym))) atrasadas.push(ym);
+    }
+    var nAtual = difMeses(ini, mesHoje) + 1;
+    var temAtual = nAtual >= 1 && nAtual <= total;
+    var proxima = null;   // a próxima a pagar (a mais antiga em aberto)
+    for (var k = 0; k < total; k++) { var y = mesMais(ini, k); if (!pagas[y]) { proxima = y; break; } }
+    return {
+      total: total, fim: fim, nPagas: nPagas, atrasadas: atrasadas, proxima: proxima,
+      atual: temAtual ? mesHoje : null, nAtual: temAtual ? nAtual : null,
+      atualPaga: temAtual && !!pagas[mesHoje], vencAtual: temAtual ? vencimentoDe(p, mesHoje) : null,
+      naoComecou: mesHoje < ini, acabou: mesHoje > fim
+    };
+  }
+  // o que mostrar pro mês atual: paga / atrasada / vence dd/mm
+  function estadoDoMes(p, sx) {
+    if (p.status && p.status !== 'ativo') return { cls: 'fim', txt: (STATUS_PARC.filter(function (s) { return s[0] === p.status; })[0] || [0, p.status])[1] };
+    if (sx.atrasadas.length) return { cls: 'atrasada', txt: sx.atrasadas.length === 1 ? '1 parcela atrasada' : sx.atrasadas.length + ' parcelas atrasadas' };
+    if (sx.atual && sx.atualPaga) return { cls: 'paga', txt: mesLongo(sx.atual).replace(/^./, function (c) { return c.toUpperCase(); }) + ' paga' };
+    if (sx.atual) return { cls: sx.vencAtual === hojeIso() ? 'hoje' : 'aberta', txt: 'Vence ' + (prazoTexto(sx.vencAtual) === 'Hoje' ? 'hoje' : dataCurta(sx.vencAtual)) };
+    if (sx.naoComecou) return { cls: 'aberta', txt: 'Começa em ' + mesCurto(p.primeira) };
+    return { cls: 'paga', txt: 'Todas pagas' };
+  }
+  function parcsVisiveis() {
+    var todos = Array.from(parcs.values());
+    if (souAdmin()) return todos;
+    var ids = minhasEmpresas().map(function (c) { return c.id; });
+    return todos.filter(function (p) { return ids.indexOf(p.clienteId) !== -1; });
+  }
+  function marcarParcela(p, ym, paga) {
+    var campos = { atualizadoEm: agoraIso(), atualizadoPor: eu.nome };
+    campos['pagas.' + ym] = paga ? { em: agoraIso(), por: eu.nome, porUid: eu.uid } : FV.delete();
+    // local, pra tela responder na hora
+    p.pagas = Object.assign({}, p.pagas || {}); if (paga) p.pagas[ym] = { em: agoraIso(), por: eu.nome }; else delete p.pagas[ym];
+    var sx = situacaoParc(p);
+    var quitou = paga && sx.nPagas >= sx.total;
+    if (quitou) { campos.status = 'quitado'; campos.aberto = false; p.status = 'quitado'; p.aberto = false; }
+    return db.collection('parcelamentos').doc(p.id).update(campos).then(function () {
+      if (quitou) { toast('Última parcela paga: parcelamento quitado.'); delete encerradosDaEmpresa[p.clienteId]; }
+      else toast('Parcela ' + (difMeses(p.primeira, ym) + 1) + ' (' + mesCurto(ym) + ') ' + (paga ? 'marcada como paga.' : 'voltou a ficar em aberto.'));
+    }).catch(function (err) { toast('Não salvou: ' + erroDe(err), 'erro'); });
+  }
+  function seloOrgao(p, grande) {
+    var o = orgaoDe(p.orgao);
+    var s = el('span', 'tf-parc-selo' + (grande ? ' grande' : ''), o[1]); s.style.background = o[3]; s.title = o[2];
+    return s;
+  }
+  // botão "Marcar paga" da parcela que interessa (a mais antiga em aberto até este mês)
+  function botaoPagar(p, sx) {
+    if (p.status && p.status !== 'ativo') return null;
+    var alvo = sx.atrasadas[0] || (sx.atual && !sx.atualPaga ? sx.atual : null);
+    if (!alvo) return null;
+    var b = botao('Pagar ' + mesCurto(alvo), 'ph-check', 'btn-secondary btn-sm tf-parc-pagar', function (ev) { ev.stopPropagation(); marcarParcela(p, alvo, true); });
+    b.title = 'Marcar a parcela ' + (difMeses(p.primeira, alvo) + 1) + ' (' + mesCurto(alvo) + ') como paga';
+    return b;
+  }
+  function barraProgresso(sx) {
+    var w = el('div', 'tf-parc-prog');
+    var bar = el('div', 'barra'); var f = el('span'); f.style.width = (sx.total ? Math.round(sx.nPagas / sx.total * 100) : 0) + '%'; bar.appendChild(f);
+    w.appendChild(bar);
+    w.appendChild(el('span', 'txt', sx.nPagas + ' de ' + sx.total + ' pagas'));
+    return w;
+  }
+  // grade de meses: verde paga, vermelho atrasada, contorno no mês atual; clique marca/desmarca
+  function gradeDeParcelas(p) {
+    var sx = situacaoParc(p);
+    var g = el('div', 'tf-parc-grade');
+    var ativo = !p.status || p.status === 'ativo';
+    for (var i = 0; i < sx.total; i++) {
+      (function (i) {
+        var ym = mesMais(p.primeira, i);
+        var paga = !!(p.pagas || {})[ym];
+        var atras = sx.atrasadas.indexOf(ym) !== -1;
+        var b = el('button', 'm' + (paga ? ' paga' : atras ? ' atrasada' : '') + (ym === sx.atual ? ' atual' : '')); b.type = 'button';
+        b.appendChild(el('b', null, String(i + 1)));
+        b.appendChild(el('small', null, mesCurto(ym)));
+        var info = (p.pagas || {})[ym];
+        b.title = 'Parcela ' + (i + 1) + ' · ' + mesCurto(ym) + ' · vence ' + dataCurta(vencimentoDe(p, ym)) + ' · ' + (paga ? 'paga' + (info && info.por ? ' (marcada por ' + info.por + ')' : '') : atras ? 'ATRASADA' : 'em aberto') + (ativo ? '\nClique pra ' + (paga ? 'desmarcar' : 'marcar como paga') : '');
+        b.disabled = !ativo;
+        b.addEventListener('click', function (ev) { ev.stopPropagation(); marcarParcela(p, ym, !paga).then(desenhar); });
+        g.appendChild(b);
+      })(i);
+    }
+    return g;
+  }
+  function cartaoParcelamento(p, aberto) {
+    var sx = situacaoParc(p);
+    var o = orgaoDe(p.orgao);
+    var est = estadoDoMes(p, sx);
+    var c = el('section', 'tf-parc' + (est.cls === 'atrasada' ? ' ruim' : '') + (p.status && p.status !== 'ativo' ? ' encerrado' : ''));
+    var cab = el('div', 'tf-parc-cab');
+    cab.appendChild(seloOrgao(p, true));
+    var tx = el('div', 'tx');
+    tx.appendChild(el('b', null, p.modalidade || o[2]));
+    tx.appendChild(el('small', null, [o[2], p.numero ? 'nº ' + p.numero : '', brl(p.valorParcela) + '/mês', p.dia && p.dia !== 'util' ? 'vence dia ' + p.dia : 'vence no último dia útil'].filter(Boolean).join(' · ')));
+    cab.appendChild(tx);
+    var dir = el('div', 'dir');
+    dir.appendChild(el('span', 'tf-parc-estado ' + est.cls, est.txt));
+    var bp = botaoPagar(p, sx); if (bp) dir.appendChild(bp);
+    var ed = el('button', 'btn btn-ghost btn-icone btn-sm'); ed.type = 'button'; ed.setAttribute('aria-label', 'Editar parcelamento'); ed.title = 'Editar'; ed.appendChild(ico('ph-pencil-simple'));
+    ed.addEventListener('click', function (ev) { ev.stopPropagation(); abrirParc(p); });
+    dir.appendChild(ed);
+    cab.appendChild(dir);
+    c.appendChild(cab);
+    var meio = el('div', 'tf-parc-meio');
+    meio.appendChild(barraProgresso(sx));
+    meio.appendChild(el('span', 'tf-parc-per', 'De ' + mesCurto(p.primeira) + ' a ' + mesCurto(sx.fim) + (sx.nAtual ? ' · este mês é a parcela ' + sx.nAtual : '') + ' · falta ' + brl((sx.total - sx.nPagas) * (p.valorParcela || 0))));
+    c.appendChild(meio);
+    if (p.obs) c.appendChild(el('div', 'tf-parc-obs', p.obs));
+    var det = el('details', 'tf-parc-det'); if (aberto) det.open = true;
+    var sm = el('summary', null, 'Parcelas mês a mês'); det.appendChild(sm);
+    det.addEventListener('toggle', function () { parcAbertos[p.id] = det.open; if (det.open && !det.querySelector('.tf-parc-grade')) det.appendChild(gradeDeParcelas(p)); });
+    if (aberto) det.appendChild(gradeDeParcelas(p));
+    c.appendChild(det);
+    return c;
+  }
+  var parcAbertos = {};
+  function empresaParcelamentos(box, c) {
+    var ativos = Array.from(parcs.values()).filter(function (p) { return p.clienteId === c.id; }).sort(function (a, b) { return String(a.orgao).localeCompare(String(b.orgao)); });
+    var cab = el('div', 'tf-bco-cab');
+    var somaMes = ativos.reduce(function (s, p) { var sx = situacaoParc(p); return s + (sx.atual ? Number(p.valorParcela || 0) : 0); }, 0);
+    var atras = ativos.filter(function (p) { return situacaoParc(p).atrasadas.length; }).length;
+    cab.appendChild(el('b', 'tf-parc-titulo', ativos.length ? (ativos.length === 1 ? '1 parcelamento ativo' : ativos.length + ' parcelamentos ativos') : 'Nenhum parcelamento ativo'));
+    if (ativos.length) cab.appendChild(el('span', 'tf-bco-resumo', brl(somaMes) + ' em ' + mesLongo(mesDe(hojeIso()))));
+    if (atras) cab.appendChild(el('span', 'tf-bco-resumo nada', atras === 1 ? '1 com parcela atrasada' : atras + ' com parcela atrasada'));
+    var novo = botao('Novo parcelamento', 'ph-plus', 'btn-primary btn-sm tf-bco-ir', function () { abrirParc({ clienteId: c.id, clienteNome: nomeDoCliente(c), novo: true }); });
+    cab.appendChild(novo);
+    box.appendChild(cab);
+    if (!ativos.length) {
+      var vz = el('div', 'tf-vazio tf-parc-vazio');
+      vz.appendChild(el('div', null, 'Cadastre aqui os parcelamentos da empresa (PGFN, Simples, Receita, Estado, Prefeitura). Todo mês o app mostra qual parcela vence, o que está atrasado e quanto falta.'));
+      box.appendChild(vz);
+    }
+    var lista = el('div', 'tf-parc-lista');
+    ativos.forEach(function (p) { lista.appendChild(cartaoParcelamento(p, parcAbertos[p.id] === undefined ? ativos.length === 1 : parcAbertos[p.id])); });
+    box.appendChild(lista);
+    // encerrados (quitados, rescindidos, cancelados): lidos uma vez
+    var enc = encerradosDaEmpresa[c.id];
+    if (!enc) {
+      encerradosDaEmpresa[c.id] = [];
+      db.collection('parcelamentos').where('clienteId', '==', c.id).get().then(function (snap) {
+        encerradosDaEmpresa[c.id] = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); }).filter(function (p) { return p.aberto === false; });
+        if (encerradosDaEmpresa[c.id].length && pagina === 'empresa' && empresaAberta === c.id && abaEmpresa === 'parcelamentos') desenhar();
+      }).catch(function () {});
+    } else if (enc.length) {
+      var det = el('details', 'tf-parc-encerrados');
+      det.appendChild(el('summary', null, 'Encerrados (' + enc.length + ')'));
+      var l2 = el('div', 'tf-parc-lista');
+      enc.forEach(function (p) { l2.appendChild(cartaoParcelamento(p, false)); });
+      det.appendChild(l2);
+      box.appendChild(det);
+    }
+  }
+  // Visão geral da empresa: resumo curto dos ativos
+  function caixaParcelamentosResumo(c) {
+    var ativos = Array.from(parcs.values()).filter(function (p) { return p.clienteId === c.id; });
+    if (!ativos.length) return null;
+    var cx = caixa('Parcelamentos', 'ph-hand-coins', String(ativos.length));
+    var corpo = el('div', 'tf-caixa-corpo tf-parc-mini');
+    ativos.forEach(function (p) {
+      var sx = situacaoParc(p), est = estadoDoMes(p, sx);
+      var l = el('button', 'lin'); l.type = 'button';
+      l.appendChild(seloOrgao(p));
+      var t = el('span', 'nm', (p.modalidade || orgaoDe(p.orgao)[2]) + ' · ' + sx.nPagas + '/' + sx.total); l.appendChild(t);
+      l.appendChild(el('span', 'tf-parc-estado ' + est.cls, est.txt));
+      l.addEventListener('click', function () { abaEmpresa = 'parcelamentos'; parcAbertos[p.id] = true; desenhar(); window.scrollTo(0, 0); });
+      corpo.appendChild(l);
+    });
+    cx.appendChild(corpo);
+    return cx;
+  }
+  // Página "Parcelamentos": todos os ativos (admin) ou os das minhas empresas
+  var filtroParc = { rapido: '', orgao: '', busca: '' };
+  function desenharParcelamentos(box) {
+    topo(box, 'Parcelamentos', '', [botao('Novo parcelamento', 'ph-plus', 'btn-primary', function () { abrirParc({ novo: true }); })]);
+    var todos = parcsVisiveis();
+    var mesHoje = mesDe(hojeIso());
+    var info = todos.map(function (p) { return { p: p, sx: situacaoParc(p) }; });
+    var R = {
+      atrasados: function (x) { return x.sx.atrasadas.length > 0; },
+      apagar: function (x) { return x.sx.atual && !x.sx.atualPaga && !x.sx.atrasadas.length; },
+      pagos: function (x) { return x.sx.atual && x.sx.atualPaga && !x.sx.atrasadas.length; }
+    };
+    var b = el('div', 'tf-barra');
+    var busca = el('label', 'tf-busca'); busca.appendChild(ico('ph-magnifying-glass'));
+    var inp = el('input'); inp.type = 'search'; inp.placeholder = 'Buscar empresa, nº ou modalidade'; inp.value = filtroParc.busca; inp.setAttribute('aria-label', 'Buscar parcelamento');
+    busca.appendChild(inp); b.appendChild(busca);
+    var chips = el('div', 'tf-resumo');
+    [['atrasados', 'Atrasados', 'vermelho'], ['apagar', 'A pagar em ' + mesLongo(mesHoje), 'amarelo'], ['pagos', 'Pagos em ' + mesLongo(mesHoje), '']].forEach(function (c) {
+      var n = info.filter(R[c[0]]).length;
+      if (!n && filtroParc.rapido !== c[0]) return;
+      var bt = el('button', 'tf-chip ' + c[2]); bt.type = 'button'; bt.setAttribute('aria-pressed', String(filtroParc.rapido === c[0]));
+      bt.appendChild(el('span', null, c[1])); bt.appendChild(el('b', null, String(n)));
+      bt.addEventListener('click', function () { filtroParc.rapido = filtroParc.rapido === c[0] ? '' : c[0]; desenhar(); });
+      chips.appendChild(bt);
+    });
+    if (chips.childNodes.length) b.appendChild(chips);
+    var so = selectDe([['', 'Órgão: todos']].concat(ORGAOS.map(function (o) { return [o[0], o[2]]; })), filtroParc.orgao, 'Órgão');
+    so.classList.toggle('ativo', !!filtroParc.orgao);
+    so.addEventListener('change', function () { filtroParc.orgao = so.value; desenhar(); });
+    b.appendChild(so);
+    box.appendChild(b);
+    var q = semAcento(filtroParc.busca.trim());
+    var lista = info.filter(function (x) {
+      if (filtroParc.rapido && !R[filtroParc.rapido](x)) return false;
+      if (filtroParc.orgao && x.p.orgao !== filtroParc.orgao) return false;
+      if (q && semAcento([x.p.clienteNome, x.p.numero, x.p.modalidade, orgaoDe(x.p.orgao)[2]].join(' ')).indexOf(q) === -1) return false;
+      return true;
+    }).sort(function (a, b) {
+      var pa = a.sx.atrasadas.length ? 0 : (a.sx.atual && !a.sx.atualPaga) ? 1 : 2, pb = b.sx.atrasadas.length ? 0 : (b.sx.atual && !b.sx.atualPaga) ? 1 : 2;
+      return pa - pb || String(a.sx.vencAtual || '').localeCompare(String(b.sx.vencAtual || '')) || String(a.p.clienteNome).localeCompare(String(b.p.clienteNome), 'pt-BR');
+    });
+    var tab = el('div', 'tf-tabela');
+    var cabT = el('div', 'tf-parc-linha cab');
+    ['Empresa', 'Parcelamento', 'Andamento', 'Este mês'].forEach(function (x) { cabT.appendChild(el('div', null, x)); });
+    tab.appendChild(cabT);
+    lista.forEach(function (x) {
+      var p = x.p, sx = x.sx, est = estadoDoMes(p, sx);
+      var l = el('div', 'tf-parc-linha'); l.setAttribute('role', 'button'); l.tabIndex = 0;
+      var e = el('div'); e.appendChild(miniEmpresa(p.clienteId, p.clienteNome)); l.appendChild(e);
+      var pc = el('div', 'pc'); pc.appendChild(seloOrgao(p));
+      var t = el('div', 'tx'); t.appendChild(el('b', null, p.modalidade || orgaoDe(p.orgao)[2])); if (p.numero) t.appendChild(el('small', null, 'nº ' + p.numero)); pc.appendChild(t);
+      l.appendChild(pc);
+      var an = el('div', 'and'); an.appendChild(el('div', 'valor', brl(p.valorParcela) + '/mês')); an.appendChild(barraProgresso(sx)); l.appendChild(an);
+      var em = el('div', 'estado'); em.appendChild(el('span', 'tf-parc-estado ' + est.cls, est.txt));
+      var bp = botaoPagar(p, sx); if (bp) em.appendChild(bp);
+      l.appendChild(em);
+      var ir = function () { parcAbertos[p.id] = true; irPara('empresa', p.clienteId); abaEmpresa = 'parcelamentos'; desenhar(); };
+      l.addEventListener('click', ir);
+      l.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') ir(); });
+      tab.appendChild(l);
+    });
+    if (!lista.length) tab.appendChild(el('div', 'tf-vazio', todos.length ? 'Nenhum parcelamento com esse filtro.' : 'Nenhum parcelamento ativo. Cadastre em "Novo parcelamento" ou na aba Parcelamentos da empresa.'));
+    box.appendChild(tab);
+    var relogio = null;
+    inp.addEventListener('input', function () {
+      clearTimeout(relogio);
+      relogio = setTimeout(function () { filtroParc.busca = inp.value; var pos = inp.selectionStart; desenhar(); var n = document.querySelector('.tf-busca input'); if (n) { n.focus(); try { n.setSelectionRange(pos, pos); } catch (e) {} } }, 200);
+    });
+  }
+  // painel lateral: cadastrar / editar
+  function abrirParc(p) {
+    var velho = $('tfPeek'); if (velho) velho.remove();
+    aberta = null;
+    var d = Object.assign({ orgao: 'pgfn', dia: 'util', status: 'ativo', parcelas: '', primeira: mesDe(hojeIso()) }, p);
+    if (!$('tfPeekFundo')) { var fundo = el('div', 'tf-peek-fundo'); fundo.id = 'tfPeekFundo'; fundo.addEventListener('click', fecharPainel); document.body.appendChild(fundo); }
+    var pk = el('aside', 'tf-peek'); pk.id = 'tfPeek'; pk.dataset.parc = '1';
+    pk.setAttribute('role', 'dialog'); pk.setAttribute('aria-label', d.novo ? 'Novo parcelamento' : 'Parcelamento');
+    var topoP = el('div', 'tf-peek-topo');
+    var fechar = el('button', 'btn btn-ghost btn-icone btn-sm'); fechar.type = 'button'; fechar.setAttribute('aria-label', 'Fechar'); fechar.appendChild(ico('ph-x'));
+    fechar.addEventListener('click', fecharPainel);
+    topoP.appendChild(fechar); topoP.appendChild(el('span', 'tf-peek-rotulo', d.novo ? 'Novo parcelamento' : 'Editar parcelamento'));
+    pk.appendChild(topoP);
+    var corpo = el('div', 'tf-peek-corpo');
+    var grade = el('div', 'tf-props');
+    var empresaEscolhida = d.clienteId ? clientesPorId.get(d.clienteId) : null;
+    var tEmp = { clienteNome: d.clienteNome || (empresaEscolhida ? nomeDoCliente(empresaEscolhida) : '') };
+    var campoEmp = escolhaDeEmpresa(tEmp, function (c) { empresaEscolhida = c; tEmp.clienteNome = c ? nomeDoCliente(c) : ''; });
+    if (!d.novo) { campoEmp = el('div', 'tf-parc-fixo', d.clienteNome || ''); }
+    prop(grade, 'ph-buildings', 'Empresa', campoEmp);
+    var org = selectDe(ORGAOS.map(function (o) { return [o[0], o[2]]; }), d.orgao, 'Órgão');
+    prop(grade, 'ph-bank', 'Órgão', org);
+    var mod = el('input', 'input'); mod.value = d.modalidade || ''; mod.placeholder = 'Ex.: Transação excepcional'; mod.setAttribute('aria-label', 'Modalidade');
+    var dl = el('datalist'); dl.id = 'tfModalidades'; mod.setAttribute('list', 'tfModalidades');
+    function pintarModalidades() { dl.innerHTML = ''; (MODALIDADES[org.value] || []).forEach(function (m) { dl.appendChild(new Option(m)); }); }
+    pintarModalidades(); org.addEventListener('change', pintarModalidades);
+    var modBox = el('div'); modBox.appendChild(mod); modBox.appendChild(dl);
+    prop(grade, 'ph-tag', 'Modalidade', modBox);
+    var num = el('input', 'input'); num.value = d.numero || ''; num.placeholder = 'Nº do parcelamento / conta / negociação'; num.setAttribute('aria-label', 'Número');
+    prop(grade, 'ph-receipt', 'Número', num);
+    var np = el('input', 'input'); np.type = 'number'; np.min = '1'; np.max = '600'; np.value = d.parcelas || ''; np.placeholder = 'Ex.: 60'; np.setAttribute('aria-label', 'Quantidade de parcelas');
+    prop(grade, 'ph-stack', 'Parcelas', np);
+    var pm = el('input', 'input'); pm.value = d.primeira ? d.primeira.split('-').reverse().join('/') : ''; pm.placeholder = 'Mês/ano da 1ª parcela (ex.: 01/2026)'; pm.setAttribute('aria-label', 'Primeira parcela');
+    prop(grade, 'ph-calendar-check', '1ª parcela', pm);
+    var vl = el('input', 'input'); vl.inputMode = 'decimal'; vl.value = d.valorParcela ? String(d.valorParcela.toFixed(2)).replace('.', ',') : ''; vl.placeholder = 'Ex.: 1.234,56'; vl.setAttribute('aria-label', 'Valor da parcela');
+    prop(grade, 'ph-hand-coins', 'Valor da parcela', vl);
+    var dia = selectDe([['util', 'Último dia útil do mês']].concat(Array.from({ length: 31 }, function (_, i) { return [String(i + 1), 'Todo dia ' + (i + 1)]; })), String(d.dia || 'util'), 'Vencimento');
+    prop(grade, 'ph-calendar-blank', 'Vencimento', dia);
+    var st = null;
+    if (!d.novo) { st = selectDe(STATUS_PARC, d.status || 'ativo', 'Situação'); prop(grade, 'ph-circle-half', 'Situação', st); }
+    corpo.appendChild(grade);
+    // já vinha pagando antes de cadastrar
+    var antes = null;
+    if (d.novo) {
+      antes = el('label', 'tf-parc-antes');
+      var cb = el('input'); cb.type = 'checkbox'; cb.checked = true; antes.appendChild(cb);
+      antes.appendChild(el('span', null, 'Marcar como pagas as parcelas dos meses anteriores a este (o parcelamento já estava sendo pago)'));
+      antes.cb = cb;
+      corpo.appendChild(antes);
+    }
+    corpo.appendChild(el('div', 'tf-bloco-tit', 'Observações'));
+    var obs = el('textarea', 'input tf-descricao'); obs.value = d.obs || ''; obs.placeholder = 'Onde tira o boleto (Regularize, e-CAC, PGDAS), débitos incluídos, senha NÃO…'; obs.setAttribute('aria-label', 'Observações'); obs.style.minHeight = '90px';
+    corpo.appendChild(obs);
+    var resumo = el('div', 'tf-parc-previa');
+    corpo.appendChild(resumo);
+    function previa() {
+      var n = Number(np.value), ym = lerMesAno(pm.value), v = lerValor(vl.value);
+      resumo.textContent = n > 0 && ym ? 'Vai de ' + mesCurto(ym) + ' a ' + mesCurto(mesMais(ym, n - 1)) + (v ? ' · total ' + brl(n * v) : '') + '.' : '';
+    }
+    [np, pm, vl].forEach(function (x) { x.addEventListener('input', previa); }); previa();
+    if (!d.novo) corpo.appendChild(el('div', 'tf-rodape', 'Cadastrado por ' + (d.criadoPor || 'alguém') + (d.criadoEm ? ' em ' + new Date(d.criadoEm).toLocaleDateString('pt-BR') : '') + (d.atualizadoPor ? ' · última mudança: ' + d.atualizadoPor : '')));
+    pk.appendChild(corpo);
+    var acoes = el('div', 'tf-peek-acoes');
+    if (!d.novo && (souAdmin() || d.criadoPorUid === eu.uid)) {
+      acoes.appendChild(botao('Excluir', 'ph-trash', 'btn-ghost', async function () {
+        if (!(await NilmaDialogo.confirmar({ titulo: 'Excluir este parcelamento?', texto: 'Some com o histórico de parcelas pagas. Se ele acabou, prefira mudar a situação para "Quitado".', acao: 'Excluir', perigo: true }))) return;
+        db.collection('parcelamentos').doc(d.id).delete().then(function () { toast('Parcelamento excluído.'); delete encerradosDaEmpresa[d.clienteId]; fecharPainel(); }).catch(function (err) { toast('Não excluiu: ' + erroDe(err), 'erro'); });
+      }));
+    }
+    var esp = el('span'); esp.style.flex = '1'; acoes.appendChild(esp);
+    acoes.appendChild(botao('Cancelar', null, 'btn-secondary', fecharPainel));
+    var salvarBt = botao(d.novo ? 'Cadastrar' : 'Salvar', 'ph-check', 'btn-primary', function () {
+      var c = d.novo ? empresaEscolhida : clientesPorId.get(d.clienteId);
+      var n = Math.round(Number(np.value)), ym = lerMesAno(pm.value), v = lerValor(vl.value);
+      if (d.novo && !c) { toast('Escolha a empresa.', 'erro'); return; }
+      if (!(n >= 1 && n <= 600)) { toast('Quantas parcelas? (1 a 600)', 'erro'); np.focus(); return; }
+      if (!ym) { toast('Mês da 1ª parcela: use mês/ano, ex.: 01/2026.', 'erro'); pm.focus(); return; }
+      if (!v) { toast('Valor da parcela inválido.', 'erro'); vl.focus(); return; }
+      var dados = { orgao: org.value, modalidade: mod.value.trim().slice(0, 120), numero: num.value.trim().slice(0, 60), parcelas: n, primeira: ym, valorParcela: v,
+        dia: dia.value === 'util' ? 'util' : Number(dia.value), obs: obs.value.trim().slice(0, 4000), atualizadoEm: agoraIso(), atualizadoPor: eu.nome };
+      salvarBt.disabled = true;
+      if (d.novo) {
+        var pagas = {};
+        if (antes && antes.cb.checked) { var mh = mesDe(hojeIso()); for (var i = 0; i < n; i++) { var y = mesMais(ym, i); if (y >= mh) break; pagas[y] = { em: agoraIso(), por: eu.nome, porUid: eu.uid, antesDoCadastro: true }; } }
+        Object.assign(dados, { clienteId: c.id, clienteNome: nomeDoCliente(c), status: 'ativo', aberto: true, pagas: pagas, criadoEm: agoraIso(), criadoPor: eu.nome, criadoPorUid: eu.uid });
+        db.collection('parcelamentos').add(dados).then(function () {
+          toast('Parcelamento cadastrado.'); fecharPainel();
+        }).catch(function (err) { salvarBt.disabled = false; toast('Não salvou: ' + erroDe(err), 'erro'); });
+      } else {
+        dados.status = st ? st.value : 'ativo'; dados.aberto = dados.status === 'ativo';
+        db.collection('parcelamentos').doc(d.id).update(dados).then(function () {
+          toast('Parcelamento salvo.'); delete encerradosDaEmpresa[d.clienteId]; fecharPainel();
+        }).catch(function (err) { salvarBt.disabled = false; toast('Não salvou: ' + erroDe(err), 'erro'); });
+      }
+    });
+    acoes.appendChild(salvarBt);
+    pk.appendChild(acoes);
+    document.body.appendChild(pk);
+    setTimeout(function () { (d.novo && !d.clienteId ? pk.querySelector('.tf-emp-escolha input') : mod).focus(); }, 30);
   }
 
   // ---------------- equipe e férias
@@ -2013,7 +2510,7 @@
       return;
     }
     if (h.indexOf('empresa/') === 0) { irPara('empresa', h.slice(8)); return; }
-    if (['minhas', 'todas', 'requisicoes', 'minhasempresas', 'empresas', 'equipe'].indexOf(h) !== -1) irPara(h);
+    if (['minhas', 'todas', 'requisicoes', 'minhasempresas', 'empresas', 'parcelamentos', 'equipe'].indexOf(h) !== -1) irPara(h);
   }
 
   // ------------------------------------------------------------ entrada
@@ -2057,6 +2554,7 @@
       Promise.all([carregarEquipe(), carregarClientes().catch(function () { return []; })]).then(function () {
         ouvirTarefas();
         ouvirAusencias();
+        ouvirParcelamentos();
         var primeira = true;
         var esperar = setInterval(function () {
           if (!carregou) return;

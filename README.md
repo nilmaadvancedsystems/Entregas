@@ -29,6 +29,31 @@ Módulo novo no menu ☰, **Tarefas** (`tarefas.html`), pra equipe toda:
 - Regras: `tarefas` a equipe lê, cria e edita; quem criou não muda; apagar
   só quem criou ou o admin.
 
+**Versão 2.375 — Parcelamentos (etapa 2):**
+
+- Coleção `parcelamentos` (regras novas): empresa, órgão (PGFN, Simples,
+  Receita, Estado, Prefeitura, outro), modalidade, nº, quantidade de
+  parcelas, 1ª parcela (`AAAA-MM`), valor da parcela, vencimento (último
+  dia útil — padrão da PGFN/Simples/Receita — ou dia fixo), situação
+  (ativo, quitado, rescindido, cancelado; `aberto` = ativo), observações e
+  `pagas` (mapa `AAAA-MM` → quem marcou e quando). A parcela do mês é o
+  número de meses desde a 1ª + 1.
+- **Aba Parcelamentos na empresa**: um cartão por parcelamento com o selo
+  do órgão, valor, "X de Y pagas" (barra), período, quanto falta, a
+  situação do mês (paga / vence dd/mm / N atrasadas) e o botão "Pagar
+  mmm/aa" (sempre a mais antiga em aberto). "Parcelas mês a mês" abre a
+  grade de todas as parcelas: verde paga, vermelho atrasada, contorno no mês
+  atual; clicar marca ou desmarca. A última parcela paga quita sozinho.
+  Encerrados ficam recolhidos embaixo. A Visão geral mostra um resumo.
+- **Menu Parcelamentos**: todos os ativos (admin) ou os das minhas empresas,
+  atrasados primeiro, com filtros Atrasados / A pagar no mês / Pagos no mês
+  e por órgão; o número vermelho no menu é quantos têm parcela atrasada.
+- Cadastro no painel lateral: sugestões de modalidade por órgão, prévia do
+  período e do total e a opção de marcar como pagas as parcelas dos meses
+  anteriores (parcelamento que já vinha sendo pago).
+- Próxima etapa (3): o robô marcar a parcela paga pelo comprovante e avisar
+  parcela e tarefa atrasadas.
+
 **Versão 2.374 — acabamento geral das Tarefas:**
 
 - Linhas das listas mais altas (título 15px); a empresa aparece com o

@@ -619,6 +619,32 @@ service cloud.firestore {
       allow write: if membro() && (request.auth.uid == uid || ehAdmin());
     }
 
+    // ---------- parcelamentos dos clientes (tarefas.html) ----------
+    // Um documento por parcelamento (PGFN, Simples, Receita, Estado,
+    // Prefeitura): 1ª parcela (AAAA-MM), quantidade, valor, vencimento e o
+    // mapa 'pagas' (AAAA-MM -> quem marcou). A equipe toda cadastra e marca
+    // parcela paga; a empresa e quem cadastrou não mudam depois; apagar só
+    // quem cadastrou ou o admin. 'aberto' (ativo) é o que a tela escuta.
+    match /parcelamentos/{id} {
+      allow read: if membro();
+      allow create: if membro()
+        && request.resource.data.criadoPorUid == request.auth.uid
+        && request.resource.data.clienteId is string && request.resource.data.clienteId.size() > 0
+        && request.resource.data.orgao in ['pgfn', 'simples', 'receita', 'estadual', 'municipal', 'outro']
+        && request.resource.data.parcelas is int && request.resource.data.parcelas >= 1 && request.resource.data.parcelas <= 600
+        && request.resource.data.primeira is string && request.resource.data.primeira.matches('^[0-9]{4}-[0-9]{2}$')
+        && request.resource.data.aberto is bool
+        && request.resource.data.pagas is map;
+      allow update: if membro()
+        && request.resource.data.criadoPorUid == resource.data.criadoPorUid
+        && request.resource.data.clienteId == resource.data.clienteId
+        && request.resource.data.orgao in ['pgfn', 'simples', 'receita', 'estadual', 'municipal', 'outro']
+        && request.resource.data.parcelas is int && request.resource.data.parcelas >= 1 && request.resource.data.parcelas <= 600
+        && request.resource.data.primeira is string && request.resource.data.primeira.matches('^[0-9]{4}-[0-9]{2}$')
+        && request.resource.data.aberto is bool;
+      allow delete: if ehAdmin() || (membro() && resource.data.criadoPorUid == request.auth.uid);
+    }
+
     // ---------- controle mensal de documentos por cliente ----------
     // Um documento por cliente+competência (id: "<clienteId>_<AAAA-MM>"),
     // com um booleano por tipo de documento (extrato/comprovante/aplicacao).
