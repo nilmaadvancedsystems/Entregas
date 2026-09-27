@@ -75,7 +75,9 @@ function seloDoBanco(b, recebido, imagens) {
 // Uma linha por documento que falta, todas numa lista só: ícone, nome, o que
 // mandar e, com bancos conhecidos, um selo por banco (os que faltam primeiro).
 // Vale pros três documentos, que saem todos do banco.
-function linhaDoDocumento(tipo, cliente, recebidosPorTipo, imagens, nota) {
+// mostrar = false (padrão): só os bancos que faltam, sem "✓ Recebido"
+// (Pendências › Configurações › "Mostrar no e-mail o que já chegou").
+function linhaDoDocumento(tipo, cliente, recebidosPorTipo, imagens, nota, mostrar) {
   const t = nota ? Object.assign({}, TIPOS[tipo], { dica: nota }) : TIPOS[tipo];
   const recebidos = (recebidosPorTipo && recebidosPorTipo[tipo]) || [];
   const bancos = (cliente.bancos || []).map(id => POR_ID.get(id)).filter(Boolean);
@@ -85,7 +87,8 @@ function linhaDoDocumento(tipo, cliente, recebidosPorTipo, imagens, nota) {
   const resumo = bancos.length > 1
     ? (faltam === 1 ? 'Falta 1 banco' : faltam ? 'Faltam ' + faltam + ' bancos' : 'Todos chegaram')
     : 'Falta';
-  const ordem = bancos.slice().sort((a, b) => recebidos.includes(a.id) - recebidos.includes(b.id));
+  const ordem = bancos.slice().sort((a, b) => recebidos.includes(a.id) - recebidos.includes(b.id))
+    .filter(b => mostrar || !recebidos.includes(b.id));
   const selos = ordem.map(b => seloDoBanco(b, recebidos.includes(b.id), imagens)).join('');
   return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>' +
     '<td width="48" style="vertical-align:top;padding-top:1px"><table role="presentation" width="36" height="36" cellpadding="0" cellspacing="0" style="background:' + COR.vinhoClaro + ';border-radius:9px"><tr><td align="center" valign="middle" style="height:36px">' + icone + '</td></tr></table></td>' +
@@ -195,7 +198,7 @@ function paragrafos(texto) {
     .map(b => '<p style="margin:0 0 14px;font:15px/1.6 ' + FONTE + ';color:' + COR.tinta + '">' + b.split('\n').map(esc).join('<br>') + '</p>').join('');
 }
 
-// { corpo, cliente, competencia, faltando?, bancosPorTipo | bancosRecebidos, diaLimite, assinatura, caixa, agora } -> { html, imagens }
+// { corpo, cliente, competencia, faltando?, bancosPorTipo | bancosRecebidos, diaLimite, assinatura, caixa, agora, mostrarRecebidos } -> { html, imagens }
 function htmlDaCobranca(o) {
   const imagens = [];
   const cliente = o.cliente || {};
@@ -228,7 +231,7 @@ function htmlDaCobranca(o) {
       // "Extrato Bancário — veio só até 15/08, falta o resto do mês": a linha avisa
       const parte = (l.match(/—\s*veio\s+(.+?),\s*falta o resto do mês/) || [])[1];
       const nota = parte ? 'Chegou ' + parte + '. Falta o resto do mês.' : '';
-      if (tipo && !cartoes.some(c => c.tipo === tipo)) { const c = new String(linhaDoDocumento(tipo, cliente, recebidos, imagens, nota)); c.tipo = tipo; cartoes.push(c); }
+      if (tipo && !cartoes.some(c => c.tipo === tipo)) { const c = new String(linhaDoDocumento(tipo, cliente, recebidos, imagens, nota, o.mostrarRecebidos === true)); c.tipo = tipo; cartoes.push(c); }
       else if (!tipo) cartoes.push('<div style="font:600 15px/1.4 ' + FONTE + ';color:' + COR.tinta + '">' + esc(l.replace(/^-\s+/, '')) + '</div>');
     } else if (/^https?:\/\//.test(l)) {
       fechaP(); fechaC();                                   // o link vira o botão lá embaixo
@@ -254,11 +257,13 @@ function htmlDaCobranca(o) {
   const passo = (n, texto) => '<tr><td width="30" style="padding:4px 0;vertical-align:top"><div style="width:20px;height:20px;border-radius:99px;border:1px solid ' + COR.borda +
     ';background:' + COR.fundo + ';color:' + COR.tinta + ';font:600 11px/20px ' + FONTE + ';text-align:center">' + n + '</div></td><td style="padding:5px 0 4px;font:14px/1.45 ' + FONTE + ';color:' + COR.suave + '">' + texto + '</td></tr>';
 
-  const cabecalho = barra +
+  // o que já chegou só aparece se o escritório ligou isso nas configurações
+  const mostrar = o.mostrarRecebidos === true;
+  const cabecalho = (mostrar ? barra +
     '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>' +
       '<td style="font:13px/18px ' + FONTE + ';color:' + COR.suave + '">' + p.feitos + ' de ' + p.total + ' já chegaram</td>' +
-      '<td align="right" style="font:700 13px/18px ' + FONTE + ';color:' + COR.ok + '">' + pct + '%</td></tr></table>' +
-    (prazo ? '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:16px"><tr><td style="padding:10px 14px;border-radius:8px;background:' + (prazo.atrasado ? COR.faltaClaro : COR.fundo) +
+      '<td align="right" style="font:700 13px/18px ' + FONTE + ';color:' + COR.ok + '">' + pct + '%</td></tr></table>' : '') +
+    (prazo ? '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:' + (mostrar ? 16 : 18) + 'px"><tr><td style="padding:10px 14px;border-radius:8px;background:' + (prazo.atrasado ? COR.faltaClaro : COR.fundo) +
       ';border:1px solid ' + (prazo.atrasado ? COR.faltaBorda : COR.borda) + ';font:600 14px/20px ' + FONTE + ';color:' + (prazo.atrasado ? COR.falta : COR.tinta) + '">' + (iconePrazo || '') + esc(prazo.texto) + '</td></tr></table>' : '') +
     (link ? botao('Enviar pela sua página', link) : '');
 
@@ -269,7 +274,7 @@ function htmlDaCobranca(o) {
       passo(3, 'Pronto: o recebimento é marcado sozinho, sem precisar avisar.') +
     '</table>' +
     (link ? botao('Enviar ou conferir pela sua página', link) +
-      '<div style="font:12px/1.5 ' + FONTE + ';color:' + COR.suave + ';margin-top:8px">Na página dá pra mandar a foto do documento direto do celular e ver o que já chegou.</div>' : ''),
+      '<div style="font:12px/1.5 ' + FONTE + ';color:' + COR.suave + ';margin-top:8px">Na página dá pra mandar a foto do documento direto do celular' + (mostrar ? ' e ver o que já chegou' : '') + '.</div>' : ''),
     iconeAnexo);
 
   const html = moldura({

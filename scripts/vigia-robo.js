@@ -148,8 +148,8 @@ async function atenderUm(p) {
   try {
     const doMes = p.competencia ? ((await db.collection('documentosMensal').doc(cliente.id + '_' + p.competencia).get()).data() || {}) : {};
     const cfg = await configDaCobranca();
-    visual = htmlDaCobranca({ corpo: p.corpo, cliente, competencia: p.competencia, faltando: p.tipos, bancosRecebidos: doMes.bancosRecebidos,
-      diaLimite: cfg.diaLimite, assinatura: cfg.assinatura || 'Nilma Contabilidade', caixa: CAIXA });
+    visual = htmlDaCobranca({ corpo: p.corpo, cliente, competencia: p.competencia, faltando: p.tipos, bancosPorTipo: doMes.bancosPorTipo, bancosRecebidos: doMes.bancosRecebidos,
+      diaLimite: cfg.diaLimite, assinatura: cfg.assinatura || 'Nilma Contabilidade', caixa: CAIXA, mostrarRecebidos: cfg.mostrarRecebidos === true });
   } catch (err) { log('cobrança sai só em texto:', err.message); }
   const gmailId = await enviar({ para, assunto: p.assunto, corpo: p.corpo, html: visual.html, imagens: visual.imagens });
   enviosRecentes.push(Date.now());

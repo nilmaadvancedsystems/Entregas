@@ -145,7 +145,7 @@ function iniciarReguaDeCobranca({ db, log, correio }) {
         try {
           let visual = {};
           try { visual = htmlDaCobranca({ corpo: m.corpo, cliente: c, competencia: comp, faltando: m.tipos, bancosPorTipo: (docs.get(c.id) || {}).bancosPorTipo, bancosRecebidos: (docs.get(c.id) || {}).bancosRecebidos,
-            diaLimite: config.diaLimite, assinatura: config.assinatura || 'Nilma Contabilidade', caixa: CAIXA }); }
+            diaLimite: config.diaLimite, assinatura: config.assinatura || 'Nilma Contabilidade', caixa: CAIXA, mostrarRecebidos: config.mostrarRecebidos === true }); }
           catch (e) { /* sai só em texto */ }
           const gmailId = await correio.enviar({ para: m.para, assunto: m.assunto, corpo: m.corpo, html: visual.html, imagens: visual.imagens });
           correio.contar();

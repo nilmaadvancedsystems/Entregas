@@ -29,6 +29,14 @@ Módulo novo no menu ☰, **Tarefas** (`tarefas.html`), pra equipe toda:
 - Regras: `tarefas` a equipe lê, cria e edita; quem criou não muda; apagar
   só quem criou ou o admin.
 
+**Versão 2.386 — cobrança só com o que falta:** por padrão o e-mail de
+cobrança não mostra mais o que já chegou (os selos "✓ Recebido" dos bancos,
+a barra "X de Y já chegaram"): cada documento lista só os bancos que faltam.
+Quem quiser de volta liga em Pendências › Configurações › Geral › "Mostrar
+no e-mail o que já chegou" (`config/cobranca.mostrarRecebidos`); vale pra
+cobrança manual e pra régua automática. A cobrança manual passou a usar
+também `bancosPorTipo` (antes só o campo antigo do extrato).
+
 **Versão 2.385 — HTML dos e-mails do robô:** moldura nova
 (`scripts/email-html.js`): barra da marca em vinho com o logo num quadrado
 branco e o mês, rótulo do cliente/"Comunicado" em vinho e título maior,

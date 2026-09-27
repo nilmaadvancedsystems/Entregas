@@ -1399,7 +1399,7 @@
 <script src="nilma-solicitacoes.js?v=358"></script>
 <script src="nilma-extras.js?v=355"></script>
 <script>
-  var VERSAO_APP = '2.385 · 27/09/2026';
+  var VERSAO_APP = '2.386 · 27/09/2026';
   NilmaShell.montar({ modulo: 'Pendências', moduloId: 'pendencias', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false, versao: VERSAO_APP });
   // antes do login só a tela de entrada; a barra aparece junto com o app
   document.getElementById('topo').hidden = true;
@@ -1956,6 +1956,14 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
                 <div class="ctl"><input class="input cfg-texto" id="cfgAssinatura" type="text" maxlength="80"></div>
               </div>
             </section>
+            <section class="cfg-cartao">
+              <div class="cfg-cartao-cab"><h2>E-mail de cobrança</h2></div>
+              <label class="cfg-linha" for="cfgMostrarRecebidos">
+                <div class="txt"><div class="rot">Mostrar no e-mail o que já chegou</div>
+                  <div class="desc">Desligado: o e-mail só lista o que falta. Ligado: mostra também os bancos que já mandaram ("✓ Recebido") e a barra "X de Y já chegaram".</div></div>
+                <div class="ctl"><input type="checkbox" class="cfg-liga cfg-chave" id="cfgMostrarRecebidos" role="switch"></div>
+              </label>
+            </section>
             <div class="cfg-meta" id="cfgMeta"></div>
           </div>
 
@@ -2455,6 +2463,7 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
   };
   // o que o robô faz sozinho (scripts/regua-cobranca.js e comprovante-email.js)
   CONFIG_PADRAO.comprovanteEmail = false;
+  CONFIG_PADRAO.mostrarRecebidos = false;   // o e-mail de cobrança só fala do que falta
   CONFIG_PADRAO.regua = { ligada: false, dias: [] };
   var configCobranca = JSON.parse(JSON.stringify(CONFIG_PADRAO));
   function diasDaRegua(bruto) {
@@ -3480,6 +3489,7 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
       if (d.whatsapp) configCobranca.whatsapp = d.whatsapp;
       if (d.lote) configCobranca.lote = Object.assign({}, CONFIG_PADRAO.lote, d.lote);
       configCobranca.comprovanteEmail = d.comprovanteEmail === true;
+      configCobranca.mostrarRecebidos = d.mostrarRecebidos === true;
       if (d.regua) configCobranca.regua = { ligada: d.regua.ligada === true, dias: diasDaRegua(d.regua.dias) };
       if (d.modelos) Object.keys(d.modelos).forEach(function (k) { configCobranca.modelos[k] = Object.assign({}, CONFIG_PADRAO.modelos[k] || {}, d.modelos[k]); });
       // modelo escrito pelo escritório: só entra com nome e mensagem, e o que
@@ -8013,6 +8023,7 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
       modelos: { '1': {}, '2': {}, '3': {} }, lote: {},
       meusModelos: lerMeusModelosDoForm(),
       comprovanteEmail: $('cfgComprovanteEmail').checked,
+      mostrarRecebidos: $('cfgMostrarRecebidos').checked,
       regua: { ligada: $('cfgReguaLigada').checked, dias: diasDaRegua($('cfgReguaDias').value) }
     };
     CFG_CAMPOS.forEach(function (c) {
@@ -8093,7 +8104,7 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
     return a.diaLimite === b.diaLimite && a.assinatura === b.assinatura && a.whatsapp === b.whatsapp &&
       JSON.stringify(a.modelos) === JSON.stringify(b.modelos) && JSON.stringify(a.lote) === JSON.stringify(b.lote) &&
       JSON.stringify(a.meusModelos || []) === JSON.stringify(b.meusModelos || []) &&
-      !!a.comprovanteEmail === !!b.comprovanteEmail && JSON.stringify(a.regua) === JSON.stringify(b.regua);
+      !!a.comprovanteEmail === !!b.comprovanteEmail && !!a.mostrarRecebidos === !!b.mostrarRecebidos && JSON.stringify(a.regua) === JSON.stringify(b.regua);
   }
   function renderConfig() {
     if (cfgSujo) { atualizarEstadoConfig(); return; }
@@ -8101,6 +8112,7 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
     $('cfgAssinatura').value = configCobranca.assinatura || '';
     $('cfgWhats').value = configCobranca.whatsapp || '';
     $('cfgComprovanteEmail').checked = !!configCobranca.comprovanteEmail;
+    $('cfgMostrarRecebidos').checked = !!configCobranca.mostrarRecebidos;
     $('cfgReguaLigada').checked = !!configCobranca.regua.ligada;
     $('cfgReguaDias').value = configCobranca.regua.dias.join(', ');
     document.querySelectorAll('#viewConfig .cfg-liga').forEach(function (i) { i.disabled = !souAdmin; });
@@ -8132,7 +8144,7 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
     var atual = lerFormularioConfig();
     var base = { diaLimite: configCobranca.diaLimite || null, assinatura: configCobranca.assinatura, whatsapp: configCobranca.whatsapp, modelos: configCobranca.modelos, lote: configCobranca.lote,
       meusModelos: (configCobranca.meusModelos || []).filter(function (m) { return m.nome && m.corpo; }),
-      comprovanteEmail: configCobranca.comprovanteEmail, regua: { ligada: !!configCobranca.regua.ligada, dias: configCobranca.regua.dias } };
+      comprovanteEmail: configCobranca.comprovanteEmail, mostrarRecebidos: !!configCobranca.mostrarRecebidos, regua: { ligada: !!configCobranca.regua.ligada, dias: configCobranca.regua.dias } };
     cfgSujo = !configIgual(atual, base);
     $('cfgEstado').hidden = !cfgSujo;
     $('btnDescartarConfig').hidden = !cfgSujo || !souAdmin;

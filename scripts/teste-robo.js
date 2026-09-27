@@ -300,7 +300,7 @@ const eh = require('./email-html');
 const visual = eh.htmlDaCobranca({
   corpo: 'Olá,\n\nFaltam:\n\n- Extrato Bancário\n- Comprovante\n\nVeja aqui:\nhttps://x.github.io/cliente.html?portal=t\n\nObrigado,\nNilma',
   cliente: { bancos: ['bb', 'sicoob', 'inexistente'], documentosNaoAplicaveis: ['aplicacao'] }, competencia: '2026-08', bancosRecebidos: ['bb'],
-  diaLimite: 15, assinatura: 'Nilma <Contabilidade>', agora: new Date(2026, 8, 19),
+  diaLimite: 15, assinatura: 'Nilma <Contabilidade>', agora: new Date(2026, 8, 19), mostrarRecebidos: true,
 });
 // Dois bancos e dois documentos exigidos = quatro coisas; só o extrato do BB
 // chegou. O campo antigo (bancosRecebidos) continua valendo como extrato.
@@ -317,13 +317,24 @@ const visual2 = eh.htmlDaCobranca({
   corpo: 'Olá,\n\nFaltam:\n\n- Extrato Bancário\n- Comprovante\n\nObrigado,\nNilma',
   cliente: { bancos: ['bb', 'sicoob'], documentosNaoAplicaveis: ['aplicacao'] }, competencia: '2026-08',
   bancosPorTipo: { extrato: ['bb', 'sicoob'], comprovante: ['bb'] },
-  diaLimite: 15, assinatura: 'Nilma', agora: new Date(2026, 8, 19),
+  diaLimite: 15, assinatura: 'Nilma', agora: new Date(2026, 8, 19), mostrarRecebidos: true,
 });
 igual('HTML: o comprovante também conta por banco', [
   /3 de 4 já chegaram/.test(visual2.html),
   (visual2.html.match(/Sicoob/g) || []).length === 2,
   /Falta 1 banco/.test(visual2.html),
 ], [true, true, true]);
+
+// Padrão: o e-mail só fala do que falta (sem "Recebido" nem "já chegaram").
+const visual3 = eh.htmlDaCobranca({
+  corpo: 'Olá,\n\nFaltam:\n\n- Extrato Bancário\n- Comprovante\n\nObrigado,\nNilma',
+  cliente: { bancos: ['bb', 'sicoob'], documentosNaoAplicaveis: ['aplicacao'] }, competencia: '2026-08',
+  bancosPorTipo: { extrato: ['bb'], comprovante: [] }, diaLimite: 15, assinatura: 'Nilma', agora: new Date(2026, 8, 19),
+});
+igual('HTML padrão: sem "Recebido", sem "já chegaram", só o banco que falta no extrato', [
+  /Recebido/.test(visual3.html), /já chegaram/.test(visual3.html), /Faltam 3 documentos de agosto/.test(visual3.html),
+  (visual3.html.match(/Banco do Brasil/g) || []).length, (visual3.html.match(/Sicoob/g) || []).length,
+], [false, false, true, 1, 2]);
 
 // ---------- aprender com as escolhas da equipe ----------
 const pal = r.palavrasDaEscolha('RES: Notas fiscais de saída - Oficina Centro (agosto/2026)', ['NF 123 OFICINA.pdf']);
