@@ -40,6 +40,9 @@ Módulo novo no menu ☰, **Tarefas** (`tarefas.html`), pra equipe toda:
   quando não tem); o que não existe é perguntado de novo em 7 dias.
 - Na tela, o logo aparece inteiro sobre fundo branco (`.av-mini.com-logo`);
   sem nada, ficam as iniciais.
+- Sem a permissão de contatos (ou com a People API desligada) o Google fica
+  de fora, mas o Gravatar e os logos seguem pelos e-mails do cadastro de
+  clientes; o motivo fica em `robo/fotos.erro`.
 
 **Versão 2.388 — barra de cima e barra lateral iguais às da Conferência:**
 

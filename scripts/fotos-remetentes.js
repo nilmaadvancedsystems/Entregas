@@ -100,13 +100,23 @@ function iniciarFotosRemetentes(db, log) {
   const ref = db.collection('robo').doc('fotos');
   let ultimoJson = '';
   async function atualizar() {
+    // Sem a permissão de contatos o Google não entra, mas o Gravatar e os
+    // logos (pelos e-mails do cadastro de clientes) seguem: o motivo vai em
+    // robo/fotos.erro pra aparecer que falta autorizar.
+    let outros = [], salvos = [], motivo = null;
     try {
       const people = google.people({ version: 'v1', auth: getAuth() });
-      const outros = await lerTudo(t => people.otherContacts.list({ pageSize: 1000, readMask: 'emailAddresses,photos', pageToken: t }), 'otherContacts');
-      let salvos = [];
+      outros = await lerTudo(t => people.otherContacts.list({ pageSize: 1000, readMask: 'emailAddresses,photos', pageToken: t }), 'otherContacts');
       try {
         salvos = await lerTudo(t => people.people.connections.list({ resourceName: 'people/me', pageSize: 1000, personFields: 'emailAddresses,photos', pageToken: t }), 'connections');
       } catch (e) { /* sem contatos salvos ou sem essa permissão: segue com os outros */ }
+    } catch (err) {
+      const m = err && err.message ? err.message : String(err);
+      motivo = /insufficient|scope|403/i.test(m) ? 'falta autorizar os contatos (rode gmail-auth.js de novo)'
+        : /People API has not been used|disabled|SERVICE_DISABLED/i.test(m) ? 'a People API não está ligada no projeto do Google Cloud' : m;
+      log('fotos dos remetentes: sem o Google -', motivo);
+    }
+    try {
       const mapa = Object.assign(fotosDasPessoas(outros), fotosDasPessoas(salvos));
       // e-mails de clientes também (nem todo cliente já está nos contatos)
       const emails = emailsDasPessoas(outros).concat(emailsDasPessoas(salvos));
@@ -120,17 +130,15 @@ function iniciarFotosRemetentes(db, log) {
       const chaves = Object.keys(mapa).slice(0, MAX_FOTOS);
       const porEmail = {}; chaves.forEach(k => { porEmail[k] = mapa[k]; });
       const porDominio = fora.porDominio;
-      const json = JSON.stringify([porEmail, porDominio]);
+      const json = JSON.stringify([porEmail, porDominio, motivo]);
       if (json === ultimoJson) return;
       ultimoJson = json;
-      await ref.set({ porEmail, porDominio, total: chaves.length, em: new Date().toISOString(), erro: null });
+      await ref.set(Object.assign({ porEmail, porDominio, total: chaves.length, em: new Date().toISOString(), erro: motivo }, motivo ? { erroEm: new Date().toISOString() } : {}));
       log('fotos dos remetentes:', doGoogle, 'do Google,', Object.keys(fora.porEmail).length, 'do Gravatar,', Object.keys(porDominio).length, 'logos de empresa');
     } catch (err) {
       const m = err && err.message ? err.message : String(err);
-      const motivo = /insufficient|scope|403/i.test(m) ? 'falta autorizar os contatos (rode gmail-auth.js de novo)'
-        : /People API has not been used|disabled|SERVICE_DISABLED/i.test(m) ? 'a People API não está ligada no projeto do Google Cloud' : m;
-      log('fotos dos remetentes: não li -', motivo);
-      await ref.set({ erro: motivo, erroEm: new Date().toISOString() }, { merge: true }).catch(() => {});
+      log('fotos dos remetentes: não gravei -', m);
+      await ref.set({ erro: motivo || m, erroEm: new Date().toISOString() }, { merge: true }).catch(() => {});
     }
   }
   setTimeout(atualizar, 90 * 1000);
