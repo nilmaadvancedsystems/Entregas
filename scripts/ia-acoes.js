@@ -280,6 +280,71 @@ function prepararTarefa(clientes, equipe, args, agora) {
   };
 }
 
+// ---------- alterar o cadastro do cliente ----------
+// Os campos que a IA pode mudar, com o nome do campo no banco (os mesmos da
+// ficha do cliente no Entregas). soAdmin: pelas regras do banco, só o admin
+// grava; o cartão avisa, e pra quem não é admin a gravação é recusada.
+const CAMPOS_CLIENTE = {
+  email: { rotulo: 'E-mail principal' },
+  adicionar_email: { rotulo: 'Outro e-mail', campo: 'emails' },
+  zona: { rotulo: 'Região da rota' },
+  pontoReferencia: { rotulo: 'Ponto de referência' },
+  telefone: { rotulo: 'Telefone', soAdmin: true },
+  endereco: { rotulo: 'Endereço', soAdmin: true },
+  nomeFantasia: { rotulo: 'Nome fantasia', soAdmin: true },
+  observacao: { rotulo: 'Observação', soAdmin: true },
+  responsavel: { rotulo: 'Responsável', soAdmin: true },
+};
+function ehEmail(e) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(e || '')); }
+
+// clientes ativos; equipe = [{uid, nome}]
+function prepararAlteracao(clientes, equipe, args) {
+  const pedidos = Array.isArray(args && args.alteracoes) ? args.alteracoes.slice(0, 20) : [];
+  if (!pedidos.length) return { erro: 'diga o cliente, o campo e o valor novo' };
+  const alteracoes = [], problemas = [];
+  pedidos.forEach((p, i) => {
+    const r = acharCliente(clientes, p && p.cliente);
+    if (r.erro) { problemas.push(Object.assign({ item: i + 1, pedido: String((p && p.cliente) || ''), problema: r.erro }, r.candidatos ? { candidatos: r.candidatos } : {})); return; }
+    const c = r.cliente;
+    const chave = String(p.campo || '').trim();
+    const def = CAMPOS_CLIENTE[chave];
+    if (!def) { problemas.push({ item: i + 1, pedido: rotuloCliente(c), problema: 'campo que eu não mudo: ' + chave + ' (mudo: ' + Object.keys(CAMPOS_CLIENTE).join(', ') + ')' }); return; }
+    let valor = String(p.valor == null ? '' : p.valor).trim();
+    const alt = { clienteId: c.id, clienteNome: rotuloCliente(c), campo: chave, rotulo: def.rotulo, soAdmin: !!def.soAdmin, avisos: [] };
+    if (chave === 'email' || chave === 'adicionar_email') {
+      valor = valor.toLowerCase();
+      if (!ehEmail(valor)) { problemas.push({ item: i + 1, pedido: rotuloCliente(c), problema: 'e-mail inválido: ' + valor }); return; }
+      const todos = [c.email].concat(Array.isArray(c.emails) ? c.emails : []).filter(Boolean).map(e => String(e).toLowerCase());
+      if (todos.indexOf(valor) !== -1) alt.avisos.push('esse e-mail já está no cadastro');
+      if (chave === 'email') { alt.de = c.email || ''; alt.para = valor; alt.gravar = { email: valor }; }
+      else { alt.de = todos.join(', '); alt.para = valor; alt.uniao = { campo: 'emails', valor }; }
+    } else if (chave === 'zona') {
+      const z = normalizar(valor);
+      const zona = ZONAS[z] ? z : (Object.keys(ZONAS).find(k => z && normalizar(ZONAS[k]).indexOf(z) !== -1) || '');
+      if (!zona) { problemas.push({ item: i + 1, pedido: rotuloCliente(c), problema: 'região inválida: ' + valor + ' (superior, central ou inferior)' }); return; }
+      alt.de = ZONAS[c.zona] || ''; alt.para = ZONAS[zona]; alt.gravar = { zona };
+    } else if (chave === 'responsavel') {
+      const pessoa = acharPessoa(equipe, valor);
+      if (!pessoa) { problemas.push({ item: i + 1, pedido: rotuloCliente(c), problema: 'responsável "' + valor + '" não achado na equipe', equipe: equipe.map(x => x.nome) }); return; }
+      alt.de = c.responsavelNome || ''; alt.para = pessoa.nome; alt.gravar = { responsavelUid: pessoa.uid, responsavelNome: pessoa.nome };
+    } else {
+      const limite = chave === 'observacao' ? 280 : (chave === 'telefone' ? 20 : 300);
+      if (!valor) { problemas.push({ item: i + 1, pedido: rotuloCliente(c), problema: 'faltou o valor novo de ' + def.rotulo.toLowerCase() }); return; }
+      valor = valor.slice(0, limite);
+      alt.de = c[chave] || ''; alt.para = valor; alt.gravar = {}; alt.gravar[chave] = valor;
+    }
+    if (alt.de && alt.de === alt.para) alt.avisos.push('já está assim');
+    alteracoes.push(alt);
+  });
+  if (!alteracoes.length) return { erro: 'não deu pra preparar nenhuma alteração', problemas };
+  return {
+    acao: 'cliente',
+    titulo: alteracoes.length === 1 ? 'Alterar ' + alteracoes[0].rotulo.toLowerCase() + ': ' + alteracoes[0].clienteNome : 'Alterar o cadastro (' + alteracoes.length + ' mudanças)',
+    alteracoes, problemas,
+    aviso_para_a_ia: 'NADA foi gravado ainda. Diga em uma frase o que preparou (de → para) e que a pessoa confirma no cartão logo abaixo. Telefone, endereço, nome fantasia, observação e responsável só o admin consegue gravar. Não diga que já mudou.',
+  };
+}
+
 const FERRAMENTAS_ACOES = [
   {
     name: 'preparar_rota',
@@ -364,7 +429,38 @@ FERRAMENTAS_ACOES.push(
     },
   }
 );
+FERRAMENTAS_ACOES.push({
+  name: 'preparar_alteracao_cliente',
+  description: 'Prepara a alteração do CADASTRO de um cliente. NÃO grava: a pessoa confirma num cartão na tela. Campos: email (principal), adicionar_email (mais um e-mail), zona (região da rota: superior, central, inferior), pontoReferencia, telefone, endereco, nomeFantasia, observacao, responsavel (nome de alguém da equipe). Telefone, endereço, nome fantasia, observação e responsável só o admin grava. Não muda nome, CNPJ, código nem honorário.',
+  parametersJsonSchema: {
+    type: 'object',
+    properties: {
+      alteracoes: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            cliente: { type: 'string', description: 'Nome, código ou id do cliente.' },
+            campo: { type: 'string', enum: Object.keys(CAMPOS_CLIENTE) },
+            valor: { type: 'string', description: 'O valor novo.' },
+          },
+          required: ['cliente', 'campo', 'valor'],
+        },
+      },
+    },
+    required: ['alteracoes'],
+  },
+});
 const NOMES_ACOES = new Set(FERRAMENTAS_ACOES.map(f => f.name));
+
+async function equipeAtiva(db) {
+  const snapUsu = await db.collection('usuarios').get();
+  return snapUsu.docs.map(d => {
+    const x = d.data() || {};
+    const roles = Array.isArray(x.roles) ? x.roles : (x.role ? [x.role] : []);
+    return { uid: d.id, nome: x.nome || String(x.email || '').split('@')[0], ativo: x.ativo !== false, roles };
+  }).filter(p => p.roles.length && p.ativo).map(p => ({ uid: p.uid, nome: p.nome }));
+}
 
 async function clientesAtivos(db) {
   const snap = await db.collection('clientes').where('ativo', '==', true).get();
@@ -383,13 +479,12 @@ async function executarAcao(db, nome, args, agora) {
     return prepararDocumento(clientes, docs, require('./bancos').BANCOS, args || {}, agora);
   }
   if (nome === 'preparar_tarefa') {
-    const [clientes, snapUsu] = await Promise.all([clientesAtivos(db), db.collection('usuarios').get()]);
-    const equipe = snapUsu.docs.map(d => {
-      const x = d.data() || {};
-      const roles = Array.isArray(x.roles) ? x.roles : (x.role ? [x.role] : []);
-      return { uid: d.id, nome: x.nome || String(x.email || '').split('@')[0], ativo: x.ativo !== false, roles };
-    }).filter(p => p.roles.length && p.ativo).map(p => ({ uid: p.uid, nome: p.nome }));
+    const [clientes, equipe] = await Promise.all([clientesAtivos(db), equipeAtiva(db)]);
     return prepararTarefa(clientes, equipe, args || {}, agora);
+  }
+  if (nome === 'preparar_alteracao_cliente') {
+    const [clientes, equipe] = await Promise.all([clientesAtivos(db), equipeAtiva(db)]);
+    return prepararAlteracao(clientes, equipe, args || {});
   }
   if (nome !== 'preparar_rota') return { erro: 'ação desconhecida: ' + nome };
   const [snapClientes, snapRota] = await Promise.all([
@@ -402,6 +497,6 @@ async function executarAcao(db, nome, args, agora) {
 }
 
 module.exports = {
-  FERRAMENTAS_ACOES, NOMES_ACOES, executarAcao, prepararRota, prepararDocumento, prepararTarefa,
+  FERRAMENTAS_ACOES, NOMES_ACOES, executarAcao, prepararRota, prepararDocumento, prepararTarefa, prepararAlteracao,
   acharCliente, acharBanco, acharPessoa, tipoDoDocumento, tipoRecebido, valorEmReais, DOC_TIPOS,
 };

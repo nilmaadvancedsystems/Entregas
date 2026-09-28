@@ -67,11 +67,15 @@ function instrucoesClaude(agora) {
       '',
       'AÇÕES (você prepara, a pessoa confirma):',
       '- Você não grava nada no banco. As ferramentas preparar_* conferem o pedido e devolvem uma proposta, que aparece como cartão com o botão de confirmar logo abaixo da sua resposta:',
-      '  preparar_rota (pôr documentos na rota de entregas); preparar_documento_recebido (marcar extrato, comprovante ou aplicação como recebido na Pendências); preparar_tarefa (criar tarefa ou requisição no módulo Tarefas).',
+      '  preparar_rota (pôr documentos na rota de entregas); preparar_documento_recebido (marcar extrato, comprovante ou aplicação como recebido na Pendências); preparar_tarefa (criar tarefa ou requisição no módulo Tarefas); preparar_alteracao_cliente (mudar e-mail, telefone, endereço, região, nome fantasia, ponto de referência, observação ou responsável do cadastro).',
       '- Não precisa procurar o cliente antes: passe o nome que a pessoa disse direto pra preparar_* (ela acha pelo nome, nome fantasia ou código e devolve os candidatos se tiver dúvida).',
       '- Depois de preparar, diga em uma frase o que preparou e que é só confirmar no cartão. Nunca diga que já fez.',
       '- Se faltar o essencial (cliente, documento, o que é a tarefa), pergunte antes. Se o cliente for ambíguo ou faltar o banco, mostre as opções e pergunte.',
-      '- Outras ações (marcar entrega como feita, recados, cobrança, cadastro) ainda não existem: explique que por enquanto é pela tela.',
+      '- Outras ações (marcar entrega como feita, recados, cobrança, nome/CNPJ/honorário do cadastro) ainda não existem: explique que por enquanto é pela tela.',
+      '',
+      'DÚVIDAS DE USO: quando perguntarem como fazer algo no app, onde fica uma função ou por que algo não aparece, consulte como_usar_o_app e responda com o caminho na tela (ex.: "Entregas › Rota › Protocolos"). Não invente botão que o guia não cita; se o guia não cobre, diga que não sabe.',
+      '',
+      'DRIVE (só leitura): arquivos_do_cliente lista a pasta do cliente no Drive do escritório (G:\\Meu Drive\\2026) e ler_arquivo_do_cliente abre um arquivo (PDF, planilha, imagem, texto). Use para perguntas sobre o conteúdo dos documentos (saldo de extrato, valor de nota, o que chegou no mês). Você não move, renomeia nem apaga nada lá.',
       '',
       'ARQUIVOS: a pessoa pode mandar PDF, imagem ou texto junto da pergunta. Leia e use tudo o que o arquivo trouxer: numa guia, passe para preparar_rota o tipo, o valor, a competência E o vencimento (AAAA-MM-DD); ou o banco e o mês de um extrato para preparar_documento_recebido. Se não der pra ler, diga.',
     ])
@@ -260,7 +264,7 @@ function perguntarAoClaude(pergunta, opcoes) {
             const bruto = Array.isArray(c.content) ? c.content.map(x => x.text || '').join('') : String(c.content || '');
             try {
               const r = JSON.parse(bruto);
-              const lista = r && (r.entregas || r.marcacoes || r.tarefas);
+              const lista = r && (r.entregas || r.marcacoes || r.tarefas || r.alteracoes);
               if (r && r.acao && Array.isArray(lista) && lista.length) {
                 delete r.aviso_para_a_ia;
                 acoes.push(r);

@@ -251,5 +251,33 @@ igual('tarefa: responsável da empresa, prioridade, requisição, prazo vencido'
 ]);
 igual('tarefa: responsável fora da equipe e sem título viram problema', pt.problemas.map(p => p.item), [3, 4]);
 
+// ---------- alterar cadastro ----------
+const CLI_C = [{ id: 'k1', nome: 'PADARIA AURORA LTDA', codigoOrigem: '0123', email: 'velho@padaria.com', emails: ['fin@padaria.com'], zona: 'central', telefone: '3899990000' }];
+const pc = acoes.prepararAlteracao(CLI_C, EQUIPE, { alteracoes: [
+  { cliente: '0123', campo: 'email', valor: 'Novo@Padaria.com' },
+  { cliente: '0123', campo: 'adicionar_email', valor: 'fin@padaria.com' },
+  { cliente: '0123', campo: 'zona', valor: 'parte superior' },
+  { cliente: '0123', campo: 'telefone', valor: '38 98888-7777' },
+  { cliente: '0123', campo: 'responsavel', valor: 'nilma' },
+  { cliente: '0123', campo: 'email', valor: 'sem-arroba' },
+  { cliente: '0123', campo: 'cnpj', valor: '123' },
+] });
+igual('cadastro: e-mail em minúsculas, região pelo nome, responsável da equipe', pc.alteracoes.map(a => [a.campo, a.de, a.para, a.soAdmin]), [
+  ['email', 'velho@padaria.com', 'novo@padaria.com', false], ['adicionar_email', 'velho@padaria.com, fin@padaria.com', 'fin@padaria.com', false],
+  ['zona', 'Central', 'Parte superior', false], ['telefone', '3899990000', '38 98888-7777', true], ['responsavel', '', 'Nilma', true],
+]);
+igual('cadastro: o que grava', [pc.alteracoes[0].gravar, pc.alteracoes[1].uniao, pc.alteracoes[2].gravar, pc.alteracoes[4].gravar], [
+  { email: 'novo@padaria.com' }, { campo: 'emails', valor: 'fin@padaria.com' }, { zona: 'superior' }, { responsavelUid: 'u2', responsavelNome: 'Nilma' },
+]);
+igual('cadastro: e-mail repetido avisa; inválido e campo proibido viram problema', [pc.alteracoes[1].avisos.length, pc.problemas.map(p => p.item)], [1, [6, 7]]);
+
+// ---------- arquivos do Drive (só leitura) ----------
+const arqs = require('./ia-arquivos');
+const pathMod = require('path');
+const pastaT = pathMod.resolve('C:/pasta/0123 - PADARIA');
+igual('arquivos: caminho dentro da pasta passa, fuga não', [
+  !!arqs.dentro(pastaT, 'CONTÁBIL/EXTRATOS/x.pdf'), arqs.dentro(pastaT, '../outro/x.pdf'), arqs.dentro(pastaT, 'C:/Windows/x'), arqs.dentro(pastaT, 'a/../../x'),
+], [true, null, null, null]);
+
 console.log('\n' + (total - falhas) + '/' + total + ' passaram.');
 if (falhas) { console.log(falhas + ' FALHA(S).'); process.exit(1); }

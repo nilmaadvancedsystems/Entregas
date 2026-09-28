@@ -8,7 +8,8 @@
 
      rota      -> entregas (status 'pendente'), como o "Preparar rota";
      documento -> documentosMensal/{cliente}_{mês}, como marcar na Pendências;
-     tarefa    -> tarefas, como o "+ Nova" do módulo Tarefas.
+     tarefa    -> tarefas, como o "+ Nova" do módulo Tarefas;
+     cliente   -> clientes/{id} (update), os campos da ficha do cliente.
 
    Sem duplicar: entrega e tarefa têm id fixo (ia_<msg>_<ação>_<n>), e a
    marcação de documento é a mesma gravação de novo. Recarregar a página ou
@@ -119,6 +120,31 @@
         };
       },
       auditoria: function (t) { return ['ia_tarefa_criada', t.titulo + (t.clienteNome ? ' · ' + t.clienteNome : '')]; }
+    },
+    cliente: {
+      lista: 'alteracoes', icone: 'ph-user-gear', botao: 'Salvar no cadastro', botaoIcone: 'ph-floppy-disk', fazendo: 'Salvando…', feito: 'Salvo no cadastro',
+      linha: function (a) {
+        return {
+          titulo: a.clienteNome,
+          corpo: '<b>' + esc(a.rotulo) + ':</b> ' + (a.de ? '<s>' + esc(a.de) + '</s> → ' : '') + esc(a.para),
+          meta: a.soAdmin ? 'só o admin consegue salvar este campo' : ''
+        };
+      },
+      ref: function (chave, n, a) { return o.db.collection('clientes').doc(a.clienteId); },
+      jaFeito: function (snap, a) {
+        if (!snap.exists) return false;
+        var d = snap.data() || {};
+        if (a.uniao) return (d.emails || []).indexOf(a.uniao.valor) !== -1 || d.email === a.uniao.valor;
+        return Object.keys(a.gravar || {}).every(function (k) { return d[k] === a.gravar[k]; });
+      },
+      // Mesmos campos da ficha do cliente (Entregas); "outro e-mail" entra na lista.
+      dados: function (a) {
+        var x = Object.assign({}, a.gravar || {});
+        if (a.uniao && o.firebase) x[a.uniao.campo] = o.firebase.firestore.FieldValue.arrayUnion(a.uniao.valor);
+        return x;
+      },
+      atualizar: true,
+      auditoria: function (a) { return ['ia_cliente_editado', a.clienteNome + ' · ' + a.rotulo + ': ' + (a.de || '—') + ' → ' + a.para]; }
     }
   };
 
@@ -176,8 +202,8 @@
       var T = TIPOS[a.acao], itens = a[T.lista];
       Promise.all(itens.map(function (x, n) { return T.ref(chave, n, x).get(); })).then(function (snaps) {
         var feitos = snaps.filter(function (s, n) { return T.jaFeito(s, itens[n]); }).length;
-        // rota e tarefa: qualquer uma gravada = foi confirmado; documento: todos marcados
-        if (a.acao === 'documento' ? feitos === itens.length : feitos > 0) { estado[chave] = 'feito'; if (o.render) o.render(); }
+        // rota e tarefa: qualquer uma gravada = foi confirmado; documento e cadastro: todos já assim
+        if (a.acao === 'documento' || a.acao === 'cliente' ? feitos === itens.length : feitos > 0) { estado[chave] = 'feito'; if (o.render) o.render(); }
       }).catch(function () {});
     });
   }
@@ -204,15 +230,21 @@
     if (o.render) o.render();
     var refs = escolhidas.map(function (e) { return T.ref(chave, e.n, e.x); });
     // Entrega e tarefa que já existem (confirmou em outro aparelho) ficam como estão.
-    var conferirAntes = T.mesclar ? Promise.resolve(refs.map(function () { return { exists: false }; })) : Promise.all(refs.map(function (r) { return r.get(); }));
+    var conferirAntes = (T.mesclar || T.atualizar) ? Promise.resolve(refs.map(function () { return { exists: false }; })) : Promise.all(refs.map(function (r) { return r.get(); }));
     conferirAntes.then(function (snaps) {
       var lote = o.db.batch(), gravadas = [];
+      var porDoc = {};   // cadastro: várias mudanças do mesmo cliente numa gravação só
       escolhidas.forEach(function (e, k) {
         if (snaps[k].exists) return;
         var dados = T.dados(e.x, u);
-        if (T.mesclar) lote.set(refs[k], dados, { merge: true }); else lote.set(refs[k], dados);
+        if (T.atualizar) {
+          var id = refs[k].path || refs[k].id;
+          if (!porDoc[id]) porDoc[id] = { ref: refs[k], dados: {} };
+          Object.assign(porDoc[id].dados, dados);
+        } else if (T.mesclar) lote.set(refs[k], dados, { merge: true }); else lote.set(refs[k], dados);
         gravadas.push(e.x);
       });
+      Object.keys(porDoc).forEach(function (id) { lote.update(porDoc[id].ref, porDoc[id].dados); });
       return lote.commit().then(function () { return gravadas; });
     }).then(function (gravadas) {
       estado[chave] = 'feito';
@@ -222,7 +254,10 @@
       });
       if (o.render) o.render();
     }).catch(function (err) {
-      estado[chave] = 'erro:' + ((err && (err.message || err.code)) || 'não foi possível gravar');
+      var negado = err && (err.code === 'permission-denied' || /permission/i.test(err.message || ''));
+      estado[chave] = 'erro:' + (negado
+        ? (a.acao === 'cliente' ? 'Só o admin pode salvar telefone, endereço, nome fantasia, observação e responsável.' : 'Você não tem permissão pra isso.')
+        : ((err && (err.message || err.code)) || 'não foi possível gravar'));
       if (o.render) o.render();
     });
   }

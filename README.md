@@ -29,6 +29,21 @@ Módulo novo no menu ☰, **Tarefas** (`tarefas.html`), pra equipe toda:
 - Regras: `tarefas` a equipe lê, cria e edita; quem criou não muda; apagar
   só quem criou ou o admin.
 
+**Versão 2.393 — IA: cadastro, arquivos do Drive e dúvidas; bichinhos de perfil:**
+
+- `preparar_alteracao_cliente` (`ia-acoes.js`): e-mail, outro e-mail, região,
+  ponto de referência, telefone, endereço, nome fantasia, observação e
+  responsável, com cartão "Salvar no cadastro" (update em `clientes/{id}`).
+  Telefone, endereço, nome fantasia, observação e responsável: só admin
+  (regras do banco); o cartão avisa. Endereço novo refaz o ponto no mapa (Entregas).
+- `arquivos_do_cliente` / `ler_arquivo_do_cliente` (`ia-arquivos.js`): a IA
+  lista e lê a pasta do cliente em `G:\Meu Drive\2026` no PC (PDF e planilha
+  como texto, imagem como imagem). Só leitura; caminho que sai da pasta é recusado.
+- `como_usar_o_app` (`ia-ajuda.js`): tira dúvidas com o guia
+  `scripts/guia-do-app.md` (linguagem de quem usa — atualizar quando o app mudar).
+- Configurações › Minha conta › "Escolher ícone": 12 bichinhos (SVG gravado
+  em `usuarios.fotoPerfil`, o mesmo campo da foto) pra quem não quer foto.
+
 **Versão 2.392 — arquivo na conversa com a IA:**
 
 - Clipe ao lado do "Perguntar", colar print (Ctrl+V) e arrastar arquivo pro
