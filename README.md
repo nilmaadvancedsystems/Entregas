@@ -29,6 +29,14 @@ Módulo novo no menu ☰, **Tarefas** (`tarefas.html`), pra equipe toda:
 - Regras: `tarefas` a equipe lê, cria e edita; quem criou não muda; apagar
   só quem criou ou o admin.
 
+**Versão 2.395 — ícones de perfil: emblemas e padrão único:**
+
+- Os bichinhos saíram ("muito fofo"). Em Configurações › Minha conta ›
+  Escolher ícone: 12 **emblemas** geométricos (fundo de cor cheia, símbolo
+  grande em contraste) e **Só seu**: 6 padrões sorteados na hora, grade 5x5
+  espelhada numa cor forte (como os avatares automáticos do GitHub), com
+  "Sortear outros". Tudo gravado como SVG em `usuarios.fotoPerfil`.
+
 **Versão 2.394 — instalar o app no celular:**
 
 - O manifesto era montado em memória (blob) com o ícone embutido; o

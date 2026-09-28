@@ -51,94 +51,62 @@
   var escolhendoIcone = false;
 
   // Ícones de perfil pra quem não quer usar a própria foto (pedido do
-  // escritório, 28/09/2026): bichinhos em ilustração chapada, no jeito dos
-  // mascotes do GitHub. Cada um vira uma imagem SVG gravada no mesmo campo
-  // da foto (usuarios.fotoPerfil), então aparece em todo lugar que já mostra
-  // a foto, sem mudar nada nas outras telas. 96x96; o círculo é o CSS.
-  function olhos(x1, x2, y) {
-    return [x1, x2].map(function (x) {
-      return '<ellipse cx="' + x + '" cy="' + y + '" rx="3.2" ry="4" fill="#1D1C1F"/><circle cx="' + (x + 1.1) + '" cy="' + (y - 1.4) + '" r="1.1" fill="#FFFFFF"/>';
-    }).join('');
-  }
-  var TRACO = ' fill="none" stroke="#1D1C1F" stroke-width="1.6" stroke-linecap="round"';
-  var BOCA = function (y) { return '<path d="M48 ' + y + 'v3M48 ' + (y + 3) + 'c-2 2-4.5 1.5-5.5 0M48 ' + (y + 3) + 'c2 2 4.5 1.5 5.5 0"' + TRACO + '/>'; };
+  // escritório, 28/09/2026): emblemas geométricos com presença — fundo de cor
+  // cheia e um símbolo grande em alto contraste, como um distintivo. Cada um
+  // vira uma imagem SVG gravada no mesmo campo da foto (usuarios.fotoPerfil),
+  // então aparece em todo lugar que já mostra a foto. 96x96; o círculo é o CSS.
   var ICONES_PERFIL = [
-    { nome: 'Gato', fundo: '#E8EEF6', corpo:
-      '<path d="M24 42 28 16l16 14Z" fill="#8C959F"/><path d="M72 42 68 16 52 30Z" fill="#8C959F"/>' +
-      '<path d="m29 34 2-11 8 8Z" fill="#F4A6B8"/><path d="m67 34-2-11-8 8Z" fill="#F4A6B8"/>' +
-      '<ellipse cx="48" cy="53" rx="28" ry="25" fill="#8C959F"/><ellipse cx="48" cy="63" rx="12" ry="9" fill="#D0D7DE"/>' +
-      olhos(38, 58, 50) + '<path d="M45 58h6l-3 3.5Z" fill="#F4A6B8"/>' + BOCA(61.5) +
-      '<path d="m24 58 10 1M24 64l10-1M72 58l-10 1M72 64l-10-1" fill="none" stroke="#57606A" stroke-width="1.4" stroke-linecap="round"/>' },
-    { nome: 'Cachorro', fundo: '#FDF1E3', corpo:
-      '<ellipse cx="25" cy="48" rx="9" ry="18" fill="#7A4A24" transform="rotate(18 25 48)"/><ellipse cx="71" cy="48" rx="9" ry="18" fill="#7A4A24" transform="rotate(-18 71 48)"/>' +
-      '<ellipse cx="48" cy="50" rx="24" ry="26" fill="#C98B4E"/><ellipse cx="48" cy="63" rx="13" ry="10" fill="#F1D3B0"/>' +
-      olhos(39, 57, 47) + '<ellipse cx="48" cy="58" rx="5" ry="3.6" fill="#1D1C1F"/>' +
-      '<path d="M44 66h8v4a4 4 0 0 1-8 0Z" fill="#E5566A"/><path d="M48 61.5v4.5"' + TRACO + '/>' },
-    { nome: 'Raposa', fundo: '#FFF1E5', corpo:
-      '<path d="M22 44 26 14l18 18Z" fill="#E8703A"/><path d="M74 44 70 14 52 32Z" fill="#E8703A"/>' +
-      '<path d="m27 36 2-14 9 9Z" fill="#7A2E0E"/><path d="m69 36-2-14-9 9Z" fill="#7A2E0E"/>' +
-      '<path d="M20 44Q48 20 76 44 70 70 48 80 26 70 20 44Z" fill="#E8703A"/>' +
-      '<path d="M20 44Q30 60 48 80 40 62 44 56 34 58 20 44Z" fill="#FFFFFF"/><path d="M76 44Q66 60 48 80 56 62 52 56 62 58 76 44Z" fill="#FFFFFF"/>' +
-      olhos(38, 58, 50) + '<ellipse cx="48" cy="74" rx="3.6" ry="2.8" fill="#1D1C1F"/>' },
-    { nome: 'Urso', fundo: '#F3ECE6', corpo:
-      '<circle cx="27" cy="29" r="10" fill="#8B5A3C"/><circle cx="69" cy="29" r="10" fill="#8B5A3C"/>' +
-      '<circle cx="27" cy="29" r="5" fill="#D9B99B"/><circle cx="69" cy="29" r="5" fill="#D9B99B"/>' +
-      '<circle cx="48" cy="53" r="27" fill="#8B5A3C"/><ellipse cx="48" cy="63" rx="13" ry="10" fill="#D9B99B"/>' +
-      olhos(38, 58, 48) + '<ellipse cx="48" cy="58.5" rx="4.5" ry="3.2" fill="#1D1C1F"/>' + BOCA(61.5) },
-    { nome: 'Coruja', fundo: '#EFE9FB', corpo:
-      '<path d="m26 24 6 16 8-8Z" fill="#6639BA"/><path d="m70 24-6 16-8-8Z" fill="#6639BA"/>' +
-      '<path d="M22 52c0-20 12-25 26-25s26 5 26 25-12 30-26 30-26-10-26-30Z" fill="#8250DF"/>' +
-      '<ellipse cx="48" cy="68" rx="14" ry="12" fill="#C9B6F2"/>' +
-      '<circle cx="38" cy="47" r="9" fill="#FFFFFF"/><circle cx="58" cy="47" r="9" fill="#FFFFFF"/>' +
-      '<circle cx="38" cy="47" r="4.2" fill="#1D1C1F"/><circle cx="58" cy="47" r="4.2" fill="#1D1C1F"/>' +
-      '<circle cx="39.4" cy="45.5" r="1.3" fill="#FFFFFF"/><circle cx="59.4" cy="45.5" r="1.3" fill="#FFFFFF"/>' +
-      '<path d="M44.5 54h7L48 60Z" fill="#F2A93B"/>' },
-    { nome: 'Coelho', fundo: '#FDEBF1', corpo:
-      '<ellipse cx="37" cy="25" rx="7" ry="17" fill="#FFFFFF"/><ellipse cx="59" cy="25" rx="7" ry="17" fill="#FFFFFF"/>' +
-      '<ellipse cx="37" cy="26" rx="3.5" ry="12" fill="#F4A6B8"/><ellipse cx="59" cy="26" rx="3.5" ry="12" fill="#F4A6B8"/>' +
-      '<ellipse cx="48" cy="59" rx="24" ry="22" fill="#FFFFFF"/>' +
-      olhos(39, 57, 55) + '<circle cx="32" cy="65" r="4" fill="#F9C6D3"/><circle cx="64" cy="65" r="4" fill="#F9C6D3"/>' +
-      '<path d="M45.5 62h5L48 65Z" fill="#E5566A"/>' + BOCA(65) },
-    { nome: 'Panda', fundo: '#E6F4EA', corpo:
-      '<circle cx="27" cy="31" r="9" fill="#1D1C1F"/><circle cx="69" cy="31" r="9" fill="#1D1C1F"/>' +
-      '<ellipse cx="48" cy="55" rx="27" ry="25" fill="#FFFFFF"/>' +
-      '<ellipse cx="37" cy="53" rx="7" ry="9" fill="#1D1C1F" transform="rotate(-25 37 53)"/><ellipse cx="59" cy="53" rx="7" ry="9" fill="#1D1C1F" transform="rotate(25 59 53)"/>' +
-      '<circle cx="38" cy="52" r="2.4" fill="#FFFFFF"/><circle cx="58" cy="52" r="2.4" fill="#FFFFFF"/>' +
-      '<ellipse cx="48" cy="63" rx="4" ry="2.8" fill="#1D1C1F"/>' + BOCA(65.5) },
-    { nome: 'Pinguim', fundo: '#E3F1FB', corpo:
-      '<ellipse cx="48" cy="53" rx="26" ry="28" fill="#24292F"/>' +
-      '<path d="M28 57c0-14 10-18 20-10 10-8 20-4 20 10 0 14-8 22-20 22s-20-8-20-22Z" fill="#FFFFFF"/>' +
-      olhos(39, 57, 55) + '<path d="M43 62h10l-5 6Z" fill="#F2A93B"/>' +
-      '<circle cx="33" cy="65" r="3.5" fill="#F9C6D3"/><circle cx="63" cy="65" r="3.5" fill="#F9C6D3"/>' },
-    { nome: 'Sapo', fundo: '#EAF7E2', corpo:
-      '<circle cx="34" cy="35" r="11" fill="#3FA34D"/><circle cx="62" cy="35" r="11" fill="#3FA34D"/>' +
-      '<ellipse cx="48" cy="57" rx="30" ry="22" fill="#3FA34D"/>' +
-      '<circle cx="34" cy="34" r="7" fill="#FFFFFF"/><circle cx="62" cy="34" r="7" fill="#FFFFFF"/>' +
-      '<circle cx="34" cy="34" r="3.6" fill="#1D1C1F"/><circle cx="62" cy="34" r="3.6" fill="#1D1C1F"/>' +
-      '<circle cx="35.2" cy="32.8" r="1.1" fill="#FFFFFF"/><circle cx="63.2" cy="32.8" r="1.1" fill="#FFFFFF"/>' +
-      '<path d="M32 61q16 12 32 0" fill="none" stroke="#1D1C1F" stroke-width="2" stroke-linecap="round"/>' +
-      '<circle cx="27" cy="63" r="4" fill="#F9C6D3"/><circle cx="69" cy="63" r="4" fill="#F9C6D3"/>' },
-    { nome: 'Polvo', fundo: '#F4E9FB', corpo:
-      '<rect x="24" y="52" width="9" height="27" rx="4.5" fill="#D65A8A"/><rect x="34.5" y="54" width="9" height="28" rx="4.5" fill="#D65A8A"/>' +
-      '<rect x="52.5" y="54" width="9" height="28" rx="4.5" fill="#D65A8A"/><rect x="63" y="52" width="9" height="27" rx="4.5" fill="#D65A8A"/>' +
-      '<circle cx="48" cy="45" r="24" fill="#D65A8A"/>' +
-      olhos(40, 56, 46) + '<path d="M43 55q5 4 10 0" fill="none" stroke="#1D1C1F" stroke-width="1.8" stroke-linecap="round"/>' +
-      '<circle cx="33" cy="53" r="3.5" fill="#F4A6B8"/><circle cx="63" cy="53" r="3.5" fill="#F4A6B8"/>' },
-    { nome: 'Leão', fundo: '#FFF6DB', corpo:
-      '<circle cx="48" cy="51" r="31" fill="#D9822B"/>' +
-      '<circle cx="31" cy="31" r="7" fill="#F2C14E"/><circle cx="65" cy="31" r="7" fill="#F2C14E"/>' +
-      '<circle cx="48" cy="53" r="22" fill="#F2C14E"/><ellipse cx="48" cy="62" rx="10" ry="7.5" fill="#FBE3A3"/>' +
-      olhos(40, 56, 50) + '<path d="M44.5 58h7L48 62Z" fill="#7A4A24"/>' + BOCA(62) },
-    { nome: 'Porquinho', fundo: '#FDEBF1', corpo:
-      '<path d="m24 36 6-16 10 12Z" fill="#E5829A"/><path d="m72 36-6-16-10 12Z" fill="#E5829A"/>' +
-      '<ellipse cx="48" cy="53" rx="26" ry="24" fill="#F4A6B8"/>' +
-      olhos(38, 58, 48) + '<ellipse cx="48" cy="61" rx="10" ry="7" fill="#E5829A"/>' +
-      '<ellipse cx="44.5" cy="61" rx="1.8" ry="2.6" fill="#9E3D55"/><ellipse cx="51.5" cy="61" rx="1.8" ry="2.6" fill="#9E3D55"/>' }
+    { nome: 'Hexágono', fundo: '#1D1C1F', corpo:
+      '<path d="M48 12 79 30v36L48 84 17 66V30Z" fill="none" stroke="#E5484D" stroke-width="7" stroke-linejoin="round"/>' +
+      '<path d="M48 32 64 41v18L48 68 32 59V41Z" fill="#E5484D"/>' },
+    { nome: 'Raio', fundo: '#F5B400', corpo:
+      '<path d="M54 8 22 54h22l-6 34 36-48H52Z" fill="#1D1C1F"/>' },
+    { nome: 'Picos', fundo: '#B0262D', corpo:
+      '<path d="M8 80 36 30l16 28 10-16 26 38Z" fill="#FFFFFF"/><path d="m36 30 9 16-9-5-9 5Z" fill="#B0262D"/>' },
+    { nome: 'Alvo', fundo: '#0A3D62', corpo:
+      '<circle cx="48" cy="48" r="34" fill="none" stroke="#FFFFFF" stroke-width="7"/><circle cx="48" cy="48" r="19" fill="none" stroke="#FFFFFF" stroke-width="7"/><circle cx="48" cy="48" r="6" fill="#F5B400"/>' },
+    { nome: 'Estrela', fundo: '#4A1D96', corpo:
+      '<path d="m48 8 9 22 23-6-6 23 22 9-22 9 6 23-23-6-9 22-9-22-23 6 6-23-22-9 22-9-6-23 23 6Z" fill="#FFFFFF"/><circle cx="48" cy="48" r="10" fill="#4A1D96"/>' },
+    { nome: 'Losango', fundo: '#101418', corpo:
+      '<path d="M48 8 84 48 48 88 12 48Z" fill="#FF7A1A"/><path d="M48 30 66 48 48 66 30 48Z" fill="#101418"/>' },
+    { nome: 'Escudo', fundo: '#14532D', corpo:
+      '<path d="M48 10 78 20v26c0 20-13 33-30 40-17-7-30-20-30-40V20Z" fill="#FFFFFF"/><path d="M48 24v52c11-6 20-15 20-30V28Z" fill="#14532D"/>' },
+    { nome: 'Setas', fundo: '#C2410C', corpo:
+      '<path d="m18 22 26 26-26 26M46 22l26 26-26 26" fill="none" stroke="#FFFFFF" stroke-width="10" stroke-linecap="square" stroke-linejoin="miter"/>' },
+    { nome: 'Coroa', fundo: '#111827', corpo:
+      '<path d="M14 70 18 28l16 16 14-24 14 24 16-16 4 42Z" fill="#F5B400"/><path d="M14 76h68" stroke="#F5B400" stroke-width="6"/>' },
+    { nome: 'Blocos', fundo: '#0E7C86', corpo:
+      '<path d="M16 16h26v26H16ZM54 16h26v26H54ZM16 54h26v26H16Z" fill="#FFFFFF"/><path d="M54 54h26v26H54Z" fill="#1D1C1F"/>' },
+    { nome: 'Chama', fundo: '#7F1D1D', corpo:
+      '<path d="M48 8c4 16 22 24 22 44a22 22 0 0 1-44 0c0-10 6-17 10-22 1 8 5 12 9 13-3-12 1-25 3-35Z" fill="#FF7A1A"/><path d="M48 50c3 7 11 10 11 19a11 11 0 0 1-22 0c0-7 6-11 11-19Z" fill="#F5B400"/>' },
+    { nome: 'Órbita', fundo: '#1E3A8A', corpo:
+      '<ellipse cx="48" cy="48" rx="38" ry="15" fill="none" stroke="#FFFFFF" stroke-width="6" transform="rotate(-30 48 48)"/><circle cx="48" cy="48" r="14" fill="#FFFFFF"/><circle cx="78" cy="30" r="6" fill="#F5B400"/>' }
   ];
   function urlIcone(ic) {
     var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><rect width="96" height="96" fill="' + ic.fundo + '"/>' + ic.corpo + '</svg>';
     return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
   }
+  // Padrão único (no jeito dos avatares automáticos do GitHub): uma grade 5x5
+  // espelhada, numa cor forte, sorteada na hora. Cada semente dá um desenho
+  // diferente; ninguém mais tem o mesmo.
+  function hashTexto(t) { var h = 2166136261; for (var i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+  function urlPadrao(semente) {
+    // cor e desenho de sorteios separados: com o mesmo número, sementes
+    // parecidas davam cores parecidas
+    var h = hashTexto(String(semente) + '|desenho');
+    var cor = 'hsl(' + (hashTexto('cor|' + semente) % 360) + ' 70% 42%)';
+    var cel = 14.4, pad = 12, quad = '';
+    for (var y = 0; y < 5; y++) for (var x = 0; x < 3; x++) {
+      if (!((h >>> (y * 3 + x)) & 1)) continue;
+      [x, 4 - x].filter(function (v, i, a) { return a.indexOf(v) === i; }).forEach(function (xx) {
+        quad += '<rect x="' + (pad + xx * cel) + '" y="' + (pad + y * cel) + '" width="' + cel + '" height="' + cel + '"/>';
+      });
+    }
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><rect width="96" height="96" fill="#F2F3F5"/><g fill="' + cor + '">' + quad + '</g></svg>';
+    return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+  }
+  var sementesPadrao = [];
+  function sortearPadroes() { sementesPadrao = []; for (var i = 0; i < 6; i++) sementesPadrao.push(Math.random().toString(36).slice(2) + Date.now()); }
 
   function $(id) { return doc.getElementById(id); }
   function esc(t) {
@@ -480,7 +448,13 @@
         '<label class="ncfg-botao" for="ncfgFotoArquivo"><i class="ph ph-camera" aria-hidden="true"></i> Escolher foto</label>' +
         '<button type="button" class="ncfg-botao" id="ncfgIconeAbrir" aria-expanded="' + escolhendoIcone + '"><i class="ph ph-smiley" aria-hidden="true"></i> Escolher ícone</button>' +
         (foto ? '<button type="button" class="ncfg-botao leve" id="ncfgFotoRemover">Remover</button>' : '')),
-      escolhendoIcone ? linha('Ícone de perfil', 'No lugar da foto. Toque em um pra usar.',
+      escolhendoIcone ? linha('Só seu', 'Um padrão sorteado agora, que ninguém mais tem. Não gostou? Sorteie outros.',
+        '<div class="ncfg-icones" role="group" aria-label="Padrões únicos">' + sementesPadrao.map(function (s, i) {
+          return '<button type="button" class="ncfg-icone" data-padrao="' + i + '" title="Usar este" aria-label="Padrão único ' + (i + 1) + '"' +
+            ' style="background-image:url(&quot;' + esc(urlPadrao(s)) + '&quot;)"></button>';
+        }).join('') + '</div>' +
+        '<button type="button" class="ncfg-botao leve" id="ncfgPadraoSortear"><i class="ph ph-shuffle" aria-hidden="true"></i> Sortear outros</button>') : '',
+      escolhendoIcone ? linha('Emblemas', 'No lugar da foto. Toque em um pra usar.',
         '<div class="ncfg-icones" role="group" aria-label="Ícones de perfil">' + ICONES_PERFIL.map(function (ic, i) {
           var url = urlIcone(ic);
           return '<button type="button" class="ncfg-icone' + (foto === url ? ' escolhido' : '') + '" data-icone="' + i + '" title="' + esc(ic.nome) + '" aria-label="' + esc(ic.nome) + '"' +
@@ -691,7 +665,16 @@
       var rem = $('ncfgFotoRemover');
       if (rem) rem.addEventListener('click', function () { salvarFoto(''); });
       var abrirIcone = $('ncfgIconeAbrir');
-      if (abrirIcone) abrirIcone.addEventListener('click', function () { escolhendoIcone = !escolhendoIcone; desenharPagina(); });
+      if (abrirIcone) abrirIcone.addEventListener('click', function () {
+        escolhendoIcone = !escolhendoIcone;
+        if (escolhendoIcone && !sementesPadrao.length) sortearPadroes();
+        desenharPagina();
+      });
+      var sortear = $('ncfgPadraoSortear');
+      if (sortear) sortear.addEventListener('click', function () { sortearPadroes(); desenharPagina(); });
+      Array.prototype.forEach.call(document.querySelectorAll('.ncfg-icone[data-padrao]'), function (b) {
+        b.addEventListener('click', function () { escolhendoIcone = false; salvarFoto(urlPadrao(sementesPadrao[+b.getAttribute('data-padrao')])); });
+      });
       Array.prototype.forEach.call(document.querySelectorAll('.ncfg-icone[data-icone]'), function (b) {
         b.addEventListener('click', function () { escolhendoIcone = false; salvarFoto(urlIcone(ICONES_PERFIL[+b.getAttribute('data-icone')])); });
       });
