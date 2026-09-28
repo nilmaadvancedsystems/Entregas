@@ -37,6 +37,11 @@ const CONTROLE = path.join(RAIZ, '_CONTROLE');
 const CLAUDE = process.env.CLAUDE_EXE || path.join(os.homedir(), '.local', 'bin', 'claude.exe');
 const DRIVE = process.env.ARQUIVO_DRIVE || 'G:\Meu Drive';
 const MODOS = ['PRODUCAO', 'SIMULACAO'];
+// Quem pensa e quem faz (pedido do escritório, 28/09/2026): o Opus 5.5
+// orquestra a rotina e os subagentes que ela abre pra executar rodam no
+// Sonnet 5. O Opus 5.5 pede o Claude Code 2.1.280 ou mais novo.
+const MODELO_ORQUESTRADOR = process.env.ARQUIVO_MODELO || 'claude-opus-5-5';
+const MODELO_EXECUTOR = process.env.ARQUIVO_MODELO_EXECUTOR || 'claude-sonnet-5';
 
 const LIMITE_EXECUCAO_MS = 3 * 36e5;     // rotina travada não segura o PC o dia inteiro
 const SINAL_DE_OUTRA_EXECUCAO_MS = 10 * 60000;
@@ -213,9 +218,10 @@ function rodarRotina(modo, aoAndar) {
     let resto = '';
     // stream-json: uma linha JSON por evento (texto do Claude, ferramenta
     // usada, resultado final). É daí que sai o andamento ao vivo.
-    const filho = spawn(CLAUDE, ['-p', '/organizar ' + modo, '--permission-mode', 'bypassPermissions',
+    const env = Object.assign(ambienteLimpo(), { CLAUDE_CODE_SUBAGENT_MODEL: MODELO_EXECUTOR });
+    const filho = spawn(CLAUDE, ['-p', '/organizar ' + modo, '--model', MODELO_ORQUESTRADOR, '--permission-mode', 'bypassPermissions',
       '--add-dir', DRIVE, '--output-format', 'stream-json', '--verbose'],
-      { cwd: RAIZ, windowsHide: true, env: ambienteLimpo(), stdio: ['ignore', 'pipe', 'pipe'] });
+      { cwd: RAIZ, windowsHide: true, env, stdio: ['ignore', 'pipe', 'pipe'] });
     filho.stdout.on('data', b => {
       resto += String(b);
       const linhas = resto.split(/\r?\n/);
@@ -234,6 +240,8 @@ function rodarRotina(modo, aoAndar) {
         if (ev.type === 'result') {
           resposta = String(ev.result || '');
           sucesso = ev.subtype === 'success' && !ev.is_error;
+          // quem trabalhou de fato (orquestrador e subagentes)
+          if (ev.modelUsage) log('modelos usados:', Object.keys(ev.modelUsage).join(', '));
         }
       }
     });
