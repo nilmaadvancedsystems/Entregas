@@ -1595,9 +1595,9 @@ html.com-casca body > .topbar { display: none; }
   min-width: 0; padding: 4px 6px; border-radius: 6px; font-size: 16px; line-height: 24px; color: var(--ink);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.topo-modulo { font-weight: 600; }
+/* = "Conferência / 292 EMPRESA": o módulo em peso normal, o que vem depois em negrito */
+.topo-modulo { font-weight: 400; }
 .topo-sub { font-weight: 600; }
-.gh-topo:has(.topo-sub:not([hidden])) .topo-modulo { font-weight: 400; }
 .topo-modulo + .topo-sep { margin: 0 -8px; }
 .topo-modulo[role="button"], .topo-sub[role="button"] { cursor: pointer; }
 .topo-modulo[role="button"] { flex: none; }
@@ -1687,100 +1687,106 @@ html.com-casca body > .topbar { display: none; }
   .tabs-pe { display: none; }
 }
 /* --- PC: as abas viram a barra lateral fixa (= .subnav da Conferência) --- */
-/* Item de 36px, ícone em cinza e rótulo em tinta; o aberto ganha o fundo e
-   uma barrinha vermelha DENTRO dele (antes ela ficava solta, 8px pra fora). */
+/* Igual à .subnav da Conferência: item de 32px, rótulo em tinta e ícone em
+   cinza; o aberto ganha o fundo, o negrito e a barrinha vermelha de 4px solta
+   8px pra fora dele. Começa embaixo do cabeçalho inteiro (as duas faixas). */
 @media (min-width: 900px) {
   .tabs {
-    position: fixed; top: var(--topo-total); left: 0; bottom: 0; z-index: var(--z-fixo);
+    position: fixed; top: calc(var(--topo-total) + var(--abas2)); left: 0; bottom: 0; z-index: var(--z-fixo);
     width: var(--lateral); height: auto; flex-direction: column; align-items: stretch; gap: 2px;
-    padding: 12px; background: var(--bg); border-bottom: 0; border-right: 1px solid var(--border);
+    padding: 16px 8px 16px 16px; background: var(--bg); border-bottom: 0; border-right: 1px solid var(--border);
     overflow-x: hidden; overflow-y: auto; transition: width .15s ease;
   }
   .tab {
-    width: 100%; height: auto; min-height: 36px; padding: 0 10px 0 12px; gap: 10px; border-radius: 8px;
-    justify-content: flex-start; text-align: left; isolation: auto; color: var(--ink-muted);
+    width: 100%; height: auto; min-height: 32px; padding: 6px 8px; gap: 8px; border-radius: 6px;
+    justify-content: flex-start; text-align: left; isolation: auto; color: var(--ink);
   }
-  .tab .tab-ico { width: 18px; justify-content: center; font-size: 16px; color: inherit; }
+  .tab .tab-ico { width: 16px; justify-content: center; font-size: 16px; color: var(--ink-muted); }
   .tab::before { display: none; }
-  .tab:hover { background: var(--hover-bg); color: var(--ink); }
+  .tab:hover { background: var(--hover-bg); }
   .tab-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; text-align: left; }
   .tab .tab-badge { margin-left: auto; background: var(--surface-3); color: var(--ink); }
-  .tab.active, .tab[aria-current="page"] { background: var(--hover-bg); color: var(--ink); font-weight: 600; }
-  .tab.active .tab-ico, .tab[aria-current="page"] .tab-ico { color: var(--ink); }
+  .tab.active, .tab[aria-current="page"] { background: var(--hover-bg); font-weight: 600; }
   .tab.active::after, .tab[aria-current="page"]::after {
-    left: 0; right: auto; top: 9px; bottom: 9px; width: 3px; height: auto; border-radius: 0 3px 3px 0;
+    left: -8px; right: auto; top: 6px; bottom: 6px; width: 4px; height: auto; border-radius: 6px;
   }
   .tabs-pe { margin-top: auto; padding: 8px 8px 0; border-top: 1px solid var(--border); }
   body:has(> .tabs:not([hidden])) { padding-left: var(--lateral); transition: padding-left .15s ease; }
 
-  /* botão do pé: recolhe a barra pros ícones (nilma-shell.js guarda a escolha) */
+  /* pé da barra (= .subnav-foot): fio em cima e o "Ocultar barra lateral"
+     no desenho de item (nilma-shell.js guarda a escolha) */
+  .lateral-pe { margin-top: auto; padding-top: 8px; border-top: 1px solid var(--border); }
+  .tabs-pe ~ .lateral-pe { margin-top: 8px; }
   .lateral-recolher {
-    display: flex; align-items: center; gap: 10px; width: 100%; min-height: 36px; margin-top: auto; padding: 0 10px 0 12px;
-    border: 0; border-top: 1px solid var(--border); border-radius: 0; background: none; color: var(--ink-muted);
-    font: inherit; font-size: 13px; text-align: left; cursor: pointer;
+    display: flex; align-items: center; gap: 8px; width: 100%; min-height: 32px; padding: 6px 8px;
+    border: 0; border-radius: 6px; background: none; color: var(--ink);
+    font: inherit; font-size: 14px; line-height: 20px; text-align: left; cursor: pointer;
   }
-  .lateral-recolher:hover { color: var(--ink); }
-  .lateral-recolher .ph { width: 18px; flex: none; font-size: 16px; text-align: center; }
-  .tabs-pe ~ .lateral-recolher { margin-top: 8px; }
+  .lateral-recolher:hover { background: var(--hover-bg); }
+  .lateral-recolher svg { width: 16px; height: 16px; flex: none; color: var(--ink-muted); }
 
-  /* recolhida: só os ícones, o contador vira um pontinho */
-  html.lateral-recolhida:has(#tabsNav) { --lateral: 64px; }
-  html.lateral-recolhida .tabs { padding: 12px 10px; }
-  html.lateral-recolhida .tabs .tab { justify-content: center; padding: 0; position: relative; }
+  /* oculta: só os ícones, o contador vira um pontinho */
+  html.lateral-recolhida:has(#tabsNav) { --lateral: 56px; }
+  html.lateral-recolhida .tabs { padding: 16px 8px; }
+  html.lateral-recolhida .tabs .tab { justify-content: center; padding: 6px 0; position: relative; }
   html.lateral-recolhida .tabs .tab-label,
   html.lateral-recolhida .tabs .tabs-mes,
   html.lateral-recolhida .tabs .tabs-pe,
   html.lateral-recolhida .lateral-recolher span { display: none; }
   html.lateral-recolhida .tabs .tab-badge {
-    position: absolute; top: 7px; right: 9px; min-width: 0; width: 8px; height: 8px; padding: 0; border-radius: 50%;
+    position: absolute; top: 4px; right: 6px; min-width: 0; width: 8px; height: 8px; padding: 0; border-radius: 50%;
     font-size: 0; line-height: 0; color: transparent; overflow: hidden; background: var(--tab-active);
   }
-  html.lateral-recolhida .lateral-recolher { justify-content: center; padding: 0; margin-top: auto; }
+  html.lateral-recolhida .lateral-recolher { justify-content: center; padding: 6px 0; }
+  html.lateral-recolhida .lateral-recolher svg { transform: scaleX(-1); }
   /* recolhida, o conteúdo usa a largura toda (sem o limite de 1216px no meio):
      Pendências, Entregas e Fiscal */
   html.lateral-recolhida main.conteudo > div,
   html.lateral-recolhida main > :is(*, .tela-cabecalho),
   html.lateral-recolhida .screen { max-width: none; }
 }
-@media (max-width: 899px) { .lateral-recolher { display: none; } }
+@media (max-width: 899px) { .lateral-pe { display: none; } }
 
 /* --- menu de cima (nível 2): as páginas da tela aberta na barra lateral ---
    Pendências e Entregas. Barra lateral = seções (nível 1), menu de cima =
    páginas (nível 2), submenu dentro da página = partes (nível 3). */
-/* No PC ele fica ao lado da barra lateral, no alto do conteúdo (começa na
-   linha dela, não por cima), e gruda embaixo do cabeçalho; o que gruda no
-   alto das páginas desce os 48px dele (--abas2). No celular vem logo
-   abaixo da faixa das seções. */
+/* No PC ele é a segunda faixa do cabeçalho (= nav.menu da Conferência):
+   ocupa a largura toda, no mesmo fundo, e a barra lateral começa embaixo
+   dele; o que gruda no alto das páginas desce os 48px dele (--abas2). No
+   celular vem logo abaixo da faixa das seções. */
 :root { --abas2: 0px; }
 html.com-casca:has(#abasSecao:not([hidden])) { --abas2: 48px; }
 .abas-secao {
   position: sticky; top: calc(var(--topo-total) + 48px); z-index: var(--z-fixo);
-  display: flex; align-items: center; gap: 4px; height: 48px; margin: 0; padding: 0 16px;
+  display: flex; align-items: center; gap: 8px; height: 48px; margin: 0; padding: 0 32px;
   /* o fio de baixo é sombra: com borda, o sublinhado da aba aberta era cortado */
   background: var(--header-bg); box-shadow: inset 0 -1px 0 var(--border);
   overflow-x: auto; overflow-y: hidden; scrollbar-width: none;
 }
 .abas-secao::-webkit-scrollbar { display: none; }
 .abas-secao[hidden] { display: none; }
-/* aba: texto cinza; a aberta em tinta, com o sublinhado vermelho colado no
-   fio de baixo da barra (sem caixa em volta) */
+/* aba (= .menu-item): texto em tinta e ícone em cinza; a aberta em negrito,
+   com o sublinhado vermelho da largura dela colado no fio de baixo */
 .aba-s {
-  position: relative; flex: none; display: inline-flex; align-items: center; gap: 8px; height: 48px; padding: 0 12px;
-  border: 0; border-radius: 0; background: none; color: var(--ink-muted); font: inherit; font-size: 14px; white-space: nowrap; cursor: pointer;
+  position: relative; flex: none; display: inline-flex; align-items: center; gap: 8px; height: 48px; padding: 0 8px;
+  border: 0; border-radius: 0; background: none; color: var(--ink); font: inherit; font-size: 14px; white-space: nowrap; cursor: pointer;
 }
-.aba-s::before { content: ''; position: absolute; inset: 8px 2px; border-radius: 6px; z-index: -1; transition: background .12s ease; }
+.aba-s::before { content: ''; position: absolute; inset: 8px 0; border-radius: 6px; z-index: -1; transition: background .12s ease; }
 .aba-s { isolation: isolate; }
-.aba-s:hover { color: var(--ink); }
 .aba-s:hover::before { background: var(--hover-bg); }
-.aba-s .ph { font-size: 16px; }
-.aba-s[aria-selected="true"] { color: var(--ink); font-weight: 600; }
-.aba-s[aria-selected="true"] .ph { color: var(--ink); }
+.aba-s .ph { font-size: 16px; color: var(--ink-muted); }
+.aba-s[aria-selected="true"] { font-weight: 600; }
 .aba-s[aria-selected="true"]::after {
-  content: ''; position: absolute; left: 8px; right: 8px; bottom: 0; height: 2px; border-radius: 2px 2px 0 0; background: var(--tab-active);
+  content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; border-radius: 6px; background: var(--tab-active);
 }
 .aba-s .tab-badge { background: var(--surface-3); }
+@media (max-width: 767px) { .abas-secao { padding: 0 16px; gap: 0; } }
 @media (min-width: 900px) {
-  .abas-secao { top: var(--topo-total); padding: 0 20px; background: var(--bg); }
+  .abas-secao { position: fixed; top: var(--topo-total); left: 0; right: 0; z-index: var(--z-nav); }
+  /* cabeçalho de duas faixas: o fio fica só embaixo da segunda */
+  html.com-casca:has(#abasSecao:not([hidden])) .gh-topo { border-bottom-color: transparent; }
+  html.com-casca body { padding-top: calc(var(--topo-total) + var(--abas2)); }
+  html.com-casca body:has(> #topo[hidden]) { padding-top: 0; }
 }
 /* Entregas: as categorias de cada tela sobem pro menu de cima */
 html:has(#abasSecao:not([hidden])) main .aba-subnav,

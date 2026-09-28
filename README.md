@@ -29,6 +29,19 @@ Módulo novo no menu ☰, **Tarefas** (`tarefas.html`), pra equipe toda:
 - Regras: `tarefas` a equipe lê, cria e edita; quem criou não muda; apagar
   só quem criou ou o admin.
 
+**Versão 2.388 — barra de cima e barra lateral iguais às da Conferência:**
+
+- O menu de cima (`#abasSecao`) virou a segunda faixa do cabeçalho no PC:
+  largura toda, fundo do cabeçalho, abas em tinta com ícone cinza e o
+  sublinhado vermelho da largura da aba (= `nav.menu`). A barra lateral
+  começa embaixo das duas faixas.
+- Barra lateral (= `.subnav`): item de 32px, rótulo em tinta, aberto com fundo,
+  negrito e a barrinha de 4px solta 8px pra fora; pé com fio e "Ocultar barra
+  lateral" com o ícone da Conferência; oculta fica com 56px.
+- Trilha: o nome do módulo em peso normal (como "Conferência"); o submódulo,
+  quando tem, em negrito.
+- Vale pra todas as telas com a casca (Entregas, Pendências, Tarefas, LCDPR).
+
 **Versão 2.387 — foto do Google de quem manda e-mail:**
 
 - O Gmail não dá a foto do remetente; a API de Contatos (People) dá: nos

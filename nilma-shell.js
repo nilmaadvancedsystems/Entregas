@@ -465,8 +465,10 @@
     var nav = $('tabsNav'), b = $('lateralRecolher');
     if (!nav || !b) return;
     var rec = lateralRecolhida();
-    b.innerHTML = '<i class="ph ph-caret-' + (rec ? 'right' : 'left') + '" aria-hidden="true"></i><span>Recolher barra lateral</span>';
-    b.title = rec ? 'Abrir a barra lateral' : 'Recolher a barra lateral';
+    // mesmo ícone e texto do pé da barra da Conferência (o CSS espelha o ícone quando oculta)
+    b.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+      '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/><path d="m16 10-2 2 2 2"/></svg><span>Ocultar barra lateral</span>';
+    b.title = rec ? 'Mostrar barra lateral' : 'Ocultar barra lateral';
     b.setAttribute('aria-label', b.title);
     b.setAttribute('aria-expanded', String(!rec));
     [].forEach.call(nav.querySelectorAll('.tab'), function (t) {
@@ -486,7 +488,10 @@
     var b = doc.createElement('button');
     b.type = 'button'; b.className = 'lateral-recolher'; b.id = 'lateralRecolher';
     b.addEventListener('click', function () { recolherLateral(!lateralRecolhida()); });
-    nav.appendChild(b);
+    var pe = doc.createElement('div');
+    pe.className = 'lateral-pe';
+    pe.appendChild(b);
+    nav.appendChild(pe);
     pintarRecolher();
   }
   try { if (localStorage.getItem(CHAVE_LATERAL) === 'recolhida') doc.documentElement.classList.add('lateral-recolhida'); } catch (e) {}
