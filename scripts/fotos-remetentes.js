@@ -124,6 +124,12 @@ function iniciarFotosRemetentes(db, log) {
         const snap = await require('./clientes-cache').clientesAtivos(db);
         snap.forEach(d => { const c = d.data() || {}; [c.email].concat(Array.isArray(c.emails) ? c.emails : []).forEach(e => { if (e) emails.push(String(e).trim().toLowerCase()); }); });
       } catch (e) { /* sem a lista de clientes: segue com os contatos */ }
+      // e quem aparece na tela do Robô: a caixa e os "sem cliente" de robo/estado
+      // (pouco cliente tem e-mail no cadastro; o remetente está aqui)
+      try {
+        const est = (await db.collection('robo').doc('estado').get()).data() || {};
+        (est.caixa || []).concat(est.naoReconhecidos || []).forEach(m => { if (m && m.remetente) emails.push(String(m.remetente).trim().toLowerCase()); });
+      } catch (e) { /* sem o estado: segue com o resto */ }
       const doGoogle = Object.keys(mapa).length;
       const fora = await fotosDeFora(emails, mapa);
       Object.assign(mapa, fora.porEmail);
