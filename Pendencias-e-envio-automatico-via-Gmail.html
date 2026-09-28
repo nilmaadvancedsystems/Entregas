@@ -664,6 +664,8 @@
   .tab-simples td.quando { white-space: nowrap; color: var(--ink-muted); font-size: 13px; }
   .av-mini { position: relative; overflow: hidden; flex: none; display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; font-size: 12px; font-weight: 700; color: #FFFFFF; }
   .av-mini img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: var(--surface-3); }
+  /* logo do site da empresa: inteiro, sobre branco, com respiro (foto de pessoa é recortada) */
+  .av-mini.com-logo img { object-fit: contain; padding: 15%; background: #FFFFFF; box-shadow: inset 0 0 0 1px var(--border); border-radius: 50%; }
   .quem-linha { display: flex; align-items: center; gap: 10px; min-width: 0; }
   .quem-linha .qx { min-width: 0; }
   #tabCaixa .email-assunto, #tabSpam .email-assunto, #tabNaoRec .email-assunto { font-weight: 600; }
@@ -2556,11 +2558,15 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
   }
   // a foto por cima das iniciais; se não carregar, ficam as iniciais
   function pintarFoto(a) {
-    var url = (fotosRemetentes || {})[a.dataset.email];
+    // foto da pessoa (Google/Gravatar); sem ela, o logo do site da empresa
+    // quando o e-mail é de domínio próprio (robo/fotos.porDominio)
+    var pessoa = (fotosRemetentes || {})[a.dataset.email];
+    var url = pessoa || (logosDominios || {})[a.dataset.email.split('@')[1] || ''];
     if (!url || a.querySelector('img')) return;
+    a.classList.toggle('com-logo', !pessoa);
     var img = document.createElement('img');
     img.alt = ''; img.loading = 'lazy'; img.referrerPolicy = 'no-referrer'; img.src = url;
-    img.addEventListener('error', function () { img.remove(); a.classList.remove('com-foto'); });
+    img.addEventListener('error', function () { img.remove(); a.classList.remove('com-foto', 'com-logo'); });
     a.appendChild(img); a.classList.add('com-foto');
   }
   function aplicarFotos() { document.querySelectorAll('.av-mini[data-email]').forEach(pintarFoto); }
@@ -3441,11 +3447,13 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
   // Fotos de perfil do Google de quem manda e-mail (robo/fotos, montado pelo
   // robô a partir dos contatos: scripts/fotos-remetentes.js).
   var fotosRemetentes = {};
+  var logosDominios = {};
   var unsubFotos = null;
   function subscribeFotos() {
     if (unsubFotos) return;
     unsubFotos = db.collection('robo').doc('fotos').onSnapshot(function (doc) {
       fotosRemetentes = (doc.exists && doc.data().porEmail) || {};
+      logosDominios = (doc.exists && doc.data().porDominio) || {};
       aplicarFotos();
     }, function () {});
   }

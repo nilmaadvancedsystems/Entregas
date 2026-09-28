@@ -623,6 +623,9 @@ igual('fotos: e-mail em minúsculas, tamanho 96, foto padrão fica de fora', fr.
   { emailAddresses: [{ value: 'semfoto@x.com' }], photos: [{ url: 'https://lh3.googleusercontent.com/a/def=s100', default: true }] },
   { emailAddresses: [{ value: 'b@x.com' }, { value: 'c@x.com' }], photos: [{ url: 'https://lh3.googleusercontent.com/a/ghi' }] },
 ]), { 'jose@padaria.com': 'https://lh3.googleusercontent.com/a/abc=s96-c', 'b@x.com': 'https://lh3.googleusercontent.com/a/ghi=s96-c', 'c@x.com': 'https://lh3.googleusercontent.com/a/ghi=s96-c' });
+igual('fotos: todos os e-mails das pessoas, com ou sem foto', fr.emailsDasPessoas([{ emailAddresses: [{ value: ' A@B.com ' }] }, { photos: [] }, { emailAddresses: [{ value: 'c@d.com.br' }] }]), ['a@b.com', 'c@d.com.br']);
+igual('fotos: domínio do e-mail e e-mail pessoal fica sem logo', [fr.dominioDe('Jose@Padaria.COM.br'), fr.dominioDe('sem-arroba'), fr.PESSOAIS.has('hotmail.com'), fr.PESSOAIS.has('padaria.com.br')], ['padaria.com.br', '', true, false]);
+igual('fotos: Gravatar pelo md5 do e-mail em minúsculas', fr.urlGravatar(' A@B.com '), fr.urlGravatar('a@b.com'));
 const tn = require('./token-novo');
 igual('token novo: troca quando o refresh_token ou as permissões mudam', [
   !!tn.tokenParaTrocar('{"refresh_token":"b","scope":"x y"}', '{"refresh_token":"a","scope":"x"}'),
