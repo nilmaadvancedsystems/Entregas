@@ -72,6 +72,26 @@ function acharCliente(clientes, termo) {
   if (exatos.length === 1) return { cliente: exatos[0] };
   const contem = clientes.filter(c => nomes(c).some(n => n.indexOf(alvo) !== -1));
   if (contem.length === 1) return { cliente: contem[0] };
+  // Palavras espalhadas entre razão social e nome fantasia ("ACE Taiobeiras"
+  // = fantasia ACE + razão "... DE TAIOBEIRAS"): cada palavra tem que ser
+  // palavra inteira de um dos dois. Entre vários, fica quem tem alguma
+  // palavra igual ao nome fantasia inteiro.
+  const palavras = alvo.split(/\s+/).filter(w => w.length > 1 && !/^(de|da|do|das|dos|e|ltda|me)$/.test(w));
+  if (palavras.length > 1) {
+    const todas = clientes.filter(c => {
+      const ws = new Set(nomes(c).join(' ').split(/[^a-z0-9]+/));
+      return palavras.every(w => ws.has(w));
+    });
+    if (todas.length === 1) return { cliente: todas[0] };
+    const pelaFantasia = todas.filter(c => c.nomeFantasia && palavras.indexOf(normalizar(c.nomeFantasia)) !== -1);
+    if (pelaFantasia.length === 1) return { cliente: pelaFantasia[0] };
+    if (todas.length) return { erro: 'mais de um cliente com "' + t + '"', candidatos: todas.slice(0, 8).map(rotuloCliente) };
+    // Nome no cadastro cortado ("ASSOCIAÇÃO COMERCIAL E EMPRESARIAL DE",
+    // fantasia "ACE"): uma das palavras é o nome fantasia inteiro de UM
+    // cliente só. O cartão mostra o nome pra pessoa conferir.
+    const soFantasia = clientes.filter(c => c.nomeFantasia && palavras.indexOf(normalizar(c.nomeFantasia)) !== -1);
+    if (soFantasia.length === 1) return { cliente: soFantasia[0] };
+  }
   if (!contem.length) return { erro: 'nenhum cliente ativo com "' + t + '"' };
   return { erro: 'mais de um cliente com "' + t + '"', candidatos: contem.slice(0, 8).map(rotuloCliente) };
 }

@@ -192,7 +192,6 @@ certo('toda ferramenta usa parametersJsonSchema (e não o "parameters" antigo)',
 certo('nenhuma ferramenta grava, apaga ou envia',
   c.FERRAMENTAS.every(f => !/gravar|apagar|excluir|enviar|criar|alterar|registrar/i.test(f.name)));
 
-console.log('\n' + (total - falhas) + '/' + total + ' passaram.');
 // ---------- ações preparadas (ia-acoes.js): colocar na rota ----------
 const acoes = require('./ia-acoes');
 const CLI = [
@@ -203,6 +202,8 @@ const CLI = [
 igual('rota: acha pelo código, pelo nome sem acento e pelo id', [
   acoes.acharCliente(CLI, '0123').cliente.id, acoes.acharCliente(CLI, 'mercado sao jose').cliente.id, acoes.acharCliente(CLI, 'c3').cliente.id,
 ], ['c1', 'c2', 'c3']);
+igual('rota: palavras espalhadas entre fantasia e razão social', acoes.acharCliente(CLI.concat([{ id: 'c4', nome: 'ASSOCIACAO COMERCIAL DE TAIOBEIRAS', nomeFantasia: 'ACE' }, { id: 'c5', nome: 'LOTERIAS TAIOBEIRAS' }]), 'ACE Taiobeiras').cliente.id, 'c4');
+igual('rota: nome cortado no cadastro, achado pelo nome fantasia', acoes.acharCliente(CLI.concat([{ id: 'c6', nome: 'ASSOCIACAO COMERCIAL E EMPRESARIAL DE', nomeFantasia: 'ACE' }]), 'ACE Taiobeiras').cliente.id, 'c6');
 igual('rota: nome ambíguo devolve candidatos', acoes.acharCliente(CLI, 'mercado').candidatos, ['0200 - MERCADO SÃO JOSÉ', '0201 - MERCADO BOM PREÇO']);
 igual('rota: tipo conhecido, sinônimo e outro', [acoes.tipoDoDocumento('das').tipo, acoes.tipoDoDocumento('folha').tipo, acoes.tipoDoDocumento('Honorarios').semValor, acoes.tipoDoDocumento('GPS').outro], ['DAS', 'Folha de Pagamento', true, true]);
 igual('rota: valor em reais', [acoes.valorEmReais('R$ 1.234,56'), acoes.valorEmReais(480.9), acoes.valorEmReais('abc')], [1234.56, 480.9, null]);
@@ -220,4 +221,5 @@ igual('rota: proposta com mês atual, região do cadastro, honorário sem valor'
 igual('rota: ambíguo vira problema, o resto segue', [prop.acao, prop.entregas.length, prop.problemas[0].item, prop.entregas[1].zona, prop.entregas[1].competencia], ['rota', 2, 2, 'superior', '2026-08']);
 igual('rota: sem nada preparado é erro', !!acoes.prepararRota(CLI, [], { entregas: [{ cliente: 'xyz', documentos: ['DAS'] }] }).erro, true);
 
+console.log('\n' + (total - falhas) + '/' + total + ' passaram.');
 if (falhas) { console.log(falhas + ' FALHA(S).'); process.exit(1); }
