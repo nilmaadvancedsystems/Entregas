@@ -29,6 +29,16 @@ Módulo novo no menu ☰, **Tarefas** (`tarefas.html`), pra equipe toda:
 - Regras: `tarefas` a equipe lê, cria e edita; quem criou não muda; apagar
   só quem criou ou o admin.
 
+**Versão 2.394 — instalar o app no celular:**
+
+- O manifesto era montado em memória (blob) com o ícone embutido; o
+  Brave/Chrome do celular não aceita mais isso ("Não é possível instalar o
+  app", ícone "G"). Agora é arquivo: `manifest.webmanifest` (nome "Nilma",
+  abre em tela cheia no Entregas, atalhos pra Rota, Pendências e Tarefas) e
+  os ícones `icone-192.png`, `icone-512.png`, `icone-maskable-512.png` e
+  `apple-touch-icon.png` (o "N" do logo). O <head> do Entregas, Pendências,
+  Tarefas e LCDPR aponta pra eles.
+
 **Versão 2.393 — IA: cadastro, arquivos do Drive e dúvidas; bichinhos de perfil:**
 
 - `preparar_alteracao_cliente` (`ia-acoes.js`): e-mail, outro e-mail, região,

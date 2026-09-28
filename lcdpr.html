@@ -3,6 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icone-192.png">
 <title>Importador LCDPR — Nilma Contabilidade</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
@@ -327,7 +330,7 @@ table.t-cfg tbody tr.vazio:hover { background: none; }
 <script src="nilma-acoes-ia.js?v=393"></script>
 <script src="nilma-extras.js?v=392"></script>
 <script>
-  NilmaShell.montar({ modulo: 'Fiscal', moduloId: 'fiscal', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false, versao: '2.393 · 28/09/2026' });
+  NilmaShell.montar({ modulo: 'Fiscal', moduloId: 'fiscal', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false, versao: '2.394 · 28/09/2026' });
   // o LCDPR é um submódulo do Fiscal: "Nilma / Fiscal / Importador LCDPR"
   NilmaShell.definirSubmodulo('fiscal/lcdpr', 'Importador LCDPR');
   document.getElementById('topo').hidden = true;
@@ -736,7 +739,7 @@ NilmaExtras.ligar({
   cargos: function(){ return contaAtual.cargos || []; },
   aoMudarNome: function(nome){ contaAtual.nome = nome; NilmaShell.definirUsuario({ nome: nome, foto: contaAtual.foto }); },
   sair: function(){ if (auth) auth.signOut().then(function(){ location.href = 'entregas.html'; }); },
-  versao: '2.393 · 28/09/2026',
+  versao: '2.394 · 28/09/2026',
   exemplosIA: ['Quais clientes têm mais pendências este mês?', 'Resuma as entregas do mês passado']
 });
 

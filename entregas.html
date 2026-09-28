@@ -9,12 +9,15 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Protocolos">
+<meta name="apple-mobile-web-app-title" content="Nilma">
 <meta name="description" content="Registro de entrega de documentos com assinatura do cliente.">
-<!-- Manifesto e ícone são montados pelo JS a partir do logo embutido, pra o
-     app continuar sendo um arquivo só e funcionar em qualquer endereço. -->
-<link rel="manifest" id="appManifest">
-<link rel="apple-touch-icon" id="appleIcon">
+<!-- Manifesto e ícones são arquivos de verdade (manifest.webmanifest,
+     icone-*.png): manifesto montado em memória (blob) com ícone embutido não
+     é mais aceito pra instalar — o Brave/Chrome do celular dizia "Não é
+     possível instalar o app" e mostrava um "G" no lugar do ícone. -->
+<link rel="manifest" id="appManifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" id="appleIcon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icone-192.png">
 <title>Nilma Protocolos</title>
 <script>
 // Quem abre um link público (assinar, acompanhar rota) via o formulário da
@@ -11897,7 +11900,7 @@
   // Aba em que o app abre: office boy vive em Solicitações, quem faz rota
   // abre em Rota. Guardar isso evita dois toques toda vez que entra.
 
-  var VERSAO_APP_ = '2.393 · 28/09/2026';
+  var VERSAO_APP_ = '2.394 · 28/09/2026';
   // Configurações do usuário: a janela comum (nilma-config.js), a mesma da
   // Pendências e do Fiscal. 'conta' abre em Minha conta; o resto, em
   // Preferências.
@@ -12689,60 +12692,9 @@
   // sem precisar editar nada quando muda de endereço.
   var promptInstalar = null;
 
-  function iconeDoApp(tamanho) {
-    // Desenha o logo num quadrado com fundo da paleta. O Android recorta ícone
-    // em círculo, então a margem evita que a marca fique decepada.
-    var logo = document.querySelector('.brand-mark');
-    if (!logo || !logo.complete || !logo.naturalWidth) return null;
-    var c = document.createElement('canvas');
-    c.width = c.height = tamanho;
-    var ctx = c.getContext('2d');
-    var fundo = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#235347';
-    ctx.fillStyle = fundo;
-    ctx.fillRect(0, 0, tamanho, tamanho);
-    var margem = Math.round(tamanho * 0.16);
-    var lado = tamanho - margem * 2;
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(tamanho / 2, tamanho / 2, lado / 2, 0, Math.PI * 2);
-    ctx.clip();
-    ctx.drawImage(logo, margem, margem, lado, lado);
-    ctx.restore();
-    try { return c.toDataURL('image/png'); } catch (e) { return null; }
-  }
-
-  function montarManifesto() {
-    var link = document.getElementById('appManifest');
-    if (!link) return;
-    var icone512 = iconeDoApp(512);
-    var icone192 = iconeDoApp(192);
-    if (!icone512 || !icone192) return;
-    var base = location.href.split(/[?#]/)[0];
-    var manifesto = {
-      name: 'Nilma Protocolos',
-      short_name: 'Protocolos',
-      description: 'Registro de entrega de documentos com assinatura do cliente.',
-      start_url: base,
-      scope: base.replace(/[^/]*$/, ''),
-      display: 'standalone',
-      lang: 'pt-BR',
-      background_color: corDoElemento_('body') || '#FFFFFF',
-      theme_color: paraHex_((document.getElementById('metaThemeColor') || {}).content) || '#235347',
-      icons: [
-        { src: icone192, sizes: '192x192', type: 'image/png', purpose: 'any' },
-        { src: icone512, sizes: '512x512', type: 'image/png', purpose: 'any' },
-        { src: icone512, sizes: '512x512', type: 'image/png', purpose: 'maskable' }
-      ]
-    };
-    var blob = new Blob([JSON.stringify(manifesto)], { type: 'application/manifest+json' });
-    if (link.dataset.blob) URL.revokeObjectURL(link.dataset.blob);
-    var url = URL.createObjectURL(blob);
-    link.dataset.blob = url;
-    link.href = url;
-
-    var apple = document.getElementById('appleIcon');
-    if (apple) apple.href = icone192;
-  }
+  // O manifesto agora é arquivo (manifest.webmanifest, no <head>). Esta
+  // função fica pra quem já a chama e não faz mais nada.
+  function montarManifesto() {}
 
   (function () {
     var logo = document.querySelector('.brand-mark');
