@@ -1406,7 +1406,7 @@
 <script src="nilma-acoes-ia.js?v=393"></script>
 <script src="nilma-extras.js?v=392"></script>
 <script>
-  var VERSAO_APP = '2.395 · 28/09/2026';
+  var VERSAO_APP = '2.396 · 28/09/2026';
   NilmaShell.montar({ modulo: 'Pendências', moduloId: 'pendencias', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false, versao: VERSAO_APP });
   // antes do login só a tela de entrada; a barra aparece junto com o app
   document.getElementById('topo').hidden = true;
@@ -8470,6 +8470,42 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
     }, function () {});
   }
 
+  // Busca na pasta do ano inteira: lê o mapa de TODOS os clientes (as partes
+  // de driveIndice/{pasta}), uma vez por sessão — e de novo só quando o robô
+  // regravar o mapa (raiz.atualizadoEm muda). Quem já foi aberto na tela
+  // (itensDoCliente) não é lido de novo.
+  var todaAPasta = { promessa: null, versao: null };
+  function carregarTodaAPasta(raiz, aoAndar) {
+    var versao = raiz.atualizadoEm || '';
+    if (todaAPasta.promessa && todaAPasta.versao === versao) return todaAPasta.promessa;
+    todaAPasta.versao = versao;
+    var lista = (raiz.clientes || []).filter(function (c) { return c.id; });
+    var feitos = 0;
+    var um = function (c) {
+      var ja = indiceDrive.clientes[c.id];
+      if (ja && ja.itens && ja.lidoEm === versao) { feitos++; return Promise.resolve(); }
+      return db.collection('driveIndice').doc(c.id).collection('partes').get().then(function (snap) {
+        var itens = [];
+        snap.docs.sort(function (a, b) { return Number(a.id) - Number(b.id); })
+          .forEach(function (p) { itens = itens.concat(p.data().itens || []); });
+        var dados = { resumo: (ja && ja.resumo) || null, itens: itens, filhos: {}, lidoEm: versao };
+        itens.forEach(function (it) { (dados.filhos[it.p] = dados.filhos[it.p] || []).push(it); });
+        indiceDrive.clientes[c.id] = dados;
+        feitos++;
+        if (aoAndar) aoAndar(feitos, lista.length);
+      });
+    };
+    // de 8 em 8, pra não abrir 80 leituras de uma vez no celular
+    var fila = lista.slice();
+    var andar = function () {
+      var lote = fila.splice(0, 8);
+      if (!lote.length) return Promise.resolve();
+      return Promise.all(lote.map(um)).then(andar);
+    };
+    todaAPasta.promessa = andar().catch(function (err) { todaAPasta.promessa = null; throw err; });
+    return todaAPasta.promessa;
+  }
+
   var ordenarNomes = new Intl.Collator('pt-BR', { numeric: true, sensitivity: 'base' }).compare;
   function tamanhoLegivel(b) {
     if (b == null) return '';
@@ -8727,7 +8763,7 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
         if (i === partes.length - 1) trilha.appendChild(el('span', 'atual', p.nome));
         else { var b = el('button', null, p.nome); b.type = 'button'; b.addEventListener('click', function () { ir(p.caminho); }); trilha.appendChild(b); }
       });
-      busca.placeholder = est.caminho.length ? 'Buscar nesta pasta e nas de dentro' : 'Buscar cliente pelo nome ou código';
+      busca.placeholder = est.caminho.length ? 'Buscar nesta pasta e nas de dentro' : 'Buscar cliente ou arquivo em toda a pasta (ex.: xml)';
     }
 
     function desenhar() {
@@ -8744,13 +8780,68 @@ Qualquer dúvida, é só responder este e-mail.</textarea>
         var cl = (raiz.clientes || []).filter(function (c) {
           return !termo || String(c.codigo) === termo || normalizarBusca(c.nomePasta || c.nome).indexOf(termo) !== -1;
         });
-        info.textContent = plural(cl.length, 'pasta de cliente', 'pastas de cliente') + (raiz.atualizadoEm ? ' · mapa atualizado ' + dataHora(raiz.atualizadoEm) : '');
-        if (!cl.length) lista.appendChild(el('li', 'exp-vazio', 'Nenhuma pasta com esse nome ou código.'));
-        cl.forEach(function (c) {
-          var nomeCli = c.nomePasta || ((c.codigo ? c.codigo + ' - ' : '') + c.nome);
-          lista.appendChild(linha('ph-folder-simple-user', nomeCli, null,
-            plural(c.arquivos || 0, 'arquivo', 'arquivos'), dataCurta(c.mod),
-            function () { ir([{ id: c.id, nome: c.nomePasta || c.nome, cliente: c.id }]); }, null, { i: c.id, n: nomeCli, t: 'd' }));
+        var nomeDaPasta = function (c) { return c.nomePasta || ((c.codigo ? c.codigo + ' - ' : '') + c.nome); };
+        var desenharClientes = function () {
+          cl.forEach(function (c) {
+            var nomeCli = nomeDaPasta(c);
+            lista.appendChild(linha('ph-folder-simple-user', nomeCli, null,
+              plural(c.arquivos || 0, 'arquivo', 'arquivos'), dataCurta(c.mod),
+              function () { ir([{ id: c.id, nome: c.nomePasta || c.nome, cliente: c.id }]); }, null, { i: c.id, n: nomeCli, t: 'd' }));
+          });
+        };
+        if (!termo || termo.length < 2) {
+          info.textContent = plural(cl.length, 'pasta de cliente', 'pastas de cliente') + (raiz.atualizadoEm ? ' · mapa atualizado ' + dataHora(raiz.atualizadoEm) : '');
+          if (!cl.length) lista.appendChild(el('li', 'exp-vazio', 'Nenhuma pasta com esse nome ou código.'));
+          desenharClientes();
+          return;
+        }
+        // Com busca, procura na pasta do ano INTEIRA (pedido do escritório,
+        // 28/09/2026: "se eu pesquisar xml aparecem todos"): as pastas de
+        // cliente pelo nome e, em todas elas, os arquivos e pastas cujo nome
+        // tem o termo — cada um com o cliente e o caminho.
+        var buscaFeita = est.busca;
+        info.textContent = 'Procurando em todas as pastas…';
+        carregarTodaAPasta(raiz, function (feitos, total) {
+          if (meu() && !est.caminho.length && est.busca === buscaFeita) info.textContent = 'Procurando em todas as pastas… ' + feitos + ' de ' + total;
+        }).then(function () {
+          if (!meu() || est.caminho.length || est.busca !== buscaFeita) return;   // saiu daqui ou mudou a busca
+          lista.innerHTML = '';
+          var achados = [];
+          (raiz.clientes || []).forEach(function (c) {
+            var dados = indiceDrive.clientes[c.id];
+            if (!dados || !dados.itens) return;
+            var porId = {};
+            dados.itens.forEach(function (i) { porId[i.i] = i; });
+            dados.itens.forEach(function (it) {
+              if (normalizarBusca(it.n).indexOf(termo) === -1) return;
+              var nomes = [], cam = [], p = it.p, voltas = 0;
+              while (p && porId[p] && voltas++ < 40) { nomes.unshift(porId[p].n); cam.unshift({ id: p, nome: porId[p].n, cliente: c.id }); p = porId[p].p; }
+              achados.push({ it: it, cliente: c, onde: [nomeDaPasta(c)].concat(nomes).join(' › '), cam: cam });
+            });
+          });
+          achados.sort(function (a, b) {
+            return ((a.it.t === 'd') === (b.it.t === 'd')) ? ordenarNomes(a.onde + '/' + a.it.n, b.onde + '/' + b.it.n) : (a.it.t === 'd' ? -1 : 1);
+          });
+          var nArq = achados.filter(function (x) { return x.it.t !== 'd'; }).length;
+          info.textContent = [cl.length ? plural(cl.length, 'cliente', 'clientes') : '', nArq ? plural(nArq, 'arquivo', 'arquivos') : '',
+            (achados.length - nArq) ? plural(achados.length - nArq, 'pasta', 'pastas') : ''].filter(Boolean).join(' · ') + ' com "' + est.busca + '" em toda a pasta';
+          if (!cl.length && !achados.length) { lista.appendChild(el('li', 'exp-vazio', 'Nada com esse nome em nenhuma pasta.')); return; }
+          desenharClientes();
+          achados.slice(0, 1500).forEach(function (x) {
+            var it = x.it, c = x.cliente;
+            var inicio = { id: c.id, nome: c.nomePasta || c.nome, cliente: c.id };
+            if (it.t === 'd') {
+              var dadosC = indiceDrive.clientes[c.id];
+              lista.appendChild(linha('ph-folder', it.n, x.onde, plural((dadosC.filhos[it.i] || []).length, 'item', 'itens'), dataCurta(it.m),
+                function () { ir([inicio].concat(x.cam, [{ id: it.i, nome: it.n, cliente: c.id }])); }, null, it));
+            } else {
+              lista.appendChild(linha(iconeDoArquivo(it), it.n, x.onde, tamanhoLegivel(it.s), dataCurta(it.m),
+                function () { abrirArquivoDoDrive(it); }, 'Abrir ' + it.n, it));
+            }
+          });
+          if (achados.length > 1500) lista.appendChild(el('li', 'exp-vazio', 'Mostrando 1.500 de ' + achados.length + '. Escreva mais pra afinar a busca.'));
+        }).catch(function (err) {
+          if (meu()) info.textContent = 'Não consegui procurar em todas as pastas: ' + ((err && err.message) || err);
         });
         return;
       }

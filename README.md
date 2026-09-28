@@ -29,6 +29,15 @@ Módulo novo no menu ☰, **Tarefas** (`tarefas.html`), pra equipe toda:
 - Regras: `tarefas` a equipe lê, cria e edita; quem criou não muda; apagar
   só quem criou ou o admin.
 
+**Versão 2.396 — busca do Arquivo na pasta inteira:**
+
+- Pendências › Arquivo, no topo (pasta 2026): a busca procura em TODAS as
+  pastas de todos os clientes — "xml" lista todos os XML, cada um com o
+  cliente e o caminho (abre e seleciona pra baixar como antes). Lê o mapa de
+  todos os clientes uma vez por sessão (`carregarTodaAPasta`: ~84 leituras,
+  de 8 em 8; relê só se o robô regravar o mapa). Dentro de um cliente segue
+  buscando na pasta aberta e nas de dentro.
+
 **Versão 2.395 — ícones de perfil: emblemas e padrão único:**
 
 - Os bichinhos saíram ("muito fofo"). Em Configurações › Minha conta ›
