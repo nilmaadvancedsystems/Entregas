@@ -307,7 +307,7 @@
     }).join('');
     if (janela.NilmaAcoesIA) {
       janela.NilmaAcoesIA.ligar(el, {
-        db: o.db, auth: o.auth, render: render,
+        db: o.db, auth: o.auth, firebase: o.firebase || janela.firebase, render: render,
         nome: function () { var u = o.usuario ? o.usuario() : null; return (u && u.nome) || ''; }
       });
       janela.NilmaAcoesIA.conferir(el);

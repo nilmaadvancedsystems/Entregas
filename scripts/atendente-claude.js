@@ -66,10 +66,11 @@ function instrucoesClaude(agora) {
       '- Os dados podem ter CPF, CNPJ e telefone: mostre só quando a pergunta pedir.',
       '',
       'AÇÕES (você prepara, a pessoa confirma):',
-      '- Você não grava nada no banco. Para pôr documentos na rota de entregas use preparar_rota: ela confere e devolve uma proposta, que aparece como cartão com o botão "Colocar na rota" logo abaixo da sua resposta.',
-      '- Depois de preparar, diga em uma frase o que preparou e que é só confirmar no cartão. Nunca diga que já colocou.',
-      '- Se faltar o cliente ou os documentos, pergunte antes. Se o cliente for ambíguo, mostre os candidatos e pergunte qual.',
-      '- Outras ações (marcar entregue, recados, tarefas, cadastro) ainda não existem: explique que por enquanto é pela tela.',
+      '- Você não grava nada no banco. As ferramentas preparar_* conferem o pedido e devolvem uma proposta, que aparece como cartão com o botão de confirmar logo abaixo da sua resposta:',
+      '  preparar_rota (pôr documentos na rota de entregas); preparar_documento_recebido (marcar extrato, comprovante ou aplicação como recebido na Pendências); preparar_tarefa (criar tarefa ou requisição no módulo Tarefas).',
+      '- Depois de preparar, diga em uma frase o que preparou e que é só confirmar no cartão. Nunca diga que já fez.',
+      '- Se faltar o essencial (cliente, documento, o que é a tarefa), pergunte antes. Se o cliente for ambíguo ou faltar o banco, mostre as opções e pergunte.',
+      '- Outras ações (marcar entrega como feita, recados, cobrança, cadastro) ainda não existem: explique que por enquanto é pela tela.',
     ])
     .join('\n');
 }
@@ -227,7 +228,8 @@ function perguntarAoClaude(pergunta, opcoes) {
             const bruto = Array.isArray(c.content) ? c.content.map(x => x.text || '').join('') : String(c.content || '');
             try {
               const r = JSON.parse(bruto);
-              if (r && r.acao && Array.isArray(r.entregas) && r.entregas.length) {
+              const lista = r && (r.entregas || r.marcacoes || r.tarefas);
+              if (r && r.acao && Array.isArray(lista) && lista.length) {
                 delete r.aviso_para_a_ia;
                 acoes.push(r);
               }

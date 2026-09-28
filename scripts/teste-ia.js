@@ -221,5 +221,35 @@ igual('rota: proposta com mês atual, região do cadastro, honorário sem valor'
 igual('rota: ambíguo vira problema, o resto segue', [prop.acao, prop.entregas.length, prop.problemas[0].item, prop.entregas[1].zona, prop.entregas[1].competencia], ['rota', 2, 2, 'superior', '2026-08']);
 igual('rota: sem nada preparado é erro', !!acoes.prepararRota(CLI, [], { entregas: [{ cliente: 'xyz', documentos: ['DAS'] }] }).erro, true);
 
+// ---------- documento recebido ----------
+const BANCOS_T = [{ id: 'bb', nome: 'Banco do Brasil', sigla: 'BB' }, { id: 'sicoob', nome: 'Sicoob', sigla: 'SICOOB' }, { id: 'caixa', nome: 'Caixa', sigla: 'CAIXA' }];
+const CLI_B = [
+  { id: 'd1', nome: 'PADARIA AURORA LTDA', codigoOrigem: '0123', bancos: ['bb', 'sicoob'] },
+  { id: 'd2', nome: 'OFICINA BOA', codigoOrigem: '0300' },
+];
+igual('documento: tipo por sinônimo', [acoes.tipoRecebido('extratos bancários').chave, acoes.tipoRecebido('comprovantes').chave, acoes.tipoRecebido('aplicação').chave, acoes.tipoRecebido('nota')], ['extrato', 'comprovante', 'aplicacao', null]);
+igual('documento: banco pela sigla e só entre os do cliente', [acoes.acharBanco(BANCOS_T, 'bb', ['bb', 'sicoob']).id, acoes.acharBanco(BANCOS_T, 'caixa', ['bb', 'sicoob'])], ['bb', null]);
+const pd = acoes.prepararDocumento(CLI_B, { 'd1_2026-09': { extrato: true, bancosPorTipo: { extrato: ['bb'] } } }, BANCOS_T, {
+  marcacoes: [{ cliente: '0123' }, { cliente: '0123', banco: 'sicoob' }, { cliente: 'oficina boa', tipo: 'comprovante', competencia: '2026-08' }],
+}, new Date(2026, 8, 28));
+igual('documento: parte dos bancos já chegou e não disse o banco -> pergunta', [pd.problemas.length, pd.problemas[0].bancosQueFaltam], [1, ['Sicoob']]);
+igual('documento: com o banco, e cliente sem bancos', pd.marcacoes.map(m => [m.clienteId, m.tipo, m.bancoId, m.competencia]), [['d1', 'extrato', 'sicoob', '2026-09'], ['d2', 'comprovante', '', '2026-08']]);
+igual('documento: banco que não é do cliente é problema', !!acoes.prepararDocumento(CLI_B, {}, BANCOS_T, { marcacoes: [{ cliente: '0123', banco: 'caixa' }] }).erro, true);
+
+// ---------- tarefa ----------
+const EQUIPE = [{ uid: 'u1', nome: 'Gustavo Silva' }, { uid: 'u2', nome: 'Nilma' }, { uid: 'u3', nome: 'Gustavo Rocha' }];
+const CLI_T = [{ id: 't1', nome: 'PADARIA AURORA LTDA', codigoOrigem: '0123', responsavelUid: 'u2', responsavelNome: 'Nilma' }];
+igual('tarefa: pessoa pelo nome exato, pelo primeiro nome e ambíguo', [acoes.acharPessoa(EQUIPE, 'nilma').uid, acoes.acharPessoa(EQUIPE, 'Gustavo Rocha').uid, acoes.acharPessoa(EQUIPE, 'gustavo')], ['u2', 'u3', null]);
+const pt = acoes.prepararTarefa(CLI_T, EQUIPE, { tarefas: [
+  { titulo: 'Conferir DCTFWeb', cliente: '0123', prazo: '2026-10-05', prioridade: 'Alta' },
+  { titulo: 'Ligar pro contador anterior', responsavel: 'Gustavo Rocha', tipo: 'requisição', prazo: '2026-09-01' },
+  { titulo: 'x', responsavel: 'Fulano' },
+  { titulo: '' },
+] }, new Date(2026, 8, 28));
+igual('tarefa: responsável da empresa, prioridade, requisição, prazo vencido', pt.tarefas.map(t => [t.titulo, t.responsavelUid, t.prioridade, t.tipo, t.clienteId, t.avisos.length]), [
+  ['Conferir DCTFWeb', 'u2', 'alta', 'tarefa', 't1', 0], ['Ligar pro contador anterior', 'u3', 'normal', 'requisicao', null, 1],
+]);
+igual('tarefa: responsável fora da equipe e sem título viram problema', pt.problemas.map(p => p.item), [3, 4]);
+
 console.log('\n' + (total - falhas) + '/' + total + ' passaram.');
 if (falhas) { console.log(falhas + ' FALHA(S).'); process.exit(1); }

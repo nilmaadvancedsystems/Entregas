@@ -60,7 +60,7 @@
 <script src="nilma-dialogo.js?v=345"></script>
 <script src="nilma-shell.js?v=384"></script>
 <script src="nilma-config.js?v=367"></script>
-<script src="nilma-acoes-ia.js?v=389"></script>
+<script src="nilma-acoes-ia.js?v=391"></script>
 <script src="nilma-solicitacoes.js?v=358"></script>
 <script>NilmaShell.montar({ modulo: 'Entregas', moduloId: 'entregas', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle' });</script>
 <!-- Abas do módulo, sublinhadas, logo abaixo da barra. -->
@@ -11897,7 +11897,7 @@
   // Aba em que o app abre: office boy vive em Solicitações, quem faz rota
   // abre em Rota. Guardar isso evita dois toques toda vez que entra.
 
-  var VERSAO_APP_ = '2.390 · 28/09/2026';
+  var VERSAO_APP_ = '2.391 · 28/09/2026';
   // Configurações do usuário: a janela comum (nilma-config.js), a mesma da
   // Pendências e do Fiscal. 'conta' abre em Minha conta; o resto, em
   // Preferências.
@@ -15175,9 +15175,9 @@
     }).join('');
     if (window.NilmaAcoesIA) {
       NilmaAcoesIA.ligar(el, {
-        db: db, auth: auth, nome: function () { return currentUserNome; }, render: cqRender_,
+        db: db, auth: auth, firebase: firebase, nome: function () { return currentUserNome; }, render: cqRender_,
         // o mesmo que a tela faz depois de gravar na rota
-        depois: function (d) { portalMudou_(d.clienteId); marcarClienteDeEntrega_(d.clienteId); }
+        depois: function (tipo, d) { if (tipo === 'rota') { portalMudou_(d.clienteId); marcarClienteDeEntrega_(d.clienteId); } }
       });
       NilmaAcoesIA.conferir(el);
     }

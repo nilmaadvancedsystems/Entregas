@@ -29,6 +29,23 @@ Módulo novo no menu ☰, **Tarefas** (`tarefas.html`), pra equipe toda:
 - Regras: `tarefas` a equipe lê, cria e edita; quem criou não muda; apagar
   só quem criou ou o admin.
 
+**Versão 2.391 — a IA marca documento recebido e cria tarefa (você confirma):**
+
+- Mesmo caminho da rota (a IA prepara, a pessoa confirma no cartão), com
+  duas ferramentas novas em `scripts/ia-acoes.js`:
+  - `preparar_documento_recebido`: extrato, comprovante ou aplicação (padrão
+    extrato, mês atual), opcionalmente com o banco. Segue a regra da
+    Pendências: se o cliente tem vários bancos e parte já chegou, sem dizer
+    o banco a IA pergunta qual (marcar só o tipo não tiraria a pendência).
+    Ao confirmar, grava em `documentosMensal/{cliente}_{mês}` como a
+    Pendências (`detalhes.<tipo> = {origem:'manual', por, em, pelaIA}` e,
+    com banco, `bancosPorTipo` + `bancosRecebidos`).
+  - `preparar_tarefa`: título, tarefa ou requisição, empresa, responsável
+    (nome da equipe; sem isso, o responsável da empresa; sem empresa, quem
+    confirmou), prazo e prioridade. Grava em `tarefas` com os campos do
+    `criar()` do tarefas.html e id fixo `ia_<msg>_<n>_<m>`.
+- Tudo o que é confirmado vai pra `auditoria` com `origem: 'ia'`.
+
 **Versão 2.390 — a IA monta a rota (você confirma):**
 
 - Na "Perguntar à IA" dá pra pedir "coloca o DAS de R$ 480 da Padaria Aurora
