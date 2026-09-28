@@ -246,3 +246,143 @@
 
   window.NilmaAcoesIA = { html: html, ligar: ligar, conferir: conferir };
 })();
+
+/* ==========================================================================
+   Arquivos na conversa com a IA (pedido do escritório, 28/09/2026)
+
+   Clipe ao lado do "Perguntar", colar (Ctrl+V de print) e arrastar pro
+   painel. PDF, imagem e texto (TXT, CSV, OFX): é o que a IA lê. Até 3 por
+   pergunta, 5 MB cada. O arquivo sobe pro banco em pedaços, como os anexos
+   das Tarefas (anexosIA/{id} + partes/{n}, só quem mandou lê); a mensagem
+   leva a lista [{id, nome, mime, tamanho}] e o atendente do PC entrega o
+   arquivo à IA junto com a pergunta (scripts/atendente-claude.js).
+
+     NilmaAnexosIA.montar({ antesDe: botaoEnviar, painel: el, aoMudar: fn })
+     NilmaAnexosIA.pendentes()  -> arquivos escolhidos (File[])
+     NilmaAnexosIA.limpar()
+     NilmaAnexosIA.subir(db, uid, arquivos) -> Promise<[{id, nome, mime, tamanho}]>
+     NilmaAnexosIA.etiquetas(lista) -> html das etiquetas (na mensagem)
+   ========================================================================== */
+(function () {
+  'use strict';
+  var TIPOS = {
+    pdf: 'application/pdf', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', gif: 'image/gif',
+    txt: 'text/plain', csv: 'text/csv', ofx: 'text/plain'
+  };
+  var MAX = 5 * 1024 * 1024, POR_PERGUNTA = 3, PEDACO = 900000;
+  var escolhidos = [];
+  var cfg = null;
+
+  function esc(t) {
+    return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function ext(nome) { var m = /\.([a-z0-9]+)$/i.exec(nome || ''); return m ? m[1].toLowerCase() : ''; }
+  function tamanho(n) { return n >= 1048576 ? (n / 1048576).toFixed(1).replace('.', ',') + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB'; }
+  function icone(mime) { return /^image\//.test(mime) ? 'ph-image' : (mime === 'application/pdf' ? 'ph-file-pdf' : 'ph-file-text'); }
+  function avisar(t) { if (cfg && cfg.avisar) cfg.avisar(t); }
+
+  function acrescentar(lista) {
+    Array.prototype.forEach.call(lista || [], function (f) {
+      var nome = f.name || ('print-' + new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-') + '.png');
+      if (!f.name) { try { f = new File([f], nome, { type: f.type || 'image/png' }); } catch (e) { return; } }
+      if (!TIPOS[ext(nome)]) { avisar(nome + ': a IA lê PDF, imagem e texto (TXT, CSV, OFX).'); return; }
+      if (f.size > MAX) { avisar(nome + ' passa de 5 MB.'); return; }
+      if (escolhidos.length >= POR_PERGUNTA) { avisar('No máximo ' + POR_PERGUNTA + ' arquivos por pergunta.'); return; }
+      escolhidos.push(f);
+    });
+    pintar();
+  }
+
+  function pintar() {
+    if (!cfg) return;
+    var faixa = cfg.faixa;
+    faixa.hidden = !escolhidos.length;
+    faixa.innerHTML = escolhidos.map(function (f, i) {
+      var mime = TIPOS[ext(f.name)];
+      return '<span class="cq-anexo"><i class="ph ' + icone(mime) + '" aria-hidden="true"></i><span>' + esc(f.name) + '</span>' +
+        '<button type="button" class="cq-anexo-tirar" data-tirar="' + i + '" title="Tirar" aria-label="Tirar ' + esc(f.name) + '"><i class="ph ph-x" aria-hidden="true"></i></button></span>';
+    }).join('');
+    if (cfg.aoMudar) cfg.aoMudar(escolhidos.length);
+  }
+
+  function montar(o) {
+    if (cfg || !o || !o.antesDe) return;
+    cfg = o;
+    var entrada = document.createElement('input');
+    entrada.type = 'file'; entrada.multiple = true; entrada.hidden = true;
+    entrada.accept = '.pdf,.png,.jpg,.jpeg,.webp,.gif,.txt,.csv,.ofx,application/pdf,image/*';
+    var clipe = document.createElement('button');
+    clipe.type = 'button'; clipe.className = 'icon-btn cq-clipe'; clipe.title = 'Anexar arquivo (PDF, imagem ou texto)';
+    clipe.setAttribute('aria-label', 'Anexar arquivo');
+    clipe.innerHTML = '<i class="ph ph-paperclip" aria-hidden="true"></i>';
+    o.antesDe.parentNode.insertBefore(clipe, o.antesDe);
+    o.antesDe.parentNode.insertBefore(entrada, o.antesDe);
+    clipe.addEventListener('click', function () { entrada.click(); });
+    entrada.addEventListener('change', function () { acrescentar(entrada.files); entrada.value = ''; });
+    // faixa das etiquetas, logo embaixo da barra da pergunta
+    var faixa = document.createElement('div');
+    faixa.className = 'cq-anexos'; faixa.hidden = true;
+    var barra = o.antesDe.closest('.cq-barra') || o.antesDe.parentNode;
+    barra.parentNode.insertBefore(faixa, barra.nextSibling);
+    cfg.faixa = faixa;
+    faixa.addEventListener('click', function (ev) {
+      var b = ev.target.closest('[data-tirar]');
+      if (b) { escolhidos.splice(+b.getAttribute('data-tirar'), 1); pintar(); }
+    });
+    var painel = o.painel || barra.parentNode;
+    // colar print (Ctrl+V) no campo da pergunta
+    painel.addEventListener('paste', function (ev) {
+      var itens = (ev.clipboardData && ev.clipboardData.files) || [];
+      if (itens.length) { ev.preventDefault(); acrescentar(itens); }
+    });
+    painel.addEventListener('dragover', function (ev) { if (ev.dataTransfer && Array.prototype.indexOf.call(ev.dataTransfer.types || [], 'Files') !== -1) { ev.preventDefault(); painel.classList.add('cq-soltar'); } });
+    painel.addEventListener('dragleave', function (ev) { if (!painel.contains(ev.relatedTarget)) painel.classList.remove('cq-soltar'); });
+    painel.addEventListener('drop', function (ev) {
+      if (!ev.dataTransfer || !ev.dataTransfer.files.length) return;
+      ev.preventDefault(); painel.classList.remove('cq-soltar'); acrescentar(ev.dataTransfer.files);
+    });
+  }
+
+  function base64(f) {
+    return new Promise(function (ok, erro) {
+      var r = new FileReader();
+      r.onload = function () { ok(String(r.result).replace(/^data:[^,]*,/, '')); };
+      r.onerror = function () { erro(r.error || new Error('não consegui ler ' + f.name)); };
+      r.readAsDataURL(f);
+    });
+  }
+
+  // Sobe cada arquivo: pedaços primeiro (levam o uid), o documento por último.
+  function subir(db, uid, arquivos) {
+    return Promise.all((arquivos || []).map(function (f) {
+      var ref = db.collection('anexosIA').doc();
+      var mime = TIPOS[ext(f.name)] || 'application/octet-stream';
+      return base64(f).then(function (b64) {
+        var n = Math.ceil(b64.length / PEDACO);
+        var partes = [];
+        for (var i = 0; i < n; i++) partes.push(ref.collection('partes').doc(String(i)).set({ dados: b64.slice(i * PEDACO, (i + 1) * PEDACO), uid: uid }));
+        return Promise.all(partes).then(function () {
+          return ref.set({ nome: String(f.name).slice(0, 200), mime: mime, tamanho: f.size, partes: n, criadoPorUid: uid, criadoEm: new Date().toISOString() });
+        }).then(function () { return { id: ref.id, nome: String(f.name).slice(0, 200), mime: mime, tamanho: f.size }; });
+      });
+    }));
+  }
+
+  function etiquetas(lista) {
+    if (!Array.isArray(lista) || !lista.length) return '';
+    return '<div class="cq-anexos-msg">' + lista.map(function (a) {
+      return '<span class="cq-anexo"><i class="ph ' + icone(a.mime) + '" aria-hidden="true"></i><span>' + esc(a.nome) + '</span>' +
+        (a.tamanho ? '<span class="cq-anexo-tam">' + tamanho(a.tamanho) + '</span>' : '') + '</span>';
+    }).join('') + '</div>';
+  }
+
+  window.NilmaAnexosIA = {
+    montar: montar,
+    pendentes: function () { return escolhidos.slice(); },
+    limpar: function () { escolhidos = []; pintar(); },
+    subir: subir,
+    etiquetas: etiquetas
+  };
+})();

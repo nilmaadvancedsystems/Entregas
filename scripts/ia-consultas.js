@@ -130,9 +130,14 @@ function pendenciasDe(clientes, docsPorCliente, opcoes) {
 function buscarClientesEm(clientes, termo) {
   const alvo = normalizar(termo);
   if (!alvo) return [];
+  // nome fantasia e código também ("ACE" é o fantasia da associação de
+  // Taiobeiras, cuja razão social no cadastro nem tem "ACE")
   return clientes
-    .map(limparCliente)
-    .filter(function (c) { return normalizar(c.nome).indexOf(alvo) !== -1; })
+    .filter(function (c) {
+      return [c.nome, c.nomeFantasia].some(function (n) { return normalizar(n).indexOf(alvo) !== -1; })
+        || (c.codigoOrigem != null && String(c.codigoOrigem) === String(termo).trim());
+    })
+    .map(function (c) { return Object.assign(limparCliente(c), c.nomeFantasia ? { nomeFantasia: c.nomeFantasia } : {}); })
     .sort(function (a, b) {
       // quem começa com o que foi digitado vem antes de quem só contém
       const ia = normalizar(a.nome).indexOf(alvo);

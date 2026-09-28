@@ -29,6 +29,22 @@ Módulo novo no menu ☰, **Tarefas** (`tarefas.html`), pra equipe toda:
 - Regras: `tarefas` a equipe lê, cria e edita; quem criou não muda; apagar
   só quem criou ou o admin.
 
+**Versão 2.392 — arquivo na conversa com a IA:**
+
+- Clipe ao lado do "Perguntar", colar print (Ctrl+V) e arrastar arquivo pro
+  painel (`NilmaAnexosIA`, em `nilma-acoes-ia.js`). PDF, imagem e texto
+  (TXT, CSV, OFX); até 3 por pergunta, 5 MB cada. Com arquivo, a pergunta
+  vai pra IA mesmo no modo rápido; sem texto, vira "O que tem neste arquivo?".
+- O arquivo sobe pro banco em pedaços como os anexos das Tarefas
+  (`anexosIA/{id}` + `partes/{n}`, regra nova: só quem mandou lê); a
+  mensagem leva `anexos: [{id, nome, mime, tamanho}]`.
+- O atendente do PC (`blocosDosAnexos` em `atendente-claude.js`) entrega ao
+  Claude junto com a pergunta: PDF como documento, imagem como imagem,
+  texto como texto. A IA usa o que ler nas ações (ex.: guia do DAS → rota
+  com tipo, valor, competência e vencimento). Só o Claude do PC lê arquivo.
+- `preparar_rota`/`preparar_tarefa` aceitam data em DD/MM/AAAA; a busca de
+  cliente das consultas (`buscarClientesEm`) acha pelo nome fantasia e código.
+
 **Versão 2.391 — a IA marca documento recebido e cria tarefa (você confirma):**
 
 - Mesmo caminho da rota (a IA prepara, a pessoa confirma no cartão), com

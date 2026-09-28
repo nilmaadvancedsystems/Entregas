@@ -648,6 +648,30 @@ service cloud.firestore {
       }
     }
 
+    // ---------- arquivos mandados na conversa com a IA ----------
+    // Mesmo formato dos anexos de tarefa (pedaços de até 900 KB), mas é
+    // conversa particular: só quem mandou lê. Quem entrega o arquivo à IA é
+    // o atendente do PC (Admin SDK), que não passa por estas regras.
+    match /anexosIA/{id} {
+      allow read: if membro() && resource.data.criadoPorUid == request.auth.uid;
+      allow create: if membro()
+        && request.resource.data.criadoPorUid == request.auth.uid
+        && request.resource.data.nome is string && request.resource.data.nome.size() > 0 && request.resource.data.nome.size() <= 200
+        && request.resource.data.mime is string
+        && request.resource.data.tamanho is int && request.resource.data.tamanho <= 5242880
+        && request.resource.data.partes is int && request.resource.data.partes >= 1 && request.resource.data.partes <= 10;
+      allow update: if false;
+      allow delete: if ehAdmin() || (membro() && resource.data.criadoPorUid == request.auth.uid);
+      match /partes/{n} {
+        allow read: if membro() && resource.data.uid == request.auth.uid;
+        allow create: if membro() && n.matches('^[0-9]$')
+          && request.resource.data.keys().hasOnly(['dados', 'uid'])
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.dados is string && request.resource.data.dados.size() <= 900000;
+        allow delete: if ehAdmin() || (membro() && resource.data.uid == request.auth.uid);
+      }
+    }
+
     // ---------- parcelamentos dos clientes (tarefas.html) ----------
     // Um documento por parcelamento (PGFN, Simples, Receita, Estado,
     // Prefeitura): 1ª parcela (AAAA-MM), quantidade, valor, vencimento e o

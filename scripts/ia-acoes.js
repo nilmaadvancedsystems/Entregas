@@ -57,6 +57,14 @@ function valorEmReais(v) {
   return isFinite(n) ? Math.round(n * 100) / 100 : null;
 }
 
+// Data AAAA-MM-DD, aceitando também DD/MM/AAAA (é como vem numa guia).
+function dataIso(v) {
+  const t = String(v || '').trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t;
+  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(t);
+  return m ? m[3] + '-' + m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0') : '';
+}
+
 // Igual ao clienteLabel() da tela.
 function rotuloCliente(c) { return (c.codigoOrigem ? c.codigoOrigem + ' - ' : '') + (c.nome || ''); }
 
@@ -124,7 +132,7 @@ function prepararRota(clientes, naRota, args, agora) {
     if (!itens.length) { problemas.push({ item: i + 1, pedido: rotuloCliente(c), problema: 'faltaram os documentos' }); return; }
     const competencia = p.competencia ? String(p.competencia).trim() : competenciaAtual(agora);
     if (!competenciaValida(competencia)) { problemas.push({ item: i + 1, pedido: rotuloCliente(c), problema: 'mês inválido (use AAAA-MM): ' + competencia }); return; }
-    const vencimento = /^\d{4}-\d{2}-\d{2}$/.test(String(p.vencimento || '')) ? String(p.vencimento) : '';
+    const vencimento = dataIso(p.vencimento);
     const zonaPedida = normalizar(p.zona || '');
     const zona = ZONAS[zonaPedida] ? zonaPedida
       : (Object.keys(ZONAS).find(z => zonaPedida && normalizar(ZONAS[z]).indexOf(zonaPedida) !== -1) || c.zona || '');
@@ -251,7 +259,7 @@ function prepararTarefa(clientes, equipe, args, agora) {
     } else if (c && c.responsavelUid) {
       resp = equipe.find(x => x.uid === c.responsavelUid) || { uid: c.responsavelUid, nome: c.responsavelNome || '' };
     }
-    const prazo = /^\d{4}-\d{2}-\d{2}$/.test(String(p.prazo || '')) ? String(p.prazo) : '';
+    const prazo = dataIso(p.prazo);
     if (prazo && prazo < hoje) avisos.push('prazo já passou');
     const prio = normalizar(p.prioridade);
     tarefas.push({
@@ -292,7 +300,7 @@ const FERRAMENTAS_ACOES = [
                 items: { type: 'object', properties: { tipo: { type: 'string' }, valor: { type: 'number', description: 'Valor em reais, se a pessoa disse.' } }, required: ['tipo'] },
               },
               competencia: { type: 'string', description: 'Mês de referência AAAA-MM. Sem isso, o mês atual.' },
-              vencimento: { type: 'string', description: 'Vencimento AAAA-MM-DD, se a pessoa disse.' },
+              vencimento: { type: 'string', description: 'Vencimento da guia, AAAA-MM-DD. Se a pessoa disse ou se a guia anexada mostra o vencimento, SEMPRE passe (o entregador precisa dele).' },
               zona: { type: 'string', description: 'Região da rota: superior, central ou inferior. Sem isso, a do cadastro.' },
               observacao: { type: 'string' },
             },

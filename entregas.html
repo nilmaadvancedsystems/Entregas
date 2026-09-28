@@ -48,7 +48,7 @@
 </script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="stylesheet" href="nilma-icones.css?v=345">
-<link rel="stylesheet" href="nilma-ui.css?v=389">
+<link rel="stylesheet" href="nilma-ui.css?v=392">
 <link rel="stylesheet" href="n1-entregas-a.css?v=345">
 <link rel="stylesheet" href="n1-entregas-b.css?v=345">
 <link rel="stylesheet" href="n1-entregas-c.css?v=355">
@@ -60,7 +60,7 @@
 <script src="nilma-dialogo.js?v=345"></script>
 <script src="nilma-shell.js?v=384"></script>
 <script src="nilma-config.js?v=367"></script>
-<script src="nilma-acoes-ia.js?v=391"></script>
+<script src="nilma-acoes-ia.js?v=392"></script>
 <script src="nilma-solicitacoes.js?v=358"></script>
 <script>NilmaShell.montar({ modulo: 'Entregas', moduloId: 'entregas', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle' });</script>
 <!-- Abas do módulo, sublinhadas, logo abaixo da barra. -->
@@ -11897,7 +11897,7 @@
   // Aba em que o app abre: office boy vive em Solicitações, quem faz rota
   // abre em Rota. Guardar isso evita dois toques toda vez que entra.
 
-  var VERSAO_APP_ = '2.391 · 28/09/2026';
+  var VERSAO_APP_ = '2.392 · 28/09/2026';
   // Configurações do usuário: a janela comum (nilma-config.js), a mesma da
   // Pendências e do Fiscal. 'conta' abre em Minha conta; o resto, em
   // Preferências.
@@ -14993,7 +14993,7 @@
   // Manda a pergunta pro PC do escritório e acompanha a resposta chegando.
   // O índice é a posição no histórico que essa resposta vai ocupar — a
   // resposta cresce ali dentro, em vez de virar um balão novo a cada pedaço.
-  function cqPerguntarIA_(pergunta, indice) {
+  function cqPerguntarIA_(pergunta, indice, arquivos) {
     var email = (auth.currentUser && auth.currentUser.email) || '';
     if (!email || cqOcupado) return;
 
@@ -15082,8 +15082,14 @@
           cqRender_();
         });
 
-      return ref.collection('mensagens').add({
-        papel: 'user', texto: pergunta, ordem: ordem, criadoEm: new Date().toISOString()
+      // Arquivos anexados sobem antes da pergunta (nilma-acoes-ia.js); a
+      // mensagem leva só a lista, o atendente do PC busca o conteúdo.
+      var subir = arquivos && arquivos.length && window.NilmaAnexosIA
+        ? NilmaAnexosIA.subir(db, auth.currentUser.uid, arquivos) : Promise.resolve([]);
+      return subir.then(function (anexos) {
+        var msg = { papel: 'user', texto: pergunta, ordem: ordem, criadoEm: new Date().toISOString() };
+        if (anexos.length) msg.anexos = anexos;
+        return ref.collection('mensagens').add(msg);
       }).then(function () {
         // Só agora entra na fila. Marcar 'pendente' antes de a pergunta
         // existir faria o vigia pegar a conversa sem ter o que responder.
@@ -15169,7 +15175,7 @@
     }
     el.innerHTML = cqHistorico.map(function (m, i) {
       return m.eu
-        ? '<div class="cq-msg cq-msg-eu">' + escapeHtml_(m.texto) + '</div>'
+        ? '<div class="cq-msg cq-msg-eu">' + escapeHtml_(m.texto) + (m.anexos && window.NilmaAnexosIA ? NilmaAnexosIA.etiquetas(m.anexos) : '') + '</div>'
         : '<div class="cq-msg cq-msg-resp" data-i="' + i + '">' + m.html +
             (m.acoes && window.NilmaAcoesIA ? NilmaAcoesIA.html(m.acoes, m.msgId) : '') + '</div>';
     }).join('');
@@ -15207,18 +15213,27 @@
   function cqPerguntar_() {
     var campo = $('cqCampo');
     var pergunta = campo.value.trim();
-    if (!pergunta || cqOcupado) return;
+    var arquivos = window.NilmaAnexosIA ? NilmaAnexosIA.pendentes() : [];
+    if ((!pergunta && !arquivos.length) || cqOcupado) return;
+    // Arquivo só a IA lê: com anexo a pergunta vai pra IA, mesmo no modo rápido.
+    if (arquivos.length && !cqIaDisponivel_()) {
+      showToast('A IA está fora do ar agora: arquivo só ela lê.', 'error');
+      return;
+    }
+    if (!pergunta) pergunta = arquivos.length > 1 ? 'O que tem nestes arquivos?' : 'O que tem neste arquivo?';
     campo.value = '';
     campo.style.height = 'auto';
+    if (arquivos.length) NilmaAnexosIA.limpar();
 
-    cqHistorico.push({ eu: true, texto: pergunta });
+    cqHistorico.push({ eu: true, texto: pergunta,
+      anexos: arquivos.map(function (f) { return { nome: f.name, mime: f.type, tamanho: f.size }; }) });
 
     // Chat com IA: direto pro Gemini, sem passar pela busca rápida — quem
     // escolheu a IA já sabe que a pergunta não é das quatro que ela casa.
-    if (cqModoAtual_() === 'ia') {
-      cqHistorico.push({ eu: false, html: '<div class="cq-nota" style="margin:0">perguntando à IA…</div>' });
+    if (cqModoAtual_() === 'ia' || arquivos.length) {
+      cqHistorico.push({ eu: false, html: '<div class="cq-nota" style="margin:0">' + (arquivos.length ? 'mandando o arquivo…' : 'perguntando à IA…') + '</div>' });
       cqRender_();
-      cqPerguntarIA_(pergunta, cqHistorico.length - 1);
+      cqPerguntarIA_(pergunta, cqHistorico.length - 1, arquivos);
       return;
     }
 
@@ -15310,6 +15325,8 @@
     $('cqCampo').focus();
   });
   $('cqEnviar').addEventListener('click', cqPerguntar_);
+  // Clipe, colar print e arrastar arquivo pra IA ler (nilma-acoes-ia.js)
+  if (window.NilmaAnexosIA) NilmaAnexosIA.montar({ antesDe: $('cqEnviar'), painel: $('cqPainel'), avisar: function (t) { showToast(t, 'error'); } });
   $('cqCampo').addEventListener('keydown', function (e) {
     // Enter pergunta; Shift+Enter pula linha. É o que a mão já espera.
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); cqPerguntar_(); }

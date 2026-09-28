@@ -68,9 +68,12 @@ function instrucoesClaude(agora) {
       'AÇÕES (você prepara, a pessoa confirma):',
       '- Você não grava nada no banco. As ferramentas preparar_* conferem o pedido e devolvem uma proposta, que aparece como cartão com o botão de confirmar logo abaixo da sua resposta:',
       '  preparar_rota (pôr documentos na rota de entregas); preparar_documento_recebido (marcar extrato, comprovante ou aplicação como recebido na Pendências); preparar_tarefa (criar tarefa ou requisição no módulo Tarefas).',
+      '- Não precisa procurar o cliente antes: passe o nome que a pessoa disse direto pra preparar_* (ela acha pelo nome, nome fantasia ou código e devolve os candidatos se tiver dúvida).',
       '- Depois de preparar, diga em uma frase o que preparou e que é só confirmar no cartão. Nunca diga que já fez.',
       '- Se faltar o essencial (cliente, documento, o que é a tarefa), pergunte antes. Se o cliente for ambíguo ou faltar o banco, mostre as opções e pergunte.',
       '- Outras ações (marcar entrega como feita, recados, cobrança, cadastro) ainda não existem: explique que por enquanto é pela tela.',
+      '',
+      'ARQUIVOS: a pessoa pode mandar PDF, imagem ou texto junto da pergunta. Leia e use tudo o que o arquivo trouxer: numa guia, passe para preparar_rota o tipo, o valor, a competência E o vencimento (AAAA-MM-DD); ou o banco e o mês de um extrato para preparar_documento_recebido. Se não der pra ler, diga.',
     ])
     .join('\n');
 }
@@ -81,7 +84,8 @@ function montarPergunta(mensagens) {
   const validas = mensagens.filter(m => m.texto && String(m.texto).trim()).slice(-MAX_MENSAGENS_HISTORICO);
   const ultima = validas.pop();
   if (!validas.length) return String(ultima.texto);
-  const antes = validas.map(m => (m.papel === 'model' ? 'Atendente: ' : 'Pessoa: ') + String(m.texto).trim()).join('\n\n');
+  const comAnexos = m => String(m.texto).trim() + (Array.isArray(m.anexos) && m.anexos.length ? ' [anexou: ' + m.anexos.map(a => a.nome).join(', ') + ']' : '');
+  const antes = validas.map(m => (m.papel === 'model' ? 'Atendente: ' : 'Pessoa: ') + comAnexos(m)).join('\n\n');
   return 'Conversa até aqui:\n\n' + antes + '\n\nPergunta nova (responda só a ela):\n' + String(ultima.texto).trim();
 }
 
@@ -140,8 +144,36 @@ function abrirConversa(modelo, aquecer) {
   return c;
 }
 
-function mandar(c, texto) {
-  try { c.filho.stdin.write(JSON.stringify({ type: 'user', message: { role: 'user', content: texto } }) + '\n'); } catch (e) {}
+// blocos: arquivos anexados (PDF, imagem, texto) no formato de conteúdo do
+// Claude, entregues junto com o texto da pergunta.
+function mandar(c, texto, blocos) {
+  const content = Array.isArray(blocos) && blocos.length ? blocos.concat([{ type: 'text', text: texto }]) : texto;
+  try { c.filho.stdin.write(JSON.stringify({ type: 'user', message: { role: 'user', content } }) + '\n'); } catch (e) {}
+}
+
+// Arquivos da pergunta (anexosIA/{id} + partes/{n}, gravados pela tela)
+// -> blocos de conteúdo. PDF vai como documento, imagem como imagem e texto
+// (TXT, CSV, OFX) como texto; o resto fica de fora com um aviso.
+const MAX_TEXTO_ANEXO = 200000;
+async function blocosDosAnexos(db, anexos) {
+  const blocos = [];
+  for (const a of (Array.isArray(anexos) ? anexos : []).slice(0, 3)) {
+    try {
+      const ref = db.collection('anexosIA').doc(String(a.id || ''));
+      const meta = (await ref.get()).data();
+      if (!meta || !meta.partes) { blocos.push({ type: 'text', text: '[O arquivo ' + (a.nome || '') + ' não chegou.]' }); continue; }
+      const partes = await Promise.all(Array.from({ length: meta.partes }, (_, i) => ref.collection('partes').doc(String(i)).get()));
+      const b64 = partes.map(p => (p.data() || {}).dados || '').join('');
+      const mime = String(meta.mime || '');
+      if (mime === 'application/pdf') blocos.push({ type: 'document', source: { type: 'base64', media_type: mime, data: b64 }, title: meta.nome });
+      else if (/^image\/(png|jpeg|gif|webp)$/.test(mime)) blocos.push({ type: 'image', source: { type: 'base64', media_type: mime, data: b64 } });
+      else if (/^text\//.test(mime)) blocos.push({ type: 'text', text: 'Arquivo ' + meta.nome + ':\n' + Buffer.from(b64, 'base64').toString('utf8').slice(0, MAX_TEXTO_ANEXO) });
+      else blocos.push({ type: 'text', text: '[O arquivo ' + meta.nome + ' é de um tipo que eu não leio.]' });
+    } catch (e) {
+      blocos.push({ type: 'text', text: '[Não consegui abrir o arquivo ' + (a.nome || '') + ': ' + e.message + ']' });
+    }
+  }
+  return blocos;
 }
 
 function fechar(c) {
@@ -250,7 +282,7 @@ function perguntarAoClaude(pergunta, opcoes) {
     };
     // conversa que morreu no aquecimento (ou antes de receber a pergunta)
     if (conversa.estado === 'morta') return acabar({ ok: false, erro: traduzirErro(conversa.erros.join('') || 'o Claude fechou antes de responder') });
-    mandar(conversa, pergunta);
+    mandar(conversa, pergunta, opcoes.blocos);
   });
 }
 
@@ -300,7 +332,10 @@ function iniciarAtendenteClaude(opcoes) {
     };
 
     const inicio = Date.now();
+    const blocos = Array.isArray(ultima.anexos) && ultima.anexos.length ? await blocosDosAnexos(db, ultima.anexos) : [];
+    if (blocos.length) log('[ia] arquivos na pergunta:', ultima.anexos.map(a => a.nome).join(', '));
     const r = await perguntarAoClaude(montarPergunta(mensagens), {
+      blocos,
       modelo,
       aoTexto: gravarTexto,
       aoFerramenta: (nome, args) => {

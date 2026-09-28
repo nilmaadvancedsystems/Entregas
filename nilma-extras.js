@@ -91,6 +91,9 @@
     $('cqFechar').addEventListener('click', fecharIA);
     $('cqLimpar').addEventListener('click', function () { historico = []; soltarConversa(); render(); $('cqCampo').focus(); });
     $('cqEnviar').addEventListener('click', perguntar);
+    // clipe, colar print e arrastar arquivo pra IA ler (nilma-acoes-ia.js)
+    if (janela.NilmaAnexosIA) janela.NilmaAnexosIA.montar({ antesDe: $('cqEnviar'), painel: p,
+      avisar: function (t) { historico.push({ eu: false, html: '<div class="cq-erro">' + esc(t) + '</div>' }); render(); } });
     $('cqCampo').addEventListener('keydown', function (e) {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); perguntar(); }
     });
@@ -163,7 +166,7 @@
       .replace(/(^|[\s(])_([^_]+)_(?=[\s.,;:)!?]|$)/g, '$1<em>$2</em>');
   }
 
-  function perguntarIA(pergunta, indice) {
+  function perguntarIA(pergunta, indice, arquivos) {
     var email = (o.auth && o.auth.currentUser && o.auth.currentUser.email) || '';
     if (!email || ocupado || !o.db) return;
     ocupado = true;
@@ -220,8 +223,14 @@
         historico[indice] = { eu: false, html: '<div class="cq-erro">' + esc(msgErro(err, 'Não foi possível acompanhar a resposta.')) + '</div>' };
         liberar(); render();
       });
-      return ref.collection('mensagens').add({ papel: 'user', texto: pergunta, ordem: ordem, criadoEm: new Date().toISOString() })
-        .then(function () { return ref.update({ estado: 'pendente', atualizadoEm: new Date().toISOString() }); });
+      // arquivos anexados sobem antes da pergunta (nilma-acoes-ia.js)
+      var subir = arquivos && arquivos.length && janela.NilmaAnexosIA
+        ? janela.NilmaAnexosIA.subir(o.db, o.auth.currentUser.uid, arquivos) : Promise.resolve([]);
+      return subir.then(function (anexos) {
+        var msg = { papel: 'user', texto: pergunta, ordem: ordem, criadoEm: new Date().toISOString() };
+        if (anexos.length) msg.anexos = anexos;
+        return ref.collection('mensagens').add(msg);
+      }).then(function () { return ref.update({ estado: 'pendente', atualizadoEm: new Date().toISOString() }); });
     }).catch(function (err) {
       if (minha !== geracao) return;
       historico[indice] = { eu: false, html: '<div class="cq-erro">' + esc(msgErro(err, 'Não foi possível mandar a pergunta pra IA.')) + '</div>' };
@@ -238,18 +247,23 @@
   function perguntar() {
     var campo = $('cqCampo');
     var pergunta = campo.value.trim();
-    if (!pergunta || ocupado) return;
+    var arquivos = janela.NilmaAnexosIA ? janela.NilmaAnexosIA.pendentes() : [];
+    if ((!pergunta && !arquivos.length) || ocupado) return;
+    if (!pergunta) pergunta = arquivos.length > 1 ? 'O que tem nestes arquivos?' : 'O que tem neste arquivo?';
     campo.value = ''; campo.style.height = 'auto';
-    historico.push({ eu: true, texto: pergunta });
+    if (arquivos.length) janela.NilmaAnexosIA.limpar();
+    historico.push({ eu: true, texto: pergunta,
+      anexos: arquivos.map(function (f) { return { nome: f.name, mime: f.type, tamanho: f.size }; }) });
 
-    if (modoAtual() === 'ia') {
+    // arquivo só a IA lê: com anexo vai pra IA, mesmo no modo rápido
+    if (modoAtual() === 'ia' || arquivos.length) {
       if (!iaDisponivel()) {
         historico.push({ eu: false, html: '<div class="cq-erro">A IA está fora do ar agora: ela responde quando o PC do escritório está ligado.</div>' });
         render();
         return;
       }
       historico.push({ eu: false, html: '' });
-      perguntarIA(pergunta, historico.length - 1);
+      perguntarIA(pergunta, historico.length - 1, arquivos);
       return;
     }
     ocupado = true;
@@ -301,7 +315,7 @@
       return;
     }
     el.innerHTML = historico.map(function (m, i) {
-      return m.eu ? '<div class="cq-msg cq-msg-eu">' + esc(m.texto) + '</div>'
+      return m.eu ? '<div class="cq-msg cq-msg-eu">' + esc(m.texto) + (m.anexos && janela.NilmaAnexosIA ? janela.NilmaAnexosIA.etiquetas(m.anexos) : '') + '</div>'
         : '<div class="cq-msg cq-msg-resp" data-i="' + i + '">' + m.html +
           (m.acoes && janela.NilmaAcoesIA ? janela.NilmaAcoesIA.html(m.acoes, m.msgId) : '') + '</div>';
     }).join('');
