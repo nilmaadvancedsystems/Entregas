@@ -29,6 +29,18 @@ Módulo novo no menu ☰, **Tarefas** (`tarefas.html`), pra equipe toda:
 - Regras: `tarefas` a equipe lê, cria e edita; quem criou não muda; apagar
   só quem criou ou o admin.
 
+**Versão 2.389 — foto também de quem não tem conta Google:**
+
+- Quem manda de Hotmail/Outlook/Yahoo não tem foto do Google (e a Microsoft
+  não mostra a foto de fora). `scripts/fotos-remetentes.js` agora tenta, pra
+  quem ficou sem: a foto do **Gravatar** (se a pessoa cadastrou) e, quando o
+  e-mail é de **domínio próprio** da empresa (@padaria.com.br), o **logo do
+  site** (`robo/fotos.porDominio`, um por domínio). E-mail pessoal (gmail,
+  hotmail...) não usa logo. Só entra o que existe (o serviço responde 404
+  quando não tem); o que não existe é perguntado de novo em 7 dias.
+- Na tela, o logo aparece inteiro sobre fundo branco (`.av-mini.com-logo`);
+  sem nada, ficam as iniciais.
+
 **Versão 2.388 — barra de cima e barra lateral iguais às da Conferência:**
 
 - O menu de cima (`#abasSecao`) virou a segunda faixa do cabeçalho no PC:
