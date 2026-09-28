@@ -4,8 +4,9 @@
 // este programa, pergunta quais ferramentas existem e pede cada consulta por
 // uma linha JSON na entrada; a resposta volta por uma linha JSON na saída.
 //
-// As ferramentas são as 4 do ia-consultas.js (as mesmas que o Gemini usava)
-// mais a leitura livre do banco do ia-banco.js. Todas só de leitura. Este
+// As ferramentas são as 4 do ia-consultas.js (as mesmas que o Gemini usava),
+// a leitura livre do banco do ia-banco.js e as ações preparadas do
+// ia-acoes.js. Nenhuma grava no banco. Este
 // arquivo só traduz o formato; nenhuma regra nova mora aqui.
 //
 // A saída padrão é do protocolo: qualquer console.log perdido no meio dela
@@ -17,7 +18,10 @@ const readline = require('readline');
 const { FERRAMENTAS, executarFerramenta } = require('./ia-consultas');
 // Além das 4 prontas, a leitura livre do banco (só pro Claude do PC).
 const { FERRAMENTAS_BANCO, executarBanco } = require('./ia-banco');
-const TODAS = FERRAMENTAS.concat(FERRAMENTAS_BANCO);
+// E as ações que a IA só PREPARA (ex.: colocar na rota): não gravam nada, a
+// pessoa confirma num cartão na tela (ia-acoes.js).
+const { FERRAMENTAS_ACOES, NOMES_ACOES, executarAcao } = require('./ia-acoes');
+const TODAS = FERRAMENTAS.concat(FERRAMENTAS_BANCO, FERRAMENTAS_ACOES);
 const DO_BANCO = new Set(FERRAMENTAS_BANCO.map(f => f.name));
 
 // O firebase-admin leva ~1,5 s pra carregar e trava o processo enquanto
@@ -56,7 +60,9 @@ async function atender(msg) {
       try {
         const r = DO_BANCO.has(p.name)
           ? await executarBanco(banco(), p.name, p.arguments || {})
-          : await executarFerramenta(banco(), p.name, p.arguments || {});
+          : NOMES_ACOES.has(p.name)
+            ? await executarAcao(banco(), p.name, p.arguments || {})
+            : await executarFerramenta(banco(), p.name, p.arguments || {});
         return { content: [{ type: 'text', text: JSON.stringify(r) }], isError: !!(r && r.erro) };
       } catch (err) {
         return { content: [{ type: 'text', text: 'A consulta falhou: ' + err.message }], isError: true };

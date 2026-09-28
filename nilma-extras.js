@@ -195,7 +195,7 @@
       soltarMensagens = ref.collection('mensagens').orderBy('ordem', 'asc').limit(200).onSnapshot(function (snap) {
         if (minha !== geracao) return;
         var ultima = null;
-        snap.docs.forEach(function (d) { var m = d.data(); if (m.papel === 'model' && (m.ordem || 0) > ordem) ultima = m; });
+        snap.docs.forEach(function (d) { var m = d.data(); m._id = d.id; if (m.papel === 'model' && (m.ordem || 0) > ordem) ultima = m; });
         if (!ultima) return;
         if (ultima.estado === 'erro') {
           historico[indice] = { eu: false, html: '<div class="cq-erro">' + esc(ultima.erro || 'A IA não conseguiu responder.') + '</div>' };
@@ -210,7 +210,9 @@
             corpo += '<div class="cq-nota">IA' + (ultima.ferramentas && ultima.ferramentas.length
               ? ' · ' + esc(ultima.ferramentas.map(function (f) { return f.nome.replace(/_/g, ' '); }).join(' · ')) : '') + '</div>';
           }
-          historico[indice] = { eu: false, html: corpo };
+          // ação preparada pela IA (ex.: colocar na rota): cartão de confirmar
+          historico[indice] = { eu: false, html: corpo,
+            acoes: ultima.estado === 'pronta' ? (ultima.acoes || null) : null, msgId: ultima._id };
         }
         render();
       }, function (err) {
@@ -300,8 +302,16 @@
     }
     el.innerHTML = historico.map(function (m, i) {
       return m.eu ? '<div class="cq-msg cq-msg-eu">' + esc(m.texto) + '</div>'
-        : '<div class="cq-msg cq-msg-resp" data-i="' + i + '">' + m.html + '</div>';
+        : '<div class="cq-msg cq-msg-resp" data-i="' + i + '">' + m.html +
+          (m.acoes && janela.NilmaAcoesIA ? janela.NilmaAcoesIA.html(m.acoes, m.msgId) : '') + '</div>';
     }).join('');
+    if (janela.NilmaAcoesIA) {
+      janela.NilmaAcoesIA.ligar(el, {
+        db: o.db, auth: o.auth, render: render,
+        nome: function () { var u = o.usuario ? o.usuario() : null; return (u && u.nome) || ''; }
+      });
+      janela.NilmaAcoesIA.conferir(el);
+    }
     Array.prototype.forEach.call(el.querySelectorAll('.cq-tentar-ia'), function (b) {
       b.addEventListener('click', function () {
         var i = parseInt(b.closest('.cq-msg-resp').dataset.i, 10);

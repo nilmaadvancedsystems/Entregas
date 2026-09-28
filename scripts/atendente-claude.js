@@ -12,7 +12,8 @@
 // conversasIA/{id} impede que peguem a mesma pergunta.
 //
 // O QUE O CLAUDE PODE FAZER AQUI: só LER o banco — as 4 consultas prontas do
-// ia-consultas.js e a leitura livre do ia-banco.js, servidas pelo ia-mcp.js.
+// ia-consultas.js e a leitura livre do ia-banco.js, servidas pelo ia-mcp.js —
+// e PREPARAR ações (ia-acoes.js), que a pessoa confirma num cartão na tela.
 // Nenhuma ferramenta do Claude Code (arquivo, comando, internet) fica ligada:
 // `--tools ""` desliga todas, e `--setting-sources project` numa pasta vazia
 // deixa de fora os plugins, ganchos e memórias do Claude deste PC.
@@ -21,6 +22,7 @@ const os = require('os');
 const path = require('path');
 const { spawn } = require('child_process');
 const { instrucoes, MAX_MENSAGENS_HISTORICO } = require('./ia-atendente');
+const { NOMES_ACOES } = require('./ia-acoes');
 
 const CLAUDE = process.env.CLAUDE_EXE || path.join(os.homedir(), '.local', 'bin', 'claude.exe');
 const MODELO_PADRAO = 'sonnet';
@@ -47,7 +49,7 @@ function ambienteLimpo() {
 function instrucoesClaude(agora) {
   return instrucoes(agora)
     .split('\n')
-    .filter(l => !/CPF, CNPJ nem telefone/.test(l))
+    .filter(l => !/CPF, CNPJ nem telefone/.test(l) && !/Você só consulta/.test(l))
     .concat([
       '',
       'O BANCO (Firestore, só leitura):',
@@ -62,6 +64,12 @@ function instrucoesClaude(agora) {
       '  arquivamentos e solicitacoesArquivo (arquivamento no Drive); driveIndice (pastas do Drive por cliente);',
       '  robo (estado do robô do Gmail e do arquivador); usuarios (equipe: nome, email, roles); config.',
       '- Os dados podem ter CPF, CNPJ e telefone: mostre só quando a pergunta pedir.',
+      '',
+      'AÇÕES (você prepara, a pessoa confirma):',
+      '- Você não grava nada no banco. Para pôr documentos na rota de entregas use preparar_rota: ela confere e devolve uma proposta, que aparece como cartão com o botão "Colocar na rota" logo abaixo da sua resposta.',
+      '- Depois de preparar, diga em uma frase o que preparou e que é só confirmar no cartão. Nunca diga que já colocou.',
+      '- Se faltar o cliente ou os documentos, pergunte antes. Se o cliente for ambíguo, mostre os candidatos e pergunte qual.',
+      '- Outras ações (marcar entregue, recados, tarefas, cadastro) ainda não existem: explique que por enquanto é pela tela.',
     ])
     .join('\n');
 }
@@ -175,6 +183,10 @@ function perguntarAoClaude(pergunta, opcoes) {
   return new Promise(resolve => {
     let texto = '', final = null, erro = false, uso = null, modelo = null, terminou = false;
     const ferramentas = [];
+    // Propostas das ferramentas de ação (preparar_rota...): vão junto da
+    // resposta, e a tela mostra o cartão de confirmar (ia-acoes.js).
+    const acoes = [];
+    const idsDeAcao = new Set();
     let estourou = false;
     const relogio = setTimeout(() => { estourou = true; try { conversa.filho.kill(); } catch (e) {} }, LIMITE_POR_PERGUNTA_MS);
     const acabar = r => { if (terminou) return; terminou = true; clearTimeout(relogio); fechar(conversa); resolve(r); };
@@ -185,7 +197,7 @@ function perguntarAoClaude(pergunta, opcoes) {
         if (estourou) return acabar({ ok: false, erro: traduzirErro('timeout') });
         const resposta = (final != null ? final : texto).trim();
         if (erro || !resposta) return acabar({ ok: false, erro: traduzirErro(resposta || conversa.erros.join('') || 'código ' + ev.code) });
-        return acabar({ ok: true, texto: resposta, ferramentas, uso, modelo });
+        return acabar({ ok: true, texto: resposta, ferramentas, acoes, uso, modelo });
       }
       {
         if (ev.type === 'system' && ev.subtype === 'init') modelo = ev.model || null;
@@ -204,8 +216,22 @@ function perguntarAoClaude(pergunta, opcoes) {
             if (c.type === 'tool_use') {
               const nome = String(c.name || '').replace(/^mcp__nilma__/, '');
               ferramentas.push({ nome, args: c.input || {} });
+              if (NOMES_ACOES.has(nome) && c.id) idsDeAcao.add(c.id);
               aoFerramenta(nome, c.input || {});
             }
+          }
+        }
+        if (ev.type === 'user' && ev.message && Array.isArray(ev.message.content)) {
+          for (const c of ev.message.content) {
+            if (c.type !== 'tool_result' || !idsDeAcao.has(c.tool_use_id)) continue;
+            const bruto = Array.isArray(c.content) ? c.content.map(x => x.text || '').join('') : String(c.content || '');
+            try {
+              const r = JSON.parse(bruto);
+              if (r && r.acao && Array.isArray(r.entregas) && r.entregas.length) {
+                delete r.aviso_para_a_ia;
+                acoes.push(r);
+              }
+            } catch (e) { /* resposta que não é proposta (erro): fica só no texto */ }
           }
         }
         if (ev.type === 'result') {
@@ -216,7 +242,7 @@ function perguntarAoClaude(pergunta, opcoes) {
           if (ev.usage) uso = { entrada: ev.usage.input_tokens || 0, saida: ev.usage.output_tokens || 0 };
           const resposta = final.trim() || texto.trim();
           if (erro || !resposta) return acabar({ ok: false, erro: traduzirErro(resposta || conversa.erros.join('') || 'sem resposta') });
-          return acabar({ ok: true, texto: resposta, ferramentas, uso, modelo });
+          return acabar({ ok: true, texto: resposta, ferramentas, acoes, uso, modelo });
         }
       }
     };
@@ -283,7 +309,7 @@ function iniciarAtendenteClaude(opcoes) {
 
     if (r.ok) {
       await respostaRef.update({
-        texto: r.texto, estado: 'pronta', ferramentas: r.ferramentas, uso: r.uso || null,
+        texto: r.texto, estado: 'pronta', ferramentas: r.ferramentas, acoes: r.acoes || [], uso: r.uso || null,
         modelo: r.modelo || modelo, motor: 'claude', consultando: null, concluidoEm: new Date().toISOString(),
       });
       await conversaRef.update({ estado: 'ocioso', erro: null, atualizadoEm: new Date().toISOString() });

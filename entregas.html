@@ -48,7 +48,7 @@
 </script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="stylesheet" href="nilma-icones.css?v=345">
-<link rel="stylesheet" href="nilma-ui.css?v=358">
+<link rel="stylesheet" href="nilma-ui.css?v=389">
 <link rel="stylesheet" href="n1-entregas-a.css?v=345">
 <link rel="stylesheet" href="n1-entregas-b.css?v=345">
 <link rel="stylesheet" href="n1-entregas-c.css?v=355">
@@ -60,6 +60,7 @@
 <script src="nilma-dialogo.js?v=345"></script>
 <script src="nilma-shell.js?v=384"></script>
 <script src="nilma-config.js?v=367"></script>
+<script src="nilma-acoes-ia.js?v=389"></script>
 <script src="nilma-solicitacoes.js?v=358"></script>
 <script>NilmaShell.montar({ modulo: 'Entregas', moduloId: 'entregas', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle' });</script>
 <!-- Abas do módulo, sublinhadas, logo abaixo da barra. -->
@@ -11896,7 +11897,7 @@
   // Aba em que o app abre: office boy vive em Solicitações, quem faz rota
   // abre em Rota. Guardar isso evita dois toques toda vez que entra.
 
-  var VERSAO_APP_ = '2.389 · 28/09/2026';
+  var VERSAO_APP_ = '2.390 · 28/09/2026';
   // Configurações do usuário: a janela comum (nilma-config.js), a mesma da
   // Pendências e do Fiscal. 'conta' abre em Minha conta; o resto, em
   // Preferências.
@@ -15040,7 +15041,7 @@
       unsubCqMensagens = ref.collection('mensagens').orderBy('ordem', 'asc').limit(200)
         .onSnapshot(function (snap) {
           if (geracao !== cqGeracao) return;
-          var msgs = snap.docs.map(function (d) { return d.data(); });
+          var msgs = snap.docs.map(function (d) { return Object.assign({ _id: d.id }, d.data()); });
           // Só a resposta a ESTA pergunta: numa conversa com várias, a
           // última mensagem do modelo, logo depois de mandar a pergunta
           // nova, ainda é a resposta da anterior — e ela aparecia repetida
@@ -15067,7 +15068,10 @@
             } else {
               corpo += '<div class="cq-nota">IA</div>';
             }
-            cqHistorico[indice] = { eu: false, html: corpo };
+            // Ação preparada pela IA (ex.: colocar na rota): o cartão é
+            // desenhado a cada pintura (nilma-acoes-ia.js guarda o estado).
+            cqHistorico[indice] = { eu: false, html: corpo,
+              acoes: ultima.estado === 'pronta' ? (ultima.acoes || null) : null, msgId: ultima._id };
           }
           cqRender_();
         }, function (err) {
@@ -15166,8 +15170,17 @@
     el.innerHTML = cqHistorico.map(function (m, i) {
       return m.eu
         ? '<div class="cq-msg cq-msg-eu">' + escapeHtml_(m.texto) + '</div>'
-        : '<div class="cq-msg cq-msg-resp" data-i="' + i + '">' + m.html + '</div>';
+        : '<div class="cq-msg cq-msg-resp" data-i="' + i + '">' + m.html +
+            (m.acoes && window.NilmaAcoesIA ? NilmaAcoesIA.html(m.acoes, m.msgId) : '') + '</div>';
     }).join('');
+    if (window.NilmaAcoesIA) {
+      NilmaAcoesIA.ligar(el, {
+        db: db, auth: auth, nome: function () { return currentUserNome; }, render: cqRender_,
+        // o mesmo que a tela faz depois de gravar na rota
+        depois: function (d) { portalMudou_(d.clienteId); marcarClienteDeEntrega_(d.clienteId); }
+      });
+      NilmaAcoesIA.conferir(el);
+    }
     // "Tentar com a IA": a pergunta é a mensagem imediatamente anterior no
     // histórico — a mesma que a busca local não entendeu.
     Array.prototype.forEach.call(el.querySelectorAll('.cq-tentar-ia'), function (b) {

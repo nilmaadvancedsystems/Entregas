@@ -29,6 +29,23 @@ Módulo novo no menu ☰, **Tarefas** (`tarefas.html`), pra equipe toda:
 - Regras: `tarefas` a equipe lê, cria e edita; quem criou não muda; apagar
   só quem criou ou o admin.
 
+**Versão 2.390 — a IA monta a rota (você confirma):**
+
+- Na "Perguntar à IA" dá pra pedir "coloca o DAS de R$ 480 da Padaria Aurora
+  na rota". A IA **não grava**: a ferramenta `preparar_rota`
+  (`scripts/ia-acoes.js`) confere cliente (nome, código ou nome fantasia;
+  ambíguo → ela pergunta qual), documentos (os mesmos da Nova entrega;
+  outro nome entra como está), mês (padrão: o atual), região (padrão: a do
+  cadastro) e avisa se já está na rota. A proposta vai junto da resposta
+  (`conversasIA/…/mensagens/{msg}.acoes`, gravada pelo `atendente-claude.js`).
+- A tela mostra um cartão com a lista (dá pra desmarcar cliente) e o botão
+  **Colocar na rota** (`nilma-acoes-ia.js`, no Entregas e nas telas do
+  `nilma-extras.js`). Quem grava é a tela, com o login de quem confirmou e as
+  regras do banco da Rota; os campos são os do "Preparar rota" e
+  `pelaIA: true`. Cada parada tem id fixo (`entregas/ia_<msg>_<n>_<m>`):
+  confirmar de novo não duplica.
+- Só o Claude do PC tem ações; o Gemini continua só consultando.
+
 **Versão 2.389 — foto também de quem não tem conta Google:**
 
 - Quem manda de Hotmail/Outlook/Yahoo não tem foto do Google (e a Microsoft
