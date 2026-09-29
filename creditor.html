@@ -100,6 +100,12 @@
   .alert.cr-ok .ph { color: var(--success); }
   .alert.cr-ruim .ph { color: var(--danger); }
   .alert-text + .alert-text { margin-top: 4px; }
+  .cr-edit input { height: 28px; min-height: 28px; font-size: 13px; padding: 2px 6px; }
+  .cr-edit td.num input { text-align: right; }
+  .cr-edit td { padding-top: 4px; padding-bottom: 4px; }
+  tr.cr-grupo td { background: var(--surface-2); font-size: 13px; vertical-align: top; }
+  tr.cr-grupo small { color: var(--ink-muted); font-size: 11px; }
+  tr.cr-grupo td.cr-dif, tr.cr-grupo td.cr-dif small { color: var(--danger); font-weight: 600; }
   .cr-carregando { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--ink-muted); margin-top: 12px; }
   .cr-carregando .ph { animation: crGira 1s linear infinite; }
   @keyframes crGira { to { transform: rotate(360deg); } }
@@ -135,7 +141,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="nilma-creditor.js?v=407"></script>
+<script src="nilma-creditor.js?v=408"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
@@ -357,7 +363,9 @@
     });
   }
   function usarRelatorio(rel, origem) {
-    S.relatorio = rel; S.origem = origem; S.decisoes = {}; S.erroArquivo = '';
+    // leitura errada que o total impresso denuncia: corrige sozinho o que dá
+    var c = cr.corrigirLeitura(rel);
+    S.relatorio = c.rel; S.correcoes = c.correcoes; S.origem = origem; S.decisoes = {}; S.erroArquivo = ''; S.verTodos = false;
     S.alcancada = Math.min(S.alcancada, indice('banco'));
   }
 
@@ -443,17 +451,13 @@
       S.relatorio.avisos.forEach(function (a) { linhas.push(esc(a)); });
       if (fora.length) linhas.push(fora.length + ' título(s) liquidado(s) fora de ' + esc(cr.rotuloCompetencia(S.competencia)) + ' (ex.: NF ' + esc(fora[0].nf) + ' em ' + esc(fora[0].liquidacao) + '). Confira se é o relatório certo.');
       h += alerta(ts.length ? 'ok' : 'ruim', 'Lido: ' + ts.length + ' título(s) em ' + S.relatorio.grupos.length + ' grupo(s)', linhas);
-      var comTotal = S.relatorio.grupos.filter(function (g) { return Object.keys(g.impresso).some(function (k) { return g.impresso[k] != null; }); });
-      if (comTotal.length) {
-        h += '<div class="card" style="margin-top:16px;"><div class="card-head"><h3>Conferência com os totais impressos</h3></div><div class="table-wrap"><table><thead><tr><th>Grupo</th><th>Dias</th><th class="num">Títulos</th><th class="num">Cobrado (soma)</th><th class="num">Impresso</th><th>Situação</th></tr></thead><tbody>'
-          + S.relatorio.grupos.map(function (g, i) {
-            var c = cr.conferirGrupo(g), cob = c.colunas.find(function (x) { return x.coluna === 'cobrado'; });
-            var datas = g.titulos.map(function (t) { return t.liquidacao; }).filter(function (v, k, a) { return v && a.indexOf(v) === k; }).join(', ');
-            var sit = c.situacao === 'ok' ? '<span class="badge badge-ok">Bate</span>' : c.situacao === 'sem-total' ? '<span class="badge badge-neutral">Sem total</span>' : '<span class="badge badge-bad">Não bate</span>';
-            return '<tr><td>' + (i + 1) + (g.rotulo ? ' · ' + esc(g.rotulo) : '') + '</td><td>' + esc(datas) + '</td><td class="num">' + g.titulos.length + (g.registros != null && g.registros !== g.titulos.length ? ' de ' + g.registros : '') + '</td>'
-              + '<td class="num">' + cr.brl(cob.soma) + '</td><td class="num">' + (cob.impresso == null ? '—' : cr.brl(cob.impresso)) + '</td><td>' + sit + '</td></tr>';
-          }).join('') + '</tbody></table></div></div>';
+      if ((S.correcoes || []).length) {
+        var ROT = { valor: 'valor', mora: 'mora', desconto: 'desconto', cobrado: 'cobrado' };
+        h += alerta('ok', 'Corrigi ' + S.correcoes.length + ' valor(es) lido(s) errado', S.correcoes.map(function (c) {
+          return 'NF ' + esc(c.nf) + ' · ' + esc(c.sacado) + ': ' + ROT[c.campo] + ' lido ' + cr.brl(c.antes) + ', o certo é <b>' + cr.brl(c.depois) + '</b> (fecha com o total impresso).';
+        }));
       }
+      h += tabelaDeConferencia();
     }
     h += '<div class="btn-row"><button class="btn btn-ghost" type="button" id="voltar">← Voltar</button>'
       + '<button class="btn btn-primary" type="button" id="seguir"' + (d.titulos.length ? '' : ' disabled') + '>Continuar para o fiscal</button></div>';
@@ -464,9 +468,112 @@
     ['dragenter', 'dragover'].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('sobre'); }); });
     ['dragleave', 'drop'].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove('sobre'); }); });
     drop.addEventListener('drop', function (e) { var f = e.dataTransfer.files && e.dataTransfer.files[0]; if (f) escolherArquivo(f); });
+    ligarEdicao();
     $('exemploBtn').addEventListener('click', function () { usarRelatorio(cr.lerRelatorioTexto(cr.EXEMPLO_RELATORIO), 'exemplo'); S.relatorioMes = S.competencia; desenhar(); });
     $('voltar').addEventListener('click', anterior);
     $('seguir').addEventListener('click', proxima);
+  }
+
+  // Conferência com os totais impressos e, pro que não bate, os títulos pra
+  // corrigir à mão (valor lido errado, linha que faltou, linha a mais).
+  var CAMPOS_NUM = ['valor', 'mora', 'desconto', 'outros', 'cobrado'];
+  function tabelaDeConferencia() {
+    var grupos = S.relatorio.grupos;
+    var confs = grupos.map(cr.conferirGrupo);
+    var algumTotal = grupos.some(function (g) { return Object.keys(g.impresso).some(function (k) { return g.impresso[k] != null; }) || g.registros != null; });
+    var ruins = confs.filter(function (c) { return c.situacao === 'diverge'; }).length;
+    var h = '';
+    if (algumTotal) {
+      h += '<div class="card" style="margin-top:16px;"><div class="card-head"><h3>Conferência com os totais impressos</h3></div><div class="table-wrap"><table><thead><tr><th>Grupo</th><th>Dias</th><th class="num">Títulos</th><th class="num">Cobrado (soma)</th><th class="num">Impresso</th><th>Situação</th></tr></thead><tbody>'
+        + grupos.map(function (g, i) {
+          var c = confs[i], cob = c.colunas.find(function (x) { return x.coluna === 'cobrado'; });
+          var datas = g.titulos.map(function (t) { return t.liquidacao; }).filter(function (v, k, a) { return v && a.indexOf(v) === k; }).join(', ');
+          var sit = c.situacao === 'ok' ? '<span class="badge badge-ok">Bate</span>' : c.situacao === 'sem-total' ? '<span class="badge badge-neutral">Sem total</span>' : '<span class="badge badge-bad">Não bate</span>';
+          return '<tr' + (c.situacao === 'diverge' ? ' class="cr-sem"' : '') + '><td>' + (i + 1) + (g.rotulo ? ' · ' + esc(g.rotulo) : '') + '</td><td>' + esc(datas) + '</td><td class="num">' + g.titulos.length + (g.registros != null && g.registros !== g.titulos.length ? ' de ' + g.registros : '') + '</td>'
+            + '<td class="num">' + cr.brl(cob.soma) + '</td><td class="num">' + (cob.impresso == null ? '—' : cr.brl(cob.impresso)) + '</td><td>' + sit + '</td></tr>';
+        }).join('') + '</tbody></table></div></div>';
+    }
+    if (!ruins && !S.verTodos) {
+      return h + '<p style="margin-top:8px;"><button class="btn btn-ghost btn-sm" type="button" id="verTodos"><i class="ph ph-pencil-simple" aria-hidden="true"></i> Conferir e corrigir os títulos lidos</button></p>';
+    }
+    h += '<div class="card"><div class="card-head"><h3>' + (ruins ? 'Corrija o que foi lido errado' : 'Títulos lidos') + '</h3>'
+      + (ruins ? '<button class="btn btn-ghost btn-sm" type="button" id="verTodos">' + (S.verTodos ? 'Só os grupos que não batem' : 'Ver todos os grupos') + '</button>' : '') + '</div>'
+      + (ruins ? '<p class="hint" style="margin:0 0 8px;">Confira no PDF os valores das linhas marcadas e corrija aqui. Linha que não fecha consigo mesma (cobrado ≠ valor + mora + outros − desconto) fica em vermelho. Faltou uma linha? "+ Título". A soma do grupo acompanha o que você digita.</p>' : '')
+      + '<div class="table-wrap alta"><table class="cr-edit"><thead><tr><th>NF</th><th>Sacado</th><th>Liquidação</th><th class="num">Valor</th><th class="num">Mora</th><th class="num">Desconto</th><th class="num">Outros</th><th class="num">Cobrado</th><th></th></tr></thead><tbody>';
+    grupos.forEach(function (g, gi) {
+      var c = confs[gi];
+      if (!S.verTodos && c.situacao !== 'diverge') return;
+      var col = function (k) { return c.colunas.find(function (x) { return x.coluna === k; }); };
+      h += '<tr class="cr-grupo"><td colspan="3"><b>Grupo ' + (gi + 1) + '</b>' + (g.rotulo ? ' · ' + esc(g.rotulo) : '') + (g.registros != null ? ' · ' + g.titulos.length + ' de ' + g.registros + ' registro(s)' : '') + '</td>'
+        + CAMPOS_NUM.map(function (k) {
+          var x = col(k), ruim = x.impresso != null && !cr.igual(x.diferenca, 0);
+          return '<td class="num' + (ruim ? ' cr-dif' : '') + '">' + cr.brl(x.soma) + (x.impresso != null ? '<br><small>impresso ' + cr.brl(x.impresso) + '</small>' : '') + '</td>';
+        }).join('') + '<td><button class="btn btn-ghost btn-sm" type="button" data-novo="' + gi + '">+ Título</button></td></tr>';
+      g.titulos.forEach(function (t) {
+        var inc = !cr.tituloCoerente(t);
+        var cel = function (k, larg) {
+          var v = CAMPOS_NUM.indexOf(k) > -1 ? (t[k] == null ? '' : cr.brl(t[k])) : (t[k] || '');
+          return '<td' + (CAMPOS_NUM.indexOf(k) > -1 ? ' class="num"' : '') + '><input type="text" data-t="' + t.id + '" data-k="' + k + '" value="' + esc(v) + '" style="width:' + larg + 'px"' + (CAMPOS_NUM.indexOf(k) > -1 ? ' inputmode="decimal"' : '') + '></td>';
+        };
+        h += '<tr' + (inc ? ' class="cr-sem"' : '') + (t.corrigido ? ' title="Corrigido sozinho pelo total impresso"' : '') + '>' + cel('nf', 90) + cel('sacado', 220) + cel('liquidacao', 96)
+          + cel('valor', 92) + cel('mora', 70) + cel('desconto', 70) + cel('outros', 70) + cel('cobrado', 92)
+          + '<td><button class="btn btn-ghost btn-sm" type="button" data-tirar="' + t.id + '" aria-label="Tirar a linha" title="Tirar a linha"><i class="ph ph-trash" aria-hidden="true"></i></button></td></tr>';
+      });
+    });
+    return h + '</tbody></table></div></div>';
+  }
+  function acharTitulo(id) {
+    for (var i = 0; i < S.relatorio.grupos.length; i++) {
+      var g = S.relatorio.grupos[i], k = g.titulos.findIndex(function (t) { return t.id === id; });
+      if (k > -1) return { g: g, k: k, t: g.titulos[k] };
+    }
+    return null;
+  }
+  function editarTitulo(id, campo, texto) {
+    var a = acharTitulo(id);
+    if (!a) return;
+    var t = Object.assign({}, a.t), v = String(texto || '').trim();
+    if (CAMPOS_NUM.indexOf(campo) > -1) {
+      var n = v === '' ? null : cr.dinheiro(v);
+      if (v !== '' && n == null) { toast('Valor inválido: ' + v); desenhar(); return; }
+      if (campo === 'cobrado') t.cobrado = n;
+      else if (campo === 'valor' && n == null) { toast('O valor não pode ficar vazio.'); desenhar(); return; }
+      else t[campo] = n == null ? 0 : n;
+    } else if (campo === 'liquidacao') {
+      t.liquidacao = v ? cr.dataBR(v) : '';
+      if (v && !t.liquidacao) { toast('Data inválida: ' + v); desenhar(); return; }
+    } else t[campo] = v;
+    delete t.aviso;
+    a.g.titulos[a.k] = t;
+    desenhar();
+  }
+  function ligarEdicao() {
+    if ($('verTodos')) $('verTodos').addEventListener('click', function () { S.verTodos = !S.verTodos; desenhar(); });
+    tela.querySelectorAll('input[data-t]').forEach(function (i) {
+      i.addEventListener('change', function () { editarTitulo(+i.dataset.t, i.dataset.k, i.value); });
+      i.addEventListener('keydown', function (e) { if (e.key === 'Enter') i.blur(); });
+    });
+    tela.querySelectorAll('[data-tirar]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var a = acharTitulo(+b.dataset.tirar);
+        if (!a || !confirm('Tirar a NF ' + a.t.nf + ' (' + a.t.sacado + ') do relatório?')) return;
+        a.g.titulos.splice(a.k, 1);
+        delete S.decisoes[a.t.id];
+        desenhar();
+      });
+    });
+    tela.querySelectorAll('[data-novo]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var g = S.relatorio.grupos[+b.dataset.novo];
+        var id = S.relatorio.grupos.reduce(function (m, x) { return x.titulos.reduce(function (mm, t) { return Math.max(mm, t.id); }, m); }, 0) + 1;
+        var dia = (g.titulos[0] || {}).liquidacao || '';
+        g.titulos.push({ id: id, sacado: '', nossoNumero: '', nf: '', valor: 0, mora: 0, desconto: 0, outros: 0, liquidacao: dia, cobrado: null });
+        S.verTodos = S.verTodos || false;
+        desenhar();
+        var novo = tela.querySelector('input[data-t="' + id + '"][data-k="nf"]');
+        if (novo) novo.focus();
+      });
+    });
   }
 
   // ---------- etapa 3: baixa no Fiscal (só os títulos) ----------
@@ -595,7 +702,8 @@
           + '<td class="num">' + cr.brl(f.esperado) + (f.fonte === 'extraido' ? ' *' : '') + '</td><td class="num">' + (f.fora ? cr.brl(f.fora) : '—') + '</td><td class="num">' + cr.brl(f.diferenca) + '</td><td>' + b + '</td></tr>';
       }).join('') + '</tbody></table></div>'
       + (d.fechamento.some(function (f) { return f.fonte === 'extraido'; }) ? '<p class="hint">* sem total cobrado impresso só daquele dia: vale a soma dos títulos.</p>' : '') + '</div>';
-    if (divergentes.length) h += alerta('ruim', 'O arquivo não fecha com o banco', divergentes.map(function (f) { return esc(f.data) + ': diferença de ' + cr.brl(f.diferenca); }));
+    if (divergentes.length) h += alerta('ruim', 'O arquivo não fecha com o banco', divergentes.map(function (f) { return esc(f.data) + ': diferença de ' + cr.brl(f.diferenca); })
+      .concat(['<button class="btn btn-outline btn-sm" type="button" id="corrigirRel" style="margin-top:6px;">Corrigir a leitura no relatório do banco</button>']));
     if (d.fora.length) h += alerta('', d.fora.length + ' título(s) fora do arquivo', d.fora.map(function (t) { return 'NF ' + esc(t.nf) + ' · ' + esc(t.sacado) + ' · ' + esc(t.liquidacao) + ' · ' + cr.brl(cr.liquidoDoTitulo(t)); }));
     h += '<div class="cr-stats" style="margin-top:16px;">'
       + '<div class="stat"><p class="stat-label">Lançamentos</p><p class="stat-value">' + d.lancamentos.length + '</p></div>'
@@ -614,6 +722,7 @@
       i.addEventListener('change', function () { if (i.value.trim() !== r.contas[i.dataset.campo]) gravarCfg(cr.escolherConta(S.cfg, i.dataset.campo, i.value, S.balancete)); });
       i.addEventListener('keydown', function (e) { if (e.key === 'Enter') i.blur(); });
     });
+    if ($('corrigirRel')) $('corrigirRel').addEventListener('click', function () { S.verTodos = true; abrir('banco'); });
     if ($('esquecer')) $('esquecer').addEventListener('click', function () { gravarCfg({ contas: {}, nomes: {}, clientes: S.cfg.clientes }); });
     $('voltar').addEventListener('click', anterior);
     $('baixar').addEventListener('click', function () {
@@ -735,7 +844,7 @@
       cargos: function () { return contaCfg.cargos; },
       aoMudarNome: function (nome) { contaCfg.nome = nome; },
       sair: function () { auth.signOut(); },
-      versao: '2.407 · 29/09/2026'
+      versao: '2.408 · 29/09/2026'
     });
     auth.onAuthStateChanged(function (user) {
       if (!user) { location.replace('entregas.html'); return; }

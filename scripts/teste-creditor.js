@@ -27,6 +27,18 @@ igual('exemplo: totais impressos', [r.grupos[0].impresso, r.totalGeral], [{ valo
 igual('exemplo: grupos conferem', r.grupos.map(g => cr.conferirGrupo(g).situacao), ['ok', 'ok', 'ok']);
 igual('filial no nome do sacado', r.grupos[1].titulos[0].sacado, 'SUPERMERCADO ALVORADA LTDA -TAI1');
 
+// ---------- leitura errada: correção pelo total impresso ----------
+const errado = cr.lerRelatorioTexto(cr.EXEMPLO_RELATORIO
+  .replace('ACOUGUE BOI GORDO  00012345737  4555  02/09/2026  450,00', 'ACOUGUE BOI GORDO  00012345737  4555  02/09/2026  480,00')
+  .replace('PADARIA SAO JORGE ME  00012345682  4533  01/09/2026  830,40  0,00  16,61', 'PADARIA SAO JORGE ME  00012345682  4533  01/09/2026  830,40  16,61  0,00'));
+igual('lido errado: dois grupos não batem', errado.grupos.map(g => cr.conferirGrupo(g).situacao), ['diverge', 'diverge', 'ok']);
+const corr = cr.corrigirLeitura(errado);
+igual('corrige o dígito pelo cobrado e a mora/desconto trocados', corr.correcoes.map(c => [c.nf, c.campo, c.antes, c.depois]), [['4533', 'mora', 16.61, 0], ['4533', 'desconto', 0, 16.61], ['4555', 'valor', 480, 450]]);
+igual('depois da correção, tudo bate', corr.rel.grupos.map(g => cr.conferirGrupo(g).situacao), ['ok', 'ok', 'ok']);
+igual('o que já batia não muda', cr.corrigirLeitura(r).correcoes, []);
+const semTotal = cr.lerRelatorioLinhas([['Sacado', 'Seu Número', 'Valor', 'Dt. Liquidação', 'Vlr. Cobrado'], ['A', '1', '10,00', '01/09/2026', '11,00']]);
+igual('sem total impresso não mexe', cr.corrigirLeitura(semTotal).correcoes, []);
+
 // ---------- planilha ----------
 const pl = cr.lerRelatorioLinhas([
   ['Sacado', 'Seu Número', 'Valor', 'Vlr. Mora', 'Dt. Liquidação', 'Vlr. Cobrado'],

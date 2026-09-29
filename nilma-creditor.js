@@ -102,6 +102,52 @@
     var situacao = faltaLinha || incoerentes.length || comTotal.some(function (c) { return !igual(c.diferenca || 0, 0); }) ? 'diverge' : comTotal.length === 0 ? 'sem-total' : 'ok';
     return { colunas: colunas, incoerentes: incoerentes, situacao: situacao };
   }
+  /**
+   * Leitura errada (dígito trocado no PDF, mora e desconto em colunas
+   * trocadas): numa linha que não fecha consigo mesma (cobrado ≠ valor + mora
+   * + outros − desconto), num grupo que não bate com o total impresso, tenta
+   * as correções óbvias — o valor pelo cobrado, o cobrado pelo valor, ou mora
+   * e desconto trocados — e só aplica a combinação que faz o grupo BATER com
+   * o impresso. Sem total impresso não há contra o que conferir: não mexe.
+   * -> { rel (novo), correcoes: [{ nf, sacado, campo, antes, depois }] }
+   */
+  function corrigirLeitura(rel) {
+    var correcoes = [];
+    var grupos = rel.grupos.map(function (g) {
+      var c = conferirGrupo(g);
+      if (c.situacao !== 'diverge' || !c.incoerentes.length || c.incoerentes.length > 6) return g;
+      var ops = c.incoerentes.map(function (id) {
+        var t = g.titulos.find(function (x) { return x.id === id; });
+        var cands = [];
+        if (t.cobrado != null) cands.push({ valor: r2(t.cobrado - t.mora - t.outros + t.desconto) });
+        cands.push({ cobrado: r2(t.valor + t.mora + t.outros - t.desconto) });
+        if (t.mora !== t.desconto) cands.push({ mora: t.desconto, desconto: t.mora });
+        return { id: id, cands: cands.filter(function (m) { return Object.keys(m).every(function (k) { return m[k] >= 0; }); }) };
+      });
+      var achou = null;
+      (function tentar(i, escolha) {
+        if (achou) return;
+        if (i === ops.length) {
+          var ts = g.titulos.map(function (t) { var e = escolha[t.id]; return e ? Object.assign({}, t, e) : t; });
+          var gg = Object.assign({}, g, { titulos: ts });
+          if (conferirGrupo(gg).situacao === 'ok') achou = { g: gg, escolha: Object.assign({}, escolha) };
+          return;
+        }
+        ops[i].cands.forEach(function (m) { escolha[ops[i].id] = m; tentar(i + 1, escolha); delete escolha[ops[i].id]; });
+      })(0, {});
+      if (!achou) return g;
+      g.titulos.forEach(function (t) {
+        var m = achou.escolha[t.id];
+        if (!m) return;
+        Object.keys(m).forEach(function (k) { if (!igual(t[k], m[k])) correcoes.push({ id: t.id, nf: t.nf, sacado: t.sacado, campo: k, antes: t[k], depois: m[k] }); });
+      });
+      achou.g.titulos = achou.g.titulos.map(function (t) {
+        return achou.escolha[t.id] ? Object.assign({}, t, { corrigido: true, aviso: undefined }) : t;
+      });
+      return achou.g;
+    });
+    return { rel: Object.assign({}, rel, { grupos: grupos }), correcoes: correcoes };
+  }
   function temTotalImpresso(r) {
     var algum = function (t) { return Object.keys(t).some(function (k) { return t[k] != null; }); };
     return r.grupos.some(function (g) { return algum(g.impresso) || g.registros != null; }) || algum(r.totalGeral) || r.registrosGeral != null;
@@ -800,7 +846,7 @@
   var api = {
     nomeNorm: nomeNorm, brl: brl, r2: r2, igual: igual, somar: somar, chaveNf: chaveNf, dinheiro: dinheiro, dataBR: dataBR, ordemData: ordemData, liquidoDoTitulo: liquidoDoTitulo,
     MESES: MESES, competenciaValida: competenciaValida, competenciaPadrao: competenciaPadrao, rotuloCompetencia: rotuloCompetencia, competenciaPorExtenso: competenciaPorExtenso, titulosForaDaCompetencia: titulosForaDaCompetencia,
-    conferirGrupo: conferirGrupo, temTotalImpresso: temTotalImpresso, TOTAIS_VAZIOS: TOTAIS_VAZIOS,
+    conferirGrupo: conferirGrupo, corrigirLeitura: corrigirLeitura, tituloCoerente: tituloCoerente, temTotalImpresso: temTotalImpresso, TOTAIS_VAZIOS: TOTAIS_VAZIOS,
     EXTENSOES_BANCO: EXTENSOES_BANCO, lerRelatorioLinhas: lerRelatorioLinhas, lerRelatorioTexto: lerRelatorioTexto, relatorioDosItens: relatorioDosItens, linhasDosItens: linhasDosItens, relatorioDoPdf: relatorioDoPdf,
     CONTAS_PADRAO: CONTAS_PADRAO, CONTAS_DO_LAYOUT: CONTAS_DO_LAYOUT, HISTORICOS: HISTORICOS, SEM_BALANCETE: SEM_BALANCETE, CONFIG_VAZIA: CONFIG_VAZIA,
     balanceteDoDocumento: balanceteDoDocumento, configDoDocumento: configDoDocumento, sugerirConta: sugerirConta, resolverContas: resolverContas, escolherConta: escolherConta, confirmarContas: confirmarContas, mesmaConfig: mesmaConfig,

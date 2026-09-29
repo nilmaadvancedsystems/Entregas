@@ -29,6 +29,24 @@ Módulo novo no menu ☰, **Tarefas** (`tarefas.html`), pra equipe toda:
 - Regras: `tarefas` a equipe lê, cria e edita; quem criou não muda; apagar
   só quem criou ou o admin.
 
+**Versão 2.408 — Creditor: leitura errada do relatório do banco:**
+
+- Correção automática (`corrigirLeitura`, em `nilma-creditor.js`): num grupo
+  que não bate com o total impresso, a linha que não fecha consigo mesma
+  (cobrado ≠ valor + mora + outros − desconto) tenta as correções óbvias — o
+  valor pelo cobrado (dígito lido errado), o cobrado pelo valor, ou mora e
+  desconto trocados — e só fica a combinação que faz o grupo BATER com o
+  impresso. Sem total impresso, nada muda. A tela lista o que foi corrigido
+  ("valor lido 480,00, o certo é 450,00").
+- O que sobrar se corrige à mão na etapa Relatório do banco: "Corrija o que
+  foi lido errado" mostra os grupos que não batem, com a soma de cada coluna
+  contra o impresso (em vermelho a que não fecha), os títulos editáveis (NF,
+  sacado, liquidação, valor, mora, desconto, outros, cobrado), "+ Título"
+  pra linha que faltou e a lixeira pra linha a mais. Com tudo batendo, a
+  tabela recolhe ("Conferir e corrigir os títulos lidos" reabre).
+- Lançamentos: quando o arquivo não fecha com o banco, o aviso tem o botão
+  "Corrigir a leitura no relatório do banco".
+
 **Versão 2.407 — Creditor dentro do Entregas; conta principal quando a filial não bate:**
 
 - O Creditor (relatório de liquidação do banco → lançamentos de 8 colunas)
