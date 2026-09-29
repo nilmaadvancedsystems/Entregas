@@ -27,7 +27,8 @@
     // submódulos. Só depois de escolher um é que a página abre.
     { id: 'contabil',   rotulo: 'Contábil',           icone: 'ph-calculator',           href: 'entregas.html#contabil', papel: 'contabil', sub: [
       { id: 'contabil/conciliador', rotulo: 'Conciliadorzinho', icone: 'ph-credit-card', href: 'entregas.html#contabil/conciliador' },
-      { id: 'contabil/cheque',      rotulo: 'Cheque especial',  icone: 'ph-bank',        href: 'entregas.html#contabil/cheque' }
+      { id: 'contabil/cheque',      rotulo: 'Cheque especial',  icone: 'ph-bank',        href: 'entregas.html#contabil/cheque' },
+      { id: 'contabil/extratudo',   rotulo: 'Extratudo',        icone: 'ph-files',       href: 'entregas.html#contabil/extratudo' }
     ] },
     { id: 'fiscal',     rotulo: 'Fiscal',             icone: 'ph-file-text',            href: 'lcdpr.html', papel: 'fiscal', sub: [
       { id: 'fiscal/lcdpr', rotulo: 'Importador LCDPR', icone: 'ph-file-arrow-up', href: 'lcdpr.html' }

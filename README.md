@@ -29,6 +29,17 @@ Módulo novo no menu ☰, **Tarefas** (`tarefas.html`), pra equipe toda:
 - Regras: `tarefas` a equipe lê, cria e edita; quem criou não muda; apagar
   só quem criou ou o admin.
 
+**Versão 2.402 — Extratudo no Contábil:**
+
+- O Extratudo do nads (Creditor, Extrator…) entra no módulo Contábil, ao
+  lado do Conciliadorzinho e do Cheque especial (submódulo `contabil/extratudo`
+  no ☰ e no "Contábil ⌄"; iframe `#frameExtratudo` carregado só ao abrir).
+  O site é o `https://extratudo-entregas.web.app`, publicado pelo nads
+  (`npm run sites -- extratudo-entregas`, branch `desenvolvimento`) no projeto
+  do Entregas; lê o Drive com o login do Entregas e guarda a conferência no
+  banco da Conferência. O bucket `entregas-2e5e2-abertos` libera GET (CORS) só
+  pra esse site, pra baixar as cópias do Drive.
+
 **Versão 2.401 — repetir imposto na planilha "Adicionar documento":**
 
 - Cada linha da planilha flutuante (documentos com valor) ganhou o botão de

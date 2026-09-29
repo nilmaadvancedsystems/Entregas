@@ -38,7 +38,8 @@ body > .topbar { display: none; }
    repetido. */
 body.modo-secundario .tela-cabecalho { display: none; }
 body.modo-secundario #frameConciliador,
-body.modo-secundario #frameCheque { background: transparent; border-radius: 0 !important; }
+body.modo-secundario #frameCheque,
+  body.modo-secundario #frameExtratudo { background: transparent; border-radius: 0 !important; }
 @media (max-width: 899px) {
   body.modo-secundario main { padding: 0; }
   body.modo-secundario main > .view.view { max-width: none; }
@@ -355,14 +356,16 @@ body.modo-secundario #frameCheque { background: transparent; border-radius: 0 !i
   body.modo-secundario main { padding: 0; }
   body.modo-secundario main > .view.view { max-width: none; }
   body.modo-secundario #frameConciliador,
-  body.modo-secundario #frameCheque {
+  body.modo-secundario #frameCheque,
+  body.modo-secundario #frameExtratudo {
     position: fixed; top: var(--topo-total); left: 0; right: 0;
     width: 100% !important; height: calc(100vh - var(--topo-total)) !important;
     min-height: 0 !important;
   }
   /* com a barra lateral de abas à mostra, o iframe começa depois dela */
   body.modo-secundario:has(> .tabs:not([hidden])) #frameConciliador,
-  body.modo-secundario:has(> .tabs:not([hidden])) #frameCheque {
+  body.modo-secundario:has(> .tabs:not([hidden])) #frameCheque,
+  body.modo-secundario:has(> .tabs:not([hidden])) #frameExtratudo {
     left: var(--lateral); width: calc(100% - var(--lateral)) !important;
   }
 
