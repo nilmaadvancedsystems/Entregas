@@ -454,7 +454,13 @@ body.modo-secundario #frameCheque,
 
 /* Balancetes (Clientes e ajustes → Carteira, 29/09/2026) */
 .balancete-subir { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
-.balancete-subir select { flex: 1 1 260px; min-width: 0; }
+.balancete-busca { flex: 1 1 320px; min-width: 0; }
+.balancete-busca > .ph-magnifying-glass { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--ink-muted); pointer-events: none; }
+.balancete-busca > .input { width: 100%; padding-left: 32px; padding-right: 32px; }
+.balancete-limpar { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); border: none; background: none; color: var(--ink-muted); cursor: pointer; padding: 6px; border-radius: 6px; line-height: 0; }
+.balancete-limpar:hover { background: var(--hover-bg); color: var(--ink); }
+.balancete-nada { padding: 8px; }
+#balanceteSubirBtn[aria-disabled="true"] { opacity: .55; }
 .balancete-linha { display: grid; grid-template-columns: auto 1fr auto auto; gap: 12px; align-items: center; padding: 8px 4px; border-top: 1px solid var(--border); }
 .balancete-linha:hover { background: var(--surface-2); }
 .balancete-n { color: var(--ink-muted); font-variant-numeric: tabular-nums; }

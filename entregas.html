@@ -53,7 +53,7 @@
 <link rel="stylesheet" href="nilma-icones.css?v=345">
 <link rel="stylesheet" href="nilma-ui.css?v=392">
 <link rel="stylesheet" href="n1-entregas-a.css?v=401">
-<link rel="stylesheet" href="n1-entregas-b.css?v=405">
+<link rel="stylesheet" href="n1-entregas-b.css?v=406">
 <link rel="stylesheet" href="n1-entregas-c.css?v=400">
 </head>
 <body>
@@ -63,7 +63,7 @@
 <script src="nilma-dialogo.js?v=345"></script>
 <script src="nilma-shell.js?v=402"></script>
 <script src="nilma-ponte-extratudo.js?v=405"></script>
-<script src="nilma-balancetes.js?v=405"></script>
+<script src="nilma-balancetes.js?v=406"></script>
 <script src="nilma-config.js?v=395"></script>
 <script src="nilma-acoes-ia.js?v=397"></script>
 <script src="nilma-solicitacoes.js?v=398"></script>
@@ -795,8 +795,14 @@
         <h2><i class="ph ph-file-xls" aria-hidden="true"></i> Balancetes <span class="contagem" id="balancetesContador"></span></h2>
       </div>
       <div class="balancete-subir">
-        <select class="input" id="balanceteCliente" aria-label="Cliente do balancete"><option value="">Escolha o cliente…</option></select>
-        <label class="btn-chip accent" for="balanceteArquivo"><i class="ph ph-upload-simple" aria-hidden="true"></i> Subir balancete (XLS)</label>
+        <div class="combobox balancete-busca">
+          <i class="ph ph-magnifying-glass" aria-hidden="true"></i>
+          <input class="input" id="balanceteBusca" type="text" placeholder="Buscar cliente: código, nome ou CNPJ" autocomplete="off"
+                 role="combobox" aria-expanded="false" aria-controls="balanceteSugestoes" aria-autocomplete="list" enterkeyhint="search">
+          <button type="button" class="balancete-limpar" id="balanceteLimpar" aria-label="Limpar a busca" hidden><i class="ph ph-x" aria-hidden="true"></i></button>
+          <div class="suggestions" id="balanceteSugestoes" role="listbox" aria-label="Clientes encontrados"></div>
+        </div>
+        <label class="btn-chip accent" for="balanceteArquivo" id="balanceteSubirBtn" aria-disabled="true"><i class="ph ph-upload-simple" aria-hidden="true"></i> Subir balancete (XLS)</label>
         <input type="file" id="balanceteArquivo" accept=".xls,.xlsx" hidden>
       </div>
       <div id="balancetesLista"></div>
@@ -12014,6 +12020,8 @@
   // papéis chegam do banco.
   window.NilmaApp_ = {
     clientes: function () { return Array.from(clientesCache.values()); },
+    // a carga curta só traz os clientes de entrega: isto garante a base inteira
+    todosOsClientes: function () { return garantirTodosOsClientes_().then(function () { return Array.from(clientesCache.values()); }); },
     temPapel: temPapel,
     toast: function (msg, tipo) { showToast(msg, tipo); }
   };
@@ -12194,7 +12202,7 @@
   // Aba em que o app abre: office boy vive em Solicitações, quem faz rota
   // abre em Rota. Guardar isso evita dois toques toda vez que entra.
 
-  var VERSAO_APP_ = '2.405 · 29/09/2026';
+  var VERSAO_APP_ = '2.406 · 29/09/2026';
   // Configurações do usuário: a janela comum (nilma-config.js), a mesma da
   // Pendências e do Fiscal. 'conta' abre em Minha conta; o resto, em
   // Preferências.
