@@ -54,7 +54,7 @@
 <link rel="stylesheet" href="nilma-ui.css?v=392">
 <link rel="stylesheet" href="n1-entregas-a.css?v=345">
 <link rel="stylesheet" href="n1-entregas-b.css?v=345">
-<link rel="stylesheet" href="n1-entregas-c.css?v=397">
+<link rel="stylesheet" href="n1-entregas-c.css?v=399">
 </head>
 <body>
 <!-- Casca no estilo do GitHub: barra de cima (☰ · Nilma / módulo · consulta
@@ -4760,6 +4760,7 @@
         : (isRota ? 'Adicionado à rota — aguardando assinatura.' : (isFalha ? 'Entrega não realizada registrada.' : 'Entrega registrada com sucesso.'))));
       if (isLink && cliente) oferecerAvisarDoLink_(cliente);
       if (avaliacaoLocal) avisarLocalDivergente_(avaliacaoLocal, cliente && cliente.nome);
+      if (!isRota && !isFalha && cliente) mostrarLembretesDaEntrega_([{ id: cliente.id, nome: clienteLabel(cliente) }]);
       resetForm();
       var card = $('form-nova');
       card.classList.remove('flash-success');
@@ -5898,6 +5899,153 @@
     el.hidden = false;
     el.textContent = texto;
     el.title = 'No seu ritmo: ≈ ' + ritmo.minutos + ' min por parada (' + ritmo.amostras + ' entregas medidas)';
+  }
+
+  // ---------- lembretes por empresa ----------
+  // "Algo pra falar com o cliente" (pedido do escritório, 29/09/2026): quem
+  // cria é a equipe, na página do cliente; quem vê é quem for entregar — em
+  // destaque na tela de assinatura e numa janela logo que a entrega daquela
+  // empresa é concluída, com "Falei" (resolve) ou "Deixar pra próxima".
+  // Coleção lembretesCliente; só os ativos são ouvidos.
+  var lembretesPorCliente = {};
+  var unsubLembretes = null;
+  function subscribeLembretes_() {
+    if (!db || unsubLembretes) return;
+    unsubLembretes = db.collection('lembretesCliente').where('ativo', '==', true).limit(500)
+      .onSnapshot(function (snap) {
+        lembretesPorCliente = {};
+        snap.docs.forEach(function (d) {
+          var l = Object.assign({ id: d.id }, d.data());
+          (lembretesPorCliente[l.clienteId] = lembretesPorCliente[l.clienteId] || []).push(l);
+        });
+        Object.keys(lembretesPorCliente).forEach(function (k) {
+          lembretesPorCliente[k].sort(function (a, b) { return String(a.criadoEm || '').localeCompare(String(b.criadoEm || '')); });
+        });
+        try { if ($('rotaList') && typeof renderRota === 'function') renderRota(); } catch (e) {}
+        pintarLembretesAbertos_();
+      }, function () {});
+  }
+  function lembretesDe_(clienteId) { return (clienteId && lembretesPorCliente[clienteId]) || []; }
+  function criarLembrete_(clienteId, clienteNome, texto) {
+    return db.collection('lembretesCliente').add({
+      clienteId: clienteId, clienteNome: clienteNome || '', texto: String(texto).slice(0, 500), ativo: true,
+      criadoPor: (auth.currentUser && auth.currentUser.email) || '', criadoPorNome: currentUserNome || '',
+      criadoEm: new Date().toISOString()
+    });
+  }
+  function resolverLembrete_(id) {
+    return db.doc('lembretesCliente/' + id).update({
+      ativo: false, resolvidoEm: new Date().toISOString(),
+      resolvidoPor: (auth.currentUser && auth.currentUser.email) || '', resolvidoPorNome: currentUserNome || ''
+    });
+  }
+  function metaLembrete_(l) { return 'por ' + (l.criadoPorNome || l.criadoPor || 'alguém da equipe') + ' · ' + fmtDateTime(l.criadoEm); }
+
+  // Cartão "Lembretes pra entrega" da página do cliente (.cp-lembretes).
+  function pintarLembretesAbertos_() {
+    document.querySelectorAll('.cp-lembretes[data-cliente]').forEach(function (box) {
+      var id = box.dataset.cliente, consulta = box.dataset.consulta === '1';
+      var ta = box.querySelector('[data-lembrete-texto]');
+      var digitado = ta ? ta.value : '';
+      var lista = lembretesDe_(id);
+      box.innerHTML = (lista.length ? lista.map(function (l) {
+        return '<div class="lembrete-item"><i class="ph ph-bell-ringing" aria-hidden="true"></i><div class="lembrete-corpo">' +
+          '<div class="lembrete-texto">' + escapeHtml_(l.texto) + '</div><div class="card-hint">' + escapeHtml_(metaLembrete_(l)) + '</div></div>' +
+          (consulta ? '' : '<button type="button" class="btn-chip" data-lembrete-resolver="' + escapeHtml_(l.id) + '"><i class="ph ph-check" aria-hidden="true"></i> Resolvido</button>') + '</div>';
+      }).join('') : '<p class="card-hint" style="margin:0">Nenhum lembrete. O que você deixar aqui aparece pra quem for entregar, na hora de concluir a entrega.</p>') +
+        (consulta ? '' : '<div class="lembrete-novo"><textarea class="input" rows="2" maxlength="500" placeholder="Ex.: falar do honorário atrasado" data-lembrete-texto aria-label="Novo lembrete"></textarea>' +
+          '<button type="button" class="btn-chip accent" data-lembrete-add="' + escapeHtml_(id) + '"><i class="ph ph-plus" aria-hidden="true"></i> Lembrete</button></div>');
+      var novo = box.querySelector('[data-lembrete-texto]');
+      if (novo && digitado) novo.value = digitado;
+    });
+  }
+  document.addEventListener('click', function (ev) {
+    var r = ev.target.closest('[data-lembrete-resolver]');
+    if (r) {
+      r.disabled = true;
+      resolverLembrete_(r.dataset.lembreteResolver).then(function () { showToast('Lembrete resolvido.'); })
+        .catch(function (err) { r.disabled = false; showToast(errMsg(err, 'Não foi possível resolver.'), 'error'); });
+      return;
+    }
+    var a = ev.target.closest('[data-lembrete-add]');
+    if (a) {
+      var box = a.closest('.cp-lembretes');
+      var ta = box && box.querySelector('[data-lembrete-texto]');
+      var texto = ta ? ta.value.trim() : '';
+      if (!texto) { if (ta) ta.focus(); return; }
+      var c = clientesCache.get(a.dataset.lembreteAdd);
+      a.disabled = true;
+      criarLembrete_(a.dataset.lembreteAdd, c ? clienteLabel(c) : (box.dataset.nome || ''), texto).then(function () {
+        if (ta) ta.value = '';
+        showToast('Lembrete salvo: aparece pra quem for entregar.');
+      }).catch(function (err) { showToast(errMsg(err, 'Não foi possível salvar o lembrete.'), 'error'); })
+        .finally(function () { a.disabled = false; });
+    }
+  });
+
+  // Destaque no topo da tela de assinatura da parada.
+  function lembretesBannerHtml_(clienteId) {
+    var lista = lembretesDe_(clienteId);
+    if (!lista.length) return '';
+    return '<div class="lembrete-banner" role="note"><i class="ph ph-bell-ringing" aria-hidden="true"></i><div><b>Pra falar com o cliente</b>' +
+      lista.map(function (l) { return '<div>' + escapeHtml_(l.texto) + '</div>'; }).join('') + '</div></div>';
+  }
+
+  // Logo depois de concluir: "Não esqueça de falar com o cliente".
+  // clientes: [{ id, nome }] (uma entrega, ou várias de uma vez).
+  function mostrarLembretesDaEntrega_(clientes) {
+    var vistos = {}, lista = [];
+    (clientes || []).forEach(function (c) {
+      if (!c || !c.id || vistos[c.id]) return;
+      vistos[c.id] = true;
+      lembretesDe_(c.id).forEach(function (l) { lista.push({ l: l, nome: c.nome }); });
+    });
+    if (!lista.length) return;
+    var principal = clientes[0];
+    var root = $('modalRoot');
+    root.innerHTML =
+      '<div class="modal-overlay" id="overlay"><div class="modal" id="modalInner">' +
+        '<div class="modal-head"><div><h2><i class="ph ph-bell-ringing" aria-hidden="true"></i> Não esqueça de falar com o cliente</h2>' +
+          '<div class="card-hint modal-head-sub">' + escapeHtml_(principal.nome || '') + '</div></div>' +
+          '<button class="modal-close" id="modalClose" aria-label="Fechar"><i class="ph ph-x" aria-hidden="true"></i></button></div>' +
+        '<div class="lembretes-lista">' + lista.map(function (x) {
+          return '<div class="lembrete-item" data-id="' + escapeHtml_(x.l.id) + '"><i class="ph ph-bell-ringing" aria-hidden="true"></i><div class="lembrete-corpo">' +
+            '<div class="lembrete-texto">' + escapeHtml_(x.l.texto) + '</div><div class="card-hint">' + escapeHtml_((lista.length > 1 && x.nome ? x.nome + ' · ' : '') + metaLembrete_(x.l)) + '</div></div>' +
+            '<div class="lembrete-acoes"><button type="button" class="btn-chip accent" data-falei="' + escapeHtml_(x.l.id) + '"><i class="ph ph-check" aria-hidden="true"></i> Falei</button>' +
+            '<button type="button" class="btn-chip" data-depois="' + escapeHtml_(x.l.id) + '">Deixar pra próxima</button></div></div>';
+        }).join('') + '</div>' +
+        '<label class="field" style="margin-top:14px"><span>Novo lembrete pra próxima vez (opcional)</span>' +
+          '<textarea class="input" id="lembreteNovoTexto" rows="2" maxlength="500" placeholder="Ex.: o cliente pediu pra ligar antes"></textarea></label>' +
+        '<div class="modal-actions"><button type="button" class="btn btn-primary" id="lembreteOkBtn">Pronto</button></div>' +
+      '</div></div>';
+    function fechar() { closeModal(); }
+    $('modalClose').addEventListener('click', fechar);
+    $('overlay').addEventListener('click', function (e) { if (e.target.id === 'overlay') fechar(); });
+    $('modalInner').addEventListener('click', function (ev) {
+      var f = ev.target.closest('[data-falei]'), d = ev.target.closest('[data-depois]');
+      if (!f && !d) return;
+      var item = ev.target.closest('.lembrete-item');
+      if (f) {
+        f.disabled = true;
+        resolverLembrete_(f.dataset.falei).then(function () {
+          item.classList.add('feito');
+          item.querySelector('.lembrete-acoes').innerHTML = '<span class="status-pill entregue">Falei</span>';
+        }).catch(function (err) { f.disabled = false; showToast(errMsg(err, 'Não foi possível marcar.'), 'error'); });
+      } else {
+        item.classList.add('adiado');
+        item.querySelector('.lembrete-acoes').innerHTML = '<span class="status-pill pendente">Fica pra próxima</span>';
+      }
+    });
+    $('lembreteOkBtn').addEventListener('click', function () {
+      var texto = $('lembreteNovoTexto').value.trim();
+      if (!texto) { fechar(); return; }
+      var btn = this;
+      botaoOcupado_(btn);
+      criarLembrete_(principal.id, principal.nome, texto).then(function () {
+        showToast('Lembrete salvo pra próxima entrega.');
+        fechar();
+      }).catch(function (err) { showToast(errMsg(err, 'Não foi possível salvar o lembrete.'), 'error'); botaoLivre_(btn); });
+    });
   }
 
   // ---------- mural de recados ----------
@@ -7490,6 +7638,14 @@
           '<button type="button" class="btn-chip accent rota-assinar"><i class="ph ph-signature" aria-hidden="true"></i> Assinar</button>' +
         '</div>';
       row.querySelector('.er-nome').textContent = e.clienteNome;
+      var nLemb = lembretesDe_(e.clienteId).length;
+      if (nLemb) {
+        var sino = document.createElement('span');
+        sino.className = 'rota-lembrete';
+        sino.title = 'Lembrete pra falar com o cliente: ' + lembretesDe_(e.clienteId).map(function (l) { return l.texto; }).join(' · ');
+        sino.innerHTML = '<i class="ph ph-bell-ringing" aria-hidden="true"></i>' + (nLemb > 1 ? '<span>' + nLemb + '</span>' : '');
+        row.querySelector('.er-nome').appendChild(sino);
+      }
       row.querySelector('.er-sub').textContent = subtitle;
       if (aviso) row.querySelector('.er-aviso span').textContent = aviso;
       row.addEventListener('click', function (ev) {
@@ -9084,7 +9240,9 @@
       ? recentes + (historico.length > 5 ? '<button type="button" class="link-btn" data-ir-aba="entregas">Ver as ' + historico.length + ' entregas</button>' : '')
       : '<div class="empty-state">Nenhuma entrega registrada para este cliente ainda.</div>';
 
-    var resumoHtml = kpisHtml + avisosHtml +
+    var lembretesHtml = cartaoDaPagina_('Lembretes pra entrega', 'ph-bell-ringing',
+      '<div class="cp-lembretes" data-cliente="' + escapeHtml_(cliente.id) + '" data-nome="' + escapeHtml_(clienteLabel(cliente)) + '" data-consulta="' + (consulta ? '1' : '0') + '"></div>');
+    var resumoHtml = kpisHtml + avisosHtml + lembretesHtml +
       '<div class="cp-grade">' +
         cartaoDaPagina_('Contato', 'ph-address-book', contatoHtml || '<p class="card-hint">Sem telefone, e-mail ou endereço no cadastro.</p>') +
         cartaoDaPagina_('Empresa', 'ph-buildings', empresaHtml || '<p class="card-hint">Sem dados da Receita ainda.</p>') +
@@ -9208,6 +9366,7 @@
     }
     inner.querySelectorAll('.cp-menu [data-cp]').forEach(function (b) { b.addEventListener('click', function () { irPara(b.dataset.cp); }); });
     inner.querySelectorAll('[data-ir-aba]').forEach(function (b) { b.addEventListener('click', function () { irPara(b.dataset.irAba); }); });
+    pintarLembretesAbertos_();
   }
 
   function renderHistoricoList(cliente, historico, opcoes) {
@@ -9932,6 +10091,7 @@
           : escolhidas.length + ' entregas confirmadas de uma vez.'));
         if (!isFalha) avisarLocalDivergente_(avaliacaoLote, clienteNome);
         closeModal();
+        if (!isFalha) setTimeout(function () { mostrarLembretesDaEntrega_(escolhidas.map(function (e) { return { id: e.clienteId, nome: e.clienteNome }; })); }, 260);
         // Igual à parada única: cliente ausente com 4 guias não pode obrigar
         // a remontar as 4 à mão amanhã.
         if (isFalha) oferecerReagendar_(escolhidas, motivo);
@@ -9968,6 +10128,7 @@
             (podeExcluir(entrega) ? '<button type="button" class="link-btn" id="pendingEditarBtn" style="margin:6px 0 0;"><i class="ph ph-pencil-simple" aria-hidden="true"></i> Editar documentos/competência</button>' : '') +
           '</div>' +
           '<div id="pendingItensEdit" hidden></div>' +
+          lembretesBannerHtml_(entrega.clienteId) +
           '<label class="avulso-toggle falha-toggle" style="margin-top:14px;">' +
             '<input type="checkbox" id="pendingFalhaToggle">' +
             '<i class="ph ph-warning" aria-hidden="true"></i> Cliente ausente / entrega não realizada' +
@@ -10271,6 +10432,7 @@
           : (semComprovante ? 'Entrega confirmada com foto, sem assinatura.' : 'Entrega confirmada.')));
         if (!isFalha) avisarLocalDivergente_(avaliacao, entrega.clienteNome);
         closeModal();
+        if (!isFalha) setTimeout(function () { mostrarLembretesDaEntrega_([{ id: entrega.clienteId, nome: entrega.clienteNome }]); }, 260);
         // Cliente ausente quase sempre significa "volto amanhã". Em vez de
         // obrigar a remontar a entrega inteira do zero, oferece recriar já
         // com tudo preenchido — e guarda que é a 2ª (ou 3ª...) tentativa.
@@ -11940,7 +12102,7 @@
   // Aba em que o app abre: office boy vive em Solicitações, quem faz rota
   // abre em Rota. Guardar isso evita dois toques toda vez que entra.
 
-  var VERSAO_APP_ = '2.398 · 29/09/2026';
+  var VERSAO_APP_ = '2.399 · 29/09/2026';
   // Configurações do usuário: a janela comum (nilma-config.js), a mesma da
   // Pendências e do Fiscal. 'conta' abre em Minha conta; o resto, em
   // Preferências.
@@ -12720,6 +12882,7 @@
     subscribeRotaLinks_();
     subscribeSolicitacoes();
     subscribeRecados();
+    subscribeLembretes_();
     subscribeNotas();
     subscribeCompetenciasFechadas_();
     atualizarBotaoNotificacoes();

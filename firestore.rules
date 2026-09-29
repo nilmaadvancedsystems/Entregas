@@ -272,6 +272,24 @@ service cloud.firestore {
       allow delete: if ehAdmin();
     }
 
+    // ---------- lembretes por empresa (entregas.html) ----------
+    // "Algo pra falar com o cliente" na próxima entrega: a equipe cria na
+    // página do cliente e quem entrega resolve ("Falei"). Resolver só pode
+    // mudar o ativo e a assinatura de quem resolveu — texto, empresa e autor
+    // ficam como foram escritos.
+    match /lembretesCliente/{id} {
+      allow read: if membro();
+      allow create: if membro()
+        && request.resource.data.criadoPor == request.auth.token.email
+        && request.resource.data.clienteId is string
+        && request.resource.data.texto is string && request.resource.data.texto.size() > 0 && request.resource.data.texto.size() <= 500
+        && request.resource.data.ativo == true;
+      allow update: if membro()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ativo', 'resolvidoEm', 'resolvidoPor', 'resolvidoPorNome'])
+        && request.resource.data.resolvidoPor == request.auth.token.email;
+      allow delete: if ehAdmin() || (membro() && resource.data.criadoPor == request.auth.token.email);
+    }
+
     // ---------- assinaturas do cliente (SEM LOGIN) ----------
     // Única porta aberta pra fora. O cliente do escritório escaneia um QR na
     // calçada e assina no próprio celular — ele não tem conta e não vai criar

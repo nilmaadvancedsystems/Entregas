@@ -29,6 +29,17 @@ Módulo novo no menu ☰, **Tarefas** (`tarefas.html`), pra equipe toda:
 - Regras: `tarefas` a equipe lê, cria e edita; quem criou não muda; apagar
   só quem criou ou o admin.
 
+**Versão 2.399 — lembrete por empresa na hora da entrega:**
+
+- Coleção `lembretesCliente` ({clienteId, clienteNome, texto, ativo,
+  criadoPor/Nome/Em, resolvido*}; regra nova: equipe lê e cria, resolver só
+  muda `ativo` e `resolvido*`). Página do cliente › Resumo: cartão
+  "Lembretes pra entrega" com "+ Lembrete" e "Resolvido".
+- Quem entrega vê: sininho na parada da Rota, destaque "Pra falar com o
+  cliente" na tela de assinatura e, ao concluir (parada, várias de uma vez
+  ou Nova entrega direto), a janela "Não esqueça de falar com o cliente" com
+  "Falei" / "Deixar pra próxima" e campo pra um lembrete novo.
+
 **Versão 2.398 — prazo também na janela de Solicitações (menu da foto):**
 
 - `nilma-solicitacoes.js` (a janela que abre pelo menu da foto em todas as

@@ -368,3 +368,21 @@ body.modo-clientes #qualidadeRotaCard { display: none !important; }
    prazo vencido em vermelho */
 .er-sub.er-datas { flex: 1 0 100%; white-space: normal; font-variant-numeric: tabular-nums; }
 .er-sub.er-datas.atrasada { color: var(--danger); font-weight: 600; }
+
+/* Lembretes por empresa: cartão da página do cliente, destaque na tela de
+   assinatura, janela ao concluir a entrega e o sininho da parada na rota */
+.cp-lembretes { display: flex; flex-direction: column; gap: 8px; }
+.lembrete-item { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border-muted, var(--border)); }
+.lembrete-item:last-of-type { border-bottom: none; }
+.lembrete-item > .ph { color: var(--laranja, var(--warn)); font-size: 18px; margin-top: 1px; flex: none; }
+.lembrete-corpo { flex: 1; min-width: 0; }
+.lembrete-texto { font-weight: 600; overflow-wrap: anywhere; }
+.lembrete-acoes { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; flex: none; }
+.lembrete-item.feito .lembrete-texto { text-decoration: line-through; color: var(--ink-muted); }
+.lembrete-novo { display: flex; gap: 8px; align-items: flex-end; margin-top: 4px; }
+.lembrete-novo textarea { flex: 1; min-height: 40px; }
+.lembrete-banner { display: flex; gap: 10px; align-items: flex-start; margin: 12px 0 0; padding: 10px 12px; border: 1px solid var(--laranja, var(--warn)); border-radius: 6px; background: var(--laranja-soft, var(--surface-2)); }
+.lembrete-banner > .ph { color: var(--laranja, var(--warn)); font-size: 20px; flex: none; }
+.lembrete-banner b { display: block; margin-bottom: 2px; }
+.rota-lembrete { display: inline-flex; align-items: center; gap: 2px; margin-left: 8px; color: var(--laranja, var(--warn)); font-size: 12px; font-weight: 600; vertical-align: middle; }
+@media (max-width: 640px) { .lembrete-item { flex-wrap: wrap; } .lembrete-acoes { width: 100%; justify-content: flex-start; } }
