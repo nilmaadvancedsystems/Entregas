@@ -54,7 +54,7 @@
 <link rel="stylesheet" href="nilma-ui.css?v=392">
 <link rel="stylesheet" href="n1-entregas-a.css?v=345">
 <link rel="stylesheet" href="n1-entregas-b.css?v=345">
-<link rel="stylesheet" href="n1-entregas-c.css?v=399">
+<link rel="stylesheet" href="n1-entregas-c.css?v=400">
 </head>
 <body>
 <!-- Casca no estilo do GitHub: barra de cima (☰ · Nilma / módulo · consulta
@@ -163,13 +163,23 @@
           <div class="suggestions" id="clienteSuggestions" role="listbox" aria-label="Clientes encontrados"></div>
         </div>
         <input class="input" id="avulsoNomeInput" type="text" placeholder="Nome do cliente" hidden autocomplete="off">
+        <!-- Banco (pedido do escritório, 29/09/2026): no lugar do cliente, o
+             banco onde vai pagar ou buscar o documento; vira parada na rota -->
+        <input class="input" id="bancoNomeInput" type="text" list="bancoNomeLista" placeholder="Qual banco? Ex.: Banco do Brasil, Caixa, Sicoob" hidden autocomplete="off">
+        <datalist id="bancoNomeLista"><option value="Banco do Brasil"><option value="Caixa"><option value="Sicoob"><option value="Sicredi"><option value="Bradesco"><option value="Itaú"><option value="Santander"><option value="Banco do Nordeste"><option value="Lotérica"></datalist>
         <div class="field-error" id="err-cliente">Selecione um cliente da lista, ou informe o nome.</div>
         <!-- embaixo do campo: em cima, empurrava o campo pra baixo e a
              Competência, ao lado, ficava desalinhada -->
-        <label class="avulso-toggle avulso-embaixo">
-          <input type="checkbox" id="avulsoToggle">
-          Cliente avulso
-        </label>
+        <div class="toggles-cliente">
+          <label class="avulso-toggle avulso-embaixo">
+            <input type="checkbox" id="avulsoToggle">
+            Cliente avulso
+          </label>
+          <label class="avulso-toggle avulso-embaixo" title="Pagar ou buscar um documento no banco">
+            <input type="checkbox" id="bancoToggle">
+            <i class="ph ph-bank" aria-hidden="true"></i> Banco
+          </label>
+        </div>
       </label>
 
       <label class="field" id="competenciaField">
@@ -4551,8 +4561,32 @@
     }
   });
 
+  function desmarcarBanco_() {
+    $('bancoToggle').checked = false;
+    $('bancoNomeInput').hidden = true;
+    $('bancoNomeInput').value = '';
+    $('clienteField').querySelector('span').textContent = 'Cliente';
+  }
+  $('bancoToggle').addEventListener('change', function () {
+    var banco = this.checked;
+    if (banco && $('avulsoToggle').checked) {
+      $('avulsoToggle').checked = false;
+      $('avulsoNomeInput').hidden = true;
+      $('avulsoNomeInput').value = '';
+    }
+    $('clienteComboboxWrap').hidden = banco;
+    $('bancoNomeInput').hidden = !banco;
+    $('clienteField').querySelector('span').textContent = banco ? 'Banco' : 'Cliente';
+    selectedClienteId = null;
+    clienteInput.value = '';
+    suggestionsEl.classList.remove('show');
+    if (!banco) $('bancoNomeInput').value = '';
+    else $('bancoNomeInput').focus();
+    clearFieldError('cliente');
+  });
   $('avulsoToggle').addEventListener('change', function () {
     var avulso = this.checked;
+    if (avulso && $('bancoToggle').checked) desmarcarBanco_();
     $('clienteComboboxWrap').hidden = avulso;
     $('avulsoNomeInput').hidden = !avulso;
     selectedClienteId = null;
@@ -4678,6 +4712,9 @@
     var isRota = formMode === 'rota' || isLink;
     var isFalha = !isRota && $('falhaToggle').checked;
     var isAvulso = $('avulsoToggle').checked;
+    var isBanco = $('bancoToggle').checked;
+    var bancoNome = $('bancoNomeInput').value.trim();
+    if (isLink && isBanco) { showToast('Pagar no banco vai pela rota, não pelo link.', 'error'); return; }
     if (isLink) {
       if (isAvulso || !selectedClienteId || !donosDoLinkDe_(selectedClienteId).length) { showToast('Este cliente não tem link. Crie em Clientes › Link do cliente.', 'error'); return; }
       if (!(fotoEhGuia_ && fotoDataUrl)) { showToast('Anexe o PDF da guia: é ele que o cliente vai ver no link.', 'error'); return; }
@@ -4688,7 +4725,10 @@
     var recebedor = $('recebedorInput').value.trim();
     var motivo = $('falhaMotivo').value.trim();
     var ok = true;
-    if (isAvulso ? !avulsoNome : !selectedClienteId) { showFieldError('cliente'); ok = false; }
+    if (isBanco ? !bancoNome : (isAvulso ? !avulsoNome : !selectedClienteId)) {
+      showFieldError('cliente', isBanco ? 'Diga qual banco.' : 'Selecione um cliente da lista, ou informe o nome.');
+      ok = false;
+    }
     if (!competencia) { showFieldError('competencia'); ok = false; }
     if (itens.length === 0) { showFieldError('itens'); ok = false; }
     var honorarioSemPix = isApenasHonorario_() && !$('honorarioPixToggle').checked;
@@ -4721,9 +4761,10 @@
     var now = new Date().toISOString();
 
     var gravacao = saveEntregaComAnexos({
-      clienteId: isAvulso ? null : selectedClienteId,
-      clienteNome: isAvulso ? avulsoNome : (cliente ? clienteLabel(cliente) : clienteInput.value),
-      avulso: isAvulso,
+      clienteId: (isAvulso || isBanco) ? null : selectedClienteId,
+      clienteNome: isBanco ? 'Banco: ' + bancoNome : (isAvulso ? avulsoNome : (cliente ? clienteLabel(cliente) : clienteInput.value)),
+      avulso: isAvulso || isBanco,
+      banco: isBanco ? bancoNome.slice(0, 80) : null,
       competencia: competencia,
       vencimento: $('vencimentoInput').value || '',
       codigoPagamento: codigoPagamentoAtual_ || null,
@@ -4754,7 +4795,7 @@
     var avaliacaoLocal = null;
     if (!isRota && !isFalha && cliente) avaliacaoLocal = guardarLocalDoCliente_(cliente.id, currentGeo);
 
-    var nomeNoAviso = (isAvulso ? avulsoNome : (cliente ? clienteLabel(cliente) : clienteInput.value)) || 'um cliente';
+    var nomeNoAviso = (isBanco ? 'o banco ' + bancoNome : (isAvulso ? avulsoNome : (cliente ? clienteLabel(cliente) : clienteInput.value))) || 'um cliente';
     escritaQueNaoTrava_(gravacao, 'a entrega de ' + nomeNoAviso).then(function (resultado) {
       showToast(avisoDeEscrita_(resultado, isLink ? 'Publicado no link do cliente. Quando ele tocar em "Recebi", vira entrega confirmada.'
         : (isRota ? 'Adicionado à rota — aguardando assinatura.' : (isFalha ? 'Entrega não realizada registrada.' : 'Entrega registrada com sucesso.'))));
@@ -4785,6 +4826,7 @@
     $('avulsoToggle').checked = false;
     $('avulsoNomeInput').value = '';
     $('avulsoNomeInput').hidden = true;
+    desmarcarBanco_();
     $('clienteComboboxWrap').hidden = false;
     if (!manterItens) {
       itensGrid.querySelectorAll('input:checked').forEach(function (i) { i.checked = false; });
@@ -12102,7 +12144,7 @@
   // Aba em que o app abre: office boy vive em Solicitações, quem faz rota
   // abre em Rota. Guardar isso evita dois toques toda vez que entra.
 
-  var VERSAO_APP_ = '2.399 · 29/09/2026';
+  var VERSAO_APP_ = '2.400 · 29/09/2026';
   // Configurações do usuário: a janela comum (nilma-config.js), a mesma da
   // Pendências e do Fiscal. 'conta' abre em Minha conta; o resto, em
   // Preferências.

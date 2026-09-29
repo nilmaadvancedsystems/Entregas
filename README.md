@@ -29,6 +29,14 @@ Módulo novo no menu ☰, **Tarefas** (`tarefas.html`), pra equipe toda:
 - Regras: `tarefas` a equipe lê, cria e edita; quem criou não muda; apagar
   só quem criou ou o admin.
 
+**Versão 2.400 — "Banco" na Nova entrega:**
+
+- Ao lado de "Cliente avulso", a caixinha "Banco": o campo Cliente vira Banco
+  (lista de bancos comuns, ou digitado). Com os documentos marcados, "Adicionar
+  à rota" cria a parada "Banco: <nome>" (`clienteId: null`, `avulso: true`,
+  `banco: <nome>`), concluída como as outras (foto do comprovante). Avulso e
+  Banco não ficam marcados juntos; não vale no modo "Pelo link".
+
 **Versão 2.399 — lembrete por empresa na hora da entrega:**
 
 - Coleção `lembretesCliente` ({clienteId, clienteNome, texto, ativo,

@@ -386,3 +386,7 @@ body.modo-clientes #qualidadeRotaCard { display: none !important; }
 .lembrete-banner b { display: block; margin-bottom: 2px; }
 .rota-lembrete { display: inline-flex; align-items: center; gap: 2px; margin-left: 8px; color: var(--laranja, var(--warn)); font-size: 12px; font-weight: 600; vertical-align: middle; }
 @media (max-width: 640px) { .lembrete-item { flex-wrap: wrap; } .lembrete-acoes { width: 100%; justify-content: flex-start; } }
+
+/* Nova entrega: "Cliente avulso" e "Banco" lado a lado, embaixo do campo */
+.toggles-cliente { display: flex; flex-wrap: wrap; gap: 4px 20px; align-items: center; }
+.toggles-cliente .avulso-toggle .ph { color: var(--ink-muted); }
