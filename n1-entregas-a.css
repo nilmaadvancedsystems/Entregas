@@ -408,7 +408,7 @@ body.demo .gh-topo { box-shadow: inset 0 3px 0 var(--warn); }
 .docs-planilha tbody tr:hover { background: none; }
 .docs-planilha td.dp-doc { width: 58%; padding-left: 12px; }
 .docs-planilha tr.dp-nova td.dp-doc { padding-left: 4px; }
-.docs-planilha td.dp-x { width: 36px; text-align: center; }
+.docs-planilha td.dp-x { width: 72px; text-align: right; white-space: nowrap; }
 /* campos como células: sem moldura até receber o foco */
 .docs-planilha .input {
   min-height: 28px; padding: 3px 8px; border-color: transparent; background: transparent; box-shadow: none;

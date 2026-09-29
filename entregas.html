@@ -52,7 +52,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="stylesheet" href="nilma-icones.css?v=345">
 <link rel="stylesheet" href="nilma-ui.css?v=392">
-<link rel="stylesheet" href="n1-entregas-a.css?v=345">
+<link rel="stylesheet" href="n1-entregas-a.css?v=401">
 <link rel="stylesheet" href="n1-entregas-b.css?v=345">
 <link rel="stylesheet" href="n1-entregas-c.css?v=400">
 </head>
@@ -4077,6 +4077,23 @@
       renderValores();
       renderMenuDeDocs_();
     });
+    // Repetir o imposto (pedido do escritório, 29/09/2026): duas guias do
+    // mesmo tipo com valores diferentes (dois DAS, FGTS de duas folhas...).
+    // Nasce uma linha "(repetido)" e o cursor vai direto pro valor dela.
+    if (!e.semValor && e.key !== 'outro') {
+      var rep = document.createElement('button');
+      rep.type = 'button'; rep.className = 'valor-duplicar'; rep.title = 'Repetir ' + e.label + ' (outro valor)';
+      rep.setAttribute('aria-label', 'Repetir ' + e.label);
+      rep.innerHTML = '<i class="ph ph-copy" aria-hidden="true"></i>';
+      rep.addEventListener('click', function () {
+        var base = e.dup || e;
+        var nova = { id: 'dup' + (++duplicataSeq), label: base.label, pedeFuncionario: !!base.pedeFuncionario, valor: '', funcionario: '' };
+        duplicatasExtras.push(nova);
+        renderValores();
+        renderMenuDeDocs_(nova.id);
+      });
+      tdX.appendChild(rep);
+    }
     tdX.appendChild(x);
     tr.appendChild(tdDoc); tr.appendChild(tdVal); tr.appendChild(tdX);
     return tr;
@@ -12144,7 +12161,7 @@
   // Aba em que o app abre: office boy vive em Solicitações, quem faz rota
   // abre em Rota. Guardar isso evita dois toques toda vez que entra.
 
-  var VERSAO_APP_ = '2.400 · 29/09/2026';
+  var VERSAO_APP_ = '2.401 · 29/09/2026';
   // Configurações do usuário: a janela comum (nilma-config.js), a mesma da
   // Pendências e do Fiscal. 'conta' abre em Minha conta; o resto, em
   // Preferências.

@@ -29,6 +29,13 @@ Módulo novo no menu ☰, **Tarefas** (`tarefas.html`), pra equipe toda:
 - Regras: `tarefas` a equipe lê, cria e edita; quem criou não muda; apagar
   só quem criou ou o admin.
 
+**Versão 2.401 — repetir imposto na planilha "Adicionar documento":**
+
+- Cada linha da planilha flutuante (documentos com valor) ganhou o botão de
+  repetir (ícone de copiar, ao lado do X): cria "DAS (repetido)" em
+  `duplicatasExtras` e o cursor vai pro valor — duas guias do mesmo imposto
+  com valores diferentes. Antes o repetir só existia na lista de valores.
+
 **Versão 2.400 — "Banco" na Nova entrega:**
 
 - Ao lado de "Cliente avulso", a caixinha "Banco": o campo Cliente vira Banco
