@@ -29,6 +29,13 @@ Módulo novo no menu ☰, **Tarefas** (`tarefas.html`), pra equipe toda:
 - Regras: `tarefas` a equipe lê, cria e edita; quem criou não muda; apagar
   só quem criou ou o admin.
 
+**Versão 2.398 — prazo também na janela de Solicitações (menu da foto):**
+
+- `nilma-solicitacoes.js` (a janela que abre pelo menu da foto em todas as
+  telas): "Concluir até" no formulário (padrão +2 dias, grava o mesmo
+  `solicitacoes.prazo`), cada pedido com "Pedido em …" e "concluir até …",
+  selo "Atrasada" e data em vermelho quando vence, pendentes em ordem de prazo.
+
 **Versão 2.397 — solicitações com prazo; dois responsáveis por empresa:**
 
 - Solicitações: "Concluir até" no formulário (obrigatório, padrão daqui a 2

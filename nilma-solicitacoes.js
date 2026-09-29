@@ -84,6 +84,17 @@
     if (t === 'atestado') return 'Buscar atestado';
     return 'Outro';
   }
+  // Data do pedido e data máxima de conclusão (pedido do escritório,
+  // 29/09/2026): o mesmo campo "prazo" (AAAA-MM-DD) da aba do Entregas.
+  function isoDoDia(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  function hojeIso() { return isoDoDia(new Date()); }
+  function prazoPadrao() { var d = new Date(); d.setDate(d.getDate() + 2); return isoDoDia(d); }
+  function dataCurta(iso) { var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ''); return m ? m[3] + '/' + m[2] + '/' + m[1] : ''; }
+  function dataHora(iso) {
+    var d = iso ? new Date(iso) : null;
+    if (!d || isNaN(d)) return '';
+    return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  }
   function quando(iso) {
     var d = iso ? new Date(iso) : null;
     if (!d || isNaN(d)) return '';
@@ -109,6 +120,9 @@
     '.nsol-selo{display:inline-flex;align-items:center;gap:4px;padding:1px 8px;border-radius:2em;font-size:12px;font-weight:500;white-space:nowrap;' +
       'border:1px solid color-mix(in srgb,var(--accent) 45%,transparent);color:var(--accent)}' +
     '.nsol-selo.ok{border-color:color-mix(in srgb,var(--success) 45%,transparent);color:var(--success)}' +
+    '.nsol-selo.ruim{border-color:color-mix(in srgb,var(--danger) 45%,transparent);color:var(--danger)}' +
+    '.nsol-datas{font-variant-numeric:tabular-nums}.nsol-datas.atrasada{color:var(--danger);font-weight:600}' +
+    '.nsol-pedido .ctl{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}' +
     '.nsol .ncfg-botao.pequeno{min-height:28px;padding:3px 10px;font-size:13px}' +
     '.nsol-campo{position:relative;width:min(340px,100%)}' +
     '.nsol .nsol-campo input,.nsol .nsol-campo select,.nsol textarea.nsol-texto{width:100%;min-height:32px;padding:5px 10px;border:1px solid var(--border);border-radius:6px;' +
@@ -263,13 +277,19 @@
     var quem = s.criadoPor === email() ? 'você' : (s.criadoPorNome || s.criadoPor || 'alguém da equipe');
     var partes = [tipoRotulo(s.tipo)];
     if (s.local) partes.push(s.local);
-    var desc = esc(partes.join(' · ')) + ' · pedido por <span class="quem">' + esc(quem) + '</span> · ' + esc(quando(s.criadoEm));
+    var desc = esc(partes.join(' · ')) + ' · pedido por <span class="quem">' + esc(quem) + '</span>';
+    var hoje = hojeIso();
+    var atrasada = s.status !== 'concluida' && s.prazo && s.prazo < hoje;
+    // data do pedido e data máxima, numa linha própria
+    desc += '<br><span class="nsol-datas' + (atrasada ? ' atrasada' : '') + '">Pedido em ' + esc(dataHora(s.criadoEm)) +
+      (s.prazo ? ' · ' + (s.status === 'concluida' ? 'prazo era ' : 'concluir até ') + esc(dataCurta(s.prazo)) + (s.status !== 'concluida' && s.prazo === hoje ? ' (hoje)' : '') : '') + '</span>';
     var ctl = '';
     if (s.status === 'concluida') {
-      desc += '<br>concluída' + (s.concluidoPorNome ? ' por <span class="quem">' + esc(s.concluidoPorNome) + '</span>' : '') + (s.concluidoEm ? ' · ' + esc(quando(s.concluidoEm)) : '');
+      desc += '<br>concluída' + (s.concluidoPorNome ? ' por <span class="quem">' + esc(s.concluidoPorNome) + '</span>' : '') + (s.concluidoEm ? ' · ' + esc(dataHora(s.concluidoEm)) : '');
       ctl = '<span class="nsol-selo ok">Concluída</span>';
-    } else if (podeConcluir(s)) {
-      ctl = '<button type="button" class="ncfg-botao pequeno" data-concluir="' + esc(s.id) + '"><i class="ph ph-check" aria-hidden="true"></i>Concluir</button>';
+    } else {
+      if (atrasada) ctl += '<span class="nsol-selo ruim">Atrasada</span>';
+      if (podeConcluir(s)) ctl += '<button type="button" class="ncfg-botao pequeno" data-concluir="' + esc(s.id) + '"><i class="ph ph-check" aria-hidden="true"></i>Concluir</button>';
     }
     return '<div class="ncfg-linha nsol-pedido"><div class="txt"><div class="rot">' + esc(s.descricao || '(sem descrição)') + '</div>' +
       '<div class="desc">' + desc + '</div></div>' + (ctl ? '<div class="ctl">' + ctl + '</div>' : '') + '</div>';
@@ -284,13 +304,18 @@
     var sub = veTudo() ? 'Pedidos da equipe que ainda não foram feitos.' : 'O que você pediu e ainda não foi feito.';
     if (carregando) return cabecalho(t, sub) + '<div class="ncfg-nada" style="margin:0">Carregando…</div>';
     if (erroLista) return cabecalho(t, sub) + vazio('ph-warning-circle', erroLista);
-    var lista = pendentes.filter(combina).sort(function (a, b) { return String(a.criadoEm || '').localeCompare(String(b.criadoEm || '')); });
+    // quem vence antes vem antes (sem prazo no fim; empate: o pedido mais antigo)
+    var lista = pendentes.filter(combina).sort(function (a, b) {
+      var pa = a.prazo || '9', pb = b.prazo || '9';
+      if (pa !== pb) return pa < pb ? -1 : 1;
+      return String(a.criadoEm || '').localeCompare(String(b.criadoEm || ''));
+    });
     if (!lista.length) return cabecalho(t, sub) + (busca ? vazio('ph-magnifying-glass', 'Nada encontrado nas pendentes.') : vazio('ph-check-circle', 'Nenhuma solicitação pendente.', true));
     var urg = lista.filter(function (s) { return s.urgente; });
     var resto = lista.filter(function (s) { return !s.urgente; });
     return cabecalho(t, sub) +
       cartaoDe('Urgentes', urg, '<span class="nsol-selo">' + urg.length + '</span>') +
-      cartaoDe(urg.length ? 'As outras' : 'Na fila, das mais antigas', resto);
+      cartaoDe(urg.length ? 'As outras' : 'Na fila, pelo prazo', resto);
   }
 
   function paginaConcluidas() {
@@ -322,6 +347,7 @@
           '<div class="nsol-sugestoes" id="nsolSugestoes" role="listbox" aria-label="Clientes encontrados"></div></div>', 'nsolLinhaEmpresa') +
         campo('Cliente ou local', 'Opcional. Ex.: Cartório, Prefeitura, nome do cliente.', '<div class="nsol-campo"><input type="text" id="nsolLocal" placeholder="Cliente ou local" autocomplete="off"></div>', 'nsolLinhaLocal') +
         campo('Descrição', '', '<textarea class="nsol-texto" id="nsolDescricao" rows="3" placeholder="O que precisa ser feito"></textarea>', 'nsolLinhaDescricao', true) +
+        campo('Concluir até', 'Data máxima pra ficar pronto.', '<div class="nsol-campo"><input type="date" id="nsolPrazo" value="' + prazoPadrao() + '" min="' + hojeIso() + '" aria-label="Concluir até"></div>') +
         campo('Prioridade', 'Urgente aparece em cima da fila.', '<div class="ncfg-seg" role="group" id="nsolPrioridade">' +
           '<button type="button" data-valor="normal" aria-pressed="true">Normal</button>' +
           '<button type="button" data-valor="urgente" aria-pressed="false"><i class="ph ph-lightning" aria-hidden="true"></i>Urgente</button></div>') +
@@ -391,7 +417,7 @@
     $('nsolForm').addEventListener('click', function (ev) {
       if (!ev.target.closest('.nsol-campo')) { var s = $('nsolSugestoes'); if (s) s.innerHTML = ''; }
     });
-    ['nsolDescricao', 'nsolFuncionario'].forEach(function (id) {
+    ['nsolDescricao', 'nsolFuncionario', 'nsolPrazo'].forEach(function (id) {
       $(id).addEventListener('input', function () { this.classList.remove('nsol-invalido'); $('nsolErro').textContent = ''; });
     });
     $('nsolForm').addEventListener('submit', enviar);
@@ -417,11 +443,19 @@
       $('nsolDescricao').focus();
       return;
     }
+    var prazo = $('nsolPrazo').value;
+    if (!prazo || prazo < hojeIso()) {
+      $('nsolPrazo').classList.add('nsol-invalido');
+      erro.textContent = 'Escolha até quando precisa ser feito (hoje ou depois).';
+      $('nsolPrazo').focus();
+      return;
+    }
     var dados = {
       tipo: $('nsolTipo').value,
       local: atestado ? clinica : $('nsolLocal').value.trim(),
       descricao: atestado ? ('Buscar atestado de ' + funcionario + ' — ' + rotuloCliente(empresaEscolhida) + ' (clínica ' + clinica + ')') : descricao,
       urgente: $('nsolPrioridade').querySelector('[aria-pressed="true"]').dataset.valor === 'urgente',
+      prazo: prazo,
       status: 'pendente',
       criadoPor: u.email || '',
       criadoPorNome: nomeDaPessoa(),
