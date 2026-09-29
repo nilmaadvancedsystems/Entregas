@@ -103,7 +103,7 @@
       lista: 'tarefas', icone: 'ph-list-checks', botao: 'Criar', botaoIcone: 'ph-plus', fazendo: 'Criando…', feito: 'Criada',
       linha: function (t) {
         var meta = [t.clienteNome, t.responsavelNome ? 'com ' + t.responsavelNome : 'com você', t.prazo ? 'prazo ' + data(t.prazo) : '',
-          t.prioridade && t.prioridade !== 'normal' ? t.prioridade : '', t.tipo === 'requisicao' ? 'requisição' : ''].filter(Boolean).join(' · ');
+          t.prioridade && t.prioridade !== 'normal' ? t.prioridade : '', t.tipo === 'requisicao' ? 'requisição' : '', t.setor === 'fiscal' ? 'fiscal' : ''].filter(Boolean).join(' · ');
         return { titulo: t.titulo, corpo: t.descricao ? esc(t.descricao.length > 140 ? t.descricao.slice(0, 140) + '…' : t.descricao) : '', meta: meta };
       },
       ref: function (chave, n) { return o.db.collection('tarefas').doc(idDa(chave, n)); },
@@ -111,7 +111,7 @@
       // Os campos do criar() do tarefas.html. Sem responsável: quem confirmou.
       dados: function (t, u) {
         return {
-          titulo: t.titulo, tipo: t.tipo === 'requisicao' ? 'requisicao' : 'tarefa', status: 'afazer', aberta: true,
+          titulo: t.titulo, tipo: t.tipo === 'requisicao' ? 'requisicao' : 'tarefa', setor: t.setor === 'fiscal' ? 'fiscal' : 'contabil', status: 'afazer', aberta: true,
           prioridade: t.prioridade || 'normal', clienteId: t.clienteId || null, clienteNome: t.clienteNome || '',
           responsavelUid: t.responsavelUid || u.uid, responsavelNome: t.responsavelUid ? (t.responsavelNome || '') : u.nome,
           prazo: t.prazo || '', repete: '', descricao: t.descricao || '', checklist: [], comentarios: [],

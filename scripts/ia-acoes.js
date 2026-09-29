@@ -256,14 +256,18 @@ function prepararTarefa(clientes, equipe, args, agora) {
     if (p.responsavel) {
       resp = acharPessoa(equipe, p.responsavel);
       if (!resp) { problemas.push({ item: i + 1, pedido: titulo, problema: 'responsável "' + p.responsavel + '" não achado na equipe', equipe: equipe.map(x => x.nome) }); return; }
-    } else if (c && c.responsavelUid) {
-      resp = equipe.find(x => x.uid === c.responsavelUid) || { uid: c.responsavelUid, nome: c.responsavelNome || '' };
+    }
+    // cada empresa tem um responsável por setor (Contábil = responsavelUid, Fiscal = responsavelFiscalUid)
+    const setor = normalizar(p.setor).indexOf('fisc') === 0 ? 'fiscal' : 'contabil';
+    const campoResp = setor === 'fiscal' ? 'responsavelFiscal' : 'responsavel';
+    if (!resp && c && c[campoResp + 'Uid']) {
+      resp = equipe.find(x => x.uid === c[campoResp + 'Uid']) || { uid: c[campoResp + 'Uid'], nome: c[campoResp + 'Nome'] || '' };
     }
     const prazo = dataIso(p.prazo);
     if (prazo && prazo < hoje) avisos.push('prazo já passou');
     const prio = normalizar(p.prioridade);
     tarefas.push({
-      titulo, tipo: normalizar(p.tipo).indexOf('requis') === 0 ? 'requisicao' : 'tarefa',
+      titulo, tipo: normalizar(p.tipo).indexOf('requis') === 0 ? 'requisicao' : 'tarefa', setor,
       prioridade: PRIORIDADES.indexOf(prio) !== -1 ? prio : 'normal', prazo,
       clienteId: c ? c.id : null, clienteNome: c ? rotuloCliente(c) : '',
       responsavelUid: resp ? resp.uid : '', responsavelNome: resp ? resp.nome : '',
@@ -293,7 +297,8 @@ const CAMPOS_CLIENTE = {
   endereco: { rotulo: 'Endereço', soAdmin: true },
   nomeFantasia: { rotulo: 'Nome fantasia', soAdmin: true },
   observacao: { rotulo: 'Observação', soAdmin: true },
-  responsavel: { rotulo: 'Responsável', soAdmin: true },
+  responsavel: { rotulo: 'Responsável contábil', soAdmin: true },
+  responsavel_fiscal: { rotulo: 'Responsável fiscal', soAdmin: true },
 };
 function ehEmail(e) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(e || '')); }
 
@@ -323,10 +328,12 @@ function prepararAlteracao(clientes, equipe, args) {
       const zona = ZONAS[z] ? z : (Object.keys(ZONAS).find(k => z && normalizar(ZONAS[k]).indexOf(z) !== -1) || '');
       if (!zona) { problemas.push({ item: i + 1, pedido: rotuloCliente(c), problema: 'região inválida: ' + valor + ' (superior, central ou inferior)' }); return; }
       alt.de = ZONAS[c.zona] || ''; alt.para = ZONAS[zona]; alt.gravar = { zona };
-    } else if (chave === 'responsavel') {
+    } else if (chave === 'responsavel' || chave === 'responsavel_fiscal') {
       const pessoa = acharPessoa(equipe, valor);
       if (!pessoa) { problemas.push({ item: i + 1, pedido: rotuloCliente(c), problema: 'responsável "' + valor + '" não achado na equipe', equipe: equipe.map(x => x.nome) }); return; }
-      alt.de = c.responsavelNome || ''; alt.para = pessoa.nome; alt.gravar = { responsavelUid: pessoa.uid, responsavelNome: pessoa.nome };
+      const base = chave === 'responsavel_fiscal' ? 'responsavelFiscal' : 'responsavel';
+      alt.de = c[base + 'Nome'] || ''; alt.para = pessoa.nome; alt.gravar = {};
+      alt.gravar[base + 'Uid'] = pessoa.uid; alt.gravar[base + 'Nome'] = pessoa.nome;
     } else {
       const limite = chave === 'observacao' ? 280 : (chave === 'telefone' ? 20 : 300);
       if (!valor) { problemas.push({ item: i + 1, pedido: rotuloCliente(c), problema: 'faltou o valor novo de ' + def.rotulo.toLowerCase() }); return; }
@@ -420,6 +427,7 @@ FERRAMENTAS_ACOES.push(
               prioridade: { type: 'string', description: 'urgente, alta, normal (padrão) ou baixa.' },
               descricao: { type: 'string' },
               solicitante: { type: 'string', description: 'Quem pediu (em requisição).' },
+              setor: { type: 'string', description: 'contabil (padrão) ou fiscal. Cada empresa tem um responsável por setor; sem responsável dito, a tarefa vai pro do setor.' },
             },
             required: ['titulo'],
           },

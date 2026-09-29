@@ -54,7 +54,7 @@
 <link rel="stylesheet" href="nilma-ui.css?v=392">
 <link rel="stylesheet" href="n1-entregas-a.css?v=345">
 <link rel="stylesheet" href="n1-entregas-b.css?v=345">
-<link rel="stylesheet" href="n1-entregas-c.css?v=355">
+<link rel="stylesheet" href="n1-entregas-c.css?v=397">
 </head>
 <body>
 <!-- Casca no estilo do GitHub: barra de cima (☰ · Nilma / módulo · consulta
@@ -63,7 +63,7 @@
 <script src="nilma-dialogo.js?v=345"></script>
 <script src="nilma-shell.js?v=384"></script>
 <script src="nilma-config.js?v=395"></script>
-<script src="nilma-acoes-ia.js?v=393"></script>
+<script src="nilma-acoes-ia.js?v=397"></script>
 <script src="nilma-solicitacoes.js?v=358"></script>
 <script>NilmaShell.montar({ modulo: 'Entregas', moduloId: 'entregas', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle' });</script>
 <!-- Abas do módulo, sublinhadas, logo abaixo da barra. -->
@@ -474,6 +474,11 @@
         <span>Descrição</span>
         <textarea class="input" id="solDescricao" rows="3" placeholder="O que precisa ser feito" required></textarea>
         <div class="field-error" id="err-solDescricao">Descreva o que precisa ser feito.</div>
+      </label>
+      <label class="field" id="solPrazoField">
+        <span>Concluir até</span>
+        <input class="input" id="solPrazo" type="date" required>
+        <div class="field-error" id="err-solPrazo">Escolha até quando precisa ser feito (hoje ou depois).</div>
       </label>
       <label class="avulso-toggle"><input type="checkbox" id="solUrgente"> Urgente</label>
     </form>
@@ -8068,6 +8073,22 @@
     }
   }
 
+  // Data do pedido e data máxima de conclusão (pedido do escritório,
+  // 29/09/2026). O prazo vem do formulário ("Concluir até", padrão: daqui a
+  // 2 dias); pedido antigo sem prazo mostra só a data do pedido.
+  function prazoPadraoSolicitacao_() {
+    var d = new Date(); d.setDate(d.getDate() + 2);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function dataCurtaSol_(iso) { var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ''); return m ? m[3] + '/' + m[2] + '/' + m[1] : ''; }
+  // { texto, atrasada, hoje } do prazo de uma solicitação pendente
+  function prazoSolicitacao_(sol) {
+    if (!sol.prazo) return null;
+    var hoje = hojeIsoLocal_();
+    return { texto: 'Concluir até ' + dataCurtaSol_(sol.prazo), atrasada: sol.prazo < hoje, hoje: sol.prazo === hoje };
+  }
+  if ($('solPrazo') && !$('solPrazo').value) $('solPrazo').value = prazoPadraoSolicitacao_();
+
   function renderSolicitacoes() {
     solicitacoesCache.sort(function (a, b) { return new Date(b.criadoEm) - new Date(a.criadoEm); });
     var pendentes = solicitacoesCache.filter(function (s) { return s.status !== 'concluida'; });
@@ -8076,6 +8097,12 @@
     var badgeMenu = document.getElementById('menuSolicitacoesBadge');
     if (badgeMenu) atualizarBadge_(badgeMenu, pendentes.length);
 
+    // pendentes: urgentes primeiro, depois quem vence antes (sem prazo no fim)
+    pendentes = pendentes.slice().sort(function (a, b) {
+      if (!!a.urgente !== !!b.urgente) return a.urgente ? -1 : 1;
+      if ((a.prazo || '9') !== (b.prazo || '9')) return (a.prazo || '9') < (b.prazo || '9') ? -1 : 1;
+      return new Date(a.criadoEm) - new Date(b.criadoEm);
+    });
     var lista = solVerConcluidas ? solicitacoesCache.filter(function (s) { return s.status === 'concluida'; }).slice(0, 30) : pendentes;
     var listEl = $('solicitacoesList');
     listEl.innerHTML = '';
@@ -8087,16 +8114,24 @@
     }
     lista.forEach(function (s, i) {
       var row = document.createElement('div');
-      var subtitle = tipoSolicitacaoLabel(s.tipo) + (s.local ? ' · ' + s.local : '') + ' · pedido por ' + (s.criadoPorNome || s.criadoPor || 'alguém da equipe') + ' · ' + fmtDateTime(s.criadoEm);
-      var pillClass = s.status === 'concluida' ? 'entregue' : (s.urgente ? 'rota' : 'pendente');
+      var subtitle = tipoSolicitacaoLabel(s.tipo) + (s.local ? ' · ' + s.local : '') + ' · pedido por ' + (s.criadoPorNome || s.criadoPor || 'alguém da equipe');
+      var pz = s.status !== 'concluida' ? prazoSolicitacao_(s) : null;
+      var datas = ['Pedido em ' + fmtDateTime(s.criadoEm)];
+      if (s.status === 'concluida') { if (s.concluidoEm) datas.push('concluída em ' + fmtDateTime(s.concluidoEm)); if (s.prazo) datas.push('prazo era ' + dataCurtaSol_(s.prazo)); }
+      else if (pz) datas.push(pz.texto + (pz.hoje ? ' (hoje)' : ''));
+      var atrasada = !!(pz && pz.atrasada);
+      var pillClass = s.status === 'concluida' ? 'entregue' : (atrasada ? 'falha' : (s.urgente ? 'rota' : 'pendente'));
       row.className = 'entrega-row st-' + pillClass;
-      var pillLabel = s.status === 'concluida' ? 'Concluída' : (s.urgente ? 'Urgente' : 'Pendente');
+      var pillLabel = s.status === 'concluida' ? 'Concluída' : (atrasada ? 'Atrasada' : (s.urgente ? 'Urgente' : (pz && pz.hoje ? 'Vence hoje' : 'Pendente')));
       row.innerHTML =
         '<span class="linha-pos">' + (i + 1) + '</span>' +
-        '<div><div class="er-nome"></div><div class="er-sub"></div></div>' +
+        '<div><div class="er-nome"></div><div class="er-sub"></div><div class="er-sub er-datas"></div></div>' +
         '<span class="status-pill ' + pillClass + '">' + pillLabel + '</span>';
       row.querySelector('.er-nome').textContent = s.descricao;
       row.querySelector('.er-sub').textContent = subtitle;
+      var linhaDatas = row.querySelector('.er-datas');
+      linhaDatas.textContent = datas.join(' · ');
+      if (atrasada) linhaDatas.classList.add('atrasada');
       if (s.status !== 'concluida' && podeConcluirSolicitacao(s)) {
         var btn = document.createElement('button');
         btn.type = 'button';
@@ -8191,6 +8226,9 @@
       return;
     }
     $('err-solDescricao').style.display = 'none';
+    var prazo = $('solPrazo').value;
+    if (!prazo || prazo < hojeIsoLocal_()) { $('err-solPrazo').style.display = 'block'; $('solPrazo').focus(); return; }
+    $('err-solPrazo').style.display = 'none';
     var btn = $('solSubmitBtn');
     botaoOcupado_(btn);
     var clinica = $('atestadoClinica').value;
@@ -8199,6 +8237,7 @@
       local: isAtestado ? clinica : $('solLocal').value.trim(),
       descricao: isAtestado ? ('Buscar atestado de ' + funcionario + ' — ' + clienteLabel(empresaCliente) + ' (clínica ' + clinica + ')') : descricao,
       urgente: $('solUrgente').checked,
+      prazo: prazo,
       status: 'pendente',
       criadoPor: (auth.currentUser && auth.currentUser.email) || '',
       criadoPorNome: currentUserNome,
@@ -8215,6 +8254,7 @@
     escritaQueNaoTrava_(gravacao).then(function (resultado) {
       showToast(avisoDeEscrita_(resultado, 'Solicitação enviada.'));
       $('form-solicitacao').reset();
+      $('solPrazo').value = prazoPadraoSolicitacao_();
       selectedAtestadoClienteId = null;
       atualizarCamposAtestado_();
     }).catch(function (err) {
@@ -11900,7 +11940,7 @@
   // Aba em que o app abre: office boy vive em Solicitações, quem faz rota
   // abre em Rota. Guardar isso evita dois toques toda vez que entra.
 
-  var VERSAO_APP_ = '2.396 · 28/09/2026';
+  var VERSAO_APP_ = '2.397 · 29/09/2026';
   // Configurações do usuário: a janela comum (nilma-config.js), a mesma da
   // Pendências e do Fiscal. 'conta' abre em Minha conta; o resto, em
   // Preferências.

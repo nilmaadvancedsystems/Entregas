@@ -250,6 +250,9 @@ igual('tarefa: responsável da empresa, prioridade, requisição, prazo vencido'
   ['Conferir DCTFWeb', 'u2', 'alta', 'tarefa', 't1', 0], ['Ligar pro contador anterior', 'u3', 'normal', 'requisicao', null, 1],
 ]);
 igual('tarefa: responsável fora da equipe e sem título viram problema', pt.problemas.map(p => p.item), [3, 4]);
+const CLI_S = [{ id: 's1', nome: 'OFICINA BOA', codigoOrigem: '0300', responsavelUid: 'u1', responsavelNome: 'Gustavo Silva', responsavelFiscalUid: 'u3', responsavelFiscalNome: 'Gustavo Rocha' }];
+igual('tarefa: cada setor vai pro responsável dele', acoes.prepararTarefa(CLI_S, EQUIPE, { tarefas: [{ titulo: 'a', cliente: '0300' }, { titulo: 'b', cliente: '0300', setor: 'Fiscal' }] }).tarefas.map(t => [t.setor, t.responsavelUid]), [['contabil', 'u1'], ['fiscal', 'u3']]);
+igual('cadastro: responsável fiscal grava os campos do fiscal', acoes.prepararAlteracao(CLI_S, EQUIPE, { alteracoes: [{ cliente: '0300', campo: 'responsavel_fiscal', valor: 'nilma' }] }).alteracoes[0].gravar, { responsavelFiscalUid: 'u2', responsavelFiscalNome: 'Nilma' });
 
 // ---------- alterar cadastro ----------
 const CLI_C = [{ id: 'k1', nome: 'PADARIA AURORA LTDA', codigoOrigem: '0123', email: 'velho@padaria.com', emails: ['fin@padaria.com'], zona: 'central', telefone: '3899990000' }];

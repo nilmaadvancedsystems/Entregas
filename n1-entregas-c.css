@@ -362,3 +362,9 @@ body.modo-clientes #qualidadeRotaCard { display: none !important; }
 /* Novo cliente: os quatro campos em grade com o mesmo respiro de 16px das
    outras linhas do formulário */
 #form-cliente .edit-form .row2 { row-gap: 16px; }
+
+/* Solicitações: data do pedido e data máxima de conclusão numa linha
+   própria, embaixo (no PC o nome e o apoio dividem a mesma linha);
+   prazo vencido em vermelho */
+.er-sub.er-datas { flex: 1 0 100%; white-space: normal; font-variant-numeric: tabular-nums; }
+.er-sub.er-datas.atrasada { color: var(--danger); font-weight: 600; }

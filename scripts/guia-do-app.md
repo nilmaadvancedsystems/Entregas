@@ -15,7 +15,7 @@ Linguagem de quem usa, não de programador. Quando o app mudar, atualize aqui.
 - **Rota**: as paradas que o entregador leva. Paradas, Ordem fixa (ordem das ruas), Protocolos (imprimir protocolo de papel de um período) e Qualidade (clientes sem região ou sem endereço). Cada parada tem "Entregar" (assinatura/foto), "Não entregue" (com motivo; dá pra reagendar) e o menu com mais opções.
 - **Painel**: as entregas do mês por cliente, com filtros, busca e "Exportar PDF/planilha". "Números" mostra o resumo do mês.
 - **Honorários**: quem paga honorário em visita, a forma, o dia e o ponto de referência; marca entregue, "Não se aplica" e tem o botão Cadastros.
-- **Solicitações**: pedidos internos (buscar documento, atestado etc.). Também ficam no menu da foto.
+- **Solicitações**: pedidos internos (buscar documento, atestado etc.). Também ficam no menu da foto. Cada uma tem a data do pedido e a data máxima de conclusão ("Concluir até", padrão daqui a 2 dias); as pendentes ficam em ordem de prazo (urgentes primeiro) e a vencida aparece como "Atrasada".
 
 ## Clientes e ajustes
 - **Carteira**: lista de clientes com busca. Clicar abre a página do cliente: Resumo (números do mês, avisos, contato, empresa, últimas entregas), Entregas, Cadastro, Receita (dados da Receita Federal), Contatos, Documentos e Ações (link do cliente, desativar etc.).
@@ -35,7 +35,7 @@ Linguagem de quem usa, não de programador. Quando o app mudar, atualize aqui.
 ## Tarefas
 - Minhas tarefas, Todas as tarefas, Requisições (pedidos que vieram do cliente), Minhas empresas, Todas as empresas, Parcelamentos e Equipe e férias.
 - Tarefa tem título, empresa, responsável, prazo, prioridade (urgente, alta, normal, baixa), status (a fazer, em andamento, aguardando cliente, feito), checklist, comentários e anexos (clicar, arrastar ou colar).
-- Visões Lista e Quadro. O responsável padrão de uma empresa fica no cadastro dela; sem responsável, a tarefa fica com quem criou.
+- Visões Lista e Quadro. Cada empresa tem DOIS responsáveis, um do Contábil e um do Fiscal (o admin escolhe em "Todas as empresas", nas colunas Contábil e Fiscal). Tarefa tem Setor: a tarefa de uma empresa vai pro responsável do setor dela; trocar o setor passa pro responsável do outro. Sem responsável, a tarefa fica com quem criou. "Minhas empresas" mostra as empresas em que você é responsável em qualquer setor.
 - Caderno da empresa: onde parou, particularidades, recado por banco e quem substitui nas férias.
 - Parcelamentos (PGFN, Simples, Receita): o robô marca a parcela paga pelo comprovante e avisa atrasos.
 

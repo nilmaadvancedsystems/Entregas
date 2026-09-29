@@ -152,7 +152,8 @@
   @media (max-width: 767px) { .tf-quadro { grid-template-columns: repeat(4, 82vw); scroll-snap-type: x mandatory; } .tf-coluna { scroll-snap-align: start; } }
 
   /* empresas */
-  .tf-emp-linha { display: grid; grid-template-columns: minmax(0, 1fr) 220px 90px 110px 120px; align-items: center; gap: 16px; min-height: 64px; padding: 8px 16px; cursor: pointer; }
+  .tf-emp-linha { display: grid; grid-template-columns: minmax(0, 1fr) 180px 180px 80px 100px 120px; align-items: center; gap: 16px; min-height: 64px; padding: 8px 16px; cursor: pointer; }
+  .tf-setor { display: inline-block; font-size: 11px; font-weight: 600; line-height: 18px; padding: 0 7px; border: 1px solid var(--border); border-radius: 2em; color: var(--ink-muted); }
   .tf-tabela.sem-resp .tf-emp-linha { grid-template-columns: minmax(0, 1fr) 90px 110px 120px; }
   .tf-emp-id { display: flex; align-items: center; gap: 12px; min-width: 0; }
   .tf-emp-id .av { flex: none; width: 38px; height: 38px; border-radius: 9px; display: grid; place-items: center; font-size: 13px; font-weight: 700; color: #FFFFFF; }
@@ -550,10 +551,10 @@
 <script src="nilma-shell.js?v=384"></script>
 <script src="nilma-config.js?v=395"></script>
 <script src="nilma-solicitacoes.js?v=358"></script>
-<script src="nilma-acoes-ia.js?v=393"></script>
+<script src="nilma-acoes-ia.js?v=397"></script>
 <script src="nilma-extras.js?v=392"></script>
 <script>
-  var VERSAO_APP = '2.396 · 28/09/2026';
+  var VERSAO_APP = '2.397 · 29/09/2026';
   NilmaShell.montar({ modulo: 'Tarefas', moduloId: 'tarefas', buscaRotulo: 'Perguntar à IA', buscaIcone: 'ph-chats-circle', notas: false, buscaGlobal: false, versao: VERSAO_APP });
   document.getElementById('topo').hidden = true;
 </script>
@@ -1310,6 +1311,7 @@
         tt.appendChild(document.createTextNode(t.titulo || '(sem título)'));
         c.appendChild(tt);
         var meta = el('div', 'meta');
+        if (t.setor === 'fiscal') meta.appendChild(el('span', 'tf-setor', 'Fiscal'));
         if (t.responsavelNome) { var p = el('span', 'tf-pessoa'); p.appendChild(avatarPessoa(t.responsavelUid, t.responsavelNome)); p.appendChild(el('span', null, t.responsavelNome.split(' ')[0])); meta.appendChild(p); }
         if (t.prazo && t.status !== 'feito') { var pz = el('span', 'prazo ' + classePrazo(t)); pz.appendChild(ico('ph-calendar-blank')); pz.appendChild(el('span', null, prazoTexto(t.prazo))); meta.appendChild(pz); }
         if ((t.prioridade || 'normal') !== 'normal') { var pr = el('span', 'tf-prio dir ' + t.prioridade, rotuloPrio(t.prioridade)); meta.appendChild(pr); }
@@ -1381,23 +1383,39 @@
     });
     return m;
   }
-  function seletorResponsavel(c, aoMudar) {
-    var s = selectDe([['', 'Sem responsável']].concat(equipe.map(function (p) { return [p.uid, p.nome]; })), c.responsavelUid || '', 'Responsável por ' + nomeDoCliente(c));
+  // Cada empresa tem dois responsáveis, um por setor (pedido do escritório,
+  // 28/09/2026): Contábil (o campo de sempre, responsavelUid) e Fiscal
+  // (responsavelFiscalUid). Tarefa tem setor; sem setor conta como Contábil.
+  var SETORES = [
+    { id: 'contabil', rotulo: 'Contábil', uid: 'responsavelUid', nome: 'responsavelNome' },
+    { id: 'fiscal', rotulo: 'Fiscal', uid: 'responsavelFiscalUid', nome: 'responsavelFiscalNome' }
+  ];
+  function setorDef(id) { return SETORES.filter(function (s) { return s.id === id; })[0] || SETORES[0]; }
+  function respDaEmpresa(c, setor) {
+    var s = setorDef(setor);
+    return c && c[s.uid] ? { uid: c[s.uid], nome: c[s.nome] || nomeDaPessoa(c[s.uid]) } : null;
+  }
+  function empresaEhDe(c, uid) { return !!uid && (c.responsavelUid === uid || c.responsavelFiscalUid === uid); }
+  function setoresDe(c, uid) { return SETORES.filter(function (s) { return c[s.uid] === uid; }).map(function (s) { return s.rotulo; }); }
+  function seletorResponsavel(c, aoMudar, setor) {
+    var sd = setorDef(setor);
+    var s = selectDe([['', 'Sem responsável']].concat(equipe.map(function (p) { return [p.uid, p.nome]; })), c[sd.uid] || '', 'Responsável ' + sd.rotulo.toLowerCase() + ' por ' + nomeDoCliente(c));
     s.disabled = !souAdmin();
     if (!souAdmin()) s.title = 'Só o admin escolhe o responsável';
     s.addEventListener('click', function (ev) { ev.stopPropagation(); });
     s.addEventListener('change', function () {
       var uid = s.value, nome = nomeDaPessoa(uid);
-      db.collection('clientes').doc(c.id).update({ responsavelUid: uid || FV.delete(), responsavelNome: nome || FV.delete() })
-        .then(function () { c.responsavelUid = uid; c.responsavelNome = nome; toast(nomeDoCliente(c) + ': ' + (nome ? 'responsável ' + nome : 'sem responsável') + '.'); if (aoMudar) aoMudar(); })
-        .catch(function (err) { s.value = c.responsavelUid || ''; toast('Não salvou: ' + erroDe(err), 'erro'); });
+      var dados = {}; dados[sd.uid] = uid || FV.delete(); dados[sd.nome] = nome || FV.delete();
+      db.collection('clientes').doc(c.id).update(dados)
+        .then(function () { c[sd.uid] = uid; c[sd.nome] = nome; toast(nomeDoCliente(c) + ' · ' + sd.rotulo + ': ' + (nome ? nome : 'sem responsável') + '.'); if (aoMudar) aoMudar(); })
+        .catch(function (err) { s.value = c[sd.uid] || ''; toast('Não salvou: ' + erroDe(err), 'erro'); });
     });
     return s;
   }
   // Minhas empresas: as que eu sou responsável e as de quem eu cubro (fora hoje).
   function minhasEmpresas() {
     var cubro = quemEuCubro().map(function (a) { return a.uid; });
-    return clientes.filter(function (c) { return c.responsavelUid && (c.responsavelUid === eu.uid || cubro.indexOf(c.responsavelUid) !== -1); });
+    return clientes.filter(function (c) { return empresaEhDe(c, eu.uid) || cubro.some(function (u) { return empresaEhDe(c, u); }); });
   }
   function desenharEmpresas(box, minhas) {
     var tt = TITULOS[minhas ? 'minhasempresas' : 'empresas'];
@@ -1408,7 +1426,7 @@
     busca.appendChild(inp); b.appendChild(busca);
     var r = null;
     if (!minhas) {
-      r = selectDe([['', 'Responsável: todos'], ['-', 'Sem responsável']].concat(equipe.map(function (p) { return [p.uid, p.nome]; })), filtroEmpResp, 'Responsável');
+      r = selectDe([['', 'Responsável: todos'], ['-', 'Sem responsável (algum setor)']].concat(equipe.map(function (p) { return [p.uid, p.nome]; })), filtroEmpResp, 'Responsável');
       r.classList.toggle('ativo', !!filtroEmpResp);
       b.appendChild(r);
     }
@@ -1419,7 +1437,7 @@
     function tabela(lista, comResp) {
       var tab = el('div', 'tf-tabela' + (comResp ? '' : ' sem-resp'));
       var cab = el('div', 'tf-emp-linha cab');
-      (comResp ? ['Empresa', 'Responsável', 'Tarefas', 'Requisições', 'Próximo prazo'] : ['Empresa', 'Tarefas', 'Requisições', 'Próximo prazo']).forEach(function (x) { cab.appendChild(el('div', null, x)); });
+      (comResp ? ['Empresa', 'Contábil', 'Fiscal', 'Tarefas', 'Requisições', 'Próximo prazo'] : ['Empresa', 'Tarefas', 'Requisições', 'Próximo prazo']).forEach(function (x) { cab.appendChild(el('div', null, x)); });
       tab.appendChild(cab);
       lista.slice(0, 400).forEach(function (c) {
         var x = cont[c.id] || { tarefas: 0, req: 0, prazo: '' };
@@ -1431,9 +1449,10 @@
         var txC = el('div', 'tx'); txC.appendChild(el('b', null, nomeDoCliente(c)));
         var rfC = c.receita || {};
         var sub = [c.nomeFantasia && semAcento(c.nomeFantasia) !== semAcento(c.nome) ? c.nomeFantasia : '', c.documento, rfC.mei ? 'MEI' : rfC.simples ? 'Simples Nacional' : (c.enquadramento || '')].filter(Boolean).join(' · ');
+        if (!comResp) { var meus = setoresDe(c, eu.uid); if (meus.length) sub = [meus.join(' e '), sub].filter(Boolean).join(' · '); }
         if (sub) txC.appendChild(el('small', null, sub));
         idc.appendChild(txC); l.appendChild(idc);
-        if (comResp) { var rc = el('div'); rc.appendChild(seletorResponsavel(c)); l.appendChild(rc); }
+        if (comResp) SETORES.forEach(function (sd) { var rc = el('div'); rc.appendChild(seletorResponsavel(c, null, sd.id)); l.appendChild(rc); });
         var nT = el('div'); nT.appendChild(x.tarefas ? el('span', 'tf-num', String(x.tarefas)) : el('span', 'num', '—')); l.appendChild(nT);
         var nR = el('div'); nR.appendChild(x.req ? el('span', 'tf-num req', String(x.req)) : el('span', 'num', '—')); l.appendChild(nR);
         var pzE = el('div', 'prazo ' + (x.prazo && x.prazo < hojeIso() ? 'atrasado' : x.prazo === hojeIso() ? 'hoje' : ''));
@@ -1454,7 +1473,7 @@
       };
       if (!minhas) {
         var lista = clientes.filter(function (c) {
-          if (filtroEmpResp === '-' ? c.responsavelUid : (filtroEmpResp && c.responsavelUid !== filtroEmpResp)) return false;
+          if (filtroEmpResp === '-' ? (c.responsavelUid && c.responsavelFiscalUid) : (filtroEmpResp && !empresaEhDe(c, filtroEmpResp))) return false;
           return achou(c);
         });
         var tab = tabela(lista, true);
@@ -1462,12 +1481,12 @@
         alvo.appendChild(tab);
         return;
       }
-      var suas = clientes.filter(function (c) { return c.responsavelUid === eu.uid && achou(c); });
+      var suas = clientes.filter(function (c) { return empresaEhDe(c, eu.uid) && achou(c); });
       var tabS = tabela(suas, false);
       if (!suas.length) tabS.appendChild(t ? el('div', 'tf-vazio', 'Nenhuma das suas empresas com essa busca.') : vazio('ph-folder-simple-user', 'Nenhuma empresa com você', 'O admin escolhe o responsável de cada empresa em "Todas as empresas".'));
       alvo.appendChild(tabS);
       quemEuCubro().forEach(function (a) {
-        var dela = clientes.filter(function (c) { return c.responsavelUid === a.uid && achou(c); });
+        var dela = clientes.filter(function (c) { return empresaEhDe(c, a.uid) && achou(c); });
         if (!dela.length) return;
         var h = el('div', 'tf-secao-tit tf-cobrindo'); h.appendChild(ico('ph-users'));
         h.appendChild(el('span', null, 'Cobrindo ' + (a.nome || nomeDaPessoa(a.uid))));
@@ -2290,7 +2309,7 @@
       cab.appendChild(nm); c.appendChild(cab);
       var minhas = abertas.filter(function (t) { return t.responsavelUid === pp.uid; });
       var atrasadas = minhas.filter(function (t) { return t.prazo && t.prazo < hojeIso(); }).length;
-      var empresas = clientes.filter(function (x) { return x.responsavelUid === pp.uid; }).length;
+      var empresas = clientes.filter(function (x) { return empresaEhDe(x, pp.uid); }).length;
       var nums = el('div', 'tf-pessoa-nums');
       [[minhas.length, 'abertas', ''], [atrasadas, 'atrasadas', atrasadas ? 'ruim' : ''], [empresas, 'empresas', '']].forEach(function (n) { var s2 = el('span', 'tf-tile ' + n[2]); s2.appendChild(el('b', null, String(n[0]))); s2.appendChild(el('small', null, n[1])); nums.appendChild(s2); });
       c.appendChild(nums);
@@ -2337,13 +2356,15 @@
   function base(extra) {
     var b = {
       titulo: '', tipo: 'tarefa', status: 'afazer', aberta: true, prioridade: 'normal', clienteId: null, clienteNome: '',
-      responsavelUid: '', responsavelNome: '', prazo: '', repete: '', descricao: '', checklist: [], comentarios: [],
+      responsavelUid: '', responsavelNome: '', setor: '', prazo: '', repete: '', descricao: '', checklist: [], comentarios: [],
       solicitante: '', canal: ''
     };
     Object.assign(b, extra || {});
     if (b.clienteId && !b.clienteNome) { var c = clientesPorId.get(b.clienteId); if (c) b.clienteNome = nomeDoCliente(c); }
     // sem responsável: o da empresa; sem empresa, em "Minhas", quem criou
-    if (!b.responsavelUid && b.clienteId) { var ce = clientesPorId.get(b.clienteId); if (ce && ce.responsavelUid) { b.responsavelUid = ce.responsavelUid; b.responsavelNome = ce.responsavelNome || nomeDaPessoa(ce.responsavelUid); } }
+    // sem setor: o do usuário na empresa (se ele cuida só do fiscal, fiscal); senão contábil
+    if (!b.setor && b.clienteId) { var ce0 = clientesPorId.get(b.clienteId); var meus0 = ce0 ? setoresDe(ce0, eu.uid) : []; b.setor = meus0.length === 1 && meus0[0] === 'Fiscal' ? 'fiscal' : 'contabil'; }
+    if (!b.responsavelUid && b.clienteId) { var ce = clientesPorId.get(b.clienteId); var rr = respDaEmpresa(ce, b.setor); if (rr) { b.responsavelUid = rr.uid; b.responsavelNome = rr.nome; } }
     if (!b.responsavelUid && pagina === 'minhas') { b.responsavelUid = eu.uid; b.responsavelNome = eu.nome; }
     return b;
   }
@@ -2664,10 +2685,24 @@
     prop(grade, 'ph-circle-half', 'Status', st);
     prop(grade, 'ph-buildings', 'Empresa', escolhaDeEmpresa(t, function (c) {
       var campos = { clienteId: c ? c.id : null, clienteNome: c ? nomeDoCliente(c) : '' };
-      // empresa com responsável e tarefa sem: o dela
-      if (c && c.responsavelUid && !t.responsavelUid) { campos.responsavelUid = c.responsavelUid; campos.responsavelNome = c.responsavelNome || nomeDaPessoa(c.responsavelUid); }
+      // empresa com responsável do setor e tarefa sem: o dela
+      var rr = respDaEmpresa(c, t.setor);
+      if (rr && !t.responsavelUid) { campos.responsavelUid = rr.uid; campos.responsavelNome = rr.nome; }
       campo(campos);
     }));
+    // Setor: trocar o setor de uma tarefa de empresa passa pro responsável
+    // daquele setor (se a tarefa estava com o responsável do outro)
+    var se = selectDe(SETORES.map(function (x) { return [x.id, x.rotulo]; }), t.setor || 'contabil', 'Setor');
+    se.addEventListener('change', function () {
+      var campos = { setor: se.value };
+      var cE = t.clienteId ? clientesPorId.get(t.clienteId) : null;
+      if (cE) {
+        var antes = respDaEmpresa(cE, t.setor || 'contabil'), depois = respDaEmpresa(cE, se.value);
+        if (depois && (!t.responsavelUid || (antes && antes.uid === t.responsavelUid))) { campos.responsavelUid = depois.uid; campos.responsavelNome = depois.nome; }
+      }
+      campo(campos);
+    });
+    prop(grade, 'ph-squares-four', 'Setor', se);
     var resp = selectDe([['', 'Ninguém']].concat(equipe.map(function (x) { return [x.uid, x.nome]; })), t.responsavelUid || '', 'Responsável');
     resp.addEventListener('change', function () { campo({ responsavelUid: resp.value, responsavelNome: nomeDaPessoa(resp.value) }); });
     var respBox = el('div', 'tf-com-av');

@@ -29,6 +29,19 @@ Módulo novo no menu ☰, **Tarefas** (`tarefas.html`), pra equipe toda:
 - Regras: `tarefas` a equipe lê, cria e edita; quem criou não muda; apagar
   só quem criou ou o admin.
 
+**Versão 2.397 — solicitações com prazo; dois responsáveis por empresa:**
+
+- Solicitações: "Concluir até" no formulário (obrigatório, padrão daqui a 2
+  dias; grava `solicitacoes.prazo` AAAA-MM-DD). A lista mostra "Pedido em …"
+  e "Concluir até …"; pendentes em ordem de prazo (urgentes primeiro),
+  vencida vira "Atrasada" em vermelho; concluída mostra quando foi concluída.
+- Tarefas: cada empresa tem responsável Contábil (`responsavelUid`, o de
+  sempre) e Fiscal (`responsavelFiscalUid`); "Todas as empresas" tem as duas
+  colunas. Tarefa ganha `setor` (contabil/fiscal; vazio = contábil) e vai pro
+  responsável do setor; trocar o setor troca o responsável. "Minhas empresas"
+  e a Equipe contam os dois setores. A IA (`preparar_tarefa` com `setor`,
+  `preparar_alteracao_cliente` com `responsavel_fiscal`) entende os dois.
+
 **Versão 2.396 — busca do Arquivo na pasta inteira:**
 
 - Pendências › Arquivo, no topo (pasta 2026): a busca procura em TODAS as
