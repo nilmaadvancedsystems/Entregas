@@ -451,3 +451,17 @@ body.modo-secundario #frameCheque,
   #painelMapa, .map-legend, #painelMapaVazio { display: none !important; }
   a[href]::after { content: none !important; }
 }
+
+/* Balancetes (Clientes e ajustes → Carteira, 29/09/2026) */
+.balancete-subir { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+.balancete-subir select { flex: 1 1 260px; min-width: 0; }
+.balancete-linha { display: grid; grid-template-columns: auto 1fr auto auto; gap: 12px; align-items: center; padding: 8px 4px; border-top: 1px solid var(--border); }
+.balancete-linha:hover { background: var(--surface-2); }
+.balancete-n { color: var(--ink-muted); font-variant-numeric: tabular-nums; }
+.balancete-nome { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.balancete-info { color: var(--ink-muted); font-size: 13px; }
+.vazio-curto { color: var(--ink-muted); margin: 4px 0; }
+@media (max-width: 640px) {
+  .balancete-linha { grid-template-columns: auto 1fr auto; }
+  .balancete-info { grid-column: 2 / -1; grid-row: 2; }
+}

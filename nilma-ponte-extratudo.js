@@ -6,6 +6,8 @@
 //   quem   → quem está logado (ou null);
 //   raiz   → driveIndice/raiz: a lista das pastas dos clientes;
 //   partes → driveIndice/{pasta}/partes: os arquivos da pasta;
+//   balancete → balancetes/{código}: as contas do balancete subido em
+//            Clientes e ajustes (o Creditor tira dali a conta de cada cliente);
 //   baixar → o pedido em aberturasDrive (modo "baixar"); devolve o link
 //            temporário que o robô publica (o Extratudo baixa de lá).
 // Só responde ao iframe #frameExtratudo e só àquele endereço. Não grava nada
@@ -41,6 +43,14 @@
         var itens = [];
         docs.forEach(function (p) { itens = itens.concat(p.data().itens || []); });
         responder(true, itens);
+      }).catch(falhar);
+      return;
+    }
+    if (m.op === 'balancete') {
+      // o balancete subido em Clientes e ajustes (balancetes/{código}); null = não tem
+      if (!/^[0-9]{1,10}$/.test(String(m.codigo || ''))) return responder(true, null);
+      db.collection('balancetes').doc(String(m.codigo)).get().then(function (d) {
+        responder(true, d.exists ? { contas: d.data().contas || [], em: d.data().em || '' } : null);
       }).catch(falhar);
       return;
     }

@@ -670,6 +670,17 @@ service cloud.firestore {
     // Mesmo formato dos anexos de tarefa (pedaços de até 900 KB), mas é
     // conversa particular: só quem mandou lê. Quem entrega o arquivo à IA é
     // o atendente do PC (Admin SDK), que não passa por estas regras.
+    // Balancete do cliente (29/09/2026): só o texto das contas, subido em
+    // Clientes e ajustes; o Creditor do Extratudo lê pela ponte do Entregas.
+    match /balancetes/{codigo} {
+      allow read: if membro();
+      allow create, update: if (ehAdmin() || temPapel('contabil'))
+        && codigo.matches('^[0-9]{1,10}$')
+        && request.resource.data.codigo == codigo
+        && request.resource.data.contas is list && request.resource.data.contas.size() <= 5000;
+      allow delete: if ehAdmin() || temPapel('contabil');
+    }
+
     match /anexosIA/{id} {
       allow read: if membro() && resource.data.criadoPorUid == request.auth.uid;
       allow create: if membro()

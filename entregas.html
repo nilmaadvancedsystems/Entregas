@@ -53,7 +53,7 @@
 <link rel="stylesheet" href="nilma-icones.css?v=345">
 <link rel="stylesheet" href="nilma-ui.css?v=392">
 <link rel="stylesheet" href="n1-entregas-a.css?v=401">
-<link rel="stylesheet" href="n1-entregas-b.css?v=402">
+<link rel="stylesheet" href="n1-entregas-b.css?v=405">
 <link rel="stylesheet" href="n1-entregas-c.css?v=400">
 </head>
 <body>
@@ -62,7 +62,8 @@
      resto, porque os scripts do app procuram #notasBtn, #topo etc. -->
 <script src="nilma-dialogo.js?v=345"></script>
 <script src="nilma-shell.js?v=402"></script>
-<script src="nilma-ponte-extratudo.js?v=404"></script>
+<script src="nilma-ponte-extratudo.js?v=405"></script>
+<script src="nilma-balancetes.js?v=405"></script>
 <script src="nilma-config.js?v=395"></script>
 <script src="nilma-acoes-ia.js?v=397"></script>
 <script src="nilma-solicitacoes.js?v=398"></script>
@@ -786,6 +787,19 @@
         <h2><i class="ph ph-bank" aria-hidden="true"></i> Mudou na Receita <span class="contagem" id="receitaAvisosContador"></span></h2>
       </div>
       <div id="receitaAvisosList"></div>
+    </div>
+    <!-- Balancete do cliente (29/09/2026): só o texto das contas vai pro
+         banco (balancetes/{código}); o Creditor do Extratudo lê daqui -->
+    <div class="card caixa" id="balancetesCard" hidden>
+      <div class="card-head-row">
+        <h2><i class="ph ph-file-xls" aria-hidden="true"></i> Balancetes <span class="contagem" id="balancetesContador"></span></h2>
+      </div>
+      <div class="balancete-subir">
+        <select class="input" id="balanceteCliente" aria-label="Cliente do balancete"><option value="">Escolha o cliente…</option></select>
+        <label class="btn-chip accent" for="balanceteArquivo"><i class="ph ph-upload-simple" aria-hidden="true"></i> Subir balancete (XLS)</label>
+        <input type="file" id="balanceteArquivo" accept=".xls,.xlsx" hidden>
+      </div>
+      <div id="balancetesLista"></div>
     </div>
     <form id="form-cliente" class="card" hidden novalidate>
       <div class="card-head-row">
@@ -2865,7 +2879,8 @@
     var DESTINOS_CLIENTES_ = [
       { id: 'carteira', rotulo: 'Carteira', icone: 'ph-users', grupos: [
           { id: 'lista', rotulo: 'Lista de clientes', icone: 'ph-list-bullets', els: ['clientesListaCard'] },
-          { id: 'novo', rotulo: 'Novo cliente', icone: 'ph-user-plus', els: ['form-cliente'] }
+          { id: 'novo', rotulo: 'Novo cliente', icone: 'ph-user-plus', els: ['form-cliente'] },
+          { id: 'balancetes', rotulo: 'Balancetes', icone: 'ph-file-xls', els: ['balancetesCard'] }
         ] },
       // A aba "Painéis" saiu (pedido do escritório, 24/09/2026). Os cartões
       // dela continuam no HTML com data-removido: não aparecem em lugar nenhum.
@@ -11994,12 +12009,21 @@
   }
 
   function temPapel(r) { return currentUserRoles.indexOf(r) !== -1; }
+  // Para os scripts de fora (nilma-balancetes.js): a lista de clientes, os
+  // papéis de quem entrou e o aviso. O evento 'nilma:papeis' sai quando os
+  // papéis chegam do banco.
+  window.NilmaApp_ = {
+    clientes: function () { return Array.from(clientesCache.values()); },
+    temPapel: temPapel,
+    toast: function (msg, tipo) { showToast(msg, tipo); }
+  };
 
   function ensureUsuarioDoc(user) {
     var ref = db.collection('usuarios').doc(user.uid);
     return ref.get().then(function (snap) {
       if (snap.exists) {
         currentUserRoles = papeisDoDoc_(snap.data());
+        setTimeout(function () { document.dispatchEvent(new Event('nilma:papeis')); }, 0);
         currentUserNome = snap.data().nome || snap.data().email || user.email || '';
         aplicarTema(snap.data().tema || 'auto');
         aplicarPaleta(snap.data().paleta || 'padrao');
@@ -12170,7 +12194,7 @@
   // Aba em que o app abre: office boy vive em Solicitações, quem faz rota
   // abre em Rota. Guardar isso evita dois toques toda vez que entra.
 
-  var VERSAO_APP_ = '2.404 · 29/09/2026';
+  var VERSAO_APP_ = '2.405 · 29/09/2026';
   // Configurações do usuário: a janela comum (nilma-config.js), a mesma da
   // Pendências e do Fiscal. 'conta' abre em Minha conta; o resto, em
   // Preferências.
