@@ -180,6 +180,39 @@ async function blocosDosAnexos(db, anexos) {
   return blocos;
 }
 
+// Os anexos não ficam guardados (pedido do escritório, 29/09/2026: "é meio
+// inútil guardar eles"): depois que a IA respondeu, o arquivo sai do banco.
+// A IA já leu, e a conversa continua na mesma sessão com ele. Os que ficarem
+// para trás (resposta com erro, envio pela metade) a faxina apaga depois de
+// um dia.
+const ANEXO_VIVE_MS = 24 * 3600 * 1000;
+async function apagarAnexo(ref) {
+  const partes = await ref.collection('partes').listDocuments();
+  await Promise.all(partes.map(p => p.delete()));
+  await ref.delete();
+}
+async function apagarAnexos(db, anexos, log) {
+  for (const a of (Array.isArray(anexos) ? anexos : [])) {
+    if (!a || !a.id) continue;
+    await apagarAnexo(db.collection('anexosIA').doc(String(a.id))).catch(err => log('[ia] não consegui apagar o anexo', a.id + ':', err.message));
+  }
+}
+async function faxinaDosAnexos(db, log) {
+  const limite = Date.now() - ANEXO_VIVE_MS;
+  let n = 0;
+  for (const ref of await db.collection('anexosIA').listDocuments()) {
+    const d = await ref.get();
+    let quando = d.exists ? Date.parse(d.data().criadoEm || '') : NaN;
+    if (!d.exists) {
+      // pedaços sem o documento (envio pela metade): a idade é a do 1º pedaço
+      const p = await ref.collection('partes').doc('0').get();
+      quando = p.exists ? p.createTime.toMillis() : 0;
+    }
+    if (!(quando > limite)) { await apagarAnexo(ref); n++; }
+  }
+  if (n) log('[ia] faxina: apaguei', n, 'anexo(s) antigo(s)');
+}
+
 function fechar(c) {
   if (!c) return;
   try { c.filho.stdin.end(); } catch (e) {}
@@ -355,6 +388,7 @@ function iniciarAtendenteClaude(opcoes) {
       });
       await conversaRef.update({ estado: 'ocioso', erro: null, atualizadoEm: new Date().toISOString() });
       log('[ia] respondeu', conversaRef.id, 'em', Math.round((Date.now() - inicio) / 1000) + 's');
+      if (Array.isArray(ultima.anexos) && ultima.anexos.length) await apagarAnexos(db, ultima.anexos, log);
     } else {
       log('[ia] falhou em', conversaRef.id + ':', r.erro);
       await respostaRef.update({ texto: '', estado: 'erro', erro: r.erro, consultando: null }).catch(() => {});
@@ -405,6 +439,10 @@ function iniciarAtendenteClaude(opcoes) {
     else { desligarFila(); desligarReserva(); }
   }, err => log('[ia] não consegui ler a escolha do motor:', err.message));
 
+  const faxina = () => faxinaDosAnexos(db, log).catch(err => log('[ia] faxina dos anexos falhou:', err.message));
+  faxina();
+  const timerFaxina = setInterval(faxina, 6 * 3600 * 1000);
+
   const timer = setInterval(() => {
     baterPonto();
     // reserva que morreu, venceu ou é de ontem: liga outra
@@ -414,6 +452,7 @@ function iniciarAtendenteClaude(opcoes) {
   // Ao fechar: a tela deixa de oferecer a IA na hora.
   return function parar() {
     clearInterval(timer);
+    clearInterval(timerFaxina);
     desligarReserva();
     if (pararFila) pararFila();
     if (motor !== 'claude') return Promise.resolve();
