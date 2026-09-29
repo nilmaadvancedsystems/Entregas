@@ -681,6 +681,20 @@ service cloud.firestore {
       allow delete: if ehAdmin() || temPapel('contabil');
     }
 
+    // Creditor (creditor.html, 29/09/2026): o que fica salvo de cada empresa,
+    // pelo código do ERP — as contas do layout confirmadas (banco, juros,
+    // descontos e históricos) e a conta de cada cliente já conciliado.
+    match /creditor/{codigo} {
+      allow read: if ehAdmin() || temPapel('contabil');
+      allow create, update: if (ehAdmin() || temPapel('contabil'))
+        && codigo.matches('^[0-9]{1,10}$')
+        && request.resource.data.keys().hasOnly(['contas', 'nomes', 'clientes', 'atualizadoEm', 'atualizadoPor'])
+        && request.resource.data.get('contas', {}) is map
+        && request.resource.data.get('nomes', {}) is map
+        && request.resource.data.get('clientes', {}) is map;
+      allow delete: if ehAdmin();
+    }
+
     match /anexosIA/{id} {
       allow read: if membro() && resource.data.criadoPorUid == request.auth.uid;
       allow create: if membro()
@@ -788,12 +802,18 @@ service cloud.firestore {
         && request.resource.data.fileId is string
         && request.resource.data.keys().hasOnly(['status', 'fileId', 'nome', 'criadoEm', 'criadoPor', 'criadoPorUid', 'modo', 'fileIds', 'pastaId', 'nomeZip'])
         // modo: abrir no navegador (padrão), baixar (PDF abre no leitor do
-        // computador) ou zip (vários arquivos, ou uma pasta inteira).
-        && request.resource.data.get('modo', 'abrir') in ['abrir', 'baixar', 'zip']
+        // computador), zip (vários arquivos, ou uma pasta inteira) ou ler (o
+        // Creditor recebe o conteúdo em partes/, pelo banco).
+        && request.resource.data.get('modo', 'abrir') in ['abrir', 'baixar', 'zip', 'ler']
         && (!('fileIds' in request.resource.data) || (request.resource.data.fileIds is list && request.resource.data.fileIds.size() <= 500))
         && (!('pastaId' in request.resource.data) || request.resource.data.pastaId is string)
         && (!('nomeZip' in request.resource.data) || (request.resource.data.nomeZip is string && request.resource.data.nomeZip.size() <= 200));
       allow update, delete: if false;
+      // o conteúdo do modo 'ler', que o robô grava: só quem pediu lê
+      match /partes/{n} {
+        allow read: if (ehAdmin() || temPapel('contabil')) && resource.data.uid == request.auth.uid;
+        allow write: if false;
+      }
     }
 
     // Texto completo de um e-mail, aberto no painel do Robô do Gmail

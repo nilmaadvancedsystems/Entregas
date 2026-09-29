@@ -24,6 +24,11 @@ const BUCKET = process.env.BUCKET_ABERTOS || 'entregas-2e5e2-abertos';
 const COPIA_DURA_MS = 30 * 60 * 1000;
 const TAMANHO_MAXIMO = 60 * 1024 * 1024;   // arquivo maior que isso: abrir pelo Drive mesmo
 const PEDIDO_DURA_MS = 2 * 24 * 36e5;
+// 'ler' (Creditor, 29/09/2026): o conteúdo volta pelo próprio banco, em
+// pedaços (aberturasDrive/{id}/partes/{n}), pra tela ler o arquivo sem passar
+// pelo bucket (que só libera leitura por script pro site do Extratudo).
+const LER_MAX = 4 * 1024 * 1024;
+const LER_PEDACO = 850000;
 // Limites do .zip (vários arquivos ou pasta inteira): acima disso, por partes.
 const ZIP_MAX_ARQUIVOS = 2000;
 const ZIP_MAX_BYTES = 500 * 1024 * 1024;
@@ -42,6 +47,7 @@ function iniciarAberturaDoDrive(db, log, opcoes) {
   const bucket = getStorage().bucket(BUCKET);
   const pais = new Map();
   const copias = new Map();   // fileId -> { url, caminho, ate, nome, tamanho }
+  const lidos = new Map();    // pedido 'ler' -> quando apagar os pedaços
   let raizId = null;
 
   async function pastaDoAno() {
@@ -57,6 +63,7 @@ function iniciarAberturaDoDrive(db, log, opcoes) {
     // 'abrir' (padrão): PDF e imagem abrem no navegador. 'baixar': o arquivo
     // vem como download — é o que faz o PDF abrir no leitor do computador.
     const baixar = p.modo === 'baixar';
+    const ler = p.modo === 'ler';
     try {
       await ref.update({ status: 'buscando', buscandoEm: new Date().toISOString() });
       const fileId = String(p.fileId || '');
@@ -64,7 +71,7 @@ function iniciarAberturaDoDrive(db, log, opcoes) {
       const chaveCopia = fileId + (baixar ? ':baixar' : '');
 
       // Reaproveita a cópia ainda viva (mesmo arquivo aberto de novo).
-      const viva = copias.get(chaveCopia);
+      const viva = !ler && copias.get(chaveCopia);
       if (viva && viva.ate > Date.now() + 60000) {
         await ref.update({ status: 'pronto', url: viva.url, nome: viva.nome, tamanho: viva.tamanho, validoAte: new Date(viva.ate).toISOString(), prontoEm: new Date().toISOString() });
         return;
@@ -80,6 +87,7 @@ function iniciarAberturaDoDrive(db, log, opcoes) {
       const drive = indice.getDrive();
       const meta = (await drive.files.get({ fileId, fields: 'id, name, mimeType, size' })).data;
       if (meta.mimeType === 'application/vnd.google-apps.folder') throw new Error('isto é uma pasta, não um arquivo');
+      if (ler && meta.size && Number(meta.size) > LER_MAX) throw new Error('arquivo grande demais pra ler pelo app (' + Math.round(meta.size / 1048576) + ' MB)');
       if (meta.size && Number(meta.size) > TAMANHO_MAXIMO) {
         throw new Error('arquivo grande demais pra abrir pelo app (' + Math.round(meta.size / 1048576) + ' MB)');
       }
@@ -92,6 +100,19 @@ function iniciarAberturaDoDrive(db, log, opcoes) {
         throw new Error('este tipo de documento do Google não abre pelo app');
       } else {
         corpo = Buffer.from((await drive.files.get({ fileId, alt: 'media' }, { responseType: 'arraybuffer' })).data);
+      }
+
+      if (ler) {
+        if (corpo.length > LER_MAX) throw new Error('arquivo grande demais pra ler pelo app');
+        const b64 = corpo.toString('base64');
+        const n = Math.max(1, Math.ceil(b64.length / LER_PEDACO));
+        for (let i = 0; i < n; i++) {
+          await ref.collection('partes').doc(String(i)).set({ dados: b64.slice(i * LER_PEDACO, (i + 1) * LER_PEDACO), uid: p.criadoPorUid || '' });
+        }
+        lidos.set(ref.path, Date.now() + COPIA_DURA_MS);
+        await ref.update({ status: 'pronto', partes: n, nome, mime: tipo || '', tamanho: corpo.length, prontoEm: new Date().toISOString() });
+        log('ler do Drive:', nome, '(' + Math.round(corpo.length / 1024) + ' KB) para', p.criadoPor || 'alguém');
+        return;
       }
 
       const chave = crypto.randomUUID();
@@ -245,6 +266,15 @@ function iniciarAberturaDoDrive(db, log, opcoes) {
   // Apaga as cópias vencidas (e o link morre) e os pedidos velhos.
   async function limpar() {
     const agora = Date.now();
+    // pedaços dos 'ler' já entregues (a tela lê na hora)
+    for (const [caminho, ate] of lidos) {
+      if (ate > agora) continue;
+      lidos.delete(caminho);
+      try {
+        const partes = await db.doc(caminho).collection('partes').get();
+        for (const d of partes.docs) await d.ref.delete();
+      } catch (e) {}
+    }
     for (const [fileId, c] of copias) {
       if (c.ate > agora) continue;
       await bucket.file(c.caminho).delete({ ignoreNotFound: true }).catch(() => {});
@@ -260,7 +290,14 @@ function iniciarAberturaDoDrive(db, log, opcoes) {
     } catch (e) { /* segue: a regra de 1 dia do bucket cobre */ }
     try {
       const velhos = await pedidos.where('criadoEm', '<', new Date(agora - PEDIDO_DURA_MS).toISOString()).limit(200).get();
-      for (const d of velhos.docs) await d.ref.delete();
+      for (const d of velhos.docs) {
+        // pedido 'ler' que ficou de um robô anterior: os pedaços vão junto
+        if (d.data().modo === 'ler') {
+          const partes = await d.ref.collection('partes').get();
+          for (const x of partes.docs) await x.ref.delete();
+        }
+        await d.ref.delete();
+      }
     } catch (e) {}
   }
 

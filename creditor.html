@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Creditor &middot; Recebimentos de clientes</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<script>if (/[?&]embutido=1/.test(location.search)) document.documentElement.classList.add('embutido');</script>
+<link rel="stylesheet" href="nilma-icones.css?v=345">
+<script src="nilma-ui.js?v=347"></script>
+<script src="nilma-config.js?v=395"></script>
+<link rel="stylesheet" href="nilma-ui.css?v=392">
+<style>
+  /* ==================================================================
+     Creditor — relatório de liquidação do banco → lançamentos de 8
+     colunas, com a conta de cada cliente vinda do balancete. Veio do
+     Extratudo (nads) pra rodar aqui dentro (29/09/2026). Só o que é
+     desta tela, em cima de nilma-ui.css.
+     ================================================================== */
+  .app { overflow-x: clip; }
+  .app > .fluxo { max-width: 1280px; margin: 0 auto; padding: 24px 32px 64px; }
+  .topbar {
+    position: sticky; top: 0; z-index: 25;
+    display: flex; align-items: center; gap: 8px; min-height: 64px; padding: 0 32px;
+    background: var(--header-bg); border-bottom: 1px solid var(--border);
+  }
+  .brand { display: flex; align-items: center; gap: 12px; min-width: 0; margin-right: auto; }
+  .topbar .brand-mark {
+    width: 32px; height: 32px; border-radius: 6px; background: var(--surface-2); border: 1px solid var(--border);
+    color: var(--ink-muted); display: inline-flex; align-items: center; justify-content: center; flex: none; font-size: 16px;
+  }
+  .brand > div:last-child { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+  .brand-name { font-size: 16px; font-weight: 600; line-height: 1.25; white-space: nowrap; }
+  .brand-tag { font-size: 16px; color: var(--ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  #configBtn { width: 32px; height: 32px; min-height: 32px; padding: 0 !important; color: var(--ink-muted); border-color: transparent; background: transparent; box-shadow: none; }
+  #configBtn:hover { background: var(--hover-bg); color: var(--ink); }
+  @media (max-width: 768px) {
+    .topbar { min-height: 56px; padding: 0 16px; }
+    .app > .fluxo { padding: 16px 16px 64px; }
+    .brand-tag { display: none; }
+    .topbar a.btn[href="entregas.html"] { font-size: 0; gap: 0; width: 32px; padding: 0; }
+    .topbar a.btn[href="entregas.html"] .ph { font-size: 16px; }
+  }
+  /* aberta dentro do Entregas (?embutido=1): sem casca própria */
+  html.embutido, html.embutido body { background: transparent; }
+  html.embutido .topbar { display: none; }
+  html.embutido .app > .fluxo { padding-top: 16px; }
+
+  .acesso-gate { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: var(--bg); z-index: 90; }
+  .acesso-gate-box { max-width: 420px; text-align: center; padding: 24px; color: var(--ink-muted); }
+  .acesso-gate-box .ph { font-size: 32px; }
+
+  /* cabeçalho da conciliação: empresa + etapas + cancelar */
+  .cr-topo { display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; margin-bottom: 12px; }
+  .cr-topo h1 { font-size: 20px; font-weight: 600; margin: 0; line-height: 1.3; min-width: 0; }
+  .cr-topo .cr-empresa-nome { color: var(--ink-muted); font-weight: 400; }
+  .cr-topo .spacer { margin-left: auto; }
+  .steps { margin-bottom: 16px; }
+  .step-pill .ph { font-size: 14px; }
+
+  /* escolher a empresa */
+  .cr-busca { position: relative; max-width: 560px; }
+  .cr-busca input { width: 100%; }
+  .cr-lista { margin-top: 8px; border: 1px solid var(--border); border-radius: 6px; max-height: 360px; overflow: auto; background: var(--surface); }
+  .cr-lista button {
+    display: flex; width: 100%; gap: 10px; align-items: baseline; padding: 8px 12px; border: 0; border-bottom: 1px solid var(--border);
+    background: none; color: var(--ink); font: inherit; font-size: 14px; text-align: left; cursor: pointer;
+  }
+  .cr-lista button:last-child { border-bottom: 0; }
+  .cr-lista button:hover, .cr-lista button:focus-visible { background: var(--hover-bg); outline: none; }
+  .cr-lista .cod { font-variant-numeric: tabular-nums; color: var(--ink-muted); min-width: 44px; }
+
+  /* arquivo */
+  .cr-drop {
+    display: flex; align-items: center; gap: 12px; padding: 16px; border: 1px dashed var(--border-strong); border-radius: 6px;
+    background: var(--surface-2); color: var(--ink-muted); cursor: pointer; transition: border-color .12s, color .12s;
+  }
+  .cr-drop:hover, .cr-drop.sobre { border-color: var(--accent); color: var(--accent); }
+  .cr-drop .ph { font-size: 22px; }
+  .cr-drop b { color: var(--ink); font-weight: 600; }
+
+  /* tabelas */
+  .table-wrap.alta { max-height: 70vh; }
+  td.num, th.num { text-align: right; white-space: nowrap; }
+  tr.cr-sem td { background: var(--danger-soft, rgba(220, 38, 38, .06)); }
+  tr.cr-excluida td { color: var(--ink-faint, var(--ink-muted)); text-decoration: line-through; }
+  tr.cr-nota td { padding-top: 0; border-top: 0; }
+  .cr-acoes { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 4px; }
+  .cr-acoes input { height: 28px; min-height: 28px; font-size: 13px; padding: 2px 8px; width: 110px; flex: 0 0 auto; }
+  .cr-acoes input.cr-hist { width: 300px; max-width: 100%; }
+  .cr-nota-txt { font-size: 12px; color: var(--ink-muted); }
+  .badge-warn { color: var(--warn); border-color: var(--warn); background: none; }
+  .badge-info { color: var(--ink); border-color: var(--border-strong); background: var(--surface-2); }
+  .cr-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin-bottom: 16px; }
+  .cr-stats .stat { border-right: 1px solid var(--border); margin: 0; border-bottom: 0; }
+  .cr-stats .stat:last-child { border-right: 0; }
+  .cr-contas { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0 16px; }
+  .cr-contas .field { margin-bottom: 12px; }
+  .cr-contas input { width: 100%; }
+  .alert .ph { font-size: 16px; margin-top: 2px; color: var(--warn); }
+  .alert.cr-ok .ph { color: var(--success); }
+  .alert.cr-ruim .ph { color: var(--danger); }
+  .alert-text + .alert-text { margin-top: 4px; }
+  .cr-carregando { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--ink-muted); margin-top: 12px; }
+  .cr-carregando .ph { animation: crGira 1s linear infinite; }
+  @keyframes crGira { to { transform: rotate(360deg); } }
+  @media (max-width: 640px) { .cr-topo h1 { font-size: 18px; } }
+</style>
+</head>
+<body>
+<div id="acessoGate" class="acesso-gate" style="display:none;">
+  <div class="acesso-gate-box">
+    <i class="ph ph-lock" aria-hidden="true"></i>
+    <p id="acessoGateMsg">Verificando acesso…</p>
+    <a href="entregas.html">&larr; Voltar ao início</a>
+  </div>
+</div>
+<div class="app" id="appRoot">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark"><i class="ph ph-hand-coins" aria-hidden="true"></i></div>
+      <div>
+        <p class="brand-name">Creditor</p>
+        <p class="brand-tag">Recebimentos de clientes do banco → lançamentos</p>
+      </div>
+    </div>
+    <a class="btn btn-outline-neutral" href="entregas.html" title="Voltar pra escolher outra função"><i class="ph ph-squares-four" aria-hidden="true"></i> Trocar de função</a>
+    <button type="button" class="btn btn-ghost" id="configBtn" aria-label="Configurações" title="Configurações"><i class="ph ph-gear" aria-hidden="true"></i></button>
+  </header>
+  <main class="fluxo" id="tela"></main>
+</div>
+<datalist id="dlClientes"></datalist>
+<datalist id="dlBalancete"></datalist>
+<input type="file" id="arquivoBanco" class="sr-only" accept=".pdf,.csv,.xls,.xlsx,.txt" />
+<div class="toast-region" id="toastRegion" aria-live="polite"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="nilma-creditor.js?v=407"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script>
+(function () {
+  'use strict';
+  var cr = window.NilmaCreditor;
+  var $ = function (id) { return document.getElementById(id); };
+  var tela = $('tela');
+  var ESPERA_DRIVE_MS = 120000;
+
+  var ETAPAS = [
+    { id: 'competencia', rotulo: 'Competência', titulo: 'Competência', icone: 'ph-calendar' },
+    { id: 'banco', rotulo: 'Relatório do banco', titulo: 'Relatório de liquidação do banco', icone: 'ph-bank' },
+    { id: 'fiscal', rotulo: 'Fiscal', titulo: 'Baixa no Fiscal', icone: 'ph-list-checks' },
+    { id: 'contas', rotulo: 'Contas', titulo: 'Conta de cada cliente', icone: 'ph-arrows-clockwise' },
+    { id: 'lancamentos', rotulo: 'Lançamentos', titulo: 'Lançamentos para importar', icone: 'ph-download-simple' }
+  ];
+  var ROTULO_CONTA = {
+    banco: 'Conta banco', juros: 'Conta de juros/mora', desconto: 'Conta de descontos',
+    histPrincipal: 'Histórico do principal', histJuros: 'Histórico da mora', histDesconto: 'Histórico do desconto'
+  };
+  var ORIGEM = { salva: 'Salva na empresa', sugerida: 'Sugerida pelo balancete', padrao: 'Padrão', falta: 'Falta escolher' };
+
+  var db = null, auth = null, usuario = null;
+  var empresas = null;        // driveIndice/raiz.clientes (a pasta de cada cliente no Drive)
+  var pararEmpresa = [];      // ouvintes da empresa aberta
+  var S = novoEstado(null);
+
+  function novoEstado(empresa) {
+    return {
+      empresa: empresa, etapa: 'competencia', alcancada: 0,
+      competencia: cr.competenciaPadrao(new Date()), relatorio: null, origem: '', decisoes: {},
+      balancete: cr.SEM_BALANCETE, balanceteChegou: false, cfg: { contas: {}, nomes: {}, clientes: {} }, cfgChegou: false,
+      busca: { fase: 'parado', texto: '', candidatos: [] }, lendo: false, erroArquivo: '', filtro: 'todos', buscaEmpresa: ''
+    };
+  }
+
+  // ---------- utilidades ----------
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function sem(t) { return String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); }
+  function toast(msg) {
+    var el = document.createElement('div');
+    el.className = 'toast'; el.textContent = msg;
+    $('toastRegion').appendChild(el);
+    setTimeout(function () { el.remove(); }, 3200);
+  }
+  function alerta(tom, titulo, linhas) {
+    var ic = tom === 'ok' ? 'ph-check-circle' : tom === 'ruim' ? 'ph-warning-octagon' : 'ph-warning';
+    return '<div class="alert' + (tom ? ' cr-' + tom : '') + '"><i class="ph ' + ic + '" aria-hidden="true"></i><div><p class="alert-title">' + esc(titulo) + '</p>'
+      + (linhas || []).map(function (l) { return '<p class="alert-text">' + l + '</p>'; }).join('') + '</div></div>';
+  }
+  function carregando(txt) { return '<p class="cr-carregando"><i class="ph ph-spinner-gap" aria-hidden="true"></i>' + esc(txt) + '</p>'; }
+  var dataCurta = function (iso) { var d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString('pt-BR'); };
+
+  // ---------- o que sai do estado ----------
+  function derivar() {
+    var titulos = S.relatorio ? [].concat.apply([], S.relatorio.grupos.map(function (g) { return g.titulos; })) : [];
+    var resolvidas = cr.resolverContas(S.balancete, S.cfg);
+    var clientes = cr.contasDeClientes(S.balancete);
+    var cruzamentos = cr.cruzarPeloBalancete(titulos, clientes, S.cfg.clientes);
+    var auto = cr.decisoesAprendidas(titulos, cruzamentos, S.cfg.clientes, S.decisoes);
+    var decisoes = Object.assign({}, auto, S.decisoes);
+    var pend = cr.pendentes(cruzamentos, decisoes);
+    var lancamentos = cr.gerarLancamentos(titulos, cruzamentos, decisoes, resolvidas.contas);
+    var fora = cr.titulosFora(titulos, cruzamentos, decisoes);
+    var fechamento = S.relatorio ? cr.fecharPorDia(S.relatorio.grupos, lancamentos, fora, resolvidas.contas) : [];
+    return { titulos: titulos, resolvidas: resolvidas, clientes: clientes, cruzamentos: cruzamentos, auto: auto, decisoes: decisoes, pendentes: pend, lancamentos: lancamentos, fora: fora, fechamento: fechamento };
+  }
+  function requisitos(id, d) {
+    if (id === 'competencia') return true;
+    if (id === 'banco') return cr.competenciaValida(S.competencia);
+    if (id === 'fiscal' || id === 'contas') return d.titulos.length > 0;
+    return d.titulos.length > 0 && d.pendentes.length === 0;
+  }
+  var indice = function (id) { return ETAPAS.findIndex(function (e) { return e.id === id; }); };
+  function podeAbrir(id, d) { return indice(id) <= S.alcancada && requisitos(id, d || derivar()); }
+  function abrir(id) {
+    S.alcancada = Math.max(S.alcancada, indice(id));
+    S.etapa = id;
+    desenhar();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  function proxima() { var d = derivar(), i = indice(S.etapa), p = ETAPAS[i + 1]; if (p && requisitos(p.id, d)) abrir(p.id); }
+  function anterior() { var i = indice(S.etapa); if (i > 0) abrir(ETAPAS[i - 1].id); }
+
+  // ---------- banco: empresa, balancete e o que fica salvo ----------
+  function carregarEmpresas() {
+    if (empresas) return Promise.resolve(empresas);
+    return db.collection('driveIndice').doc('raiz').get().then(function (d) {
+      empresas = ((d.exists && d.data().clientes) || []).filter(function (c) { return c && c.codigo != null && String(c.codigo).trim() !== ''; })
+        .map(function (c) { return { codigo: Number(c.codigo), nome: String(c.nome || c.nomePasta || '').replace(/^\s*\d+\s*-\s*/, ''), pastaId: c.id, nomePasta: c.nomePasta || '' }; })
+        .sort(function (a, b) { return a.codigo - b.codigo; });
+      return empresas;
+    });
+  }
+  function abrirEmpresa(e) {
+    pararEmpresa.forEach(function (f) { try { f(); } catch (x) {} });
+    pararEmpresa = [];
+    S = novoEstado(e);
+    try { sessionStorage.setItem('creditor_empresa', String(e.codigo)); } catch (x) {}
+    var cod = String(e.codigo);
+    pararEmpresa.push(db.collection('balancetes').doc(cod).onSnapshot(function (d) {
+      S.balancete = cr.balanceteDoDocumento(d.exists ? d.data() : null);
+      S.balanceteChegou = true;
+      desenhar();
+    }, function (err) { S.balanceteChegou = true; toast('Não consegui ler o balancete: ' + err.message); desenhar(); }));
+    pararEmpresa.push(db.collection('creditor').doc(cod).onSnapshot(function (d) {
+      S.cfg = cr.configDoDocumento(d.exists ? d.data() : null);
+      S.cfgChegou = true;
+      desenhar();
+    }, function (err) { S.cfgChegou = true; toast('Não consegui ler as contas salvas: ' + err.message); desenhar(); }));
+    desenhar();
+  }
+  function trocarEmpresa() {
+    pararEmpresa.forEach(function (f) { try { f(); } catch (x) {} });
+    pararEmpresa = [];
+    S = novoEstado(null);
+    try { sessionStorage.removeItem('creditor_empresa'); } catch (x) {}
+    desenhar();
+  }
+  var carregada = function () { return S.balanceteChegou && S.cfgChegou; };
+  function gravarCfg(nova) {
+    if (!carregada() || !S.empresa) return;
+    var mudou = !cr.mesmaConfig(S.cfg, nova) || !cr.mesmosClientes(S.cfg.clientes || {}, nova.clientes || {});
+    if (!mudou) return;
+    S.cfg = nova;
+    desenhar();
+    db.collection('creditor').doc(String(S.empresa.codigo)).set({
+      contas: nova.contas, nomes: nova.nomes, clientes: nova.clientes || {},
+      atualizadoEm: new Date().toISOString(), atualizadoPor: (usuario && usuario.email) || ''
+    }).catch(function (err) { toast('Não deu para salvar as contas: ' + err.message); });
+  }
+
+  // ---------- o relatório do Drive (pelo robô, modo "ler") ----------
+  function itensDaPasta(pastaId) {
+    return db.collection('driveIndice').doc(pastaId).collection('partes').get().then(function (snap) {
+      var docs = snap.docs.slice().sort(function (a, b) { return Number(a.id) - Number(b.id); });
+      var itens = [];
+      docs.forEach(function (p) { itens = itens.concat(p.data().itens || []); });
+      return itens;
+    });
+  }
+  function lerDoDrive(arq, passo) {
+    return db.collection('aberturasDrive').add({
+      status: 'pendente', fileId: arq.id, nome: arq.nome, modo: 'ler',
+      criadoEm: new Date().toISOString(), criadoPor: String((usuario && usuario.email) || '').replace(/@nilma\.local$/, '') || 'creditor', criadoPorUid: usuario.uid
+    }).then(function (ref) {
+      return new Promise(function (ok, falha) {
+        var parar = function () {};
+        var fim = setTimeout(function () { parar(); falha(new Error('O robô do Drive não respondeu a tempo. Confira se ele está ligado e tente de novo, ou anexe o arquivo à mão.')); }, ESPERA_DRIVE_MS);
+        parar = ref.onSnapshot(function (d) {
+          var p = d.data() || {};
+          if (p.status === 'buscando') passo('o robô está buscando no Drive');
+          if (p.status === 'erro') { clearTimeout(fim); parar(); falha(new Error('O robô não conseguiu trazer o arquivo: ' + (p.erro || 'erro'))); }
+          if (p.status === 'pronto') {
+            clearTimeout(fim); parar();
+            if (!p.partes) { falha(new Error('O robô ainda não sabe entregar o arquivo pra leitura: atualize o robô (versão 2.407).')); return; }
+            passo('lendo');
+            var pedidos = [];
+            for (var i = 0; i < p.partes; i++) pedidos.push(ref.collection('partes').doc(String(i)).get());
+            Promise.all(pedidos).then(function (ps) {
+              var b64 = ps.map(function (x) { return (x.data() || {}).dados || ''; }).join('');
+              var bin = atob(b64), bytes = new Uint8Array(bin.length);
+              for (var k = 0; k < bin.length; k++) bytes[k] = bin.charCodeAt(k);
+              ok(bytes.buffer);
+            }).catch(falha);
+          }
+        }, function (err) { clearTimeout(fim); falha(err); });
+      });
+    });
+  }
+
+  // ---------- ler o arquivo (PDF no navegador, planilha ou texto) ----------
+  function lerArquivo(nome, buf) {
+    var n = nome.toLowerCase();
+    if (/\.pdf$/.test(n)) return lerPdf(buf);
+    if (/\.txt$/.test(n)) return Promise.resolve(cr.lerRelatorioTexto(new TextDecoder().decode(buf)));
+    return Promise.resolve().then(function () {
+      var wb;
+      if (/\.csv$/.test(n)) {
+        var txt = new TextDecoder('utf-8').decode(buf);
+        if (txt.indexOf('�') > -1) txt = new TextDecoder('windows-1252').decode(buf);
+        wb = XLSX.read(txt, { type: 'string', raw: true });
+      } else {
+        try { wb = XLSX.read(new Uint8Array(buf), { type: 'array', cellDates: true, raw: true }); }
+        catch (e) { throw new Error('O arquivo parece estar corrompido ou em um formato não suportado.'); }
+      }
+      var aba = wb.SheetNames[0];
+      if (!aba) throw new Error('A planilha não tem nenhuma aba.');
+      return cr.lerRelatorioLinhas(XLSX.utils.sheet_to_json(wb.Sheets[aba], { header: 1, raw: true, defval: null, blankrows: false }));
+    });
+  }
+  function lerPdf(buf) {
+    var lib = window.pdfjsLib;
+    if (!lib) return Promise.reject(new Error('O leitor de PDF não carregou. Recarregue a página.'));
+    lib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    var tarefa = lib.getDocument({ data: new Uint8Array(buf), disableFontFace: true });
+    return tarefa.promise.catch(function (e) {
+      if (e && e.name === 'PasswordException') throw new Error('O PDF está protegido por senha. Exporte de novo sem senha.');
+      throw new Error('Não consegui abrir o PDF' + (e && e.message ? ': ' + e.message : '.'));
+    }).then(function (doc) {
+      var paginas = [], cadeia = Promise.resolve();
+      for (var p = 1; p <= doc.numPages; p++) (function (p) {
+        cadeia = cadeia.then(function () { return doc.getPage(p); }).then(function (pagina) {
+          var vista = pagina.getViewport({ scale: 1 });
+          return pagina.getTextContent().then(function (conteudo) {
+            var itens = [];
+            conteudo.items.forEach(function (it) {
+              if (!it.str || !it.str.trim()) return;
+              var m = lib.Util.transform(vista.transform, it.transform);
+              itens.push({ texto: it.str, x: m[4], y: m[5], largura: it.width });
+            });
+            paginas.push(itens);
+          });
+        });
+      })(p);
+      return cadeia.then(function () { tarefa.destroy(); return cr.relatorioDoPdf(paginas); });
+    });
+  }
+  function usarRelatorio(rel, origem) {
+    S.relatorio = rel; S.origem = origem; S.decisoes = {}; S.erroArquivo = '';
+    S.alcancada = Math.min(S.alcancada, indice('banco'));
+  }
+
+  // ---------- etapa 1: competência ----------
+  function buscarNoDrive() {
+    if (!cr.competenciaValida(S.competencia)) return;
+    var mes = S.competencia;
+    if (S.relatorio && S.relatorioMes === mes) { abrir('banco'); return; }
+    S.busca = { fase: 'procurando', texto: 'Procurando o relatório de ' + cr.rotuloCompetencia(mes) + ' no Drive…', candidatos: [] };
+    desenhar();
+    var pasta = cr.pastaDoCliente((empresas || []).map(function (e) { return { id: e.pastaId, codigo: e.codigo }; }), S.empresa.codigo);
+    (pasta ? itensDaPasta(pasta.id) : Promise.resolve([])).then(function (itens) {
+      var b = cr.acharRelatorioNoDrive(itens, pasta ? pasta.id : null, mes);
+      if (b.situacao === 'achou') return usarDoDrive(b.arquivo, b.candidatos);
+      S.busca = { fase: 'problema', texto: cr.mensagemDaBusca(b, cr.rotuloCompetencia(mes)), candidatos: b.candidatos };
+      desenhar();
+    }).catch(function (e) { S.busca = { fase: 'problema', texto: e.message || String(e), candidatos: [] }; desenhar(); });
+  }
+  function usarDoDrive(a, candidatos) {
+    var mes = S.competencia;
+    S.busca = { fase: 'baixando', texto: 'Trazendo ' + a.nome + '…', candidatos: candidatos };
+    desenhar();
+    return lerDoDrive(a, function (passo) { S.busca.texto = a.nome + ': ' + passo + '…'; desenhar(); })
+      .then(function (buf) { return lerArquivo(a.nome, buf); })
+      .then(function (rel) {
+        usarRelatorio(rel, 'Drive · ' + a.caminho);
+        S.relatorioMes = mes;
+        S.busca = { fase: 'parado', texto: '', candidatos: [] };
+        abrir('banco');
+      })
+      .catch(function (e) { S.busca = { fase: 'problema', texto: e.message || String(e), candidatos: candidatos }; desenhar(); });
+  }
+  function telaCompetencia() {
+    var b = S.busca, ocupado = b.fase === 'procurando' || b.fase === 'baixando';
+    var jaTem = S.relatorio && S.relatorioMes === S.competencia;
+    var h = '<div class="card"><div class="field" style="max-width:240px;margin-bottom:8px;"><label for="fMes">Mês da conciliação</label>'
+      + '<input type="month" id="fMes" value="' + esc(S.competencia) + '" max="' + new Date().toISOString().slice(0, 7) + '"></div>'
+      + '<p class="hint">' + (cr.competenciaValida(S.competencia) ? 'Conciliação de ' + esc(cr.competenciaPorExtenso(S.competencia)) + '. ' : '')
+      + 'O relatório de liquidação é buscado em <b>' + esc(S.empresa.codigo) + ' - … › CONTÁBIL › RECEBIMENTO DE CLIENTES</b>.</p>'
+      + (jaTem ? '<p class="hint">Já carregado: ' + esc(S.origem) + '.</p>' : '') + '</div>';
+    if (ocupado) h += carregando(b.texto);
+    if (b.fase === 'problema') {
+      var linhas = [esc(b.texto)];
+      if (b.candidatos.length) {
+        linhas.push('<div class="table-wrap" style="margin-top:8px;"><table><thead><tr><th>Arquivo em RECEBIMENTO DE CLIENTES</th><th>Modificado</th><th></th></tr></thead><tbody>'
+          + b.candidatos.map(function (a, i) {
+            return '<tr><td>' + esc(a.caminho) + (a.daCompetencia ? ' <span class="badge badge-ok">' + esc(cr.rotuloCompetencia(S.competencia)) + '</span>' : '') + '</td><td>' + (a.modificado ? esc(dataCurta(a.modificado)) : '—') + '</td>'
+              + '<td><button class="btn btn-outline btn-sm" type="button" data-usar="' + i + '">Usar este</button></td></tr>';
+          }).join('') + '</tbody></table></div>');
+      }
+      linhas.push('<button class="btn btn-ghost btn-sm" type="button" id="anexarMao" style="margin-top:8px;">Anexar à mão →</button>');
+      h += alerta('', 'O relatório não veio do Drive', linhas);
+    }
+    h += '<div class="btn-row"><span></span><button class="btn btn-primary" type="button" id="abrirComp"' + (!cr.competenciaValida(S.competencia) || ocupado ? ' disabled' : '') + '>'
+      + (jaTem ? 'Continuar' : 'Abrir e buscar no Drive') + '</button></div>';
+    tela.querySelector('#corpo').innerHTML = h;
+    $('fMes').addEventListener('change', function () { S.competencia = this.value; S.busca = { fase: 'parado', texto: '', candidatos: [] }; desenhar(); });
+    $('abrirComp').addEventListener('click', buscarNoDrive);
+    if ($('anexarMao')) $('anexarMao').addEventListener('click', function () { abrir('banco'); });
+    tela.querySelectorAll('[data-usar]').forEach(function (bt) { bt.addEventListener('click', function () { usarDoDrive(b.candidatos[+bt.dataset.usar], b.candidatos); }); });
+  }
+
+  // ---------- etapa 2: relatório do banco ----------
+  function escolherArquivo(f) {
+    if (!f) return;
+    S.lendo = true; S.erroArquivo = ''; desenhar();
+    f.arrayBuffer().then(function (buf) { return lerArquivo(f.name, buf); })
+      .then(function (rel) { usarRelatorio(rel, f.name); S.relatorioMes = S.competencia; })
+      .catch(function (e) { S.erroArquivo = e.message || String(e); })
+      .then(function () { S.lendo = false; desenhar(); });
+  }
+  function telaBanco(d) {
+    var h = '<div class="card"><div class="cr-drop" id="dropBanco" tabindex="0" role="button" aria-label="Escolher o relatório do banco">'
+      + '<i class="ph ph-file-arrow-up" aria-hidden="true"></i><div><b>Arraste o relatório aqui ou clique para escolher</b><br>'
+      + 'PDF exportado pelo banco (Sicoob: "Relatório - Títulos por Período"), .xls, .xlsx ou .csv. A leitura é aqui no navegador.</div></div>'
+      + '<div class="btn-row" style="justify-content:flex-start;margin-top:8px;"><button class="btn btn-ghost btn-sm" type="button" id="exemploBtn">Testar com o exemplo</button></div>'
+      + (S.lendo ? carregando('Lendo…') : '')
+      + (S.erroArquivo ? alerta('ruim', 'Não foi possível ler o relatório', [esc(S.erroArquivo)]) : '') + '</div>';
+    if (S.relatorio) {
+      var ts = d.titulos, fora = cr.titulosForaDaCompetencia(ts, S.competencia);
+      var linhas = ['Origem: ' + esc(S.origem) + ' · ' + new Set(ts.map(function (t) { return t.liquidacao; })).size + ' dia(s) de liquidação · valor somado <span class="num">' + cr.brl(cr.somar(ts.map(function (t) { return t.valor; }))) + '</span>'
+        + (S.relatorio.ignorados ? ' · ' + S.relatorio.ignorados + ' baixa(s) por pedido do cedente ficaram de fora' : '')];
+      S.relatorio.avisos.forEach(function (a) { linhas.push(esc(a)); });
+      if (fora.length) linhas.push(fora.length + ' título(s) liquidado(s) fora de ' + esc(cr.rotuloCompetencia(S.competencia)) + ' (ex.: NF ' + esc(fora[0].nf) + ' em ' + esc(fora[0].liquidacao) + '). Confira se é o relatório certo.');
+      h += alerta(ts.length ? 'ok' : 'ruim', 'Lido: ' + ts.length + ' título(s) em ' + S.relatorio.grupos.length + ' grupo(s)', linhas);
+      var comTotal = S.relatorio.grupos.filter(function (g) { return Object.keys(g.impresso).some(function (k) { return g.impresso[k] != null; }); });
+      if (comTotal.length) {
+        h += '<div class="card" style="margin-top:16px;"><div class="card-head"><h3>Conferência com os totais impressos</h3></div><div class="table-wrap"><table><thead><tr><th>Grupo</th><th>Dias</th><th class="num">Títulos</th><th class="num">Cobrado (soma)</th><th class="num">Impresso</th><th>Situação</th></tr></thead><tbody>'
+          + S.relatorio.grupos.map(function (g, i) {
+            var c = cr.conferirGrupo(g), cob = c.colunas.find(function (x) { return x.coluna === 'cobrado'; });
+            var datas = g.titulos.map(function (t) { return t.liquidacao; }).filter(function (v, k, a) { return v && a.indexOf(v) === k; }).join(', ');
+            var sit = c.situacao === 'ok' ? '<span class="badge badge-ok">Bate</span>' : c.situacao === 'sem-total' ? '<span class="badge badge-neutral">Sem total</span>' : '<span class="badge badge-bad">Não bate</span>';
+            return '<tr><td>' + (i + 1) + (g.rotulo ? ' · ' + esc(g.rotulo) : '') + '</td><td>' + esc(datas) + '</td><td class="num">' + g.titulos.length + (g.registros != null && g.registros !== g.titulos.length ? ' de ' + g.registros : '') + '</td>'
+              + '<td class="num">' + cr.brl(cob.soma) + '</td><td class="num">' + (cob.impresso == null ? '—' : cr.brl(cob.impresso)) + '</td><td>' + sit + '</td></tr>';
+          }).join('') + '</tbody></table></div></div>';
+      }
+    }
+    h += '<div class="btn-row"><button class="btn btn-ghost" type="button" id="voltar">← Voltar</button>'
+      + '<button class="btn btn-primary" type="button" id="seguir"' + (d.titulos.length ? '' : ' disabled') + '>Continuar para o fiscal</button></div>';
+    tela.querySelector('#corpo').innerHTML = h;
+    var drop = $('dropBanco'), input = $('arquivoBanco');
+    drop.addEventListener('click', function () { input.click(); });
+    drop.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); } });
+    ['dragenter', 'dragover'].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('sobre'); }); });
+    ['dragleave', 'drop'].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove('sobre'); }); });
+    drop.addEventListener('drop', function (e) { var f = e.dataTransfer.files && e.dataTransfer.files[0]; if (f) escolherArquivo(f); });
+    $('exemploBtn').addEventListener('click', function () { usarRelatorio(cr.lerRelatorioTexto(cr.EXEMPLO_RELATORIO), 'exemplo'); S.relatorioMes = S.competencia; desenhar(); });
+    $('voltar').addEventListener('click', anterior);
+    $('seguir').addEventListener('click', proxima);
+  }
+
+  // ---------- etapa 3: baixa no Fiscal (só os títulos) ----------
+  function telaFiscal(d) {
+    var ts = d.titulos.slice().sort(function (a, b) { return cr.ordemData(a.liquidacao) - cr.ordemData(b.liquidacao) || a.id - b.id; });
+    var total = cr.somar(ts.map(cr.liquidoDoTitulo));
+    var h = '<div class="card"><div class="card-head"><h3>Títulos para baixar</h3><span class="hint">' + ts.length + ' título(s) · <span class="num">' + cr.brl(total) + '</span></span></div>'
+      + '<div class="table-wrap alta"><table><thead><tr><th>NF</th><th>Sacado</th><th>Liquidação</th><th class="num">Valor</th><th class="num">Mora/acrésc.</th><th class="num">Desconto</th><th class="num">Cobrado</th></tr></thead><tbody>'
+      + ts.map(function (t) {
+        var ac = cr.r2(t.mora + t.outros);
+        return '<tr><td>' + esc(t.nf) + '</td><td>' + esc(t.sacado) + '</td><td>' + esc(t.liquidacao || 'sem data') + '</td><td class="num">' + cr.brl(t.valor) + '</td>'
+          + '<td class="num">' + (ac ? cr.brl(ac) : '—') + '</td><td class="num">' + (t.desconto ? cr.brl(t.desconto) : '—') + '</td><td class="num"><b>' + cr.brl(cr.liquidoDoTitulo(t)) + '</b></td></tr>';
+      }).join('') + '</tbody></table></div></div>'
+      + '<div class="btn-row"><button class="btn btn-ghost" type="button" id="voltar">← Voltar</button><button class="btn btn-primary" type="button" id="seguir">Continuar para as contas</button></div>';
+    tela.querySelector('#corpo').innerHTML = h;
+    $('voltar').addEventListener('click', anterior);
+    $('seguir').addEventListener('click', proxima);
+  }
+
+  // ---------- etapa 4: a conta de cada cliente ----------
+  function decidir(id, dec) {
+    if (dec) S.decisoes[id] = dec; else delete S.decisoes[id];
+    desenhar();
+  }
+  function telaContas(d) {
+    var porId = {}; d.titulos.forEach(function (t) { porId[t.id] = t; });
+    var linhas = d.cruzamentos.map(function (c) {
+      var t = porId[c.tituloId], dec = d.decisoes[c.tituloId], precisa = cr.precisaDecisao(c);
+      var contra = dec && dec.tipo === 'manual' ? dec.contrapartida : (c.linha ? c.linha.contrapartida : '');
+      var nomeConta = c.linha ? c.linha.cliente : '';
+      if (dec && dec.tipo === 'manual') { var achada = d.clientes.find(function (x) { return x.codigo === dec.contrapartida; }); nomeConta = achada ? achada.nome : (d.auto[c.tituloId] ? 'conta aprendida' : 'informada'); }
+      var sit, cls;
+      if (dec && dec.tipo === 'excluir') { sit = '<span class="badge badge-neutral">Excluído</span>'; }
+      else if (dec && dec.tipo === 'manual' && cr.decisaoValida(c, dec)) sit = '<span class="badge badge-ok">' + (S.decisoes[c.tituloId] ? 'Escolhida' : 'Aprendida') + '</span>';
+      else if (precisa) sit = '<span class="badge badge-bad">Sem conta</span>';
+      else if (c.principal) sit = '<span class="badge badge-info">Conta principal</span>';
+      else if (c.aprendida) sit = '<span class="badge badge-ok">Aprendida</span>';
+      else sit = '<span class="badge badge-ok">Ok</span>';
+      cls = dec && dec.tipo === 'excluir' ? 'cr-excluida' : precisa && !cr.decisaoValida(c, dec) ? 'cr-sem' : '';
+      return { c: c, t: t, dec: dec, precisa: precisa, contra: contra, nomeConta: nomeConta, sit: sit, cls: cls };
+    });
+    var n = function (f) { return linhas.filter(f).length; };
+    var filtros = [['todos', 'Todos'], ['decidir', 'Para decidir'], ['principal', 'Conta principal'], ['avisos', 'Com aviso']];
+    var visiveis = linhas.filter(function (l) {
+      return S.filtro === 'todos' || (S.filtro === 'decidir' ? l.precisa : S.filtro === 'principal' ? !!l.c.principal : !!l.c.nota);
+    });
+    var h = '';
+    if (carregada() && S.balancete.origem === 'nenhum') h += alerta('', 'Esta empresa não tem balancete', ['Suba o balancete em Clientes e ajustes → Balancetes para as contas dos clientes virem sozinhas. Até lá, informe a conta de cada cliente (fica aprendida).']);
+    h += '<div class="cr-stats">'
+      + '<div class="stat"><p class="stat-label">No arquivo</p><p class="stat-value">' + (d.titulos.length - d.fora.length) + ' de ' + d.titulos.length + '</p></div>'
+      + '<div class="stat"><p class="stat-label">Na conta principal</p><p class="stat-value">' + n(function (l) { return l.c.principal && !S.decisoes[l.c.tituloId]; }) + '</p></div>'
+      + '<div class="stat"><p class="stat-label">Para decidir</p><p class="stat-value' + (d.pendentes.length ? ' cor-entrada' : '') + '">' + d.pendentes.length + '</p></div>'
+      + '<div class="stat"><p class="stat-label">Excluídos</p><p class="stat-value">' + n(function (l) { return l.dec && l.dec.tipo === 'excluir'; }) + '</p></div></div>';
+    h += '<div class="card"><div class="card-head"><h3>Títulos</h3><div class="chip-row" style="margin:0;">'
+      + filtros.map(function (f) { return '<button type="button" class="chip-f' + (S.filtro === f[0] ? ' on' : '') + '" data-filtro="' + f[0] + '">' + f[1] + '</button>'; }).join('') + '</div></div>'
+      + '<div class="table-wrap alta"><table><thead><tr><th>NF</th><th>Liquidação</th><th>Sacado (banco)</th><th>Conta no balancete</th><th class="num">Valor</th><th>Contrapartida</th><th>Situação</th></tr></thead><tbody>'
+      + visiveis.map(function (l) {
+        var id = l.c.tituloId, excluido = l.dec && l.dec.tipo === 'excluir';
+        var r = '<tr class="' + l.cls + '"><td>' + esc(l.t.nf) + '</td><td>' + esc(l.t.liquidacao) + '</td><td>' + esc(l.t.sacado) + '</td><td>' + esc(l.nomeConta || '—') + '</td>'
+          + '<td class="num">' + cr.brl(l.c.valorBanco) + '</td><td>' + esc(l.contra || '—') + '</td><td>' + l.sit + '</td></tr>';
+        var mostrarAcoes = l.precisa || (l.c.opcoes && l.c.opcoes.length) || (l.dec && S.decisoes[id]);
+        if (!l.c.nota && !mostrarAcoes) return r;
+        var a = '';
+        if (excluido) a = '<b style="font-size:13px;">Fica fora do arquivo.</b> <button class="btn btn-ghost btn-sm" type="button" data-desfazer="' + id + '">Desfazer</button>';
+        else if (mostrarAcoes) {
+          var atual = l.dec && l.dec.tipo === 'manual' ? l.dec.contrapartida : '';
+          (l.c.opcoes || []).forEach(function (o) {
+            var on = atual ? atual === o.codigo : (l.c.linha && l.c.linha.contrapartida === o.codigo);
+            a += '<button type="button" class="btn btn-sm ' + (on ? 'btn-primary' : 'btn-outline') + '" title="' + esc(o.nome) + '" data-conta="' + id + '" data-cod="' + esc(o.codigo) + '">' + esc(o.codigo) + '</button>';
+          });
+          a += '<input type="text" list="dlClientes" placeholder="Conta" aria-label="Contrapartida" data-manual="' + id + '" value="' + esc(atual) + '">'
+            + '<input type="text" class="cr-hist" placeholder="' + esc(cr.historicoNfCliente(l.t)) + '" aria-label="Histórico" data-hist="' + id + '" value="' + esc(l.dec && l.dec.tipo === 'manual' ? l.dec.historico : '') + '">'
+            + (S.decisoes[id] && S.decisoes[id].tipo === 'manual' ? '<button class="btn btn-ghost btn-sm" type="button" data-desfazer="' + id + '">Voltar à sugerida</button>' : '')
+            + '<button class="btn btn-ghost btn-sm" type="button" data-excluir="' + id + '">Excluir título</button>';
+        }
+        return r + '<tr class="cr-nota' + (l.cls ? ' ' + l.cls.replace('cr-excluida', '') : '') + '"><td colspan="7">' + (l.c.nota ? '<span class="cr-nota-txt">' + esc(l.c.nota) + '</span>' : '')
+          + (a ? '<div class="cr-acoes">' + a + '</div>' : '') + '</td></tr>';
+      }).join('') + '</tbody></table></div>' + (visiveis.length ? '' : '<p class="empty">Nada neste filtro.</p>') + '</div>';
+    h += '<div class="btn-row"><button class="btn btn-ghost" type="button" id="voltar">← Voltar</button><button class="btn btn-primary" type="button" id="seguir"' + (d.pendentes.length || !d.titulos.length ? ' disabled' : '') + '>'
+      + (d.pendentes.length ? 'Faltam ' + d.pendentes.length + ' decisão(ões)' : 'Continuar para os lançamentos') + '</button></div>';
+    tela.querySelector('#corpo').innerHTML = h;
+    $('dlClientes').innerHTML = d.clientes.map(function (c) { return '<option value="' + esc(c.codigo) + '">' + esc(c.nome) + '</option>'; }).join('');
+    tela.querySelectorAll('[data-filtro]').forEach(function (b) { b.addEventListener('click', function () { S.filtro = b.dataset.filtro; desenhar(); }); });
+    var manual = function (id, campo, v) {
+      var atual = S.decisoes[id] && S.decisoes[id].tipo === 'manual' ? S.decisoes[id] : { tipo: 'manual', contrapartida: '', historico: '' };
+      var nova = Object.assign({}, atual); nova[campo] = String(v || '').trim();
+      if (!nova.contrapartida && !nova.historico) decidir(id, null); else decidir(id, nova);
+    };
+    tela.querySelectorAll('[data-conta]').forEach(function (b) { b.addEventListener('click', function () { manual(+b.dataset.conta, 'contrapartida', b.dataset.cod); }); });
+    tela.querySelectorAll('[data-manual]').forEach(function (i) { i.addEventListener('change', function () { manual(+i.dataset.manual, 'contrapartida', i.value); }); });
+    tela.querySelectorAll('[data-hist]').forEach(function (i) { i.addEventListener('change', function () { manual(+i.dataset.hist, 'historico', i.value); }); });
+    tela.querySelectorAll('[data-manual],[data-hist]').forEach(function (i) { i.addEventListener('keydown', function (e) { if (e.key === 'Enter') i.blur(); }); });
+    tela.querySelectorAll('[data-excluir]').forEach(function (b) { b.addEventListener('click', function () { decidir(+b.dataset.excluir, { tipo: 'excluir' }); }); });
+    tela.querySelectorAll('[data-desfazer]').forEach(function (b) { b.addEventListener('click', function () { decidir(+b.dataset.desfazer, null); }); });
+    $('voltar').addEventListener('click', anterior);
+    $('seguir').addEventListener('click', proxima);
+  }
+
+  // ---------- etapa 5: lançamentos e o arquivo ----------
+  function fonteDasContas() {
+    if (!carregada()) return 'Carregando o balancete da empresa…';
+    if (S.balancete.origem === 'balancete') return 'Contas do balancete subido em Clientes e ajustes' + (S.balancete.em ? ' (em ' + dataCurta(S.balancete.em) + ')' : '') + '. Quando o balancete é atualizado, as contas acompanham.';
+    return 'Esta empresa não tem balancete: valem os padrões. Suba o balancete em Clientes e ajustes → Balancetes para as contas virem sugeridas.';
+  }
+  function telaLancamentos(d) {
+    var r = d.resolvidas, divergentes = d.fechamento.filter(function (f) { return f.situacao === 'diverge'; });
+    var contasOk = carregada() && Object.keys(r.contas).every(function (k) { return String(r.contas[k] || '').trim(); }) && cr.CONTAS_DO_LAYOUT.every(function (k) { return !r.detalhe[k].bloqueia; });
+    var podeBaixar = d.lancamentos.length > 0 && !divergentes.length && contasOk;
+    var somaTipo = function (tp) { return cr.somar(d.lancamentos.filter(function (l) { return l.tipo === tp; }).map(function (l) { return l.valor; })); };
+    var temSalvas = cr.CONTAS_DO_LAYOUT.some(function (k) { return r.detalhe[k].origem === 'salva'; }) || cr.HISTORICOS.some(function (k) { return r.contas[k] !== cr.CONTAS_PADRAO[k]; });
+    var h = '<div class="card"><div class="card-head"><h3>Contas e históricos</h3>' + (temSalvas ? '<button class="btn btn-ghost btn-sm" type="button" id="esquecer">Voltar às sugestões</button>' : '') + '</div>'
+      + '<p class="hint" style="margin:0 0 12px;">' + esc(fonteDasContas()) + '</p><div class="cr-contas">'
+      + Object.keys(ROTULO_CONTA).map(function (k) {
+        var det = r.detalhe[k];
+        var extra = det && carregada() ? '<p class="hint" style="margin:4px 0 0;"><span class="badge ' + (det.bloqueia ? 'badge-bad' : det.aviso ? 'badge-warn' : det.origem === 'salva' ? 'badge-ok' : 'badge-neutral') + '">' + ORIGEM[det.origem] + '</span>'
+          + (det.nome ? ' ' + esc(det.nome) : '') + (det.aviso ? '<br>' + esc(det.aviso) : '') + '</p>' : '';
+        return '<div class="field"><label for="fConta-' + k + '">' + ROTULO_CONTA[k] + '</label><input type="text" id="fConta-' + k + '" data-campo="' + k + '" inputmode="numeric" autocomplete="off"'
+          + (det ? ' list="dlBalancete"' : '') + ' value="' + esc(r.contas[k]) + '">' + extra + '</div>';
+      }).join('') + '</div></div>';
+    h += '<div class="card"><div class="card-head"><h3>Conta ' + esc(r.contas.banco) + ' por dia</h3></div>'
+      + '<p class="hint" style="margin:0 0 8px;">Débitos − créditos da conta banco no arquivo, contra o que o banco creditou no dia (o total cobrado impresso, ou a soma dos títulos).</p>'
+      + '<div class="table-wrap"><table><thead><tr><th>Dia</th><th class="num">Débitos</th><th class="num">Créditos</th><th class="num">Líquido</th><th class="num">Banco creditou</th><th class="num">Fora do arquivo</th><th class="num">Diferença</th><th>Situação</th></tr></thead><tbody>'
+      + d.fechamento.map(function (f) {
+        var b = f.situacao === 'ok' ? '<span class="badge badge-ok">Bate</span>' : f.situacao === 'explicada' ? '<span class="badge badge-warn">Diferença = excluídos</span>' : '<span class="badge badge-bad">Não bate</span>';
+        return '<tr' + (f.situacao === 'diverge' ? ' class="cr-sem"' : '') + '><td>' + esc(f.data || 'sem data') + '</td><td class="num">' + cr.brl(f.debitos) + '</td><td class="num">' + cr.brl(f.creditos) + '</td><td class="num"><b>' + cr.brl(f.liquido) + '</b></td>'
+          + '<td class="num">' + cr.brl(f.esperado) + (f.fonte === 'extraido' ? ' *' : '') + '</td><td class="num">' + (f.fora ? cr.brl(f.fora) : '—') + '</td><td class="num">' + cr.brl(f.diferenca) + '</td><td>' + b + '</td></tr>';
+      }).join('') + '</tbody></table></div>'
+      + (d.fechamento.some(function (f) { return f.fonte === 'extraido'; }) ? '<p class="hint">* sem total cobrado impresso só daquele dia: vale a soma dos títulos.</p>' : '') + '</div>';
+    if (divergentes.length) h += alerta('ruim', 'O arquivo não fecha com o banco', divergentes.map(function (f) { return esc(f.data) + ': diferença de ' + cr.brl(f.diferenca); }));
+    if (d.fora.length) h += alerta('', d.fora.length + ' título(s) fora do arquivo', d.fora.map(function (t) { return 'NF ' + esc(t.nf) + ' · ' + esc(t.sacado) + ' · ' + esc(t.liquidacao) + ' · ' + cr.brl(cr.liquidoDoTitulo(t)); }));
+    h += '<div class="cr-stats" style="margin-top:16px;">'
+      + '<div class="stat"><p class="stat-label">Lançamentos</p><p class="stat-value">' + d.lancamentos.length + '</p></div>'
+      + '<div class="stat"><p class="stat-label">Principal</p><p class="stat-value">' + cr.brl(somaTipo('principal')) + '</p></div>'
+      + '<div class="stat"><p class="stat-label">Mora</p><p class="stat-value">' + cr.brl(somaTipo('mora')) + '</p></div>'
+      + '<div class="stat"><p class="stat-label">Descontos</p><p class="stat-value">' + cr.brl(somaTipo('desconto')) + '</p></div></div>';
+    h += '<div class="card"><div class="card-head"><h3>Arquivo de importação (8 colunas)</h3></div><div class="table-wrap alta"><table><thead><tr>'
+      + cr.CABECALHO_8_COLUNAS.map(function (c) { return '<th' + (c === 'VALOR' || c === 'DOCUMENTO' ? ' class="num"' : '') + '>' + c + '</th>'; }).join('') + '</tr></thead><tbody>'
+      + d.lancamentos.map(function (l) {
+        return '<tr><td>' + esc(l.automatico) + '</td><td>' + esc(l.data) + '</td><td>' + esc(l.debito) + '</td><td>' + esc(l.credito) + '</td><td>' + esc(l.codHistorico) + '</td><td>' + esc(l.historico) + '</td><td class="num">' + cr.brl(l.valor) + '</td><td class="num">' + esc(l.documento) + '</td></tr>';
+      }).join('') + '</tbody></table></div></div>';
+    h += '<div class="btn-row"><button class="btn btn-ghost" type="button" id="voltar">← Voltar</button><button class="btn btn-success" type="button" id="baixar"' + (podeBaixar ? '' : ' disabled') + '><i class="ph ph-download-simple" aria-hidden="true"></i> Baixar .xls</button></div>';
+    tela.querySelector('#corpo').innerHTML = h;
+    $('dlBalancete').innerHTML = S.balancete.contas.filter(function (c) { return !c.sintetica; }).map(function (c) { return '<option value="' + esc(c.codigo) + '">' + esc(c.nome) + '</option>'; }).join('');
+    tela.querySelectorAll('[data-campo]').forEach(function (i) {
+      i.addEventListener('change', function () { if (i.value.trim() !== r.contas[i.dataset.campo]) gravarCfg(cr.escolherConta(S.cfg, i.dataset.campo, i.value, S.balancete)); });
+      i.addEventListener('keydown', function (e) { if (e.key === 'Enter') i.blur(); });
+    });
+    if ($('esquecer')) $('esquecer').addEventListener('click', function () { gravarCfg({ contas: {}, nomes: {}, clientes: S.cfg.clientes }); });
+    $('voltar').addEventListener('click', anterior);
+    $('baixar').addEventListener('click', function () {
+      var bytes = cr.planilhaDeImportacao(XLSX, d.lancamentos);
+      var url = URL.createObjectURL(new Blob([bytes], { type: 'application/vnd.ms-excel' }));
+      var a = document.createElement('a');
+      a.href = url; a.download = cr.nomeDoArquivo(String(S.empresa.codigo));
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+      // baixar conclui: as contas sugeridas ficam salvas e os clientes, aprendidos
+      var conf = cr.confirmarContas(S.cfg, d.resolvidas);
+      conf.clientes = cr.aprender(S.cfg.clientes || {}, d.titulos, d.cruzamentos, d.decisoes, new Date());
+      gravarCfg(conf);
+      toast('Arquivo baixado. Contas e clientes guardados na empresa.');
+    });
+  }
+
+  // ---------- escolher a empresa ----------
+  function telaEmpresa() {
+    var h = '<div class="cr-topo"><h1>Creditor</h1></div>'
+      + '<div class="card"><div class="field" style="margin-bottom:0;"><label for="buscaEmp">Empresa</label><div class="cr-busca">'
+      + '<input type="search" id="buscaEmp" placeholder="Código ou nome" autocomplete="off" value="' + esc(S.buscaEmpresa) + '"></div>'
+      + '<p class="hint">A empresa precisa ter a pasta no Drive (2026 › "&lt;código&gt; - &lt;nome&gt;"). O balancete vem de Clientes e ajustes → Balancetes.</p>'
+      + '<div id="listaEmp">' + (empresas ? '' : carregando('Carregando as empresas…')) + '</div></div></div>';
+    tela.innerHTML = h;
+    var input = $('buscaEmp');
+    function pintar() {
+      if (!empresas) return;
+      var q = sem(input.value).trim();
+      S.buscaEmpresa = input.value;
+      var lista = empresas.filter(function (e) { return !q || String(e.codigo).indexOf(q) === 0 || sem(e.nome).indexOf(q) > -1; }).slice(0, 60);
+      $('listaEmp').innerHTML = lista.length ? '<div class="cr-lista">' + lista.map(function (e) {
+        return '<button type="button" data-cod="' + e.codigo + '"><span class="cod">' + e.codigo + '</span><span>' + esc(e.nome) + '</span></button>';
+      }).join('') + '</div>' : '<p class="empty">Nenhuma empresa com esse código ou nome.</p>';
+      $('listaEmp').querySelectorAll('[data-cod]').forEach(function (b) {
+        b.addEventListener('click', function () { abrirEmpresa(empresas.find(function (e) { return String(e.codigo) === b.dataset.cod; })); });
+      });
+    }
+    input.addEventListener('input', pintar);
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { var b = $('listaEmp').querySelector('[data-cod]'); if (b) b.click(); }
+    });
+    if (!empresas) carregarEmpresas().then(function () { if (!S.empresa) pintar(); }).catch(function (e) { $('listaEmp').innerHTML = alerta('ruim', 'Não consegui ler as pastas do Drive', [esc(e.message)]); });
+    else pintar();
+    setTimeout(function () { try { input.focus(); } catch (x) {} }, 0);
+  }
+
+  // ---------- desenhar ----------
+  function desenhar() {
+    if (!db) return;
+    if (!S.empresa) { if (!$('buscaEmp')) telaEmpresa(); return; }
+    var d = derivar();
+    if (!podeAbrir(S.etapa, d)) {
+      var ultima = ETAPAS.slice().reverse().find(function (e) { return podeAbrir(e.id, d); }) || ETAPAS[0];
+      S.etapa = ultima.id;
+    }
+    var i = indice(S.etapa), atual = ETAPAS[i];
+    // o foco num campo que vai ser redesenhado volta pro mesmo campo
+    var foco = document.activeElement && document.activeElement.id;
+    var h = '<div class="cr-topo"><h1>' + esc(atual.titulo) + ' <span class="cr-empresa-nome">· ' + esc(S.empresa.codigo + ' – ' + S.empresa.nome) + '</span></h1>'
+      + '<span class="spacer"></span><button class="btn btn-ghost btn-sm" type="button" id="trocarEmp"><i class="ph ph-buildings" aria-hidden="true"></i> Trocar empresa</button>'
+      + (S.relatorio ? '<button class="btn btn-outline btn-sm" type="button" id="cancelar">Cancelar</button>' : '') + '</div>'
+      + '<nav class="steps" aria-label="Etapas">' + ETAPAS.map(function (e, k) {
+        return '<button type="button" class="step-pill" data-etapa="' + e.id + '"' + (e.id === S.etapa ? ' aria-current="true"' : '') + (podeAbrir(e.id, d) ? '' : ' disabled title="Resolva as etapas anteriores primeiro"') + '><b>' + (k + 1) + '</b>' + e.rotulo + '</button>';
+      }).join('') + '</nav><div id="corpo"></div>';
+    tela.innerHTML = h;
+    tela.querySelectorAll('[data-etapa]').forEach(function (b) { b.addEventListener('click', function () { if (b.dataset.etapa !== S.etapa) abrir(b.dataset.etapa); }); });
+    $('trocarEmp').addEventListener('click', function () {
+      if (S.relatorio && !confirm('Trocar de empresa? O relatório lido e as decisões serão descartados.')) return;
+      trocarEmpresa();
+    });
+    if ($('cancelar')) $('cancelar').addEventListener('click', function () {
+      if (!confirm('Cancelar a conciliação? O relatório lido e as decisões serão descartados.')) return;
+      var e = S.empresa, bal = S.balancete, cfg = S.cfg, bc = S.balanceteChegou, cc = S.cfgChegou;
+      S = novoEstado(e); S.balancete = bal; S.cfg = cfg; S.balanceteChegou = bc; S.cfgChegou = cc;
+      toast('Conciliação cancelada.');
+      desenhar();
+    });
+    if (S.etapa === 'competencia') telaCompetencia();
+    else if (S.etapa === 'banco') telaBanco(d);
+    else if (S.etapa === 'fiscal') telaFiscal(d);
+    else if (S.etapa === 'contas') telaContas(d);
+    else telaLancamentos(d);
+    if (foco && $(foco) && foco !== 'buscaEmp') try { $(foco).focus(); } catch (x) {}
+  }
+
+  $('arquivoBanco').addEventListener('change', function () {
+    var f = this.files && this.files[0];
+    this.value = '';
+    if (f) escolherArquivo(f);
+  });
+  $('configBtn').addEventListener('click', function () {
+    var cfg = window.NilmaConfig;
+    try { if (window.parent !== window && window.parent.NilmaConfig) cfg = window.parent.NilmaConfig; } catch (e) {}
+    if (cfg) cfg.abrir('conta');
+  });
+
+  // ---------- login (o mesmo do Entregas) ----------
+  function bloquear(msg) {
+    $('appRoot').hidden = true;
+    $('acessoGateMsg').innerHTML = msg;
+    $('acessoGate').style.display = 'flex';
+  }
+  try {
+    firebase.initializeApp({
+      apiKey: "AIzaSyD6xg7XhX8dKTKmaYup4hRX5k9XFHEkb98",
+      authDomain: "entregas-2e5e2.firebaseapp.com",
+      projectId: "entregas-2e5e2",
+      storageBucket: "entregas-2e5e2.firebasestorage.app",
+      messagingSenderId: "1009094556836",
+      appId: "1:1009094556836:web:d3b6a9283e934db064fa31"
+    });
+    auth = firebase.auth();
+    var banco = firebase.firestore();
+    var contaCfg = { nome: '', foto: '', cargos: [] };
+    if (window.NilmaConfig) window.NilmaConfig.ligar({
+      db: banco, auth: auth, firebase: firebase,
+      usuario: function () { return contaCfg; },
+      cargos: function () { return contaCfg.cargos; },
+      aoMudarNome: function (nome) { contaCfg.nome = nome; },
+      sair: function () { auth.signOut(); },
+      versao: '2.407 · 29/09/2026'
+    });
+    auth.onAuthStateChanged(function (user) {
+      if (!user) { location.replace('entregas.html'); return; }
+      usuario = user;
+      banco.collection('usuarios').doc(user.uid).get().then(function (snap) {
+        var data = snap.exists ? snap.data() : {};
+        document.documentElement.setAttribute('data-paleta', data.paleta || 'padrao');
+        if (window.NilmaUI) window.NilmaUI.daConta(data);
+        var roles = Array.isArray(data.roles) && data.roles.length ? data.roles : (data.role ? [data.role] : ['staff']);
+        contaCfg = { nome: data.nome || user.email || '', foto: data.fotoPerfil || '', cargos: roles };
+        if (roles.indexOf('admin') === -1 && roles.indexOf('contabil') === -1) {
+          bloquear('Só admins e a equipe contábil abrem o Creditor. Peça a um admin o cargo "Contábil" em Configurações → Quem tem acesso.');
+          return;
+        }
+        db = banco;
+        var ultima = null;
+        try { ultima = sessionStorage.getItem('creditor_empresa'); } catch (x) {}
+        carregarEmpresas().then(function () {
+          var e = ultima && empresas.find(function (x) { return String(x.codigo) === ultima; });
+          if (e) abrirEmpresa(e); else desenhar();
+        }).catch(function () { desenhar(); });
+      }).catch(function (err) { bloquear('Não consegui confirmar o seu acesso (' + esc(err.message) + '). <a href="javascript:location.reload()">Tentar de novo</a>'); });
+    });
+  } catch (e) { bloquear('O Creditor não carregou: ' + esc(e.message)); }
+})();
+</script>
+</body>
+</html>

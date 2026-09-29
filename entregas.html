@@ -61,7 +61,7 @@
      rápida · anotações · avatar) e as duas gavetas. Nasce aqui, antes do
      resto, porque os scripts do app procuram #notasBtn, #topo etc. -->
 <script src="nilma-dialogo.js?v=345"></script>
-<script src="nilma-shell.js?v=402"></script>
+<script src="nilma-shell.js?v=407"></script>
 <script src="nilma-ponte-extratudo.js?v=405"></script>
 <script src="nilma-balancetes.js?v=406"></script>
 <script src="nilma-config.js?v=395"></script>
@@ -79,6 +79,7 @@
   <button class="tab" data-tab="perfil" role="tab" id="tabPerfil" aria-controls="tab-perfil" aria-selected="false" tabindex="-1" hidden><span class="tab-ico"><i class="ph ph-identification-badge" aria-hidden="true"></i></span><span class="tab-label">Perfil</span></button>
   <button class="tab" data-tab="conciliador" role="tab" id="tabbtn-conciliador" aria-controls="tab-conciliador" aria-selected="false" tabindex="-1" hidden><span class="tab-ico"><i class="ph ph-credit-card" aria-hidden="true"></i></span><span class="tab-label">Conciliadorzinho</span></button>
   <button class="tab" data-tab="cheque" role="tab" id="tabbtn-cheque" aria-controls="tab-cheque" aria-selected="false" tabindex="-1" hidden><span class="tab-ico"><i class="ph ph-bank" aria-hidden="true"></i></span><span class="tab-label">Cheque especial</span></button>
+  <button class="tab" data-tab="creditor" role="tab" id="tabbtn-creditor" aria-controls="tab-creditor" aria-selected="false" tabindex="-1" hidden><span class="tab-ico"><i class="ph ph-hand-coins" aria-hidden="true"></i></span><span class="tab-label">Creditor</span></button>
   <button class="tab" data-tab="extratudo" role="tab" id="tabbtn-extratudo" aria-controls="tab-extratudo" aria-selected="false" tabindex="-1" hidden><span class="tab-ico"><i class="ph ph-files" aria-hidden="true"></i></span><span class="tab-label">Extratudo</span></button>
 </nav>
 <!-- Menu de cima (nível 2), ao lado da barra lateral: as categorias da tela
@@ -881,6 +882,12 @@
   </section>
   <section id="tab-cheque" class="view" role="tabpanel" tabindex="-1" aria-labelledby="tabbtn-cheque" hidden>
     <iframe id="frameCheque" data-src="cheque-especial.html?embutido=1" title="Cheque especial" style="width:100%;height:calc(100dvh - var(--topo-total, 56px) - var(--abas2, 0px) - 32px);min-height:480px;border:0;display:block;border-radius:var(--r-md);"></iframe>
+  </section>
+  <!-- Creditor (29/09/2026): veio do Extratudo pra rodar aqui dentro
+       (creditor.html): relatório de liquidação do banco → lançamentos, com a
+       conta de cada cliente vinda do balancete de Clientes e ajustes. -->
+  <section id="tab-creditor" class="view" role="tabpanel" tabindex="-1" aria-labelledby="tabbtn-creditor" hidden>
+    <iframe id="frameCreditor" data-src="creditor.html?embutido=1" title="Creditor" style="width:100%;height:calc(100dvh - var(--topo-total, 56px) - var(--abas2, 0px) - 32px);min-height:480px;border:0;display:block;border-radius:var(--r-md);"></iframe>
   </section>
   <!-- Extratudo (nads, pedido do escritório 29/09/2026): Creditor, Extrator e
        companhia, publicado no projeto do Entregas (extratudo-entregas). Entra
@@ -1722,15 +1729,15 @@
       var lbl = btn.querySelector('.tab-label');
       if (lbl && $('pageTitle')) $('pageTitle').textContent = lbl.textContent;
       // Contábil: a ferramenta aberta é o submódulo ("Nilma / Contábil / Cheque especial")
-      if (btn.dataset.tab === 'conciliador' || btn.dataset.tab === 'cheque' || btn.dataset.tab === 'extratudo') {
+      if (btn.dataset.tab === 'conciliador' || btn.dataset.tab === 'cheque' || btn.dataset.tab === 'creditor' || btn.dataset.tab === 'extratudo') {
         NilmaShell.definirSubmodulo('contabil/' + btn.dataset.tab, lbl ? lbl.textContent : '');
       }
       mostrarAcaoDaTela_(btn.dataset.tab);
-      ['nova', 'rota', 'painel', 'solicitacoes', 'clientes', 'honorarios', 'perfil', 'conciliador', 'cheque', 'extratudo'].forEach(function (name) {
+      ['nova', 'rota', 'painel', 'solicitacoes', 'clientes', 'honorarios', 'perfil', 'conciliador', 'cheque', 'creditor', 'extratudo'].forEach(function (name) {
         var el = $('tab-' + name);
         var papelPermite = name === 'perfil' ? temPapel('admin')
           : name === 'honorarios' ? (temPapel('admin') || temPapel('office_boy'))
-          : (name === 'conciliador' || name === 'cheque' || name === 'extratudo') ? (temPapel('admin') || temPapel('contabil'))
+          : (name === 'conciliador' || name === 'cheque' || name === 'creditor' || name === 'extratudo') ? (temPapel('admin') || temPapel('contabil'))
           : true;
         el.hidden = name !== btn.dataset.tab || !papelPermite;
       });
@@ -12202,7 +12209,7 @@
   // Aba em que o app abre: office boy vive em Solicitações, quem faz rota
   // abre em Rota. Guardar isso evita dois toques toda vez que entra.
 
-  var VERSAO_APP_ = '2.406 · 29/09/2026';
+  var VERSAO_APP_ = '2.407 · 29/09/2026';
   // Configurações do usuário: a janela comum (nilma-config.js), a mesma da
   // Pendências e do Fiscal. 'conta' abre em Minha conta; o resto, em
   // Preferências.
@@ -13312,7 +13319,7 @@
   // cada "aba secundária" registrada aqui: botões de aba, seções de
   // conteúdo (pra esconder ao voltar) e frames (pra carregar sob demanda)
   var ABAS_SECUNDARIAS_ = {
-    contabil: { botoes: ['tabbtn-conciliador', 'tabbtn-cheque', 'tabbtn-extratudo'], secoes: ['tab-conciliador', 'tab-cheque', 'tab-extratudo'], frames: ['frameConciliador', 'frameCheque', 'frameExtratudo'], abaInicial: 'tabbtn-conciliador' }
+    contabil: { botoes: ['tabbtn-conciliador', 'tabbtn-cheque', 'tabbtn-creditor', 'tabbtn-extratudo'], secoes: ['tab-conciliador', 'tab-cheque', 'tab-creditor', 'tab-extratudo'], frames: ['frameConciliador', 'frameCheque', 'frameCreditor', 'frameExtratudo'], abaInicial: 'tabbtn-conciliador' }
   };
   function entrarModoSecundario_(nome, abaEscolhida) {
     var cfg = ABAS_SECUNDARIAS_[nome];

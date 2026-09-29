@@ -29,6 +29,40 @@ Módulo novo no menu ☰, **Tarefas** (`tarefas.html`), pra equipe toda:
 - Regras: `tarefas` a equipe lê, cria e edita; quem criou não muda; apagar
   só quem criou ou o admin.
 
+**Versão 2.407 — Creditor dentro do Entregas; conta principal quando a filial não bate:**
+
+- O Creditor (relatório de liquidação do banco → lançamentos de 8 colunas)
+  saiu do Extratudo (nads) e virou tela própria do Entregas: `creditor.html`,
+  no Contábil (`#contabil/creditor`, aba "Creditor", iframe `frameCreditor`,
+  como o Cheque especial). A lógica fica em `nilma-creditor.js`, sem tela e
+  sem banco, com teste em `scripts/teste-creditor.js`.
+- Etapas: Competência → Relatório do banco → Baixa no Fiscal → Contas →
+  Lançamentos. A Baixa no Fiscal mostra **só os títulos para baixar**: o
+  "Passo a passo" com os dois itens pra marcar saiu, e as Contas não esperam
+  mais nada marcado.
+- A empresa se escolhe pelas pastas do Drive (`driveIndice/raiz`, código ou
+  nome). O balancete é o de Clientes e ajustes (`balancetes/{código}`, ao
+  vivo). As contas confirmadas e a conta de cada cliente aprendido ficam em
+  `creditor/{código}` ({contas, nomes, clientes}; regra nova: admin e
+  contábil). Começa sem nada aprendido: o que foi aprendido no Extratudo
+  ficou no banco da Conferência.
+- O relatório da competência vem do Drive (CONTÁBIL › RECEBIMENTO DE
+  CLIENTES) pelo robô, no modo novo **`ler`** de `aberturasDrive`: o robô
+  grava o conteúdo em `aberturasDrive/{id}/partes/{n}` (base64, pedaços de
+  850 KB, até 4 MB) e apaga depois de 30 min. A tela lê o PDF no navegador
+  (pdf.js 3.11) e planilha com a SheetJS. Anexar à mão continua valendo.
+- **Os que não batiam** (pedido do escritório): o nome do sacado bate em mais
+  de uma conta (uma por filial) e o banco não diz a filial, ou diz uma filial
+  sem conta no balancete ("-TAI1" sem conta TAI1). Antes ficavam "Sem conta";
+  agora vão na **conta principal do cliente**: a conta sem filial no nome ou,
+  sem ela, a primeira do plano. A filial que tem conta continua indo pra
+  dela. A tela marca "Conta principal", explica e deixa trocar por um clique
+  nas outras contas do cliente. A conta principal posta sozinha não fica
+  aprendida (quando a filial ganhar conta, ela passa a valer).
+- Precisa: publicar `firestore.rules` (`creditor/{código}`, modo `ler` e
+  `aberturasDrive/{id}/partes`) e atualizar o robô (robo-versao 2.407) pro
+  modo `ler`.
+
 **Versão 2.402 — Extratudo no Contábil:**
 
 - O Extratudo do nads (Creditor, Extrator…) entra no módulo Contábil, ao
