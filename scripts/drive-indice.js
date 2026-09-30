@@ -366,7 +366,61 @@ async function releituraDoCliente(db, pasta, porCodigo, log, soEnsaio) {
     try { await ajustarCadastroPeloIndice(db, cliente, achados, log); }
     catch (err) { log('pasta do cliente:', (cliente && cliente.nome) || pasta.name, '- cadastro não atualizou:', err.message); }
   }
+  // agência e conta, dos extratos da pasta (independe da marcação: só acrescenta no cadastro)
+  try { await aprenderContasDaPasta(db, cliente, achados, log); }
+  catch (err) { log('pasta do cliente:', (cliente && cliente.nome) || pasta.name, '- contas não lidas:', err.message); }
   return { resumo, marcados, itens };
+}
+
+// ---------- agência e conta dos extratos (Cadastro do nads, 30/09/2026) ----------
+// O robô baixa os extratos em PDF de CONTÁBIL/EXTRATOS/AAAA/MM/BANCÁRIOS/<BANCO> e lê a agência e a conta
+// do cabeçalho (contas-bancarias.js). Poucos por vez (os mais novos primeiro) e cada arquivo uma vez só
+// (clientes/{id}.contasBancariasLidas): os clientes antigos vão sendo preenchidos a cada releitura, e o
+// extrato novo é lido quando chega. Desliga com config/indiceDrive.contas = false.
+const CONTAS_POR_VEZ = 3;
+
+async function contasLigadas(db) {
+  try { return ((await db.collection('config').doc('indiceDrive').get()).data() || {}).contas !== false; }
+  catch (e) { return true; }
+}
+
+async function aprenderContasDaPasta(db, cliente, achados, log) {
+  if (!cliente) return;
+  const lidas = new Set(cliente.contasBancariasLidas || []);
+  const fila = [];
+  for (const [chave, arquivos] of achados) {
+    const [competencia, tipo] = chave.split('|');
+    if (tipo !== 'extrato') continue;
+    arquivos.forEach(x => { if (/\.pdf$/i.test(x.nome || '') && !lidas.has(x.id)) fila.push(Object.assign({ competencia }, x)); });
+  }
+  if (!fila.length || !(await contasLigadas(db))) return;
+  fila.sort((a, b) => b.competencia.localeCompare(a.competencia));
+  const pdfParse = require('pdf-parse');
+  const { bancosDoTexto } = require('./bancos');
+  const cb = require('./contas-bancarias');
+  const contas = [];
+  const lidasAgora = [];
+  for (const x of fila.slice(0, CONTAS_POR_VEZ)) {
+    try {
+      const r = await getDrive().files.get({ fileId: x.id, alt: 'media' }, { responseType: 'arraybuffer' });
+      const texto = (await pdfParse(Buffer.from(r.data))).text || '';
+      // o banco da pasta vale; sem ele, o do cabeçalho (só se for um só)
+      const doTexto = bancosDoTexto(texto);
+      const banco = x.banco || (doTexto.length === 1 ? doTexto[0] : null);
+      if (banco) cb.contasDoTexto(texto).forEach(c => contas.push(Object.assign({ banco }, c)));
+      lidasAgora.push(x.id);
+    } catch (err) {
+      // PDF ilegível ou protegido: conta como lido, para não tentar toda vez
+      if (!/rate|quota|ECONN|timeout|socket/i.test(err.message)) lidasAgora.push(x.id);
+      log('contas: não li', x.nome, '(' + err.message + ')');
+    }
+  }
+  const novas = await cb.aprenderContas(db, cliente, contas, 'drive', FieldValue);
+  if (lidasAgora.length) {
+    await db.collection('clientes').doc(cliente.id).update({ contasBancariasLidas: FieldValue.arrayUnion(...lidasAgora) });
+    cliente.contasBancariasLidas = [...lidas, ...lidasAgora];
+  }
+  if (novas.length) log('contas: ' + cliente.nome + ' — ' + novas.map(c => c.banco + ' ag ' + c.agencia + ' cc ' + c.conta).join('; '));
 }
 
 async function atualizarRaiz(db, raizId, clientes, extra) {

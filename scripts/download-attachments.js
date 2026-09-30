@@ -286,6 +286,27 @@ async function aprenderBancos(db, cliente, bancos) {
   } catch (err) { console.error('  não consegui guardar o banco no cadastro -', err.message); }
 }
 
+// Agência e conta do cliente (Cadastro do nads): de cada PDF que é extrato e mostra um banco só no
+// cabeçalho. Só acrescenta em clientes/{id}.contasBancarias (scripts/contas-bancarias.js).
+async function aprenderContasDosExtratos(db, cliente, anexos) {
+  const cb = require('./contas-bancarias');
+  const { bancosDoTexto } = require('./bancos');
+  const contas = [];
+  for (const a of anexos) {
+    if (a.mimeType !== 'application/pdf' || !a.buffer) continue;
+    const texto = await textoDoPdf(a);
+    if (!texto || !detectarTipos(a.filename + ' ' + texto.slice(0, 4000)).includes('extrato')) continue;
+    const bancos = bancosDoTexto(texto);
+    if (bancos.length !== 1) continue;
+    cb.contasDoTexto(texto).forEach(c => contas.push(Object.assign({ banco: bancos[0] }, c)));
+  }
+  if (!contas.length) return;
+  try {
+    const novas = await cb.aprenderContas(db, cliente, contas, 'gmail', FieldValue, SIMULAR);
+    if (novas.length) console.log('  conta(s) aprendida(s) do extrato:', novas.map(c => c.banco + ' ag ' + c.agencia + ' cc ' + c.conta).join('; '));
+  } catch (err) { console.error('  não consegui guardar a conta no cadastro -', err.message); }
+}
+
 async function textoDosPdfs(anexos) {
   let texto = '';
   for (const a of anexos) texto += ' ' + (await textoDoPdf(a));
@@ -906,6 +927,8 @@ async function main() {
           patch.bancosRecebidos = FV.arrayUnion(...bancosDoTipo('extrato'));
           await aprenderBancos(db, cliente, achados);
         }
+        // veio extrato (inteiro ou não): a agência e a conta do cabeçalho vão para o cadastro
+        if (periodo) await aprenderContasDosExtratos(db, cliente, comBytes);
         if (tipos.length) {
           cont.marcados++;
           andamento({ texto: cliente.nome + ': marcado ' + tipos.join(', ') + ' de ' + competencia.split('-').reverse().join('/'), destaque: true });
@@ -1037,4 +1060,6 @@ module.exports = {
   conferirPeriodoDosExtratos, palavrasDaEscolha, desempatarPeloAprendido, juntarEscolha, desempatarPorDocumento, desempatarPorNome, semAssinatura, empresasIrmas, frequenciaDePalavras, decodificarEntidades, extrairEmail, extrairNome, dominioDe, DOMINIOS_PUBLICOS, montarSpam, MAX_SPAM,
   // usados por envios-do-portal.js (documento que o cliente manda pelo link)
   PASTA_DESTINO, sanitizar, salvarArquivo, atualizarPortal, bancosNovos,
+  // agência e conta dos extratos (teste)
+  aprenderContasDosExtratos,
 };

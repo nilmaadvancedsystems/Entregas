@@ -634,6 +634,27 @@ igual('token novo: troca quando o refresh_token ou as permissões mudam', [
   tn.tokenParaTrocar('lixo', '{}'), tn.tokenParaTrocar('{"access_token":"so"}', '{}'),
 ], [true, true, null, null, null]);
 
+// ---------- agência e conta do cliente, do cabeçalho do extrato (Cadastro do nads) ----------
+const cb = require('./contas-bancarias');
+igual('Sicoob: cooperativa e conta',
+  cb.contasDoTexto('Sicoob | Internet banking\n\nEXTRATO DE CONTA CORRENTE 01/09/2026\n\nCooperativa: 3144-5 / SICOOB CREDINOR\nConta: 12.345-6 / FULANO LTDA'),
+  [{ agencia: '3144-5', conta: '12.345-6' }]);
+igual('BB: "Agência | Conta" com os números na linha de baixo',
+  cb.contasDoTexto('Extrato Mensal / Por Período\n\nFolha 1/4\n\nAgência | Conta Total Disponível (R$)\n1234-5 | 12345-6 1.000,00'),
+  [{ agencia: '1234-5', conta: '12345-6' }]);
+igual('BNB: "Agência/Conta Corrente: 060 - SALINAS" não vira conta',
+  cb.contasDoTexto('Extrato de Conta Corrente - no período\n\nAgência/Conta Corrente: 060 - SALINAS\n\nDetalhamento do Saldo'), []);
+igual('Itaú: agência e conta na mesma linha', cb.contasDoTexto('Itaú Unibanco\nagência: 1234 conta: 12345-6\nextrato'), [{ agencia: '1234', conta: '12345-6' }]);
+igual('Caixa: operação no meio', cb.contasDoTexto('CAIXA ECONÔMICA FEDERAL\nAgência: 1234 Operação: 003 Conta: 00012345-6'), [{ agencia: '1234', conta: '00012345-6' }]);
+igual('Nubank sem dois-pontos', cb.contasDoTexto('Nu Pagamentos\nAgência 0001 Conta 1234567-8'), [{ agencia: '0001', conta: '1234567-8' }]);
+igual('conta antes da cooperativa', cb.contasDoTexto('SICREDI\nConta: 98765-4 Cooperativa: 0101'), [{ agencia: '0101', conta: '98765-4' }]);
+igual('agência e conta no miolo (PIX de outro) não contam',
+  cb.contasDoTexto('SICREDI Extrato\n' + 'x'.repeat(2600) + ' AG 1234 CC 56789'), []);
+igual('só a agência: não guarda', cb.contasDoTexto('Bradesco\nAgência: 1234\nSaldo'), []);
+igual('mesma conta com e sem zeros à esquerda',
+  cb.contasNovas({ contasBancarias: [{ banco: 'itau', agencia: '0412', conta: '0099887-7' }] }, [{ banco: 'itau', agencia: '412', conta: '99887-7' }, { banco: 'itau', agencia: '412', conta: '1111-1' }]),
+  [{ banco: 'itau', agencia: '412', conta: '1111-1' }]);
+
 // os testes que leem PDF são assíncronos: o resultado espera por eles
 esperarExtratos.then(() => {
   console.log(falhas ? '\n' + falhas + ' de ' + total + ' testes FALHARAM' : total + ' testes, todos passaram');
