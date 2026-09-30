@@ -378,6 +378,15 @@ async function releituraDoCliente(db, pasta, porCodigo, log, soEnsaio) {
 // (clientes/{id}.contasBancariasLidas): os clientes antigos vão sendo preenchidos a cada releitura, e o
 // extrato novo é lido quando chega. Desliga com config/indiceDrive.contas = false.
 const CONTAS_POR_VEZ = 3;
+const BAIXAR_MS = 60 * 1000;     // um PDF do Drive que não chega em 1 min fica para a próxima
+const LER_PDF_MS = 30 * 1000;    // um PDF que o leitor não termina em 30 s conta como ilegível
+
+/** A promessa, ou um erro depois de ms (para nada ficar pendurado para sempre). */
+function comPrazo(promessa, ms, oque) {
+  let t;
+  return Promise.race([promessa, new Promise((_, nao) => { t = setTimeout(() => nao(new Error(oque + ' demorou mais de ' + Math.round(ms / 1000) + 's')), ms); })])
+    .finally(() => clearTimeout(t));
+}
 
 async function contasLigadas(db) {
   try { return ((await db.collection('config').doc('indiceDrive').get()).data() || {}).contas !== false; }
@@ -402,8 +411,8 @@ async function aprenderContasDaPasta(db, cliente, achados, log) {
   const lidasAgora = [];
   for (const x of fila.slice(0, CONTAS_POR_VEZ)) {
     try {
-      const r = await getDrive().files.get({ fileId: x.id, alt: 'media' }, { responseType: 'arraybuffer' });
-      const texto = (await pdfParse(Buffer.from(r.data))).text || '';
+      const r = await comPrazo(getDrive().files.get({ fileId: x.id, alt: 'media' }, { responseType: 'arraybuffer', timeout: BAIXAR_MS }), BAIXAR_MS + 5000, 'baixar');
+      const texto = (await comPrazo(pdfParse(Buffer.from(r.data)), LER_PDF_MS, 'ler o PDF')).text || '';
       // o banco da pasta vale; sem ele, o do cabeçalho (só se for um só)
       const doTexto = bancosDoTexto(texto);
       const banco = x.banco || (doTexto.length === 1 ? doTexto[0] : null);
@@ -411,7 +420,7 @@ async function aprenderContasDaPasta(db, cliente, achados, log) {
       lidasAgora.push(x.id);
     } catch (err) {
       // PDF ilegível ou protegido: conta como lido, para não tentar toda vez
-      if (!/rate|quota|ECONN|timeout|socket/i.test(err.message)) lidasAgora.push(x.id);
+      if (!/rate|quota|ECONN|timeout|socket|baixar/i.test(err.message)) lidasAgora.push(x.id);
       log('contas: não li', x.nome, '(' + err.message + ')');
     }
   }
@@ -578,11 +587,14 @@ function iniciarIndiceDrive(db, log) {
 // A cada minuto, lê até CONTAS_POR_MINUTO extratos ainda não lidos, passando de cliente em cliente pelo mapa
 // que já está no banco (driveIndice). Quando não sobra nenhum, para até a próxima releitura completa.
 const CONTAS_POR_MINUTO = 8;
-const CLIENTES_VALEM_MS = 30 * 60 * 1000;
+const CLIENTES_VALEM_MS = 6 * 60 * 60 * 1000; // a lista de clientes (321 leituras) vale 6 h: as lidas ficam em memória
+const TRAVADO_MS = 5 * 60 * 1000;
 
 function iniciarContasDoDrive(db, log, estadoDoIndice) {
-  const e = { cursor: 0, porCodigo: null, porCodigoEm: 0, semNada: new Set(), ocupado: false, acabou: false, ultimaCompleta: '' };
+  const e = { cursor: 0, porCodigo: null, porCodigoEm: 0, semNada: new Set(), ocupado: false, ocupadoDesde: 0, acabou: false, ultimaCompleta: '' };
   async function volta() {
+    // vigia: uma volta que ficou pendurada não trava a leitura para sempre
+    if (e.ocupado && Date.now() - e.ocupadoDesde > TRAVADO_MS) { log('contas: a leitura anterior travou; recomeço'); e.ocupado = false; }
     if (e.ocupado || (estadoDoIndice && estadoDoIndice.ocupado)) return;
     // depois de uma releitura completa pode ter extrato novo em qualquer cliente: recomeça
     if (estadoDoIndice && estadoDoIndice.ultimaCompleta !== e.ultimaCompleta) {
@@ -590,13 +602,14 @@ function iniciarContasDoDrive(db, log, estadoDoIndice) {
     }
     if (e.acabou) return;
     e.ocupado = true;
+    e.ocupadoDesde = Date.now();
+    let lidos = 0;
     try {
       if (!(await contasLigadas(db))) return;
       if (!e.porCodigo || Date.now() - e.porCodigoEm > CLIENTES_VALEM_MS) { e.porCodigo = await clientesPorCodigo(db); e.porCodigoEm = Date.now(); }
       const raiz = (await db.collection(COLECAO).doc('raiz').get()).data() || {};
       const pastas = (raiz.clientes || []).filter(p => p.codigo && e.porCodigo.has(String(p.codigo)) && !e.semNada.has(p.id));
       if (!pastas.length) { e.acabou = true; log('contas: extratos do Drive todos lidos'); return; }
-      let lidos = 0;
       for (let i = 0; i < pastas.length && lidos < CONTAS_POR_MINUTO; i++) {
         const p = pastas[(e.cursor + i) % pastas.length];
         const cliente = e.porCodigo.get(String(p.codigo));
@@ -609,6 +622,7 @@ function iniciarContasDoDrive(db, log, estadoDoIndice) {
         if (agora === antes) e.semNada.add(p.id); else lidos += agora - antes;
       }
       e.cursor = (e.cursor + 1) % Math.max(1, pastas.length);
+      if (lidos) log('contas: ' + lidos + ' extrato(s) lido(s) neste minuto');
     } catch (err) {
       log('contas: erro (' + err.message + '); tento de novo no próximo minuto');
     } finally { e.ocupado = false; }
