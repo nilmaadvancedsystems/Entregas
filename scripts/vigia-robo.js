@@ -769,6 +769,9 @@ async function iniciar() {
   catch (err) { log('recados da página do cliente desligados:', err.message); }
   try { require('./envios-do-portal').iniciarEnviosDoPortal(db, log); }
   catch (err) { log('documentos pelo link desligados:', err.message); }
+  // Arquivo mandado pelo nads (Tarefas › Drive) para a pasta Claudio Secretario.
+  try { require('./envios-do-nads').iniciarEnviosDoNads(db, log); }
+  catch (err) { log('envios do nads desligados:', err.message); }
   // Quanto o banco já usou hoje (todo o sistema), pro cartão Saúde do sistema.
   try { require('./uso-banco').iniciarUsoDoBanco(db, log); }
   catch (err) { log('uso do banco desligado:', err.message); }

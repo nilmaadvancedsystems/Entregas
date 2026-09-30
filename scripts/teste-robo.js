@@ -655,6 +655,19 @@ igual('mesma conta com e sem zeros à esquerda',
   cb.contasNovas({ contasBancarias: [{ banco: 'itau', agencia: '0412', conta: '0099887-7' }] }, [{ banco: 'itau', agencia: '412', conta: '99887-7' }, { banco: 'itau', agencia: '412', conta: '1111-1' }]),
   [{ banco: 'itau', agencia: '412', conta: '1111-1' }]);
 
+// --- arquivo mandado pelo nads para o Claudio Secretario (envios-do-nads.js) ---
+const en = require('./envios-do-nads');
+const envioNads = { competencia: '2026-09', partes: 2, tamanho: 5, nome: 'pasta/sub/extrato.pdf' };
+igual('junta os pedaços na ordem', en.montarEnvio(envioNads, [{ n: 1, dados: Buffer.from('de') }, { n: 0, dados: Buffer.from('abc') }]).buffer.toString(), 'abcde');
+igual('nome sem caminho', en.montarEnvio(envioNads, [{ n: 0, dados: Buffer.from('abc') }, { n: 1, dados: Buffer.from('de') }]).nome, 'extrato.pdf');
+igual('faltou pedaço', en.montarEnvio(envioNads, [{ n: 0, dados: Buffer.from('abc') }]).erro, 'faltam partes do arquivo (1 de 2)');
+igual('tamanho diferente do anunciado', en.montarEnvio(envioNads, [{ n: 0, dados: Buffer.from('ab') }, { n: 1, dados: Buffer.from('de') }]).erro, 'o arquivo chegou incompleto');
+igual('competência inválida', en.montarEnvio(Object.assign({}, envioNads, { competencia: '2026-13' }), []).erro, 'competência inválida');
+const porCod = new Map([['58', { nome: 'TORNEARIA VOLPONI LTDA' }]]);
+igual('pasta: nome do cadastro pelo código', en.nomeDaPastaDoCliente({ codigo: '58', cliente: '58 - TORNEARIA' }, porCod), 'TORNEARIA VOLPONI LTDA');
+igual('pasta: o nome que veio', en.nomeDaPastaDoCliente({ codigo: '9', cliente: 'X LTDA' }, porCod), 'X LTDA');
+igual('pasta: sem cliente', en.nomeDaPastaDoCliente({ codigo: '', cliente: '' }, porCod), 'Enviados pelo nads');
+
 // os testes que leem PDF são assíncronos: o resultado espera por eles
 esperarExtratos.then(() => {
   console.log(falhas ? '\n' + falhas + ' de ' + total + ' testes FALHARAM' : total + ' testes, todos passaram');
