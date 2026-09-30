@@ -570,7 +570,51 @@ function iniciarIndiceDrive(db, log) {
   }
   setTimeout(volta, 20 * 1000);
   setInterval(volta, MUDANCAS_A_CADA_MS);
+  iniciarContasDoDrive(db, log, estado);
   log('mapa do Drive ligado (pasta ' + PASTA_ANO + ', mudanças a cada minuto, releitura completa às ' + HORA_DA_RELEITURA + 'h)');
+}
+
+// ---------- agência e conta dos extratos que JÁ estão no Drive (sem esperar a releitura) ----------
+// A cada minuto, lê até CONTAS_POR_MINUTO extratos ainda não lidos, passando de cliente em cliente pelo mapa
+// que já está no banco (driveIndice). Quando não sobra nenhum, para até a próxima releitura completa.
+const CONTAS_POR_MINUTO = 8;
+const CLIENTES_VALEM_MS = 30 * 60 * 1000;
+
+function iniciarContasDoDrive(db, log, estadoDoIndice) {
+  const e = { cursor: 0, porCodigo: null, porCodigoEm: 0, semNada: new Set(), ocupado: false, acabou: false, ultimaCompleta: '' };
+  async function volta() {
+    if (e.ocupado || (estadoDoIndice && estadoDoIndice.ocupado)) return;
+    // depois de uma releitura completa pode ter extrato novo em qualquer cliente: recomeça
+    if (estadoDoIndice && estadoDoIndice.ultimaCompleta !== e.ultimaCompleta) {
+      e.ultimaCompleta = estadoDoIndice.ultimaCompleta; e.semNada.clear(); e.acabou = false;
+    }
+    if (e.acabou) return;
+    e.ocupado = true;
+    try {
+      if (!(await contasLigadas(db))) return;
+      if (!e.porCodigo || Date.now() - e.porCodigoEm > CLIENTES_VALEM_MS) { e.porCodigo = await clientesPorCodigo(db); e.porCodigoEm = Date.now(); }
+      const raiz = (await db.collection(COLECAO).doc('raiz').get()).data() || {};
+      const pastas = (raiz.clientes || []).filter(p => p.codigo && e.porCodigo.has(String(p.codigo)) && !e.semNada.has(p.id));
+      if (!pastas.length) { e.acabou = true; log('contas: extratos do Drive todos lidos'); return; }
+      let lidos = 0;
+      for (let i = 0; i < pastas.length && lidos < CONTAS_POR_MINUTO; i++) {
+        const p = pastas[(e.cursor + i) % pastas.length];
+        const cliente = e.porCodigo.get(String(p.codigo));
+        const partes = await db.collection(COLECAO).doc(p.id).collection('partes').get();
+        const itens = [].concat(...partes.docs.map(d => d.data().itens || []));
+        const achados = documentosNaPasta(itens, p.id);
+        const antes = (cliente.contasBancariasLidas || []).length;
+        await aprenderContasDaPasta(db, cliente, achados, log);
+        const agora = (cliente.contasBancariasLidas || []).length;
+        if (agora === antes) e.semNada.add(p.id); else lidos += agora - antes;
+      }
+      e.cursor = (e.cursor + 1) % Math.max(1, pastas.length);
+    } catch (err) {
+      log('contas: erro (' + err.message + '); tento de novo no próximo minuto');
+    } finally { e.ocupado = false; }
+  }
+  setTimeout(volta, 45 * 1000);
+  setInterval(volta, MUDANCAS_A_CADA_MS);
 }
 
 module.exports = {
