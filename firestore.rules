@@ -691,6 +691,27 @@ service cloud.firestore {
       }
     }
 
+    // Cadastro da empresa do nads (30/09/2026): contas bancárias, contas padrão dos
+    // lançamentos e o histórico do que mudou; o plano de contas fica em plano/atual.
+    // A Tarefas (Cadastro) edita; o Extrator e o Creditor do Extratudo leem e gravam.
+    // id = o nome da empresa em slug (o mesmo das outras coleções do nads).
+    match /cadastro/{id} {
+      allow read: if membro();
+      allow create, update: if membro()
+        && id.matches('^[a-z0-9-]{1,120}$')
+        && request.resource.data.nome is string
+        && request.resource.data.historico is list && request.resource.data.historico.size() <= 200
+        && (!('bancos' in request.resource.data) || (request.resource.data.bancos is list && request.resource.data.bancos.size() <= 60))
+        && (!('contasPadrao' in request.resource.data) || request.resource.data.contasPadrao is map);
+      allow delete: if ehAdmin();
+      match /plano/{doc} {
+        allow read: if membro();
+        allow create, update: if membro() && doc == 'atual'
+          && request.resource.data.contas is list && request.resource.data.contas.size() <= 5000;
+        allow delete: if ehAdmin();
+      }
+    }
+
     // Balancete do cliente (29/09/2026): só o texto das contas, subido em
     // Clientes e ajustes; o Creditor do Extratudo lê pela ponte do Entregas.
     match /balancetes/{codigo} {
