@@ -674,17 +674,60 @@ service cloud.firestore {
     // Tarefas do nads (tarefas-nilma.web.app): uma execução por empresa, competência e
     // departamento, com o histórico em eventos (só acrescentado). O nome não é
     // `tarefas` porque essa coleção é do tarefas.html antigo.
+    // ---------- proteção do login do nads (30/09/2026) ----------
+    // Com config/nads.protecaoLogin ligado, os dados do nads (rotinas, cadastro) só abrem para o admin ou para
+    // o login liberado: nadsSessoes/{uid}_{auth_time} (a hora do login, que o token traz). Quem libera é o
+    // admin: aprova o pedido (nadsPedidos), recebe o código e passa para a pessoa, que cria a sessão com ele.
+    function protecaoNads() {
+      return exists(/databases/$(database)/documents/config/nads)
+        && get(/databases/$(database)/documents/config/nads).data.get('protecaoLogin', false) == true;
+    }
+    function loginNads() {
+      return request.auth.uid + '_' + string(request.auth.token.auth_time);
+    }
+    function membroNoNads() {
+      return membro() && (ehAdmin() || !protecaoNads()
+        || exists(/databases/$(database)/documents/nadsSessoes/$(loginNads())));
+    }
+    match /nadsPedidos/{id} {
+      allow read: if membro() && (ehAdmin() || resource.data.uid == request.auth.uid);
+      allow create: if membro()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.status == 'pendente'
+        && request.resource.data.authTime == string(request.auth.token.auth_time)
+        && request.resource.data.keys().hasOnly(['uid', 'nome', 'email', 'computador', 'authTime', 'status', 'criadoEm']);
+      allow update, delete: if ehAdmin();
+      // o código de 6 dígitos: só o admin
+      match /codigo/{doc} {
+        allow read, write: if ehAdmin();
+      }
+    }
+    match /nadsSessoes/{id} {
+      allow read: if membro() && (ehAdmin() || id == loginNads());
+      allow create: if membro()
+        && id == loginNads()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.pedidoId is string
+        && exists(/databases/$(database)/documents/nadsPedidos/$(request.resource.data.pedidoId))
+        && get(/databases/$(database)/documents/nadsPedidos/$(request.resource.data.pedidoId)).data.uid == request.auth.uid
+        && get(/databases/$(database)/documents/nadsPedidos/$(request.resource.data.pedidoId)).data.status == 'aprovado'
+        && get(/databases/$(database)/documents/nadsPedidos/$(request.resource.data.pedidoId)).data.authTime == string(request.auth.token.auth_time)
+        && get(/databases/$(database)/documents/nadsPedidos/$(request.resource.data.pedidoId)/codigo/atual).data.codigo == request.resource.data.codigo;
+      allow update: if false;
+      allow delete: if ehAdmin() || (membro() && id == loginNads());
+    }
+
     match /rotinas/{id} {
-      allow read: if membro();
-      allow create, update: if membro()
+      allow read: if membroNoNads();
+      allow create, update: if membroNoNads()
         && request.resource.data.competencia is string && request.resource.data.competencia.matches('^[0-9]{4}-[0-9]{2}$')
         && request.resource.data.departamento in ['contabil', 'fiscal', 'dp']
         && request.resource.data.etapas is map
         && id.matches('^[a-z0-9-]{1,120}_[0-9]{4}-[0-9]{2}_(contabil|fiscal|dp)$');
       allow delete: if ehAdmin();
       match /eventos/{ev} {
-        allow read: if membro();
-        allow create: if membro()
+        allow read: if membroNoNads();
+        allow create: if membroNoNads()
           && request.resource.data.tipo is string && request.resource.data.etapa is string
           && request.resource.data.por is string && request.resource.data.em is string;
         allow update, delete: if false;
@@ -696,8 +739,8 @@ service cloud.firestore {
     // A Tarefas (Cadastro) edita; o Extrator e o Creditor do Extratudo leem e gravam.
     // id = o nome da empresa em slug (o mesmo das outras coleções do nads).
     match /cadastro/{id} {
-      allow read: if membro();
-      allow create, update: if membro()
+      allow read: if membroNoNads();
+      allow create, update: if membroNoNads()
         && id.matches('^[a-z0-9-]{1,120}$')
         && request.resource.data.nome is string
         && request.resource.data.historico is list && request.resource.data.historico.size() <= 200
@@ -705,8 +748,8 @@ service cloud.firestore {
         && (!('contasPadrao' in request.resource.data) || request.resource.data.contasPadrao is map);
       allow delete: if ehAdmin();
       match /plano/{doc} {
-        allow read: if membro();
-        allow create, update: if membro() && doc == 'atual'
+        allow read: if membroNoNads();
+        allow create, update: if membroNoNads() && doc == 'atual'
           && request.resource.data.contas is list && request.resource.data.contas.size() <= 5000;
         allow delete: if ehAdmin();
       }
