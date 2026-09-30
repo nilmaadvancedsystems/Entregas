@@ -62,8 +62,18 @@ function contasNovas(cliente, contas) {
   });
 }
 
-/** Guarda as contas novas no cadastro do cliente (só acrescenta). Devolve as que entraram. */
+/**
+ * Guarda as contas novas no cadastro do cliente (só acrescenta). Devolve as que entraram. Antes de gravar, confere
+ * no banco o que o cliente já tem (o Gmail e o Drive podem achar a mesma conta ao mesmo tempo).
+ */
 async function aprenderContas(db, cliente, contas, origem, FieldValue, simular) {
+  if (!contasNovas(cliente, contas).length) return [];
+  if (!simular) {
+    try {
+      const atual = (await db.collection('clientes').doc(cliente.id).get()).data() || {};
+      cliente.contasBancarias = atual.contasBancarias || [];
+    } catch (e) { /* segue com o que tem em memória */ }
+  }
   const novas = contasNovas(cliente, contas).map(c => ({ banco: c.banco, agencia: c.agencia, conta: c.conta, origem, em: new Date().toISOString() }));
   if (!novas.length || simular) return novas;
   await db.collection('clientes').doc(cliente.id).update({ contasBancarias: FieldValue.arrayUnion(...novas) });

@@ -595,7 +595,8 @@ function iniciarContasDoDrive(db, log, estadoDoIndice) {
   async function volta() {
     // vigia: uma volta que ficou pendurada não trava a leitura para sempre
     if (e.ocupado && Date.now() - e.ocupadoDesde > TRAVADO_MS) { log('contas: a leitura anterior travou; recomeço'); e.ocupado = false; }
-    if (e.ocupado || (estadoDoIndice && estadoDoIndice.ocupado)) return;
+    // não espera o mapa do Drive: se ele ficar preso numa consulta, a leitura das contas seguiria parada
+    if (e.ocupado) return;
     // depois de uma releitura completa pode ter extrato novo em qualquer cliente: recomeça
     if (estadoDoIndice && estadoDoIndice.ultimaCompleta !== e.ultimaCompleta) {
       e.ultimaCompleta = estadoDoIndice.ultimaCompleta; e.semNada.clear(); e.acabou = false;
