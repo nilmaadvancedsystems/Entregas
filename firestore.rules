@@ -670,6 +670,27 @@ service cloud.firestore {
     // Mesmo formato dos anexos de tarefa (pedaços de até 900 KB), mas é
     // conversa particular: só quem mandou lê. Quem entrega o arquivo à IA é
     // o atendente do PC (Admin SDK), que não passa por estas regras.
+    // ---------- nads (30/09/2026): o nads inteiro passa a gravar aqui ----------
+    // Tarefas do nads (tarefas-nilma.web.app): uma execução por empresa, competência e
+    // departamento, com o histórico em eventos (só acrescentado). O nome não é
+    // `tarefas` porque essa coleção é do tarefas.html antigo.
+    match /rotinas/{id} {
+      allow read: if membro();
+      allow create, update: if membro()
+        && request.resource.data.competencia is string && request.resource.data.competencia.matches('^[0-9]{4}-[0-9]{2}$')
+        && request.resource.data.departamento in ['contabil', 'fiscal', 'dp']
+        && request.resource.data.etapas is map
+        && id.matches('^[a-z0-9-]{1,120}_[0-9]{4}-[0-9]{2}_(contabil|fiscal|dp)$');
+      allow delete: if ehAdmin();
+      match /eventos/{ev} {
+        allow read: if membro();
+        allow create: if membro()
+          && request.resource.data.tipo is string && request.resource.data.etapa is string
+          && request.resource.data.por is string && request.resource.data.em is string;
+        allow update, delete: if false;
+      }
+    }
+
     // Balancete do cliente (29/09/2026): só o texto das contas, subido em
     // Clientes e ajustes; o Creditor do Extratudo lê pela ponte do Entregas.
     match /balancetes/{codigo} {
