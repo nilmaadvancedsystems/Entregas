@@ -712,6 +712,9 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/nadsPedidos/$(request.resource.data.pedidoId)).data.uid == request.auth.uid
         && get(/databases/$(database)/documents/nadsPedidos/$(request.resource.data.pedidoId)).data.status == 'aprovado'
         && get(/databases/$(database)/documents/nadsPedidos/$(request.resource.data.pedidoId)).data.authTime == string(request.auth.token.auth_time)
+        // o código vence (validoAte, posto na aprovação); revogar passa o pedido para 'revogado' e apaga o código
+        && get(/databases/$(database)/documents/nadsPedidos/$(request.resource.data.pedidoId)).data.get('validoAte', null) is timestamp
+        && request.time < get(/databases/$(database)/documents/nadsPedidos/$(request.resource.data.pedidoId)).data.validoAte
         && get(/databases/$(database)/documents/nadsPedidos/$(request.resource.data.pedidoId)/codigo/atual).data.codigo == request.resource.data.codigo;
       allow update: if false;
       allow delete: if ehAdmin() || (membro() && id == loginNads());
