@@ -137,6 +137,25 @@ function caixaDoDepartamento(dep) {
   }
   return temCaixa('contabil') ? 'contabil' : 'robo';
 }
+// Contas novas ainda sem confiança no Gmail (01/10/2026): o Google aceitava o envio da setorcontabilnilma e não
+// entregava. Enquanto config/caixasGmail.enviarPeloRobo não for false, a cobrança do setor sai pela caixa do robô
+// (nilmacontabilidade, que sempre chegou) com "responder para" a caixa do setor — as respostas caem lá e o robô lê.
+const cfgEnvio = { em: 0, valor: {} };
+async function enviarPeloRobo() {
+  if (Date.now() - cfgEnvio.em > 5 * 60 * 1000) {
+    try { cfgEnvio.valor = (await db.collection('config').doc('caixasGmail').get()).data() || {}; } catch (e) { /* fica o que tinha */ }
+    cfgEnvio.em = Date.now();
+  }
+  return cfgEnvio.valor.enviarPeloRobo !== false;
+}
+/** De onde sai a cobrança de um setor: { caixa de envio, endereço do remetente, para onde vão as respostas ('' = o próprio) } */
+async function envioDoSetor(dep) {
+  const caixaDoSetor = caixaDoDepartamento(dep);
+  const doSetor = await enderecoDaCaixa(caixaDoSetor);
+  if (caixaDoSetor !== 'robo' && await enviarPeloRobo()) return { caixa: 'robo', de: CAIXA, respostas: doSetor };
+  return { caixa: caixaDoSetor, de: doSetor, respostas: '' };
+}
+
 // robo/estado.caixas: quais caixas estão autorizadas e de qual endereço saem (a tela mostra)
 async function conferirCaixas() {
   const caixas = {};
@@ -147,7 +166,7 @@ async function conferirCaixas() {
     }
     caixas[caixa] = c;
   }
-  await roboRef.set({ caixas }, { merge: true }).catch(err => log('não gravei as caixas:', err.message));
+  await roboRef.set({ caixas, envioPeloRobo: await enviarPeloRobo() }, { merge: true }).catch(err => log('não gravei as caixas:', err.message));
   return caixas;
 }
 const { htmlDaCobranca, htmlDoDisparo } = require('./email-html');
@@ -170,6 +189,7 @@ const respostaDoContabilNoRobo = () => !podeLer('contabil');
 async function enviar(dados, caixa = 'robo') {
   const de = await enderecoDaCaixa(caixa);
   const cabecalhos = (dados.cabecalhos || []).slice();
+  if (dados.respostasPara) cabecalhos.push('Reply-To: ' + dados.respostasPara);
   if (caixa === 'contabil' && respostaDoContabilNoRobo()) cabecalhos.push('Reply-To: ' + CAIXA);
   const r = await getGmail(caixa).users.messages.send({ userId: 'me', requestBody: { raw: montarMensagem(Object.assign({ de }, dados, { cabecalhos })) } });
   return r.data.id;
@@ -221,8 +241,10 @@ async function atenderUm(p) {
   const para = String(p.para || '').trim().toLowerCase();
   if (!enderecosDoCliente(cliente).includes(para)) throw new Error(para + ' não está no cadastro deste cliente');
   const dep = await departamentoDoPedido(p);
-  const caixa = caixaDoDepartamento(dep);
-  const de = await enderecoDaCaixa(caixa);
+  const envio = await envioDoSetor(dep);
+  const caixa = envio.caixa;
+  const de = envio.de;
+  const respostas = envio.respostas ? { respostasPara: envio.respostas } : {};
   if (!dentroDoLimite(1, caixa)) throw new Error('limite de ' + MAX_ENVIOS_POR_HORA + ' envios por hora atingido; tente mais tarde');
 
   // versão em HTML: no contábil, com os bancos do cliente e o que já chegou no mês; no fiscal, o texto com a assinatura
@@ -237,12 +259,12 @@ async function atenderUm(p) {
         diaLimite: cfg.diaLimite, assinatura: cfg.assinatura || 'Nilma Contabilidade', caixa: de, mostrarRecebidos: cfg.mostrarRecebidos === true });
     }
   } catch (err) { log('cobrança sai só em texto:', err.message); }
-  const gmailId = await enviar({ para, assunto: p.assunto, corpo: p.corpo, html: visual.html, imagens: visual.imagens }, caixa);
+  const gmailId = await enviar(Object.assign({ para, assunto: p.assunto, corpo: p.corpo, html: visual.html, imagens: visual.imagens }, respostas), caixa);
   enviosDa(caixa).push(Date.now());
   const em = agora();
   await registrarCobranca(cliente, p.competencia, {
     em, por: p.criadoPor || '', para, tipos: Array.isArray(p.tipos) ? p.tipos : [],
-    canal: 'gmail', enviadoPeloRobo: true, gmailId, departamento: dep, caixa: de,
+    canal: 'gmail', enviadoPeloRobo: true, gmailId, departamento: dep, caixa: de, ...respostas,
   });
   auditoria('cobranca_gmail', (cliente.codigoOrigem ? cliente.codigoOrigem + ' - ' : '') + cliente.nome + ' · ' + p.competencia + ' · ' + para, p);
   log('enviado para', cliente.nome, '<' + para + '>', 'pela caixa', de);
@@ -263,14 +285,16 @@ async function atenderLote(p) {
   const lotes = [];
   for (let i = 0; i < clientes.length; i += MAX_CCO) lotes.push(clientes.slice(i, i + MAX_CCO));
   const dep = await departamentoDoPedido(p);
-  const caixa = caixaDoDepartamento(dep);
-  const de = await enderecoDaCaixa(caixa);
+  const envio = await envioDoSetor(dep);
+  const caixa = envio.caixa;
+  const de = envio.de;
+  const respostas = envio.respostas ? { respostasPara: envio.respostas } : {};
   if (!dentroDoLimite(lotes.length, caixa)) throw new Error('limite de ' + MAX_ENVIOS_POR_HORA + ' envios por hora atingido; tente mais tarde');
 
   const gmailIds = [];
   for (const grupo of lotes) {
     const cco = [...new Set(grupo.map(c => String(c.email).trim().toLowerCase()))];
-    gmailIds.push(await enviar({ para: de, cco, assunto: p.assunto, corpo: p.corpo }, caixa));
+    gmailIds.push(await enviar(Object.assign({ para: de, cco, assunto: p.assunto, corpo: p.corpo }, respostas), caixa));
     enviosDa(caixa).push(Date.now());
     const em = agora();
     for (const c of grupo) {
@@ -279,7 +303,7 @@ async function atenderLote(p) {
       const naoAplica = Array.isArray(c.documentosNaoAplicaveis) ? c.documentosNaoAplicaveis : [];
       const tipos = dep === 'fiscal' ? (Array.isArray(p.tipos) ? p.tipos : []) : ['extrato', 'comprovante', 'aplicacao'].filter(t => !naoAplica.includes(t) && !doc[t]);
       await registrarCobranca(c, p.competencia, {
-        em, por: p.criadoPor || '', para: c.email, tipos, canal: 'lote', enviadoPeloRobo: true, departamento: dep, caixa: de,
+        em, por: p.criadoPor || '', para: c.email, tipos, canal: 'lote', enviadoPeloRobo: true, departamento: dep, caixa: de, ...respostas,
       });
     }
   }
@@ -912,8 +936,9 @@ async function iniciar() {
   // a régua cobra o contábil: sai pela caixa do contábil (ou a do robô, enquanto ela não for autorizada)
   const caixaDaRegua = () => caixaDoDepartamento('contabil');
   const correio = {
-    enviar: dados => enviar(dados, caixaDaRegua()),
-    endereco: () => enderecoDaCaixa(caixaDaRegua()),
+    enviar: async dados => { const env = await envioDoSetor('contabil'); return enviar(Object.assign({}, dados, env.respostas ? { respostasPara: env.respostas } : {}), env.caixa); },
+    // o endereço que vai no texto ({caixa}): para onde o cliente responde
+    endereco: async () => { const env = await envioDoSetor('contabil'); return env.respostas || env.de; },
     podeEnviar: n => dentroDoLimite(n, caixaDaRegua()),
     contar: () => enviosDa(caixaDaRegua()).push(Date.now()),
     registrarCobranca: (c, comp, reg) => registrarCobranca(c, comp, Object.assign({ departamento: 'contabil', caixa: enderecos[caixaDaRegua()] || CAIXA }, reg)),
