@@ -880,6 +880,18 @@ service cloud.firestore {
       }
     }
 
+    // "Atualizar o mapa" pedido pelo nads (Tarefas › Drive; scripts/drive-indice.js). Cada um só lê o seu;
+    // pastaId vazio = a pasta do ano inteira. O robô responde no próprio pedido.
+    match /pedidosMapaDrive/{id} {
+      allow read: if (ehAdmin() || temPapel('contabil')) && resource.data.criadoPorUid == request.auth.uid;
+      allow create: if (ehAdmin() || temPapel('contabil'))
+        && request.resource.data.status == 'pendente'
+        && request.resource.data.criadoPorUid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['status', 'pastaId', 'criadoEm', 'criadoPor', 'criadoPorUid'])
+        && request.resource.data.pastaId is string && request.resource.data.pastaId.size() <= 100;
+      allow update, delete: if false;
+    }
+
     // Pedido pra abrir um arquivo do Drive pelo app (scripts/abrir-do-drive.js).
     // Cada um só lê o próprio pedido: a resposta traz o link do arquivo.
     match /aberturasDrive/{id} {

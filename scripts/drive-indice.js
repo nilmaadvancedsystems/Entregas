@@ -554,9 +554,68 @@ function lembrarDonos(estado, clienteId, itens) {
 
 // ---------- ligar no robô ----------
 
+// ---------- "Atualizar o mapa" pedido pela tela (Tarefas › Drive, 01/10/2026) ----------
+//   pedidosMapaDrive/{id} { status: 'pendente' → 'atualizando' → 'pronto' | 'erro', pastaId ('' = a pasta do ano
+//                           inteira), criadoEm, criadoPor, criadoPorUid }  — a resposta: pastas, arquivos, prontoEm, erro
+// Uma pasta de cliente relê em segundos; a pasta inteira é a mesma releitura da madrugada (~1 min). Um pedido por vez,
+// com a mesma trava da conferência de mudanças.
+const PEDIDOS_DO_MAPA = 'pedidosMapaDrive';
+const PEDIDO_DO_MAPA_DURA_MS = 24 * 36e5;
+
+async function atenderPedidoDoMapa(db, log, estado, pedido) {
+  const raiz = (await db.collection(COLECAO).doc('raiz').get()).data() || {};
+  const pastaId = String(pedido.pastaId || '');
+  if (pastaId && raiz.pastaId) {
+    const c = (raiz.clientes || []).find(x => x.id === pastaId);
+    if (!c) throw new Error('essa pasta de cliente não está no mapa');
+    const porCodigo = await clientesPorCodigo(db);
+    const soEnsaio = !(await marcacaoLigada(db));
+    const r = await releituraDoCliente(db, { id: c.id, name: c.nomePasta }, porCodigo, log, soEnsaio);
+    lembrarDonos(estado, c.id, r.itens);
+    await atualizarRaiz(db, raiz.pastaId, (raiz.clientes || []).map(x => (x.id === c.id ? r.resumo : x)));
+    log('mapa do Drive: pasta', c.nomePasta, 'relida a pedido de', pedido.criadoPor || '?');
+    return { pastas: 1, arquivos: r.resumo.arquivos || 0 };
+  }
+  estado.dono.clear();
+  const { resumos } = await varreduraCompleta(db, log, estado);
+  estado.pais.clear();
+  log('mapa do Drive: releitura completa a pedido de', pedido.criadoPor || '?');
+  return { pastas: resumos.length, arquivos: resumos.reduce((s, r) => s + (r.arquivos || 0), 0) };
+}
+
 function iniciarIndiceDrive(db, log) {
   const estado = { dono: new Map(), pais: new Map(), nomes: null, ocupado: false, ultimaCompleta: '' };
   const hojeIso = () => new Date().toISOString().slice(0, 10);
+
+  // os pedidos da tela esperam a vez (a trava é a mesma da volta de cada minuto)
+  const filaDoMapa = [];
+  async function atenderFilaDoMapa() {
+    if (estado.ocupado || !filaDoMapa.length) return;
+    const d = filaDoMapa.shift();
+    estado.ocupado = true;
+    try {
+      await d.ref.update({ status: 'atualizando', inicioEm: new Date().toISOString() });
+      const r = await atenderPedidoDoMapa(db, log, estado, d.data());
+      await d.ref.update(Object.assign({ status: 'pronto', prontoEm: new Date().toISOString() }, r));
+    } catch (err) {
+      log('mapa do Drive: pedido não atendido -', err.message);
+      await d.ref.update({ status: 'erro', erro: err.message, prontoEm: new Date().toISOString() }).catch(() => {});
+    } finally {
+      estado.ocupado = false;
+      setTimeout(atenderFilaDoMapa, 0);
+    }
+  }
+  require('./ouvinte').ouvir('pedidos do mapa do Drive', () => db.collection(PEDIDOS_DO_MAPA).where('status', '==', 'pendente').limit(5), snap => {
+    for (const d of snap.docs) if (!filaDoMapa.some(x => x.id === d.id)) filaDoMapa.push(d);
+    atenderFilaDoMapa();
+  }, log);
+  // os pedidos de mais de um dia somem
+  setInterval(async () => {
+    try {
+      const velhos = await db.collection(PEDIDOS_DO_MAPA).where('criadoEm', '<', new Date(Date.now() - PEDIDO_DO_MAPA_DURA_MS).toISOString()).limit(50).get();
+      await Promise.all(velhos.docs.map(d => d.ref.delete()));
+    } catch (e) { /* tenta de novo depois */ }
+  }, 6 * 36e5);
 
   async function volta() {
     if (estado.ocupado) return;
@@ -575,7 +634,7 @@ function iniciarIndiceDrive(db, log) {
       }
     } catch (err) {
       log('mapa do Drive: erro (' + err.message + '); tento de novo no próximo minuto');
-    } finally { estado.ocupado = false; }
+    } finally { estado.ocupado = false; atenderFilaDoMapa(); }
   }
   setTimeout(volta, 20 * 1000);
   setInterval(volta, MUDANCAS_A_CADA_MS);
