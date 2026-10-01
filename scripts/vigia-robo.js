@@ -93,8 +93,17 @@ const montarMensagem = dados => montarMime(Object.assign({ de: CAIXA }, dados));
 const enderecos = { robo: CAIXA };
 async function enderecoDaCaixa(caixa) {
   if (enderecos[caixa]) return enderecos[caixa];
-  const r = await getGmail(caixa).users.getProfile({ userId: 'me' });
-  enderecos[caixa] = String(r.data.emailAddress || '').toLowerCase();
+  let email = '';
+  try {
+    email = (await getGmail(caixa).users.getProfile({ userId: 'me' })).data.emailAddress;
+  } catch (err) {
+    // caixa que só envia (o fiscal): o Gmail não diz o endereço; quem diz é o userinfo (openid + userinfo.email)
+    if (!/insufficient/i.test(err.message || '')) throw err;
+    const { google } = require('googleapis');
+    email = (await google.oauth2({ version: 'v2', auth: require('./gmail-client').getAuth(caixa) }).userinfo.get()).data.email;
+  }
+  if (!email) throw new Error('não consegui saber o endereço da caixa ' + caixa);
+  enderecos[caixa] = String(email).toLowerCase();
   return enderecos[caixa];
 }
 const departamentoDo = p => (p && p.departamento === 'fiscal' ? 'fiscal' : 'contabil');

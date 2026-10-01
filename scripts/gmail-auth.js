@@ -41,7 +41,9 @@ const SCOPES_DO_ROBO = [
 const SCOPES = {
   robo: SCOPES_DO_ROBO,
   contabil: ['https://www.googleapis.com/auth/gmail.readonly', 'https://www.googleapis.com/auth/gmail.send'],
-  fiscal: ['https://www.googleapis.com/auth/gmail.send'],
+  // só enviar; o openid + userinfo.email só dizem QUAL é a conta (o robô precisa do endereço para o remetente),
+  // sem ler nenhum e-mail
+  fiscal: ['openid', 'https://www.googleapis.com/auth/userinfo.email', 'https://www.googleapis.com/auth/gmail.send'],
 }[CAIXA];
 const PORT = 51733;
 
@@ -77,8 +79,10 @@ const server = http.createServer(async (req, res) => {
     // qual conta autorizou (para não autorizar a conta errada sem perceber)
     try {
       oAuth2Client.setCredentials(tokens);
-      const perfil = await google.gmail({ version: 'v1', auth: oAuth2Client }).users.getProfile({ userId: 'me' });
-      console.log('CONTA: ' + perfil.data.emailAddress);
+      const email = CAIXA === 'fiscal'
+        ? (await google.oauth2({ version: 'v2', auth: oAuth2Client }).userinfo.get()).data.email
+        : (await google.gmail({ version: 'v1', auth: oAuth2Client }).users.getProfile({ userId: 'me' })).data.emailAddress;
+      console.log('CONTA: ' + email);
     } catch (e) { console.log('CONTA: (não consegui ler: ' + e.message + ')'); }
     // Robô na nuvem: o token novo vai pro metadado "gmail-token-novo" da
     // máquina (Compute Engine › robo-nilma › Editar › Metadados); o robô troca
