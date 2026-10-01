@@ -59,6 +59,17 @@ function temCaixa(caixa) {
   try { return !!JSON.parse(fs.readFileSync(c.arquivo, 'utf8')).refresh_token; } catch (e) { return false; }
 }
 
+/** O robô pode LER esta caixa? (a do robô sempre; as dos setores, se a autorização trouxe gmail.readonly) */
+function podeLer(caixa) {
+  if (caixa === 'robo') return true;
+  const c = CAIXAS[caixa];
+  if (!c || !temCaixa(caixa)) return false;
+  try {
+    const t = process.env[c.variavel] ? JSON.parse(process.env[c.variavel]) : JSON.parse(fs.readFileSync(c.arquivo, 'utf8'));
+    return /gmail\.readonly/.test(String(t.scope || ''));
+  } catch (e) { return false; }
+}
+
 // A conta 'robo' autoriza o Gmail e o Drive, num token só. Quem precisa de
 // outro servico do Google pede o cliente aqui em vez de remontar a autenticacao.
 function getAuth(caixa = caixaPadrao()) {
@@ -83,4 +94,4 @@ function origemDasCredenciais() {
   };
 }
 
-module.exports = { CAIXAS, temCaixa, getAuth, getGmail, origemDasCredenciais };
+module.exports = { CAIXAS, temCaixa, podeLer, getAuth, getGmail, origemDasCredenciais };

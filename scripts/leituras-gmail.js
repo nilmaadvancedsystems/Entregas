@@ -89,8 +89,9 @@ function anexosDe(part, acc) {
 }
 
 // E-mails que o robô pôs na tela: só esses podem ser lidos por este caminho.
-async function mensagensDaTela(db) {
-  const r = (await db.collection('robo').doc('estado').get()).data() || {};
+// (cada caixa do Gmail tem a sua lista: robo/estado para a do robô, robo/caixa-<caixa> para as dos setores)
+async function mensagensDaTela(db, caixa) {
+  const r = (await db.collection('robo').doc(caixa === 'robo' ? 'estado' : 'caixa-' + caixa).get()).data() || {};
   const ids = new Set();
   ['caixa', 'spam', 'naoReconhecidos'].forEach(k => (Array.isArray(r[k]) ? r[k] : []).forEach(m => { if (m && m.mensagemId) ids.add(String(m.mensagemId)); }));
   return ids;
@@ -105,9 +106,10 @@ function iniciarLeiturasGmail(db, log, getGmail, opcoes) {
     try {
       const id = String(p.mensagemId || '');
       if (!ID_VALIDO.test(id)) throw new Error('e-mail inválido');
-      if (!(await mensagensDaTela(db)).has(id)) throw new Error('este e-mail não está mais na lista do robô');
+      const caixa = ['contabil', 'fiscal'].includes(p.caixa) ? p.caixa : 'robo';
+      if (!(await mensagensDaTela(db, caixa)).has(id)) throw new Error('este e-mail não está mais na lista do robô');
       await ref.update({ status: 'lendo' });
-      const msg = (await getGmail().users.messages.get({ userId: 'me', id, format: 'full' })).data;
+      const msg = (await getGmail(caixa).users.messages.get({ userId: 'me', id, format: 'full' })).data;
       const headers = (msg.payload && msg.payload.headers) || [];
       let texto = textoDoEmail(msg.payload);
       const truncado = texto.length > TEXTO_MAXIMO;

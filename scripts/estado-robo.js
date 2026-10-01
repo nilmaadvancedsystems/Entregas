@@ -16,12 +16,16 @@
 const fs = require('fs');
 const path = require('path');
 
-const DOC = { colecao: 'robo', id: 'gmailEstado' };
+// Cada caixa do Gmail tem a sua memória (01/10/2026): a do robô fica onde sempre esteve; as dos setores (GMAIL_CAIXA,
+// ver gmail-client.js) em robo/gmailEstado-<caixa> e nos arquivos com o mesmo sufixo.
+const CAIXA_LIDA = ['contabil', 'fiscal'].includes(process.env.GMAIL_CAIXA) ? process.env.GMAIL_CAIXA : 'robo';
+const SUFIXO = CAIXA_LIDA === 'robo' ? '' : '-' + CAIXA_LIDA;
+const DOC = { colecao: 'robo', id: 'gmailEstado' + SUFIXO };
 
 const CAMINHOS = {
-  processados: path.join(__dirname, 'gmail-processados.json'),
-  semCliente: path.join(__dirname, 'gmail-sem-cliente.json'),
-  tentativas: path.join(__dirname, 'gmail-tentativas.json')
+  processados: path.join(__dirname, 'gmail-processados' + SUFIXO + '.json'),
+  semCliente: path.join(__dirname, 'gmail-sem-cliente' + SUFIXO + '.json'),
+  tentativas: path.join(__dirname, 'gmail-tentativas' + SUFIXO + '.json')
 };
 
 // Um id de mensagem do Gmail tem ~16 caracteres; 20 mil deles são ~400 KB,

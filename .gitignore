@@ -35,3 +35,6 @@ scripts/gmail_token_contabil.json
 scripts/gmail_token_contabil.json.anterior
 scripts/gmail_token_fiscal.json
 scripts/gmail_token_fiscal.json.anterior
+scripts/gmail-processados-*.json
+scripts/gmail-sem-cliente-*.json
+scripts/gmail-tentativas-*.json

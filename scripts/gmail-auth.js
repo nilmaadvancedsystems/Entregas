@@ -41,9 +41,9 @@ const SCOPES_DO_ROBO = [
 const SCOPES = {
   robo: SCOPES_DO_ROBO,
   contabil: ['https://www.googleapis.com/auth/gmail.readonly', 'https://www.googleapis.com/auth/gmail.send'],
-  // só enviar; o openid + userinfo.email só dizem QUAL é a conta (o robô precisa do endereço para o remetente),
-  // sem ler nenhum e-mail
-  fiscal: ['openid', 'https://www.googleapis.com/auth/userinfo.email', 'https://www.googleapis.com/auth/gmail.send'],
+  // ler e enviar, como o contábil (01/10/2026: o setor fiscal vê a caixa dele no Gmail do nads); o openid +
+  // userinfo.email dizem QUAL é a conta mesmo se um dia ela voltar a ser só de enviar
+  fiscal: ['openid', 'https://www.googleapis.com/auth/userinfo.email', 'https://www.googleapis.com/auth/gmail.readonly', 'https://www.googleapis.com/auth/gmail.send'],
 }[CAIXA];
 const PORT = 51733;
 

@@ -25,7 +25,7 @@ const path = require('path');
 const os = require('os');
 const { spawn } = require('child_process');
 const { FieldValue } = require('firebase-admin/firestore');
-const { getGmail, temCaixa, CAIXAS } = require('./gmail-client');
+const { getGmail, temCaixa, podeLer, CAIXAS } = require('./gmail-client');
 const { getDb } = require('./firestore-client');
 const { iniciarAtendenteIA } = require('./ia-atendente');
 const lideranca = require('./lideranca');
@@ -141,13 +141,13 @@ async function configDaCobranca(dep = 'contabil') {
 
 // PROVISÓRIO (01/10/2026): enquanto o robô ainda não lê a caixa do contábil, a cobrança que sai dela pede a
 // resposta na caixa do robô (Reply-To), que é a que ele lê: os anexos dos clientes continuam sendo registrados
-// sozinhos. Quando a leitura da caixa do contábil existir, isto vira false.
-const RESPOSTA_DO_CONTABIL_NO_ROBO = true;
+// sozinhos. Desde que o robô lê a caixa do contábil (gmail.readonly na autorização), as respostas ficam nela.
+const respostaDoContabilNoRobo = () => !podeLer('contabil');
 
 async function enviar(dados, caixa = 'robo') {
   const de = await enderecoDaCaixa(caixa);
   const cabecalhos = (dados.cabecalhos || []).slice();
-  if (caixa === 'contabil' && RESPOSTA_DO_CONTABIL_NO_ROBO) cabecalhos.push('Reply-To: ' + CAIXA);
+  if (caixa === 'contabil' && respostaDoContabilNoRobo()) cabecalhos.push('Reply-To: ' + CAIXA);
   const r = await getGmail(caixa).users.messages.send({ userId: 'me', requestBody: { raw: montarMensagem(Object.assign({ de }, dados, { cabecalhos })) } });
   return r.data.id;
 }
@@ -297,7 +297,8 @@ async function atenderResponder(p, ref) {
   try {
     if (!dentroDoLimite(1)) throw new Error('limite de ' + MAX_ENVIOS_POR_HORA + ' envios por hora atingido; tente mais tarde');
     const anexo = await lerAnexoDasPartes(p, ref);
-    const r = await require('./responder-gmail').responder({ db, gmail: getGmail(), p, caixa: CAIXA, montarMime, anexo });
+    const cx = caixaValida(p.caixa);
+    const r = await require('./responder-gmail').responder({ db, gmail: getGmail(cx), p, caixa: await enderecoDaCaixa(cx), montarMime, anexo });
     enviosRecentes.push(Date.now());
     auditoria('resposta_gmail', r.assunto + ' · para ' + r.para + (r.cc.length ? ' (cc ' + r.cc.join(', ') + ')' : '') + (anexo ? ' · anexo ' + anexo.nome : ''), p);
     log('resposta enviada para', r.para + (r.cc.length ? ' + ' + r.cc.length + ' em cópia' : ''), '(' + (p.criadoPor || '') + ')');
@@ -439,7 +440,29 @@ async function limparEstadoPreso(texto) {
   if (Object.keys(patch).length || (r.andamento && r.andamento.ativo)) log('estado preso limpo (' + texto + ')');
 }
 
-function rodarRobo(dias, motivo) {
+// As caixas que o robô lê (01/10/2026): a do robô e as dos setores autorizadas com leitura. Cada uma tem a sua
+// memória e a sua lista na tela (estado-robo.js e download-attachments.js, por GMAIL_CAIXA).
+const NOMES_DAS_CAIXAS = { robo: 'Nilma Contabilidade', contabil: 'setor contábil', fiscal: 'setor fiscal' };
+const caixaValida = c => (['robo', 'contabil', 'fiscal'].includes(c) ? c : 'robo');
+const caixasQueLe = () => ['robo', 'contabil', 'fiscal'].filter(podeLer);
+
+/** Lê uma caixa de cada vez (todas as que dá para ler); para na primeira cancelada. */
+async function rodarTodas(dias, motivo) {
+  const resumos = [];
+  let ok = true, erro = '';
+  for (const caixa of caixasQueLe()) {
+    const r = await rodarRobo(dias, motivo, caixa);
+    if (r.cancelada) return r;
+    if (!r.ok) { ok = false; erro = erro || (NOMES_DAS_CAIXAS[caixa] + ': ' + (r.erro || 'erro')); }
+    if (r.resumo) resumos.push((caixa === 'robo' ? '' : NOMES_DAS_CAIXAS[caixa] + ': ') + r.resumo);
+  }
+  return { ok, resumo: resumos.join(' · '), erro };
+}
+
+function rodarRobo(dias, motivo, caixa = 'robo') {
+  caixa = caixaValida(caixa);
+  if (caixa !== 'robo') motivo = motivo + ', caixa do ' + NOMES_DAS_CAIXAS[caixa];
+  const docDaTela = caixa === 'robo' ? roboRef : db.collection('robo').doc('caixa-' + caixa);
   return new Promise(resolve => {
     lendo = true;
     roboRef.set({ status: 'lendo', statusEm: agora(), statusMotivo: motivo }, { merge: true }).catch(() => {});
@@ -447,7 +470,7 @@ function rodarRobo(dias, motivo) {
     andamentoAtual = null;
     publicarAndamento({ ativo: true, tipo: 'leitura', motivo, inicio: agora(), fase: 'começando', feito: 0, total: 0, texto: 'Começando a leitura do Gmail (' + motivo + ')' }, true);
     const saida = [];
-    const filho = spawn(process.execPath, [ROBO, String(dias || 3)], { cwd: __dirname });
+    const filho = spawn(process.execPath, [ROBO, String(dias || 3)], { cwd: __dirname, env: Object.assign({}, process.env, { GMAIL_CAIXA: caixa }) });
     filhoAtual = filho;
     const comecou = Date.now();
     let ultimaNoticia = Date.now();
@@ -486,7 +509,7 @@ function rodarRobo(dias, motivo) {
       }
       const ultima = saida.filter(l => !/limite de uso/.test(l)).slice(-1)[0] || '';
       let robo = {};
-      try { robo = (await roboRef.get()).data() || {}; } catch (err) { log('não consegui ler o estado depois da leitura:', err.message); }
+      try { robo = (await docDaTela.get()).data() || {}; } catch (err) { log('não consegui ler o estado depois da leitura:', err.message); }
       const ok = code === 0;
       await roboRef.set({
         status: ok ? 'ok' : 'erro', statusEm: agora(),
@@ -520,7 +543,7 @@ function salvarMensagem(p) {
       inicio: agora(), fase: 'começando', feito: 0, total: 0, texto: 'Abrindo o e-mail no Gmail',
     }, true);
     const saida = [];
-    const filho = spawn(process.execPath, argsRobo, { cwd: __dirname });
+    const filho = spawn(process.execPath, argsRobo, { cwd: __dirname, env: Object.assign({}, process.env, { GMAIL_CAIXA: caixaValida(p.caixa) }) });
     filhoAtual = filho;
     const restos = { out: '', err: '' };
     const guardarDe = qual => b => {
@@ -747,7 +770,8 @@ async function atenderFila() {
         else if (p.tipo === 'lote') resultado = await atenderLote(p);
         else if (p.tipo === 'verificar') {
           while (lendo) await new Promise(r => setTimeout(r, 2000));
-          const r = await rodarRobo(p.dias || 3, 'pedido por ' + (p.criadoPor || 'alguém'));
+          const motivoDoPedido = 'pedido por ' + (p.criadoPor || 'alguém');
+          const r = p.caixa && podeLer(caixaValida(p.caixa)) ? await rodarRobo(p.dias || 3, motivoDoPedido, caixaValida(p.caixa)) : await rodarTodas(p.dias || 3, motivoDoPedido);
           if (r.cancelada) resultado = { status: 'cancelado', canceladoEm: agora(), resumo: r.erro };
           else if (!r.ok) throw new Error(r.erro || 'o robô terminou com erro');
           else resultado = { status: 'concluido', concluidoEm: agora(), resumo: r.resumo };
@@ -901,7 +925,7 @@ async function iniciar() {
     setInterval(async () => {
       if (lendo || ocupado) return;
       const dias = await diasDesdeUltimaLeitura();
-      if (!lendo && !ocupado) rodarRobo(dias, 'automático a cada ' + A_CADA_MIN + ' min');
+      if (!lendo && !ocupado) rodarTodas(dias, 'automático a cada ' + A_CADA_MIN + ' min');
     }, A_CADA_MIN * 60 * 1000);
   }
 

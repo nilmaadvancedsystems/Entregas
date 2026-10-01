@@ -66,6 +66,10 @@ function andamentoDoSalvar(fase, feito, n, texto) {
 }
 const CLIENTE_FORCADO = valorDe('--cliente');
 const DIAS = parseInt(ARGS.find((a, i) => /^\d+$/.test(a) && !['--mensagem', '--cliente'].includes(ARGS[i - 1])), 10) || 10;
+// O que a tela lista (caixa, salvos, não reconhecidos…) fica no documento da caixa lida (01/10/2026): robo/estado
+// para a do robô, como sempre; robo/caixa-<caixa> para as dos setores (GMAIL_CAIXA, ver gmail-client.js).
+const CAIXA_LIDA = ['contabil', 'fiscal'].includes(process.env.GMAIL_CAIXA) ? process.env.GMAIL_CAIXA : 'robo';
+const DOC_DA_TELA = CAIXA_LIDA === 'robo' ? 'estado' : 'caixa-' + CAIXA_LIDA;
 const MAX_CAIXA = 150;                       // e-mails com anexo que a tela lista
 const MAX_SPAM = 100;                        // e-mails do spam que a tela lista
 
@@ -973,7 +977,7 @@ async function main() {
   // e-mail vence — é assim que um e-mail "sem cliente" passa a mostrar o cliente
   // depois que o remetente é vinculado.
   const caixaMap = new Map();
-  const roboAntes = (await db.collection('robo').doc('estado').get()).data() || {};
+  const roboAntes = (await db.collection('robo').doc(DOC_DA_TELA).get()).data() || {};
   (!RELER && Array.isArray(roboAntes.caixa) ? roboAntes.caixa : []).concat(caixaNovos)
     .forEach(c => caixaMap.set(c.mensagemId, c));
   const caixa = Array.from(caixaMap.values())
@@ -982,7 +986,7 @@ async function main() {
 
   if (UMA_MENSAGEM) {
     if (!SIMULAR) {
-      await db.collection('robo').doc('estado').set(Object.assign({ caixa }, comSalvos()), { merge: true });
+      await db.collection('robo').doc(DOC_DA_TELA).set(Object.assign({ caixa }, comSalvos()), { merge: true });
       await estadoRobo.salvar(db, estadoAgora());
     }
     // A última linha é lida pelo vigia pra responder à tela.
@@ -1003,7 +1007,7 @@ async function main() {
   }
 
   // robo/estado: o que a página "Robô do Gmail" mostra.
-  const roboRef = db.collection('robo').doc('estado');
+  const roboRef = db.collection('robo').doc(DOC_DA_TELA);
   const roboAtual = (await roboRef.get()).data() || {};
   const reconhecido = r => porEmail.has(String(r.remetente).toLowerCase()) || porDominio.has(dominioDe(String(r.remetente).toLowerCase()));
   const porMensagem = new Map();

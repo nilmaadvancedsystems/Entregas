@@ -44,6 +44,21 @@ service cloud.firestore {
       return temPapel('admin');
     }
 
+    // O setor da pessoa (01/10/2026): o departamento escolhido no Cadastro do nads (usuarios.departamento) ou o
+    // papel (roles). Decide qual caixa do Gmail do setor ela vê e de qual ela pode mandar.
+    function doSetor(setor) {
+      return temPapel(setor) || (logado() && exists(/databases/$(database)/documents/usuarios/$(request.auth.uid))
+        && meuDoc().get('departamento', '') == setor);
+    }
+    // a caixa do Gmail que a pessoa pode usar: a do robô (Nilma Contabilidade) é do contábil e do fiscal;
+    // a de cada setor, só do setor; o admin usa todas
+    function usaCaixa(caixa) {
+      return ehAdmin()
+        || (caixa == 'robo' && (doSetor('contabil') || doSetor('fiscal')))
+        || (caixa == 'contabil' && doSetor('contabil'))
+        || (caixa == 'fiscal' && doSetor('fiscal'));
+    }
+
     // Da equipe = tem cadastro em `usuarios` com pelo menos um papel.
     // `logado()` sozinho NÃO basta: a chave do app é pública (está no código
     // da página) e qualquer pessoa na internet cria uma conta no Firebase com
@@ -587,12 +602,12 @@ service cloud.firestore {
         (request.resource.data.get('tipo', '') != 'disparo' ||
          (ehAdmin() && request.resource.data.get('criadoPorUid', '') == request.auth.uid)) &&
         (request.resource.data.get('tipo', '') != 'responder' ||
-         ((ehAdmin() || temPapel('contabil')) && request.resource.data.get('criadoPorUid', '') == request.auth.uid));
+         (usaCaixa(request.resource.data.get('caixa', 'robo')) && request.resource.data.get('criadoPorUid', '') == request.auth.uid));
       allow update: if membro() &&
         ((!(resource.data.get('tipo', '') in ['disparo', 'responder']) && !(request.resource.data.get('tipo', '') in ['disparo', 'responder'])) || ehAdmin());
       allow delete: if ehAdmin();
       match /partes/{n} {
-        allow create: if (ehAdmin() || temPapel('contabil')) && n.matches('^([0-9]|1[01])$')
+        allow create: if (ehAdmin() || doSetor('contabil') || doSetor('fiscal')) && n.matches('^([0-9]|1[01])$')
           && request.resource.data.keys().hasOnly(['dados'])
           && request.resource.data.dados is string && request.resource.data.dados.size() <= 900000;
         allow read, delete: if ehAdmin();
@@ -845,7 +860,12 @@ service cloud.firestore {
     // de clientes, por isso não fica em config/ (que qualquer logado lê). Quem
     // grava é o robô pelo Admin SDK, que não passa por estas regras.
     match /robo/{doc} {
-      allow read: if ehAdmin() || temPapel('contabil');
+      // robo/estado (a caixa do robô): contábil e fiscal; robo/caixa-<setor>: só o setor (e o admin); o resto como sempre
+      allow read: if ehAdmin()
+        || (doc == 'estado' && usaCaixa('robo'))
+        || (doc == 'caixa-contabil' && usaCaixa('contabil'))
+        || (doc == 'caixa-fiscal' && usaCaixa('fiscal'))
+        || (temPapel('contabil') && !(doc in ['caixa-fiscal', 'gmailEstado-fiscal']));
       allow write: if false;
     }
 
@@ -953,13 +973,13 @@ service cloud.firestore {
     // e-mail volta dentro dele e o robô apaga em 10 min. Quem grava o texto é
     // o robô (Admin SDK); pela tela só se cria o pedido, nunca se altera.
     match /leiturasGmail/{id} {
-      allow read: if (ehAdmin() || temPapel('contabil')) && resource.data.criadoPorUid == request.auth.uid;
-      allow create: if (ehAdmin() || temPapel('contabil'))
+      allow read: if (ehAdmin() || doSetor('contabil') || doSetor('fiscal')) && resource.data.criadoPorUid == request.auth.uid;
+      allow create: if usaCaixa(request.resource.data.get('caixa', 'robo'))
         && request.resource.data.status == 'pendente'
         && request.resource.data.criadoPorUid == request.auth.uid
         && request.resource.data.mensagemId is string
         && request.resource.data.mensagemId.matches('^[0-9a-fA-F]{10,32}$')
-        && request.resource.data.keys().hasOnly(['status', 'mensagemId', 'criadoEm', 'criadoPor', 'criadoPorUid']);
+        && request.resource.data.keys().hasOnly(['status', 'mensagemId', 'criadoEm', 'criadoPor', 'criadoPorUid', 'caixa']);
       allow update, delete: if false;
     }
 
