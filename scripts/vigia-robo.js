@@ -139,9 +139,16 @@ async function configDaCobranca(dep = 'contabil') {
   return configCache[id].valor;
 }
 
+// PROVISÓRIO (01/10/2026): enquanto o robô ainda não lê a caixa do contábil, a cobrança que sai dela pede a
+// resposta na caixa do robô (Reply-To), que é a que ele lê: os anexos dos clientes continuam sendo registrados
+// sozinhos. Quando a leitura da caixa do contábil existir, isto vira false.
+const RESPOSTA_DO_CONTABIL_NO_ROBO = true;
+
 async function enviar(dados, caixa = 'robo') {
   const de = await enderecoDaCaixa(caixa);
-  const r = await getGmail(caixa).users.messages.send({ userId: 'me', requestBody: { raw: montarMensagem(Object.assign({ de }, dados)) } });
+  const cabecalhos = (dados.cabecalhos || []).slice();
+  if (caixa === 'contabil' && RESPOSTA_DO_CONTABIL_NO_ROBO) cabecalhos.push('Reply-To: ' + CAIXA);
+  const r = await getGmail(caixa).users.messages.send({ userId: 'me', requestBody: { raw: montarMensagem(Object.assign({ de }, dados, { cabecalhos })) } });
   return r.data.id;
 }
 
