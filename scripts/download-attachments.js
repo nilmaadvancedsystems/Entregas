@@ -348,6 +348,10 @@ function nucleoDoNome(nome) {
 function desempatarPorNome(candidatos, texto) {
   const corrido = ' ' + palavras(texto).join(' ') + ' ';
   if (corrido.trim() === '') return null;
+  // 0) a razão social vale mais que o nome fantasia (01/10/2026): a FITO INDUSTRIA tem o fantasia "FITO ALIMENTOS",
+  //    que é a razão social da outra empresa do grupo; "Fito Alimentos LTDA" no assunto é dela, não um empate
+  const pelaRazao = candidatos.filter(c => { const n = nucleoDoNome(c.nome); return n.length && corrido.includes(' ' + n.join(' ') + ' '); });
+  if (pelaRazao.length === 1) return pelaRazao[0];
   const nucleos = candidatos.map(c => [c.nome, c.nomeFantasia].filter(Boolean).map(nucleoDoNome).filter(n => n.length));
   // 1) o nome inteiro aparece
   const achou = nucleos.map(ns => ns.filter(n => corrido.includes(' ' + n.join(' ') + ' ')).map(n => n.join(' ')));

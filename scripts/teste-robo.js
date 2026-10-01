@@ -694,6 +694,12 @@ igual('pedido já avisado não repete', al.avisoDoPedido({ status: 'pendente', c
 igual('pedido velho não avisa', al.avisoDoPedido({ status: 'pendente', criadoEm: '2026-10-01T13:00:00Z' }, agoraAl), null);
 igual('pedido aprovado não avisa', al.avisoDoPedido({ status: 'aprovado', criadoEm: '2026-10-01T14:59:00Z' }, agoraAl), null);
 
+// --- razão social vale mais que o nome fantasia (FITO, 01/10/2026) ---
+const fitos = [{ id: '292', nome: 'FITO INDUSTRIA E COMERCIO DE ALIMENTOS LTDA', nomeFantasia: 'FITO ALIMENTOS' }, { id: '309', nome: 'FITO ALIMENTOS LTDA', nomeFantasia: 'FITO ALIMENTOS', grupoLocal: '292' }];
+igual('razão social da irmã no assunto: é dela', (r.desempatarPorNome(fitos, 'Arquivos 09/2026 - Fito Alimentos LTDA') || {}).id, '309');
+igual('razão social da dona do e-mail: é dela', (r.desempatarPorNome(fitos, 'Arquivos 09/2026 - Fito Indústria e Comércio de Alimentos LTDA') || {}).id, '292');
+igual('sem nome no assunto: não decide pelo nome', r.desempatarPorNome(fitos, 'Faturas'), null);
+
 // os testes que leem PDF são assíncronos: o resultado espera por eles
 esperarExtratos.then(() => {
   console.log(falhas ? '\n' + falhas + ' de ' + total + ' testes FALHARAM' : total + ' testes, todos passaram');
