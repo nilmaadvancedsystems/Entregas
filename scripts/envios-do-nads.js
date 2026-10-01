@@ -23,7 +23,8 @@ const MAX_BYTES = 25 * 1024 * 1024;
 const MAX_PARTES = 30;
 // envio que ficou pela metade (a pessoa fechou a tela no meio) e resposta velha: some do banco
 const ABANDONADO_MS = 2 * 36e5;
-const RESPOSTA_DURA_MS = 2 * 24 * 36e5;
+// a resposta (sem os pedaços, que já foram apagados) fica 30 dias: a tela mostra onde o arquivo foi parar
+const RESPOSTA_DURA_MS = 30 * 24 * 36e5;
 const ESPERA_MS = 15 * 60 * 1000;
 
 // Confere o envio e junta os pedaços. Devolve { erro } ou { buffer, nome, competencia }.
@@ -136,4 +137,56 @@ function iniciarEnviosDoNads(db, log) {
   log('arquivos enviados pelo nads para o Claudio Secretario: ligado');
 }
 
-module.exports = { montarEnvio, nomeDaPastaDoCliente, PASTA_SEM_CLIENTE, iniciarEnviosDoNads };
+// ---------- onde o arquivo foi parar (01/10/2026) ----------
+// Depois de cada rodada do arquivamento (arquivador.js publica arquivamentos/{EXEC-…} e detalhe/tudo), os envios
+// prontos que ainda não sabem o destino são procurados pelo nome com que ficaram no Claudio Secretario (nomeFinal):
+// em detalhe.arquivos (arquivado: código, cliente, subpasta e o nome final), em detalhe.naoIdentificados, ou como
+// DUPLICADO no relatório. O manifesto não guarda a pasta de origem, então o casamento é pelo nome e pelo código.
+const semAcento = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
+/** O destino do envio numa rodada (ou null quando a rodada não fala dele). */
+function destinoNoArquivamento(envio, run, detalhe) {
+  const nome = semAcento(envio.nomeFinal);
+  if (!nome || !detalhe) return null;
+  const doCodigo = a => !envio.codigo || !a.codigo || String(a.codigo) === String(envio.codigo);
+  const arq = (detalhe.arquivos || []).find(a => semAcento(a.original) === nome && doCodigo(a));
+  if (arq) {
+    return { situacao: 'arquivado', em: run.em || '', execucao: run.id || '', codigo: String(arq.codigo || ''), cliente: String(arq.cliente || ''),
+      subpasta: String(arq.subpasta || ''), final: String(arq.final || arq.original || '') };
+  }
+  const nao = (detalhe.naoIdentificados || []).find(n => semAcento(n.nome).endsWith(nome));
+  if (nao) return { situacao: 'nao_identificado', em: run.em || '', execucao: run.id || '', motivo: String(nao.motivo || '') };
+  const linha = String(detalhe.relatorio || '').split(/\r?\n/).find(l => /^\s*DUPLICADO:/.test(l) && semAcento(l).includes(nome));
+  if (linha) return { situacao: 'duplicado', em: run.em || '', execucao: run.id || '', motivo: linha.replace(/^\s*DUPLICADO:\s*/, '').slice(0, 300) };
+  return null;
+}
+
+function iniciarDestinoDosEnvios(db, log) {
+  const envios = db.collection('enviosSecretario');
+  const vistos = new Map();   // rodada -> publicadoEm já conferido
+  async function conferir(runs) {
+    const prontos = (await envios.where('status', '==', 'pronto').limit(200).get()).docs.filter(d => !d.get('arquivamento'));
+    if (!prontos.length) return;
+    for (const run of runs.sort((a, b) => String(a.em).localeCompare(String(b.em)))) {
+      const aguardando = prontos.filter(d => !d._resolvido && String(d.get('prontoEm') || '') < String(run.em || ''));
+      if (!aguardando.length) continue;
+      const det = (await db.collection('arquivamentos').doc(run.id).collection('detalhe').doc('tudo').get()).data();
+      for (const d of aguardando) {
+        const destino = destinoNoArquivamento(d.data(), run, det);
+        if (!destino) continue;
+        d._resolvido = true;
+        await d.ref.update({ arquivamento: destino });
+        log('envio pelo nads', destino.situacao + ':', d.get('nomeFinal'), destino.subpasta ? '-> ' + destino.codigo + ' - ' + destino.cliente + '/' + destino.subpasta : '');
+      }
+    }
+  }
+  ouvir('arquivamentos para os envios', () => db.collection('arquivamentos').orderBy('em', 'desc').limit(5), snap => {
+    const runs = snap.docs.map(d => Object.assign({ id: d.id }, d.data()))
+      .filter(r => r.modo === 'PRODUCAO' && vistos.get(r.id) !== r.publicadoEm);
+    if (!runs.length) return;
+    runs.forEach(r => vistos.set(r.id, r.publicadoEm));
+    conferir(runs).catch(err => log('destino dos envios do nads:', err.message));
+  }, log);
+}
+
+module.exports = { montarEnvio, nomeDaPastaDoCliente, PASTA_SEM_CLIENTE, iniciarEnviosDoNads, destinoNoArquivamento, iniciarDestinoDosEnvios };

@@ -817,11 +817,17 @@ async function iniciar() {
   catch (err) { log('aviso de tarefas e parcelas atrasadas desligado:', err.message); }
   try { require('./pedidos-do-portal').iniciarPedidosDoPortal(db, log, avisos); }
   catch (err) { log('recados da página do cliente desligados:', err.message); }
+  // pedido de liberação do login do nads: avisa os admins no celular
+  try { require('./avisos-liberacao-nads').iniciarAvisosDeLiberacao(db, log, avisos); }
+  catch (err) { log('aviso de liberação do nads desligado:', err.message); }
   try { require('./envios-do-portal').iniciarEnviosDoPortal(db, log); }
   catch (err) { log('documentos pelo link desligados:', err.message); }
   // Arquivo mandado pelo nads (Tarefas › Drive) para a pasta Claudio Secretario.
   try { require('./envios-do-nads').iniciarEnviosDoNads(db, log); }
   catch (err) { log('envios do nads desligados:', err.message); }
+  // e onde cada um foi parar depois do arquivamento (a tela do nads mostra)
+  try { require('./envios-do-nads').iniciarDestinoDosEnvios(db, log); }
+  catch (err) { log('destino dos envios do nads desligado:', err.message); }
   // Quanto o banco já usou hoje (todo o sistema), pro cartão Saúde do sistema.
   try { require('./uso-banco').iniciarUsoDoBanco(db, log); }
   catch (err) { log('uso do banco desligado:', err.message); }

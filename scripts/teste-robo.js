@@ -672,6 +672,28 @@ igual('pasta: nome do cadastro pelo código', en.nomeDaPastaDoCliente({ codigo: 
 igual('pasta: o nome que veio', en.nomeDaPastaDoCliente({ codigo: '9', cliente: 'X LTDA' }, porCod), 'X LTDA');
 igual('pasta: sem cliente', en.nomeDaPastaDoCliente({ codigo: '', cliente: '' }, porCod), 'Enviados pelo nads');
 
+// --- onde o envio foi parar depois do arquivamento (envios-do-nads.js) ---
+const run1 = { id: 'EXEC-20261001-120000', em: '2026-10-01T12:00:00Z' };
+const det1 = {
+  arquivos: [{ original: 'Extrato Agosto.pdf', final: '08-2026.pdf', codigo: '58', cliente: 'TORNEARIA', subpasta: 'CONTÁBIL/EXTRATOS/2026/08' }],
+  naoIdentificados: [{ nome: 'Claudio Secretario/2026-10/Enviados pelo nads/foto.jpg', motivo: 'sem CNPJ' }],
+  relatorio: ['OK', 'DUPLICADO: nota 55.xml -> G:/Meu Drive/2026/58/x.xml (E401)', ''].join(String.fromCharCode(10)),
+};
+igual('arquivado: pelo nome sem acento e pelo código', en.destinoNoArquivamento({ nomeFinal: 'extrato agôsto.pdf', codigo: '58' }, run1, det1).final, '08-2026.pdf');
+igual('código diferente não casa', en.destinoNoArquivamento({ nomeFinal: 'Extrato Agosto.pdf', codigo: '9' }, run1, det1), null);
+igual('não identificado', en.destinoNoArquivamento({ nomeFinal: 'foto.jpg' }, run1, det1).situacao, 'nao_identificado');
+igual('duplicado pelo relatório', en.destinoNoArquivamento({ nomeFinal: 'nota 55.xml' }, run1, det1).situacao, 'duplicado');
+igual('a rodada não fala do arquivo', en.destinoNoArquivamento({ nomeFinal: 'outro.pdf' }, run1, det1), null);
+
+// --- aviso de liberação do nads no celular dos admins (avisos-liberacao-nads.js) ---
+const al = require('./avisos-liberacao-nads');
+const agoraAl = Date.parse('2026-10-01T15:00:00Z');
+igual('pedido novo avisa', al.avisoDoPedido({ status: 'pendente', nome: 'teste5', computador: 'Chrome · Windows', criadoEm: '2026-10-01T14:59:00Z' }, agoraAl).corpo,
+  'teste5 quer entrar no nads (Chrome · Windows). Toque para aprovar e ver o código.');
+igual('pedido já avisado não repete', al.avisoDoPedido({ status: 'pendente', criadoEm: '2026-10-01T14:59:00Z', avisadoEm: 'x' }, agoraAl), null);
+igual('pedido velho não avisa', al.avisoDoPedido({ status: 'pendente', criadoEm: '2026-10-01T13:00:00Z' }, agoraAl), null);
+igual('pedido aprovado não avisa', al.avisoDoPedido({ status: 'aprovado', criadoEm: '2026-10-01T14:59:00Z' }, agoraAl), null);
+
 // os testes que leem PDF são assíncronos: o resultado espera por eles
 esperarExtratos.then(() => {
   console.log(falhas ? '\n' + falhas + ' de ' + total + ' testes FALHARAM' : total + ' testes, todos passaram');

@@ -35,7 +35,8 @@ const man = require('./arquivo-manifesto');
 const RAIZ = process.env.ARQUIVO_RAIZ || 'C:\\Users\\DPTO FISCAL 004\\GUSTAVO\\claudio';
 const CONTROLE = path.join(RAIZ, '_CONTROLE');
 const CLAUDE = process.env.CLAUDE_EXE || path.join(os.homedir(), '.local', 'bin', 'claude.exe');
-const DRIVE = process.env.ARQUIVO_DRIVE || 'G:\Meu Drive';
+// (01/10/2026: era 'G:\Meu Drive', que no JavaScript vira "G:Meu Drive" — a barra some)
+const DRIVE = process.env.ARQUIVO_DRIVE || 'G:\\Meu Drive';
 const MODOS = ['PRODUCAO', 'SIMULACAO'];
 // Quem pensa e quem faz (pedido do escritório, 28/09/2026): o Opus 5.5
 // orquestra a rotina e os subagentes que ela abre pra executar rodam no

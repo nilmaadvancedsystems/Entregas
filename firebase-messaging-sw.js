@@ -92,14 +92,16 @@ self.addEventListener('fetch', function (event) {
 
 // Tocar no aviso abre o endereço que veio nele. O lembrete de vencimento do
 // CLIENTE traz o link da página dele: sem isto, o toque abria a tela de login
-// do escritório. Só endereço deste mesmo site é aceito.
+// do escritório. Só endereço deste mesmo site é aceito — e os do nads (01/10/2026: o pedido de liberação do
+// login abre o Tarefas, onde o administrador aprova e vê o código).
+var ORIGENS_DO_NADS = ['https://tarefas-nilma.web.app', 'https://nads-nilma.web.app'];
 self.addEventListener('notificationclick', function (event) {
   event.notification.close();
   var dados = event.notification.data || {};
   var destino = new URL('entregas.html', self.registration.scope).href;
   try {
     var pedido = new URL(dados.link || '', self.registration.scope);
-    if (pedido.origin === self.location.origin) destino = pedido.href;
+    if (pedido.origin === self.location.origin || ORIGENS_DO_NADS.indexOf(pedido.origin) !== -1) destino = pedido.href;
   } catch (e) {}
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (abertas) {
