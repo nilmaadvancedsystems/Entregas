@@ -251,7 +251,10 @@ async function atenderUm(p) {
   let visual = {};
   try {
     const cfg = await configDaCobranca(dep);
-    if (dep === 'fiscal') {
+    // o e-mail já montado na tela (Pedir documentos do nads, 01/10/2026): sai exatamente como a prévia mostrou
+    if (typeof p.html === 'string' && p.html.trim() && p.html.length <= 500000) {
+      visual = { html: p.html };
+    } else if (dep === 'fiscal') {
       visual = htmlDoDisparo({ assunto: p.assunto, corpo: p.corpo, assinatura: cfg.assinatura || 'Nilma Contabilidade', caixa: de });
     } else {
       const doMes = p.competencia ? ((await db.collection('documentosMensal').doc(cliente.id + '_' + p.competencia).get()).data() || {}) : {};
