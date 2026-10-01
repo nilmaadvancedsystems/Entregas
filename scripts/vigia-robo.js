@@ -106,7 +106,30 @@ async function enderecoDaCaixa(caixa) {
   enderecos[caixa] = String(email).toLowerCase();
   return enderecos[caixa];
 }
-const departamentoDo = p => (p && p.departamento === 'fiscal' ? 'fiscal' : 'contabil');
+// De qual setor é o pedido (01/10/2026): o que o pedido disser; senão o setor de QUEM pediu — o departamento do
+// Cadastro do nads (usuarios.departamento) ou, sem ele, o papel (fiscal sem o contábil = fiscal). Assim o "Pedir
+// extratos" do nads e a cobrança das Pendências saem pelo Gmail do setor de quem pediu. Na dúvida, o contábil.
+const setorDe = new Map();   // uid ou e-mail -> { setor, em }
+async function departamentoDoPedido(p) {
+  if (p && (p.departamento === 'fiscal' || p.departamento === 'contabil')) return p.departamento;
+  const chave = (p && (p.criadoPorUid || p.criadoPorEmail)) || '';
+  if (!chave) return 'contabil';
+  const guardado = setorDe.get(chave);
+  if (guardado && Date.now() - guardado.em < 10 * 60 * 1000) return guardado.setor;
+  let u = null;
+  try {
+    if (p.criadoPorUid) u = (await db.collection('usuarios').doc(String(p.criadoPorUid)).get()).data() || null;
+    else {
+      const q = await db.collection('usuarios').where('email', '==', String(p.criadoPorEmail).trim().toLowerCase()).limit(1).get();
+      u = q.empty ? null : q.docs[0].data();
+    }
+  } catch (err) { log('não consegui ver o setor de quem pediu:', err.message); }
+  const papeis = (u && Array.isArray(u.roles)) ? u.roles : [];
+  const setor = u && (u.departamento === 'fiscal' || u.departamento === 'contabil') ? u.departamento
+    : papeis.includes('fiscal') && !papeis.includes('contabil') ? 'fiscal' : 'contabil';
+  setorDe.set(chave, { setor, em: Date.now() });
+  return setor;
+}
 function caixaDoDepartamento(dep) {
   if (dep === 'fiscal') {
     if (!temCaixa('fiscal')) throw new Error('o Gmail do fiscal ainda não foi autorizado (node gmail-auth.js --caixa fiscal)');
@@ -197,7 +220,7 @@ async function atenderUm(p) {
   const cliente = Object.assign({ id: snap.id }, snap.data());
   const para = String(p.para || '').trim().toLowerCase();
   if (!enderecosDoCliente(cliente).includes(para)) throw new Error(para + ' não está no cadastro deste cliente');
-  const dep = departamentoDo(p);
+  const dep = await departamentoDoPedido(p);
   const caixa = caixaDoDepartamento(dep);
   const de = await enderecoDaCaixa(caixa);
   if (!dentroDoLimite(1, caixa)) throw new Error('limite de ' + MAX_ENVIOS_POR_HORA + ' envios por hora atingido; tente mais tarde');
@@ -239,7 +262,7 @@ async function atenderLote(p) {
   if (!clientes.length) throw new Error('nenhum cliente do lote tem e-mail cadastrado');
   const lotes = [];
   for (let i = 0; i < clientes.length; i += MAX_CCO) lotes.push(clientes.slice(i, i + MAX_CCO));
-  const dep = departamentoDo(p);
+  const dep = await departamentoDoPedido(p);
   const caixa = caixaDoDepartamento(dep);
   const de = await enderecoDaCaixa(caixa);
   if (!dentroDoLimite(lotes.length, caixa)) throw new Error('limite de ' + MAX_ENVIOS_POR_HORA + ' envios por hora atingido; tente mais tarde');
