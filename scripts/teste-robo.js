@@ -234,6 +234,10 @@ const segunda = rg.cobrancaDo(Object.assign({ portalToken: 'tok' }, cli), { cobr
 igual('coleta não conta: vira a 2ª cobrança, com prazo e link', [segunda.n, segunda.para, segunda.assunto, /dia 15\/09/.test(segunda.corpo), /cliente\.html\?portal=tok$/.test(segunda.corpo), segunda.tipos],
   [2, 'padaria@exemplo.com', 'Lembrete: documentos de agosto de 2026 - PADARIA SAO JORGE LTDA', true, true, ['extrato', 'comprovante']]);
 igual('modelo do admin vale no lugar do padrão', rg.cobrancaDo(cli, null, { modelos: { '1': { assunto: 'Docs {mes}' } } }, '2026-12', agoraMs).assunto, 'Docs dezembro de 2026');
+// caixas por departamento (01/10/2026): a cobrança do fiscal não conta na régua do contábil; {caixa} é a que envia
+const comFiscal = rg.cobrancaDo(cli, { cobrancas: [{ em: new Date(agoraMs - 864e5).toISOString(), canal: 'gmail', departamento: 'fiscal' }] }, {}, '2026-08', agoraMs, 'contabil@nilma.com');
+igual('cobrança do fiscal não conta para o contábil', [comFiscal.pula, comFiscal.n], [undefined, 1]);
+igual('{caixa} é a caixa que envia', rg.cobrancaDo(cli, null, { modelos: { '1': { corpo: 'responda para {caixa}' } } }, '2026-08', agoraMs, 'contabil@nilma.com').corpo.startsWith('responda para contabil@nilma.com'), true);
 
 // ---------- comprovante de entrega por e-mail ----------
 const ce = require('./comprovante-email');

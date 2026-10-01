@@ -39,18 +39,40 @@ function segredo(variavel, caminho, oQueE) {
   }
 }
 
-// A mesma conta autoriza o Gmail e o Drive, num token só. Quem precisa de
+// As caixas do Gmail que o robô usa (01/10/2026), cada uma com o seu token:
+//   robo      nilmacontabilidade: lê os anexos, mexe no Drive e manda o resto (alertas, resumo, disparos)
+//   contabil  a caixa da cobrança do contábil: envia e lê as respostas (gmail.send + gmail.readonly)
+//   fiscal    a caixa da cobrança do fiscal: só envia (gmail.send)
+// A caixa de um processo inteiro pode vir de GMAIL_CAIXA (o leitor de anexos roda uma vez por caixa).
+const CAIXAS = {
+  robo: { variavel: 'GMAIL_TOKEN', arquivo: TOKEN_PATH, metadado: 'gmail-token-novo' },
+  contabil: { variavel: 'GMAIL_TOKEN_CONTABIL', arquivo: __dirname + '/gmail_token_contabil.json', metadado: 'gmail-token-contabil-novo' },
+  fiscal: { variavel: 'GMAIL_TOKEN_FISCAL', arquivo: __dirname + '/gmail_token_fiscal.json', metadado: 'gmail-token-fiscal-novo' },
+};
+const caixaPadrao = () => (CAIXAS[process.env.GMAIL_CAIXA] ? process.env.GMAIL_CAIXA : 'robo');
+
+/** A caixa já foi autorizada (tem token no ambiente ou no disco)? */
+function temCaixa(caixa) {
+  const c = CAIXAS[caixa];
+  if (!c) return false;
+  if (process.env[c.variavel]) return true;
+  try { return !!JSON.parse(fs.readFileSync(c.arquivo, 'utf8')).refresh_token; } catch (e) { return false; }
+}
+
+// A conta 'robo' autoriza o Gmail e o Drive, num token só. Quem precisa de
 // outro servico do Google pede o cliente aqui em vez de remontar a autenticacao.
-function getAuth() {
+function getAuth(caixa = caixaPadrao()) {
+  const c = CAIXAS[caixa];
+  if (!c) throw new Error('caixa do Gmail desconhecida: ' + caixa);
   const creds = segredo('GMAIL_OAUTH_CLIENT', CLIENT_PATH, 'o cliente OAuth do Gmail').installed;
   const oAuth2Client = new google.auth.OAuth2(creds.client_id, creds.client_secret);
-  const token = segredo('GMAIL_TOKEN', TOKEN_PATH, 'o token do Gmail');
+  const token = segredo(c.variavel, c.arquivo, 'o token do Gmail (' + caixa + ')');
   oAuth2Client.setCredentials(token);
   return oAuth2Client;
 }
 
-function getGmail() {
-  return google.gmail({ version: 'v1', auth: getAuth() });
+function getGmail(caixa = caixaPadrao()) {
+  return google.gmail({ version: 'v1', auth: getAuth(caixa) });
 }
 
 // Só pra log e diagnóstico: diz de onde vieram, nunca o que são.
@@ -61,4 +83,4 @@ function origemDasCredenciais() {
   };
 }
 
-module.exports = { getAuth, getGmail, origemDasCredenciais };
+module.exports = { CAIXAS, temCaixa, getAuth, getGmail, origemDasCredenciais };

@@ -105,7 +105,7 @@ function iniciarFotosRemetentes(db, log) {
     // robo/fotos.erro pra aparecer que falta autorizar.
     let outros = [], salvos = [], motivo = null;
     try {
-      const people = google.people({ version: 'v1', auth: getAuth() });
+      const people = google.people({ version: 'v1', auth: getAuth('robo') });
       outros = await lerTudo(t => people.otherContacts.list({ pageSize: 1000, readMask: 'emailAddresses,photos', pageToken: t }), 'otherContacts');
       try {
         salvos = await lerTudo(t => people.people.connections.list({ resourceName: 'people/me', pageSize: 1000, personFields: 'emailAddresses,photos', pageToken: t }), 'connections');

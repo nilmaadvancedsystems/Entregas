@@ -233,7 +233,7 @@ async function espelharPasta(drive, pastaLocal, pastaId, resumo) {
 // Mesma conta, mesmo token do Gmail — ver gmail-client.js.
 let drive = null;
 function getDrive() {
-  if (!drive) drive = google.drive({ version: 'v3', auth: getAuth() });
+  if (!drive) drive = google.drive({ version: 'v3', auth: getAuth('robo') });
   return drive;
 }
 

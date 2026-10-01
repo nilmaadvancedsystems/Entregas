@@ -7,7 +7,13 @@ const http = require('http');
 const { google } = require('googleapis');
 
 const CLIENT_PATH = __dirname + '/gmail_oauth_client.json';
-const TOKEN_PATH = __dirname + '/gmail_token.json';
+// --caixa contabil|fiscal (01/10/2026): autoriza a caixa da cobrança de um departamento, com menos poder que o
+// robô: o contábil lê e envia (as respostas dos clientes voltam para lá), o fiscal só envia. Sem --caixa, o robô.
+const { CAIXAS } = require('./gmail-client');
+const iCaixa = process.argv.indexOf('--caixa');
+const CAIXA = iCaixa !== -1 ? process.argv[iCaixa + 1] : 'robo';
+if (!CAIXAS[CAIXA]) { console.error('caixa desconhecida: ' + CAIXA + ' (use contabil ou fiscal)'); process.exit(1); }
+const TOKEN_PATH = CAIXAS[CAIXA].arquivo;
 // O que esta conta autoriza o robô a fazer — nada além disto.
 //
 // gmail.readonly: ler e baixar anexo.  gmail.send: enviar as cobranças que a
@@ -24,7 +30,7 @@ const TOKEN_PATH = __dirname + '/gmail_token.json';
 // nos e-mails do escritório) nem o drive inteiro (que apagaria arquivo). Se um
 // dia alguém precisar disso, terá de acrescentar nesta lista, à vista de todos,
 // e pedir a autorização de novo.
-const SCOPES = [
+const SCOPES_DO_ROBO = [
   'https://www.googleapis.com/auth/gmail.readonly',
   'https://www.googleapis.com/auth/gmail.send',
   'https://www.googleapis.com/auth/drive.readonly',
@@ -32,6 +38,11 @@ const SCOPES = [
   'https://www.googleapis.com/auth/contacts.other.readonly',
   'https://www.googleapis.com/auth/contacts.readonly',
 ];
+const SCOPES = {
+  robo: SCOPES_DO_ROBO,
+  contabil: ['https://www.googleapis.com/auth/gmail.readonly', 'https://www.googleapis.com/auth/gmail.send'],
+  fiscal: ['https://www.googleapis.com/auth/gmail.send'],
+}[CAIXA];
 const PORT = 51733;
 
 const creds = JSON.parse(fs.readFileSync(CLIENT_PATH, 'utf8')).installed;
@@ -62,11 +73,17 @@ const server = http.createServer(async (req, res) => {
     // capenga, dá pra voltar renomeando um arquivo, sem o robô ficar mudo.
     try { fs.copyFileSync(TOKEN_PATH, TOKEN_PATH + '.anterior'); } catch (e) { /* primeira vez */ }
     fs.writeFileSync(TOKEN_PATH, JSON.stringify(tokens, null, 2));
-    console.log('TOKEN_SALVO_OK');
+    console.log('TOKEN_SALVO_OK (' + CAIXA + ')');
+    // qual conta autorizou (para não autorizar a conta errada sem perceber)
+    try {
+      oAuth2Client.setCredentials(tokens);
+      const perfil = await google.gmail({ version: 'v1', auth: oAuth2Client }).users.getProfile({ userId: 'me' });
+      console.log('CONTA: ' + perfil.data.emailAddress);
+    } catch (e) { console.log('CONTA: (não consegui ler: ' + e.message + ')'); }
     // Robô na nuvem: o token novo vai pro metadado "gmail-token-novo" da
     // máquina (Compute Engine › robo-nilma › Editar › Metadados); o robô troca
     // sozinho em até 5 minutos (scripts/token-novo.js).
-    console.log('\nPara o robô da nuvem, copie o texto abaixo para o metadado "gmail-token-novo" da máquina robo-nilma:\n');
+    console.log('\nPara o robô da nuvem, copie o texto abaixo para o metadado "' + CAIXAS[CAIXA].metadado + '" da máquina robo-nilma:\n');
     console.log(JSON.stringify(tokens));
     process.exit(0);
   } catch (err) {

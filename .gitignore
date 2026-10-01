@@ -31,3 +31,7 @@ scripts/avisos-vencimento-feitos.json
 scripts/gmail-tentativas.json
 scripts/arquivador.lock
 scripts/arquivador-publicados.json
+scripts/gmail_token_contabil.json
+scripts/gmail_token_contabil.json.anterior
+scripts/gmail_token_fiscal.json
+scripts/gmail_token_fiscal.json.anterior

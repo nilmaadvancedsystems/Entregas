@@ -40,7 +40,7 @@ const HORA_DA_RELEITURA = 3;           // releitura completa, de madrugada
 
 let drive = null;
 function getDrive() {
-  if (!drive) drive = google.drive({ version: 'v3', auth: getAuth() });
+  if (!drive) drive = google.drive({ version: 'v3', auth: getAuth('robo') });
   return drive;
 }
 

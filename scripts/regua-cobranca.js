@@ -77,12 +77,13 @@ function faltandoDo(cliente, doc) {
 }
 
 // Monta a mensagem de um cliente, ou devolve por que ele fica de fora.
-function cobrancaDo(cliente, doc, config, comp, agora) {
+function cobrancaDo(cliente, doc, config, comp, agora, caixa = CAIXA) {
   const para = String(cliente.email || '').trim().toLowerCase();
   if (!para || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(para)) return { pula: 'sem e-mail' };
   const faltando = faltandoDo(cliente, doc);
   if (!faltando.length) return { pula: 'nada falta' };
-  const cobs = (doc && Array.isArray(doc.cobrancas) ? doc.cobrancas : []).filter(c => c && c.canal !== 'coleta');
+  // só as do contábil contam (a do fiscal tem a régua dela); cobrança antiga, sem departamento, é do contábil
+  const cobs = (doc && Array.isArray(doc.cobrancas) ? doc.cobrancas : []).filter(c => c && c.canal !== 'coleta' && (c.departamento || 'contabil') === 'contabil');
   const recente = cobs.some(c => agora - new Date(c.em).getTime() < INTERVALO_ENTRE_COBRANCAS_MS);
   if (recente) return { pula: 'cobrado há pouco' };
   const n = cobs.length + 1;
@@ -99,7 +100,7 @@ function cobrancaDo(cliente, doc, config, comp, agora) {
     documentos: faltando.map(t => t.label.toLowerCase()).join(', '),
     prazo, n,
     assinatura: (config && config.assinatura) || 'Nilma Contabilidade',
-    caixa: CAIXA, link,
+    caixa, link,
   };
   let corpo = preencher(modelo.corpo, vars);
   if (link && !/\{link\}/.test(modelo.corpo)) corpo += '\n\nO que já recebemos e o que ainda falta fica sempre atualizado aqui:\n' + link;
@@ -136,16 +137,18 @@ function iniciarReguaDeCobranca({ db, log, correio }) {
       const clientes = [];
       (await cacheDeClientes.clientesAtivos(db, log)).forEach(d => clientes.push(Object.assign({ id: d.id }, d.data())));
 
+      // de onde sai (a caixa do contábil, ou a do robô enquanto ela não for autorizada): vai no texto ({caixa})
+      const caixa = correio.endereco ? await correio.endereco() : CAIXA;
       let enviados = 0;
       const pulos = {};
       for (const c of clientes.sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'pt-BR'))) {
-        const m = cobrancaDo(c, docs.get(c.id), config, comp, agora.getTime());
+        const m = cobrancaDo(c, docs.get(c.id), config, comp, agora.getTime(), caixa);
         if (m.pula) { pulos[m.pula] = (pulos[m.pula] || 0) + 1; continue; }
         if (enviados >= MAX_POR_DIA || !correio.podeEnviar(1)) { pulos['limite do dia'] = (pulos['limite do dia'] || 0) + 1; continue; }
         try {
           let visual = {};
           try { visual = htmlDaCobranca({ corpo: m.corpo, cliente: c, competencia: comp, faltando: m.tipos, bancosPorTipo: (docs.get(c.id) || {}).bancosPorTipo, bancosRecebidos: (docs.get(c.id) || {}).bancosRecebidos,
-            diaLimite: config.diaLimite, assinatura: config.assinatura || 'Nilma Contabilidade', caixa: CAIXA, mostrarRecebidos: config.mostrarRecebidos === true }); }
+            diaLimite: config.diaLimite, assinatura: config.assinatura || 'Nilma Contabilidade', caixa, mostrarRecebidos: config.mostrarRecebidos === true }); }
           catch (e) { /* sai só em texto */ }
           const gmailId = await correio.enviar({ para: m.para, assunto: m.assunto, corpo: m.corpo, html: visual.html, imagens: visual.imagens });
           correio.contar();

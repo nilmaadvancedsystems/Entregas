@@ -10,9 +10,8 @@
 // Fora da nuvem do Google (o PC do escritório) o metadado não existe e nada
 // acontece.
 const fs = require('fs');
-const path = require('path');
 
-const TOKEN = path.join(__dirname, 'gmail_token.json');
+// (o arquivo de cada caixa vem de gmail-client.js CAIXAS)
 const URL_META = 'http://metadata.google.internal/computeMetadata/v1/instance/attributes/gmail-token-novo';
 
 // -> o token novo (objeto) se ele serve e é diferente do atual; senão null
@@ -25,22 +24,33 @@ function tokenParaTrocar(textoNovo, textoAtual) {
   return novo;
 }
 
+// Desde 01/10/2026 vale para as três caixas (gmail-client.js CAIXAS): gmail-token-novo (robô),
+// gmail-token-contabil-novo e gmail-token-fiscal-novo. A caixa nova chega assim, sem entrar na máquina.
 function iniciarTokenNovo(log) {
-  if (process.env.GMAIL_TOKEN) return;   // token vindo de variável de ambiente: não é este caso
-  async function olhar() {
+  const { CAIXAS } = require('./gmail-client');
+  async function olharCaixa(caixa) {
+    const c = CAIXAS[caixa];
+    if (process.env[c.variavel]) return false;   // token vindo de variável de ambiente: não é este caso
     let texto;
     try {
-      const r = await fetch(URL_META, { headers: { 'Metadata-Flavor': 'Google' }, signal: AbortSignal.timeout(3000) });
-      if (!r.ok) return;                  // sem o metadado (404) ou fora da nuvem
+      const r = await fetch(URL_META.replace('gmail-token-novo', c.metadado), { headers: { 'Metadata-Flavor': 'Google' }, signal: AbortSignal.timeout(3000) });
+      if (!r.ok) return false;            // sem o metadado (404) ou fora da nuvem
       texto = await r.text();
-    } catch (e) { return; }
+    } catch (e) { return false; }
     let atual = '';
-    try { atual = fs.readFileSync(TOKEN, 'utf8'); } catch (e) {}
+    try { atual = fs.readFileSync(c.arquivo, 'utf8'); } catch (e) {}
     const novo = tokenParaTrocar(texto, atual);
-    if (!novo) return;
-    try { if (atual) fs.writeFileSync(TOKEN + '.anterior', atual, { mode: 0o600 }); } catch (e) {}
-    fs.writeFileSync(TOKEN, JSON.stringify(novo, null, 2), { mode: 0o600 });
-    log('token do Gmail trocado pelo metadado gmail-token-novo; religando o robô pra usar o novo');
+    if (!novo) return false;
+    try { if (atual) fs.writeFileSync(c.arquivo + '.anterior', atual, { mode: 0o600 }); } catch (e) {}
+    fs.writeFileSync(c.arquivo, JSON.stringify(novo, null, 2), { mode: 0o600 });
+    log('token do Gmail (' + caixa + ') trocado pelo metadado ' + c.metadado);
+    return true;
+  }
+  async function olhar() {
+    let trocou = false;
+    for (const caixa of Object.keys(CAIXAS)) if (await olharCaixa(caixa)) trocou = true;
+    if (!trocou) return;
+    log('religando o robô pra usar o token novo');
     setTimeout(() => process.exit(0), 2000);
   }
   setTimeout(olhar, 20 * 1000);
