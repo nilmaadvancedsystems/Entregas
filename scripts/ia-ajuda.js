@@ -20,7 +20,7 @@ function secoesDoGuia(texto, assunto) {
 
 const FERRAMENTAS_AJUDA = [{
   name: 'como_usar_o_app',
-  description: 'Guia de uso do app Nilma (Entregas, Rota, Painel, Honorários, Clientes, Pendências, Robô do Gmail, Arquivo, Tarefas, Contábil, Fiscal, a própria IA, configurações e problemas comuns). Use SEMPRE que perguntarem como fazer algo no app, onde fica uma função ou por que algo não aparece.',
+  description: 'Guia de uso do app Nilma (Entregas, Rota, Painel, Honorários, Clientes, Pendências, Robô do Gmail, Arquivo, Tarefas, Contábil, Fiscal, a própria IA, configurações e problemas comuns; e o site Tarefas do nads, tarefas-nilma.web.app: Minhas empresas, o executor das etapas, Drive, Gmail e cobranças, Cadastro, Minha página). Use SEMPRE que perguntarem como fazer algo no app, onde fica uma função ou por que algo não aparece.',
   parametersJsonSchema: {
     type: 'object',
     properties: { assunto: { type: 'string', description: 'Opcional: o tema da dúvida (ex.: "rota", "marcar extrato", "foto de perfil").' } },
