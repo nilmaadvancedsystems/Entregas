@@ -122,6 +122,82 @@ function rotinaPorFora() {
   };
 }
 
+// ---------- a conversa da rotina e o relatório do dia, para o nads ----------
+// (Vitor, 05/10/2026: "quero um relatório com as mensagens de resposta do Claude") O Claude que roda a rotina neste PC
+// (a tarefa das 9h, ou a execução de um pedido) guarda a conversa em ~/.claude/projects/<pasta da rotina>/<sessão>.jsonl.
+// A cada minuto, se a conversa mais recente ou o RELATORIO-<dia>.txt mudaram, publica em robo/arquivadorConversa as
+// últimas mensagens de texto (as do Claude e as suas; sem as ferramentas) e o relatório. Só lê; grava só quando muda.
+const PASTA_CONVERSAS = path.join(os.homedir(), '.claude', 'projects', RAIZ.replace(/[^A-Za-z0-9]/g, '-'));
+const conversaRef = db.collection('robo').doc('arquivadorConversa');
+let assinaturaConversa = '';
+
+function lerFim(arquivo, bytes) {
+  const fd = fs.openSync(arquivo, 'r');
+  try {
+    const tam = fs.fstatSync(fd).size;
+    const n = Math.min(bytes, tam);
+    const b = Buffer.alloc(n);
+    fs.readSync(fd, b, 0, n, tam - n);
+    const s = b.toString('utf8');
+    return n < tam ? s.slice(s.indexOf('\n') + 1) : s;   // a primeira linha pode ter vindo pela metade
+  } finally { fs.closeSync(fd); }
+}
+
+function lerConversaDaRotina() {
+  let maisNova = null;
+  try {
+    for (const nome of fs.readdirSync(PASTA_CONVERSAS)) {
+      if (!nome.endsWith('.jsonl')) continue;
+      const st = fs.statSync(path.join(PASTA_CONVERSAS, nome));
+      if (!maisNova || st.mtimeMs > maisNova.mtime) maisNova = { nome, mtime: st.mtimeMs };
+    }
+  } catch (e) { return null; }
+  if (!maisNova) return null;
+  const mensagens = [];
+  for (const linha of lerFim(path.join(PASTA_CONVERSAS, maisNova.nome), 600 * 1024).split('\n')) {
+    let o; try { o = JSON.parse(linha); } catch (e) { continue; }
+    const m = o.message || {};
+    if (o.type === 'assistant' && Array.isArray(m.content)) {
+      const texto = m.content.filter(c => c && c.type === 'text').map(c => c.text).join('\n').trim();
+      if (texto) mensagens.push({ em: o.timestamp || '', quem: 'claude', texto: texto.slice(0, 3000) });
+    } else if (o.type === 'user' && typeof m.content === 'string' && !/^\s*<(task-notification|command-|local-command)/.test(m.content)) {
+      mensagens.push({ em: o.timestamp || '', quem: 'voce', texto: m.content.trim().slice(0, 1000) });
+    }
+  }
+  return { sessao: maisNova.nome.replace(/\.jsonl$/, ''), atualizadaEm: new Date(maisNova.mtime).toISOString(), mensagens: mensagens.slice(-40) };
+}
+
+function lerRelatorioDoDia() {
+  const d = new Date();
+  const dia = String(d.getDate()).padStart(2, '0');
+  const mes = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  const nome = 'RELATORIO-' + d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + dia + '.txt';
+  const arq = path.join(CONTROLE, 'LOGS', mes, dia, nome);
+  try {
+    const st = fs.statSync(arq);
+    const texto = fs.readFileSync(arq, 'utf8');
+    return { arquivo: nome, em: new Date(st.mtimeMs).toISOString(), texto: texto.length > 30000 ? texto.slice(0, 30000) + '\n\n[relatório cortado aqui]' : texto };
+  } catch (e) { return null; }
+}
+
+async function publicarConversa() {
+  let conversa = null, relatorio = null;
+  try { conversa = lerConversaDaRotina(); } catch (e) { /* segue com o relatório */ }
+  try { relatorio = lerRelatorioDoDia(); } catch (e) { /* segue com a conversa */ }
+  const assinatura = (conversa ? conversa.sessao + ':' + conversa.atualizadaEm + ':' + conversa.mensagens.length : '-') + '|' + (relatorio ? relatorio.em : '-');
+  if (assinatura === assinaturaConversa) return;
+  try {
+    await conversaRef.set({
+      em: agora(),
+      sessao: conversa ? conversa.sessao : null,
+      atualizadaEm: conversa ? conversa.atualizadaEm : null,
+      mensagens: conversa ? conversa.mensagens : [],
+      relatorio,
+    });
+    assinaturaConversa = assinatura;
+  } catch (err) { log('não consegui publicar a conversa da rotina:', err.message); }
+}
+
 // Motivo pra esperar, ou null se pode começar.
 function motivoPraEsperar() {
   const mes = new Date().toISOString().slice(0, 7);
@@ -392,6 +468,9 @@ async function iniciar() {
 
   await publicar(null);
   setInterval(() => publicar(null), PUBLICAR_A_CADA_MS);
+  // a conversa do Claude da rotina e o relatório do dia (o nads mostra no Arquivar agora)
+  void publicarConversa();
+  setInterval(() => { void publicarConversa(); }, 60 * 1000);
 
   ouvir('pedidos de arquivamento', () => fila.where('status', '==', 'pendente'), snap => { if (!snap.empty) atenderFila(); }, log);
   // Pedido que está esperando a das 9h terminar: confere de 2 em 2 minutos.
