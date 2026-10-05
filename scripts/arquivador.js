@@ -154,17 +154,35 @@ function lerConversaDaRotina() {
   } catch (e) { return null; }
   if (!maisNova) return null;
   const mensagens = [];
-  for (const linha of lerFim(path.join(PASTA_CONVERSAS, maisNova.nome), 600 * 1024).split('\n')) {
+  // os agentes que a rotina despacha (separador, classificador…): as etapas que o nads mostra e a % do lote. Cada um nasce
+  // num tool_use "Agent" (com a descrição) e termina num <task-notification> com o mesmo tool-use-id e o status.
+  const agentes = new Map();
+  for (const linha of lerFim(path.join(PASTA_CONVERSAS, maisNova.nome), 1500 * 1024).split('\n')) {
     let o; try { o = JSON.parse(linha); } catch (e) { continue; }
     const m = o.message || {};
     if (o.type === 'assistant' && Array.isArray(m.content)) {
       const texto = m.content.filter(c => c && c.type === 'text').map(c => c.text).join('\n').trim();
       if (texto) mensagens.push({ em: o.timestamp || '', quem: 'claude', texto: texto.slice(0, 3000) });
-    } else if (o.type === 'user' && typeof m.content === 'string' && !/^\s*<(task-notification|command-|local-command)/.test(m.content)) {
-      mensagens.push({ em: o.timestamp || '', quem: 'voce', texto: m.content.trim().slice(0, 1000) });
+      for (const c of m.content) {
+        if (c && c.type === 'tool_use' && c.name === 'Agent' && c.input) {
+          agentes.set(c.id, { id: c.id, descricao: String(c.input.description || 'Agente').slice(0, 80), tipo: String(c.input.subagent_type || ''), em: o.timestamp || '', status: 'rodando' });
+        }
+      }
+    } else if (o.type === 'user' && typeof m.content === 'string') {
+      if (/^\s*<task-notification/.test(m.content)) {
+        const id = (/<tool-use-id>([^<]+)<\/tool-use-id>/.exec(m.content) || [])[1];
+        const st = (/<status>([^<]+)<\/status>/.exec(m.content) || [])[1] || '';
+        const a = id && agentes.get(id);
+        if (a) a.status = st === 'completed' ? 'concluido' : st === 'killed' || st === 'failed' ? 'erro' : a.status;
+      } else if (!/^\s*<(command-|local-command)/.test(m.content)) {
+        mensagens.push({ em: o.timestamp || '', quem: 'voce', texto: m.content.trim().slice(0, 1000) });
+      }
     }
   }
-  return { sessao: maisNova.nome.replace(/\.jsonl$/, ''), atualizadaEm: new Date(maisNova.mtime).toISOString(), mensagens: mensagens.slice(-40) };
+  return {
+    sessao: maisNova.nome.replace(/\.jsonl$/, ''), atualizadaEm: new Date(maisNova.mtime).toISOString(), mensagens: mensagens.slice(-40),
+    agentes: Array.from(agentes.values()).slice(-30),
+  };
 }
 
 function lerRelatorioDoDia() {
@@ -184,7 +202,7 @@ async function publicarConversa() {
   let conversa = null, relatorio = null;
   try { conversa = lerConversaDaRotina(); } catch (e) { /* segue com o relatório */ }
   try { relatorio = lerRelatorioDoDia(); } catch (e) { /* segue com a conversa */ }
-  const assinatura = (conversa ? conversa.sessao + ':' + conversa.atualizadaEm + ':' + conversa.mensagens.length : '-') + '|' + (relatorio ? relatorio.em : '-');
+  const assinatura = (conversa ? conversa.sessao + ':' + conversa.atualizadaEm + ':' + conversa.mensagens.length + ':' + conversa.agentes.map(a => a.status[0]).join('') : '-') + '|' + (relatorio ? relatorio.em : '-');
   if (assinatura === assinaturaConversa) return;
   try {
     await conversaRef.set({
@@ -192,6 +210,7 @@ async function publicarConversa() {
       sessao: conversa ? conversa.sessao : null,
       atualizadaEm: conversa ? conversa.atualizadaEm : null,
       mensagens: conversa ? conversa.mensagens : [],
+      agentes: conversa ? conversa.agentes : [],
       relatorio,
     });
     assinaturaConversa = assinatura;
