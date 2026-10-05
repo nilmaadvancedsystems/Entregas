@@ -67,7 +67,11 @@ const estadoRef = db.collection('robo').doc('arquivador');
 
 let estado = { situacao: 'livre', pedidoId: null, desde: agora(), mensagem: null };
 function baterPonto() {
-  estadoRef.set(Object.assign({ em: agora(), pc: os.hostname() }, estado), { merge: true })
+  // junto com o ponto, se a rotina está rodando por fora (a tarefa das 9h ou alguém rodando à mão): o nads mostra no
+  // "Arquivar agora" do Drive (05/10/2026). Vai no mesmo ponto de cada minuto — nenhuma gravação a mais.
+  let rotina = null;
+  try { rotina = rotinaPorFora(); } catch (e) { /* só o aviso; o ponto segue */ }
+  estadoRef.set(Object.assign({ em: agora(), pc: os.hostname(), rotina }, estado), { merge: true })
     .catch(err => log('não consegui bater o ponto:', err.message));
 }
 function mudarEstado(novo) { estado = Object.assign({ desde: agora(), pedidoId: null, mensagem: null }, novo); baterPonto(); }
@@ -89,6 +93,34 @@ function maisRecenteEm(pasta, profundidade) {
 
 function hojeIso() { const d = new Date(); return d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0'); }
 function minutosDoDia(h, m) { return h * 60 + m; }
+
+// A rotina rodando agora, para mostrar no nads: a trava que ela cria ao começar (_CONTROLE\_execucao.lock, com a
+// execução, o início, o modo e a fase em que está — 01-ORQUESTRADOR, Fase 0) e o arquivo mais novo que ela mexeu.
+// Trava sem sinal há mais de 30 min (ou com mais de 4 h, que a própria rotina trata como resíduo) não conta.
+function rotinaPorFora() {
+  let trava = null;
+  try { trava = JSON.parse(fs.readFileSync(path.join(CONTROLE, '_execucao.lock'), 'utf8')); } catch (e) {}
+  const mes = new Date().toISOString().slice(0, 7);
+  const ultimoSinal = Math.max(
+    maisRecenteEm(path.join(CONTROLE, 'LOGS', mes), 2),
+    maisRecenteEm(path.join(CONTROLE, 'MANIFESTO'), 0),
+    maisRecenteEm(path.join(CONTROLE, 'STAGING'), 2),
+    maisRecenteEm(path.join(CONTROLE, '_tmp_exec'), 1),
+    (() => { try { return fs.statSync(path.join(CONTROLE, '_execucao.lock')).mtimeMs; } catch (e) { return 0; } })()
+  );
+  const inicio = trava && Date.parse(trava.timestamp_inicio);
+  const travaViva = !!trava && !!inicio && Date.now() - inicio < 4 * 36e5 && Date.now() - ultimoSinal < 30 * 60000;
+  return {
+    ativa: travaViva || Date.now() - ultimoSinal < SINAL_DE_OUTRA_EXECUCAO_MS,
+    execucao: (travaViva && trava.id_execucao) || null,
+    inicio: (travaViva && trava.timestamp_inicio) || null,
+    modo: (travaViva && trava.modo) || null,
+    fase: (travaViva && trava.fase_atual != null) ? String(trava.fase_atual) : null,
+    ultimoSinalEm: ultimoSinal ? new Date(ultimoSinal).toISOString() : null,
+    // a execução é a de um pedido do botão (o nads já mostra pelo pedido)
+    deUmPedido: ocupado,
+  };
+}
 
 // Motivo pra esperar, ou null se pode começar.
 function motivoPraEsperar() {
