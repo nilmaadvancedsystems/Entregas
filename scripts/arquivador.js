@@ -499,6 +499,10 @@ async function iniciar() {
   // O atendente da Consulta rápida pega carona neste processo: também é o
   // Claude deste PC, e assim liga no boot e volta sozinho junto com o
   // arquivador. Uma falha nele não derruba o arquivamento.
+  // O SIEG (as notas do Fiscal do nads) também pega carona aqui: as credenciais ficam neste PC. Sem elas, fica desligado.
+  try { require('./sieg').iniciarSieg({ db, log }); }
+  catch (err) { log('SIEG desligado:', err.message); }
+
   try { pararIA = require('./atendente-claude').iniciarAtendenteClaude({ db, log }); }
   catch (err) { log('atendente de IA desligado:', err.message); }
 }

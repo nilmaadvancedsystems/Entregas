@@ -865,8 +865,30 @@ service cloud.firestore {
         || (doc == 'estado' && usaCaixa('robo'))
         || (doc == 'caixa-contabil' && usaCaixa('contabil'))
         || (doc == 'caixa-fiscal' && usaCaixa('fiscal'))
-        || (temPapel('contabil') && !(doc in ['caixa-fiscal', 'gmailEstado-fiscal']));
+        || (temPapel('contabil') && !(doc in ['caixa-fiscal', 'gmailEstado-fiscal']))
+        // robo/sieg (o robô do SIEG ligado ou não): o fiscal também lê (06/10/2026)
+        || (doc == 'sieg' && temPapel('fiscal'));
       allow write: if false;
+    }
+
+    // O SIEG no Fiscal do nads (06/10/2026): o robô deste PC (scripts/sieg.js, pelo Admin SDK) conta as notas de cada
+    // cliente (siegContagens) e baixa as saídas do mês quando o nads pede (pedidosSieg → siegSaidas). A tela lê; quem
+    // pede é o fiscal (ou o admin), só com estes campos; o resto do pedido o robô escreve.
+    match /siegContagens/{id} {
+      allow read: if ehAdmin() || temPapel('fiscal') || temPapel('contabil');
+      allow write: if false;
+    }
+    match /siegSaidas/{id} {
+      allow read: if ehAdmin() || temPapel('fiscal') || temPapel('contabil');
+      allow write: if false;
+    }
+    match /pedidosSieg/{id} {
+      allow read: if ehAdmin() || temPapel('fiscal');
+      allow create: if (ehAdmin() || temPapel('fiscal'))
+        && request.resource.data.status == 'pendente'
+        && request.resource.data.criadoPorUid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['status', 'codigo', 'cnpj', 'competencia', 'criadoEm', 'criadoPor', 'criadoPorUid']);
+      allow update, delete: if false;
     }
 
     // ---------- arquivamento (rotina "Claudio Secretario") ----------
