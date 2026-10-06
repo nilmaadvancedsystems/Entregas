@@ -38,3 +38,6 @@ scripts/gmail_token_fiscal.json.anterior
 scripts/gmail-processados-*.json
 scripts/gmail-sem-cliente-*.json
 scripts/gmail-tentativas-*.json
+# as credenciais da API do SIEG (API Key + ClientId/SecretKey do cadastro): só no PC do escritório
+scripts/sieg_credenciais.json
+sieg_credenciais.json
