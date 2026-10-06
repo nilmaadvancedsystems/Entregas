@@ -578,6 +578,50 @@ function rodarRobo(dias, motivo, caixa = 'robo') {
   });
 }
 
+// "Não é deste cliente" (nads, 06/10/2026: "marquei a empresa errada, e não tem como remover"): o e-mail volta para
+// "sem cliente". A tela já tirou o remetente do cadastro do cliente; aqui, a caixa da tela mostra o e-mail sem dono, a
+// memória do robô o põe de novo em "sem cliente" (a próxima leitura reavalia: se o remetente for de outro cliente, vai
+// para ele) e o mês do cliente errado perde a conversa e o que o robô marcou por causa deste e-mail.
+async function atenderDesligar(p) {
+  const id = String(p.mensagemId || '');
+  const clienteId = String(p.clienteId || '');
+  if (!id || !clienteId) throw new Error('pedido sem o e-mail ou sem o cliente');
+  const caixa = caixaValida(p.caixa);
+  const docDaTela = caixa === 'robo' ? roboRef : db.collection('robo').doc('caixa-' + caixa);
+  const tela = (await docDaTela.get()).data() || {};
+  let remetente = String(p.remetente || '').trim().toLowerCase();
+  if (Array.isArray(tela.caixa)) {
+    const lista = tela.caixa.map(c => {
+      if (c.mensagemId !== id) return c;
+      remetente = remetente || String(c.remetente || '').trim().toLowerCase();
+      return Object.assign({}, c, { clienteId: null, clienteNome: '', candidatos: [] });
+    });
+    await docDaTela.set({ caixa: lista }, { merge: true });
+  }
+  const memoria = db.collection('robo').doc('gmailEstado' + (caixa === 'robo' ? '' : '-' + caixa));
+  const m = (await memoria.get()).data() || {};
+  const processados = (Array.isArray(m.processados) ? m.processados : []).filter(x => x !== id);
+  const semCliente = Object.assign({}, m.semCliente || {});
+  if (remetente) semCliente[id] = remetente;
+  await memoria.set({ processados, semCliente }, { merge: true });
+  // o mês do cliente errado: sai a conversa e o que foi marcado por este e-mail
+  const meses = await db.collection('documentosMensal').where('clienteId', '==', clienteId).get();
+  let mexidos = 0;
+  for (const d of meses.docs) {
+    const x = d.data() || {};
+    const mensagens = Array.isArray(x.mensagens) ? x.mensagens : [];
+    const patch = {};
+    if (mensagens.some(k => k && k.mensagemId === id)) patch.mensagens = mensagens.filter(k => !k || k.mensagemId !== id);
+    Object.keys(x.detalhes || {}).forEach(t => {
+      const det = x.detalhes[t];
+      if (det && det.origem === 'gmail' && det.mensagemId === id) { patch[t] = false; patch['detalhes.' + t] = FieldValue.delete(); }
+    });
+    if (Object.keys(patch).length) { await d.ref.update(patch); mexidos++; }
+  }
+  log('desligado do cliente', clienteId, 'o e-mail', id, '(' + mexidos + ' mês/meses corrigidos)');
+  return { status: 'concluido', concluidoEm: agora(), resumo: 'O e-mail voltou para sem cliente' + (mexidos ? ' e saiu do mês do cliente' : '') + '.' };
+}
+
 // Salvar no Drive os anexos de UM e-mail de cliente (botão "Salvar no Drive").
 // Roda o próprio robô no modo --mensagem, que já sabe achar o cliente, o mês do
 // documento e a pasta; a última linha dele diz o que foi salvo.
@@ -811,6 +855,7 @@ async function atenderFila() {
         salvar: 'Salvando no Drive um e-mail' + (p.clienteNome ? ' de ' + p.clienteNome : ''),
         disparo: 'Disparo "' + String(p.assunto || '').slice(0, 60) + '"',
         responder: 'Resposta de e-mail' + (p.para ? ' para ' + p.para : ''),
+        desligar: 'Tirando um e-mail do cliente errado',
       }[p.tipo] || 'Pedido da tela';
       atendeuAlgum = true;
       roboRef.set({ filaAndamento: { ativo: true, atual: oqueAgora, restantes: pendentes.length, desde: agora(), em: agora() } }, { merge: true }).catch(() => {});
@@ -831,6 +876,11 @@ async function atenderFila() {
           while (lendo) await new Promise(r => setTimeout(r, 2000));
           lendo = true;
           try { resultado = await salvarMensagem(p); } finally { lendo = false; }
+        } else if (p.tipo === 'desligar') {
+          // mexe na mesma memória da leitura: espera ela acabar
+          while (lendo) await new Promise(r => setTimeout(r, 2000));
+          lendo = true;
+          try { resultado = await atenderDesligar(p); } finally { lendo = false; }
         } else if (p.tipo === 'disparo') resultado = await atenderDisparo(p, doc.ref);
         else if (p.tipo === 'responder') resultado = await atenderResponder(p, doc.ref);
         else throw new Error('tipo de pedido desconhecido: ' + p.tipo);
@@ -839,7 +889,7 @@ async function atenderFila() {
         const erro = traduzirErro(err);
         log('pedido', doc.id, 'falhou:', erro);
         await doc.ref.update({ status: 'erro', erro, erroEm: agora() }).catch(() => {});
-        const oque = { um: 'a cobrança de ' + (p.clienteNome || p.para), lote: 'a cobrança em lote', verificar: 'a verificação do Gmail', salvar: 'salvar anexo no Drive', disparo: 'o disparo "' + (p.assunto || '') + '"', responder: 'a resposta de e-mail' + (p.para ? ' para ' + p.para : '') }[p.tipo] || 'um pedido';
+        const oque = { um: 'a cobrança de ' + (p.clienteNome || p.para), lote: 'a cobrança em lote', verificar: 'a verificação do Gmail', salvar: 'salvar anexo no Drive', disparo: 'o disparo "' + (p.assunto || '') + '"', responder: 'a resposta de e-mail' + (p.para ? ' para ' + p.para : ''), desligar: 'tirar o e-mail do cliente errado' }[p.tipo] || 'um pedido';
         await alertar(oque + ' deu erro', 'Pedido de ' + (p.criadoPor || 'alguém') + ' em ' + new Date(p.criadoEm).toLocaleString('pt-BR') + ':\n' + erro);
       }
     }
