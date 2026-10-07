@@ -694,6 +694,20 @@ igual('pedido já avisado não repete', al.avisoDoPedido({ status: 'pendente', c
 igual('pedido velho não avisa', al.avisoDoPedido({ status: 'pendente', criadoEm: '2026-10-01T13:00:00Z' }, agoraAl), null);
 igual('pedido aprovado não avisa', al.avisoDoPedido({ status: 'aprovado', criadoEm: '2026-10-01T14:59:00Z' }, agoraAl), null);
 
+// --- aviso da REINF transmitida pelo Fiscal no celular do responsável do DP (avisos-reinf-nads.js) ---
+const ar = require('./avisos-reinf-nads');
+const agoraAr = Date.parse('2026-10-07T15:00:00Z');
+const exAr = e => ({ empresa: 'A7 MOBILE LTDA', codigo: 515, competencia: '2026-09', etapas: { 'dp-reinf': e } });
+igual('REINF do Fiscal avisa o responsável', ar.avisoDaReinf(exAr({ situacao: 'feita', por: 'Heverton (Fiscal)', em: '2026-10-07T14:50:00Z', avisar: 'Fabiana' }), agoraAr),
+  { link: 'https://tarefas-nilma.web.app/tarefas/dp/obrigacoes?parte=reinf&competencia=2026-09', para: 'Fabiana', titulo: 'REINF transmitida', corpo: '515 · A7 MOBILE LTDA · 09/2026 — transmitida por Heverton (Fiscal)' });
+igual('REINF já avisada não repete', ar.avisoDaReinf(exAr({ situacao: 'feita', por: 'x', em: '2026-10-07T14:50:00Z', avisar: 'Fabiana', avisadoEm: 'y' }), agoraAr), null);
+igual('REINF marcada no DP (sem avisar) não avisa', ar.avisoDaReinf(exAr({ situacao: 'feita', por: 'Fabiana', em: '2026-10-07T14:50:00Z' }), agoraAr), null);
+igual('REINF velha não avisa', ar.avisoDaReinf(exAr({ situacao: 'feita', por: 'x', em: '2026-10-01T14:50:00Z', avisar: 'Fabiana' }), agoraAr), null);
+const usAr = [{ id: 'u1', data: () => ({ nome: 'Fabiana Souza', email: 'fabiana@nilma.local' }) }, { id: 'u2', data: () => ({ nome: 'Gustavo P', email: 'gustavo.p@nilma.local' }) }];
+igual('responsável pelo primeiro nome', (ar.usuarioDoNome(usAr, 'Fabiana') || {}).id, 'u1');
+igual('responsável pelo começo do e-mail', (ar.usuarioDoNome(usAr, 'Gustavo.P') || {}).id, 'u2');
+igual('responsável que não existe', ar.usuarioDoNome(usAr, 'Ninguém'), null);
+
 // --- razão social vale mais que o nome fantasia (FITO, 01/10/2026) ---
 const fitos = [{ id: '292', nome: 'FITO INDUSTRIA E COMERCIO DE ALIMENTOS LTDA', nomeFantasia: 'FITO ALIMENTOS' }, { id: '309', nome: 'FITO ALIMENTOS LTDA', nomeFantasia: 'FITO ALIMENTOS', grupoLocal: '292' }];
 igual('razão social da irmã no assunto: é dela', (r.desempatarPorNome(fitos, 'Arquivos 09/2026 - Fito Alimentos LTDA') || {}).id, '309');

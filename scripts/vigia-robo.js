@@ -960,6 +960,9 @@ async function iniciar() {
   // pedido de liberação do login do nads: avisa os admins no celular
   try { require('./avisos-liberacao-nads').iniciarAvisosDeLiberacao(db, log, avisos); }
   catch (err) { log('aviso de liberação do nads desligado:', err.message); }
+  // a REINF que o Fiscal transmitiu no nads: avisa o responsável do DP daquele cliente no celular
+  try { require('./avisos-reinf-nads').iniciarAvisosDaReinf(db, log, avisos); }
+  catch (err) { log('aviso da REINF do nads desligado:', err.message); }
   try { require('./envios-do-portal').iniciarEnviosDoPortal(db, log); }
   catch (err) { log('documentos pelo link desligados:', err.message); }
   // Arquivo mandado pelo nads (Tarefas › Drive) para a pasta Claudio Secretario.
