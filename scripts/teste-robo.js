@@ -708,6 +708,28 @@ igual('responsável pelo primeiro nome', (ar.usuarioDoNome(usAr, 'Fabiana') || {
 igual('responsável pelo começo do e-mail', (ar.usuarioDoNome(usAr, 'Gustavo.P') || {}).id, 'u2');
 igual('responsável que não existe', ar.usuarioDoNome(usAr, 'Ninguém'), null);
 
+// --- SIEG (sieg.js): o .zip que o baixar-xmls manda direto, e a nota e o cancelamento lidos do XML ---
+const sg = require('./sieg');
+const zlibT = require('zlib');
+function zipDe(arquivos) {
+  const partes = [];
+  for (const [nome, texto] of arquivos) {
+    const dados = zlibT.deflateRawSync(Buffer.from(texto));
+    const cab = Buffer.alloc(30);
+    cab.writeUInt32LE(0x04034b50, 0); cab.writeUInt16LE(20, 4); cab.writeUInt16LE(0, 6); cab.writeUInt16LE(8, 8);
+    cab.writeUInt32LE(dados.length, 18); cab.writeUInt32LE(Buffer.byteLength(texto), 22); cab.writeUInt16LE(Buffer.byteLength(nome), 26);
+    partes.push(cab, Buffer.from(nome), dados);
+  }
+  return Buffer.concat(partes);
+}
+const nfeT = '<nfeProc><NFe><infNFe Id="NFe31260919449248000162550010000102701620070002"><ide><mod>55</mod><serie>1</serie><nNF>10270</nNF></ide><total><ICMSTot><vNF>39134.51</vNF></ICMSTot></total></infNFe></NFe></nfeProc>';
+const cancT = '<procEventoNFe><evento><infEvento><chNFe>31260919449248000162550010000102701620070002</chNFe><tpEvento>110111</tpEvento></infEvento></evento></procEventoNFe>';
+const xmlsT = sg.xmlsDaResposta(zipDe([['xml_1.xml', nfeT], ['xml_2.xml', cancT]]));
+igual('SIEG: o .zip direto vira os XMLs', xmlsT.length, 2);
+igual('SIEG: a nota do XML', sg.lerXml(xmlsT[0]), { chave: '31260919449248000162550010000102701620070002', modelo: '55', serie: '1', numero: 10270, valor: 39134.51 });
+igual('SIEG: o cancelamento do XML', sg.lerXml(xmlsT[1]), { cancela: '31260919449248000162550010000102701620070002' });
+igual('SIEG: resposta vazia', sg.xmlsDaResposta([]).length, 0);
+
 // --- razão social vale mais que o nome fantasia (FITO, 01/10/2026) ---
 const fitos = [{ id: '292', nome: 'FITO INDUSTRIA E COMERCIO DE ALIMENTOS LTDA', nomeFantasia: 'FITO ALIMENTOS' }, { id: '309', nome: 'FITO ALIMENTOS LTDA', nomeFantasia: 'FITO ALIMENTOS', grupoLocal: '292' }];
 igual('razão social da irmã no assunto: é dela', (r.desempatarPorNome(fitos, 'Arquivos 09/2026 - Fito Alimentos LTDA') || {}).id, '309');

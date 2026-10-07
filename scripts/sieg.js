@@ -22,6 +22,9 @@ const TIPO = { NFe: 1, CTe: 2, NFSe: 3, NFCe: 4, CFe: 5 };
 
 const dormir = ms => new Promise(r => setTimeout(r, ms));
 const soDigitos = v => String(v || '').replace(/\D/g, '');
+// o código do cliente no Alterdata: nos clientes do Entregas ele está em codigoOrigem (07/10/2026: com `codigo` só, a
+// contagem não achava ninguém)
+const codigoDe = x => soDigitos(x && (x.codigo != null && x.codigo !== '' ? x.codigo : x.codigoOrigem));
 
 function lerCredenciais() {
   try {
@@ -31,18 +34,21 @@ function lerCredenciais() {
   } catch (e) { return { c: null, faltam: ['apiKey', 'clientId', 'secretKey'] }; }
 }
 
+// o baixar-xmls às vezes leva mais de 2 minutos (07/10/2026, ~100 s numa chamada de 2 notas): 5 minutos para ele
+const LIMITE_MS = { 'baixar-xmls': 5 * 60000 };
+
 function http(metodo, rota, headers, corpo) {
   return new Promise((resolve, reject) => {
     const dados = corpo == null ? null : Buffer.from(JSON.stringify(corpo));
     const req = https.request(BASE + rota, {
-      method: metodo, timeout: 120000,
+      method: metodo, timeout: LIMITE_MS[rota] || 120000,
       headers: Object.assign({ Accept: 'application/json' }, dados ? { 'Content-Type': 'application/json', 'Content-Length': dados.length } : {}, headers),
     }, res => {
       const partes = [];
       res.on('data', d => partes.push(d));
-      res.on('end', () => resolve({ status: res.statusCode, texto: Buffer.concat(partes).toString('utf8') }));
+      res.on('end', () => { const bytes = Buffer.concat(partes); resolve({ status: res.statusCode, texto: bytes.toString('utf8'), bytes }); });
     });
-    req.on('timeout', () => req.destroy(new Error('o SIEG não respondeu em 2 minutos')));
+    req.on('timeout', () => req.destroy(Object.assign(new Error('o SIEG não respondeu em ' + Math.round((LIMITE_MS[rota] || 120000) / 60000) + ' minutos'), { tempo: true })));
     req.on('error', reject);
     if (dados) req.write(dados);
     req.end();
@@ -74,11 +80,27 @@ async function chamar(c, rota, corpo) {
     const falta = (ultimaChamada[rota] || 0) + (ESPERA_MS[rota] || 15000) - Date.now();
     if (falta > 0) await dormir(falta);
     ultimaChamada[rota] = Date.now();
-    const r = await http('POST', rota, { Authorization: 'Bearer ' + await token(c), 'X-API-Key': c.apiKey }, corpo);
+    let r;
+    try { r = await http('POST', rota, { Authorization: 'Bearer ' + await token(c), 'X-API-Key': c.apiKey }, corpo); }
+    // demorou demais: tenta de novo (até 3 vezes); outro erro de rede sobe
+    catch (e) { if (e.tempo && tentativa < 2) continue; throw e; }
     if (r.status === 429) { await dormir(60000 * (tentativa + 1)); continue; }
     if (r.status === 401) { jwt = { token: '', ate: 0 }; continue; }
+    // nada no período: o SIEG responde 404 "Nenhum arquivo XML localizado." (07/10/2026) — lista vazia, não é erro
+    if (r.status === 404 && /nenhum arquivo|nenhum xml|não localizado|nao localizado/i.test(r.texto)) return [];
     if (r.status >= 300) throw new Error(rota + ': HTTP ' + r.status + ' ' + r.texto.slice(0, 200));
-    try { return JSON.parse(r.texto); } catch (e) { return r.texto; }
+    // o baixar-xmls responde com o .zip direto (binário: "PK…", 07/10/2026): vai como bytes para o xmlsDaResposta abrir
+    if (r.bytes.length > 4 && r.bytes.readUInt32LE(0) === 0x04034b50) return r.bytes;
+    let j;
+    try { j = JSON.parse(r.texto); } catch (e) { return r.texto; }
+    // a resposta vem embrulhada (07/10/2026, a primeira chamada de verdade): { IsSuccess, ErrorMessage, StatusCode, Data }
+    if (j && typeof j === 'object' && 'IsSuccess' in j) {
+      // sem nada no período: lista vazia (não é erro)
+      if (!j.IsSuccess && /nenhum|nao encontr|não encontr|sem xml|sem arquivo|not found|no file/i.test(String(j.ErrorMessage || ''))) return [];
+      if (!j.IsSuccess) throw new Error(rota + ': ' + (j.ErrorMessage || 'o SIEG recusou'));
+      return j.Data;
+    }
+    return j;
   }
   throw new Error(rota + ': o SIEG seguiu recusando (limite de chamadas)');
 }
@@ -102,6 +124,7 @@ function lerZip(buf) {
 
 /** Os XMLs que vieram na resposta, seja qual for o formato (lista de Base64, objeto com a lista, ZIP em Base64). */
 function xmlsDaResposta(resp) {
+  if (Buffer.isBuffer(resp)) return resp.length > 4 && resp.readUInt32LE(0) === 0x04034b50 ? lerZip(resp) : [resp.toString('utf8')];
   const lista = Array.isArray(resp) ? resp
     : resp && typeof resp === 'object' ? (resp.xmls || resp.Xmls || resp.data || resp.arquivos || Object.values(resp).find(Array.isArray) || [])
       : typeof resp === 'string' ? [resp] : [];
@@ -207,7 +230,7 @@ function iniciarSieg({ db, log }) {
           if (cnpj.length !== 14) {
             const lista = [];
             (await require('./clientes-cache').clientesAtivos(db)).forEach(x => lista.push(x.data()));
-            const cli = lista.find(x => soDigitos(x.codigo) === soDigitos(p.codigo));
+            const cli = lista.find(x => codigoDe(x) === soDigitos(p.codigo));
             cnpj = soDigitos(cli && cli.documento);
             if (cnpj.length !== 14) throw new Error('o cliente ' + p.codigo + ' não tem CNPJ no cadastro');
           }
@@ -238,15 +261,15 @@ function iniciarSieg({ db, log }) {
       if (hoje.getDate() <= 10) comps.push(competenciaDe(new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1)));
       const ativos = [];
       (await require('./clientes-cache').clientesAtivos(db)).forEach(d => ativos.push(d.data()));
-      const comCnpj = ativos.filter(x => soDigitos(x.documento).length === 14 && x.codigo != null);
+      const comCnpj = ativos.filter(x => soDigitos(x.documento).length === 14 && codigoDe(x));
       log('SIEG: contando as notas de', comCnpj.length, 'clientes em', comps.join(' e '));
       for (const comp of comps) {
         for (const cli of comCnpj) {
-          situacao = 'contando ' + cli.codigo + ' (' + comp + ')';
+          situacao = 'contando ' + codigoDe(cli) + ' (' + comp + ')';
           try {
             const r = await contagemDoMes(c, soDigitos(cli.documento), comp);
-            await db.collection('siegContagens').doc(soDigitos(cli.codigo) + '_' + comp).set({ codigo: String(cli.codigo), cnpj: soDigitos(cli.documento), competencia: comp, em: new Date().toISOString(), ...r });
-          } catch (err) { log('SIEG: contagem de', cli.codigo, '-', err.message); }
+            await db.collection('siegContagens').doc(codigoDe(cli) + '_' + comp).set({ codigo: codigoDe(cli), cnpj: soDigitos(cli.documento), competencia: comp, em: new Date().toISOString(), ...r });
+          } catch (err) { log('SIEG: contagem de', codigoDe(cli), '-', err.message); }
         }
       }
       log('SIEG: contagem da noite pronta');
@@ -258,4 +281,4 @@ function iniciarSieg({ db, log }) {
   return () => { clearInterval(relogio); clearInterval(relogioNoite); pararPedidos(); };
 }
 
-module.exports = { iniciarSieg, lerXml, xmlsDaResposta, lerZip, periodo };
+module.exports = { iniciarSieg, lerXml, xmlsDaResposta, lerZip, periodo, contagemDoMes, saidasDoMes };
