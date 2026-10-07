@@ -16,6 +16,10 @@ const https = require('https');
 const zlib = require('zlib');
 
 const CREDENCIAIS = path.join(__dirname, 'sieg_credenciais.json');
+// a pasta do Drive deste PC (o Google Drive para computador): os XMLs do mês vão para Claudio Secretario/AAAA-MM/<cliente>,
+// a mesma do "Salvar no Drive" do Gmail, de onde a rotina das 9h arquiva e o Alterdata importa (07/10/2026)
+const PASTA_DO_DRIVE = process.env.PASTA_DESTINO || 'G:\\Meu Drive\\Claudio Secretario';
+const sx = require('./sieg-xmls');
 const BASE = 'https://api.sieg.com/api/v1/';
 const ESPERA_MS = { 'contar-xmls': 13000, 'baixar-xmls': 31000, 'create-jwt': 2000 };
 const TIPO = { NFe: 1, CTe: 2, NFSe: 3, NFCe: 4, CFe: 5 };
@@ -169,6 +173,58 @@ async function contagemDoMes(c, cnpj, competencia, aoAndar) {
   return { emitidas, recebidas };
 }
 
+/**
+ * Todos os XMLs do mês (nads, 07/10/2026: "importar os XML direto do SIEG"): emitidos (NF-e, NFC-e, CT-e, NFS-e) e recebidos
+ * (NF-e, CT-e, NFS-e), com os eventos. Devolve os arquivos (nome e conteúdo) e o resumo de cada nota (o que vai para o banco).
+ */
+async function xmlsDoMes(c, doc, competencia, aoAndar) {
+  const p = periodo(competencia);
+  const grupos = [
+    ['emitidas', 'CnpjEmit', [['NF-e', TIPO.NFe], ['NFC-e', TIPO.NFCe], ['CT-e', TIPO.CTe], ['NFS-e', TIPO.NFSe]]],
+    ['recebidas', 'CnpjDest', [['NF-e', TIPO.NFe], ['CT-e', TIPO.CTe], ['NFS-e', TIPO.NFSe]]],
+  ];
+  const arquivos = new Map();
+  const resumo = { emitidas: [], recebidas: [] };
+  const canceladas = new Set();
+  for (const [grupo, campo, tipos] of grupos) {
+    for (const [nome, tipo] of tipos) {
+      for (let skip = 0; skip < 50000; skip += 50) {
+        if (aoAndar) await aoAndar((grupo === 'emitidas' ? 'Emitidas' : 'Recebidas') + ' · ' + nome + ' (' + arquivos.size + ' XMLs até agora)');
+        // a NFS-e só aceita dia/mês/ano, sem a hora ("Certifique-se de apenas passar dia/mês/ano em NFSe", 07/10/2026)
+        const datas = tipo === TIPO.NFSe ? { DataEmissaoInicio: p.DataEmissaoInicio, DataEmissaoFim: p.DataEmissaoFim.slice(0, 10) } : p;
+        const xmls = xmlsDaResposta(await chamar(c, 'baixar-xmls', Object.assign({ TipoXml: tipo, Take: 50, Skip: skip, [campo]: doc, BaixarEventos: true }, datas)));
+        let notasNaPagina = 0;
+        for (const x of xmls) {
+          arquivos.set(sx.nomeDoArquivo(x), x);
+          const r = sx.resumoDaNota(x);
+          if (!r) continue;
+          if (r.cancela) { canceladas.add(r.cancela); continue; }
+          notasNaPagina++;
+          resumo[grupo].push(r);
+        }
+        if (notasNaPagina < 50) break;
+      }
+    }
+  }
+  for (const g of ['emitidas', 'recebidas']) for (const n of resumo[g]) if (n.chave && canceladas.has(n.chave)) n.cancelada = true;
+  return { arquivos: [...arquivos].map(([nome, xml]) => ({ nome, xml })), resumo };
+}
+
+/** Grava um arquivo sem duplicar: o mesmo nome e o mesmo conteúdo já estão lá = não grava. Devolve se gravou. */
+function gravarSeNovo(pasta, nome, texto) {
+  const destino = path.join(pasta, nome);
+  try { if (fs.readFileSync(destino, 'utf8') === texto) return false; } catch (e) { /* ainda não existe */ }
+  fs.writeFileSync(destino, texto);
+  return true;
+}
+
+/** O resumo para o banco, cabendo num documento (até ~900 KB): se passar, sai o detalhe dos itens (fica o resto da nota). */
+function resumoQueCabe(doc) {
+  if (Buffer.byteLength(JSON.stringify(doc)) < 900000) return doc;
+  const sem = n => { const x = Object.assign({}, n); delete x.itens; return x; };
+  return Object.assign({}, doc, { emitidas: doc.emitidas.map(sem), recebidas: doc.recebidas.map(sem), itensCortados: true });
+}
+
 /** As saídas do mês (NF-e e NFC-e emitidas), com os cancelamentos: os números por modelo e série. */
 async function saidasDoMes(c, cnpj, competencia, aoAndar) {
   const p = periodo(competencia);
@@ -238,6 +294,37 @@ function iniciarSieg({ db, log }) {
             cnpj = soDigitos(cli && cli.documento);
             if (!documentoValido(cnpj)) throw new Error('o cliente ' + p.codigo + ' não tem CNPJ nem CPF no cadastro');
           }
+          // "Baixar XMLs do SIEG" (07/10/2026): todos os XMLs do mês na pasta do cliente (Drive deste PC) e o resumo no banco
+          if (p.tipo === 'xmls') {
+            situacao = 'baixando os XMLs de ' + p.codigo;
+            const lista = [];
+            (await require('./clientes-cache').clientesAtivos(db)).forEach(x => lista.push(x.data()));
+            const cli = lista.find(x => codigoDe(x) === soDigitos(p.codigo));
+            if (!cli) throw new Error('o cliente ' + p.codigo + ' não está no cadastro');
+            if (!fs.existsSync(PASTA_DO_DRIVE)) throw new Error('a pasta do Drive deste PC não está em ' + PASTA_DO_DRIVE);
+            await d.ref.update({ andamento: 'Baixando do SIEG' });
+            const { arquivos, resumo } = await xmlsDoMes(c, cnpj, p.competencia, t => d.ref.update({ andamento: t }).catch(() => {}));
+            await d.ref.update({ andamento: 'Salvando ' + arquivos.length + ' XMLs no Drive' });
+            const nomeDaPasta = (cli.nome || 'cliente ' + p.codigo).replace(/[\\/:*?"<>|]/g, '_').trim().slice(0, 80);
+            const pasta = path.join(PASTA_DO_DRIVE, p.competencia, nomeDaPasta);
+            fs.mkdirSync(pasta, { recursive: true });
+            let novos = 0;
+            for (const a of arquivos) if (gravarSeNovo(pasta, a.nome, a.xml)) novos++;
+            // e um .zip com todos, na mesma pasta (07/10/2026: "quero que ele também salve um arquivo .zip na hora")
+            const nomeDoZip = 'SIEG ' + p.competencia + ' - ' + nomeDaPasta + '.zip';
+            if (arquivos.length) fs.writeFileSync(path.join(pasta, nomeDoZip), sx.zipDe(arquivos));
+            const onde = 'Claudio Secretario/' + p.competencia + '/' + nomeDaPasta;
+            await db.collection('siegNotas').doc(id).set(resumoQueCabe({
+              codigo: soDigitos(p.codigo), competencia: p.competencia, em: new Date().toISOString(), pasta: onde, zip: arquivos.length ? nomeDoZip : '', arquivos: arquivos.length, novos,
+              emitidas: resumo.emitidas, recebidas: resumo.recebidas,
+            }));
+            await d.ref.update({
+              status: 'concluido', concluidoEm: new Date().toISOString(), andamento: '',
+              resultado: { arquivos: arquivos.length, novos, pasta: onde, zip: arquivos.length ? nomeDoZip : '', emitidas: resumo.emitidas.length, recebidas: resumo.recebidas.length },
+            });
+            log('SIEG: XMLs de', p.codigo, p.competencia, '-', arquivos.length, 'arquivos (' + novos + ' novos) em', onde);
+            continue;
+          }
           // o "Contar agora" do nads (07/10/2026): só a contagem desta empresa e mês, sem esperar a madrugada
           if (p.tipo === 'contagem') {
             situacao = 'contando ' + p.codigo + ' (pedido)';
@@ -254,7 +341,7 @@ function iniciarSieg({ db, log }) {
           log('SIEG: saídas de', p.codigo, p.competencia, '-', series.reduce((s, x) => s + x.numeros.length, 0), 'notas');
         } catch (err) {
           await d.ref.update({ status: 'erro', erro: err.message, erroEm: new Date().toISOString() });
-          log('SIEG: erro', p.tipo === 'contagem' ? 'na contagem de' : 'nas saídas de', p.codigo, '-', err.message);
+          log('SIEG: erro', p.tipo === 'contagem' ? 'na contagem de' : p.tipo === 'xmls' ? 'nos XMLs de' : 'nas saídas de', p.codigo, '-', err.message);
         }
       }
     } catch (err) { log('SIEG: não consegui ler os pedidos -', err.message); }
@@ -295,4 +382,4 @@ function iniciarSieg({ db, log }) {
   return () => { clearInterval(relogio); clearInterval(relogioNoite); pararPedidos(); };
 }
 
-module.exports = { iniciarSieg, lerXml, xmlsDaResposta, lerZip, periodo, contagemDoMes, saidasDoMes };
+module.exports = { iniciarSieg, lerXml, xmlsDaResposta, lerZip, periodo, contagemDoMes, saidasDoMes, xmlsDoMes, resumoQueCabe };

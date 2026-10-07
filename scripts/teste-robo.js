@@ -729,6 +729,15 @@ igual('SIEG: o .zip direto vira os XMLs', xmlsT.length, 2);
 igual('SIEG: a nota do XML', sg.lerXml(xmlsT[0]), { chave: '31260919449248000162550010000102701620070002', modelo: '55', serie: '1', numero: 10270, valor: 39134.51 });
 igual('SIEG: o cancelamento do XML', sg.lerXml(xmlsT[1]), { cancela: '31260919449248000162550010000102701620070002' });
 igual('SIEG: resposta vazia', sg.xmlsDaResposta([]).length, 0);
+// o .zip que o robô monta (sieg-xmls.js) abre no mesmo leitor; e o resumo da NF-e com os itens
+const sxT = require('./sieg-xmls');
+const zipT = sxT.zipDe([{ nome: 'a-nfe.xml', xml: nfeT }, { nome: 'b-evento.xml', xml: cancT }]);
+igual('SIEG: o .zip montado tem os 2 XMLs', sg.lerZip(zipT), [nfeT, cancT]);
+igual('SIEG: o CRC32 de "abc"', sxT.crc32(Buffer.from('abc')), 0x352441c2);
+const nfeItensT = '<nfeProc><NFe><infNFe Id="NFe31260919449248000162550010000102701620070002"><ide><mod>55</mod><serie>1</serie><nNF>10270</nNF><dhEmi>2026-09-03T10:00:00-03:00</dhEmi></ide><emit><CNPJ>19449248000162</CNPJ><xNome>FITO</xNome></emit><dest><CNPJ>11111111000111</CNPJ><xNome>CLIENTE</xNome></dest><det nItem="1"><prod><NCM>21069090</NCM><CFOP>5102</CFOP><CEST>1704900</CEST><vProd>100.50</vProd></prod><imposto><ICMS><ICMS00><orig>0</orig><CST>00</CST></ICMS00></ICMS></imposto></det><total><ICMSTot><vNF>100.50</vNF></ICMSTot></total></infNFe></NFe></nfeProc>';
+igual('SIEG: o resumo da NF-e com o item', sxT.resumoDaNota(nfeItensT).itens, [{ ncm: '21069090', cfop: '5102', cst: '000', cest: '1704900', valor: 100.5 }]);
+igual('SIEG: o nome do arquivo da NF-e', sxT.nomeDoArquivo(nfeItensT), '31260919449248000162550010000102701620070002-nfe.xml');
+igual('SIEG: o cancelamento no resumo', sxT.resumoDaNota(cancT), { cancela: '31260919449248000162550010000102701620070002' });
 
 // --- razão social vale mais que o nome fantasia (FITO, 01/10/2026) ---
 const fitos = [{ id: '292', nome: 'FITO INDUSTRIA E COMERCIO DE ALIMENTOS LTDA', nomeFantasia: 'FITO ALIMENTOS' }, { id: '309', nome: 'FITO ALIMENTOS LTDA', nomeFantasia: 'FITO ALIMENTOS', grupoLocal: '292' }];

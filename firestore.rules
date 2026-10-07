@@ -906,6 +906,11 @@ service cloud.firestore {
       allow read: if ehAdmin() || temPapel('fiscal') || temPapel('contabil');
       allow write: if false;
     }
+    // o resumo das notas dos XMLs do mês (o "Baixar XMLs do SIEG", 07/10/2026): só o robô grava
+    match /siegNotas/{id} {
+      allow read: if ehAdmin() || temPapel('fiscal') || temPapel('contabil');
+      allow write: if false;
+    }
     match /siegSaidas/{id} {
       allow read: if ehAdmin() || temPapel('fiscal') || temPapel('contabil');
       allow write: if false;
@@ -917,7 +922,7 @@ service cloud.firestore {
         && request.resource.data.criadoPorUid == request.auth.uid
         && request.resource.data.keys().hasOnly(['status', 'tipo', 'codigo', 'cnpj', 'competencia', 'criadoEm', 'criadoPor', 'criadoPorUid'])
         // o tipo (07/10/2026): sem ele, baixar as saídas; 'contagem' = o "Contar agora"
-        && (!('tipo' in request.resource.data) || request.resource.data.tipo in ['saidas', 'contagem']);
+        && (!('tipo' in request.resource.data) || request.resource.data.tipo in ['saidas', 'contagem', 'xmls']);
       allow update, delete: if false;
     }
 
