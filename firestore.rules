@@ -704,6 +704,19 @@ service cloud.firestore {
       return membro() && (ehAdmin() || !protecaoNads()
         || exists(/databases/$(database)/documents/nadsSessoes/$(loginNads())));
     }
+    // os feedbacks do nads (07/10/2026): quem está no nads manda o seu (o print vai no próprio documento, até ~900 KB);
+    // só o admin lê todos e marca visto/feito
+    match /feedbacks/{id} {
+      allow read: if ehAdmin() || (membro() && resource.data.uid == request.auth.uid);
+      allow create: if membroNoNads()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.status == 'novo'
+        && request.resource.data.texto is string && request.resource.data.texto.size() > 0 && request.resource.data.texto.size() <= 4000
+        && request.resource.data.imagem is string && request.resource.data.imagem.size() <= 900000
+        && request.resource.data.keys().hasOnly(['uid', 'nome', 'email', 'texto', 'imagem', 'tela', 'versao', 'criadoEm', 'status']);
+      allow update: if ehAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
+      allow delete: if ehAdmin();
+    }
     match /nadsPedidos/{id} {
       allow read: if membro() && (ehAdmin() || resource.data.uid == request.auth.uid);
       allow create: if membro()
