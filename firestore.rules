@@ -735,6 +735,21 @@ service cloud.firestore {
       allow delete: if ehAdmin() || (membro() && id == loginNads());
     }
 
+    // O cofre de senhas gov.br e certificados do nads (07/10/2026): todo o escritório. O que é segredo chega embaralhado
+    // no navegador (chave por pessoa); aqui só se confere o formato. Apagar uma empresa do cofre, só o admin.
+    match /cofre/{id} {
+      allow read: if membroNoNads();
+      allow create, update: if membroNoNads() && request.resource.data.dados is string && request.resource.data.iv is string
+        && request.resource.data.dados.size() < 900000;
+      allow delete: if ehAdmin();
+    }
+    match /cofreChaves/{id} {
+      allow read: if membroNoNads();
+      allow create, update, delete: if membroNoNads();
+    }
+    match /cofreConfig/{id} {
+      allow read, write: if membroNoNads();
+    }
     match /rotinas/{id} {
       allow read: if membroNoNads();
       allow create, update: if membroNoNads()
