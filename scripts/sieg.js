@@ -234,6 +234,15 @@ function iniciarSieg({ db, log }) {
             cnpj = soDigitos(cli && cli.documento);
             if (cnpj.length !== 14) throw new Error('o cliente ' + p.codigo + ' não tem CNPJ no cadastro');
           }
+          // o "Contar agora" do nads (07/10/2026): só a contagem desta empresa e mês, sem esperar a madrugada
+          if (p.tipo === 'contagem') {
+            situacao = 'contando ' + p.codigo + ' (pedido)';
+            const r = await contagemDoMes(c, cnpj, p.competencia);
+            await db.collection('siegContagens').doc(id).set({ codigo: soDigitos(p.codigo), cnpj, competencia: p.competencia, em: new Date().toISOString(), ...r });
+            await d.ref.update({ status: 'concluido', concluidoEm: new Date().toISOString() });
+            log('SIEG: contagem de', p.codigo, p.competencia, 'pedida pelo nads');
+            continue;
+          }
           const series = await saidasDoMes(c, cnpj, p.competencia, t => d.ref.update({ andamento: t }).catch(() => {}));
           await db.collection('siegSaidas').doc(id).set({ codigo: String(p.codigo), cnpj, competencia: p.competencia, em: new Date().toISOString(), series });
           await d.ref.update({ status: 'concluido', concluidoEm: new Date().toISOString() });

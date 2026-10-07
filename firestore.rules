@@ -915,7 +915,9 @@ service cloud.firestore {
       allow create: if (ehAdmin() || temPapel('fiscal'))
         && request.resource.data.status == 'pendente'
         && request.resource.data.criadoPorUid == request.auth.uid
-        && request.resource.data.keys().hasOnly(['status', 'codigo', 'cnpj', 'competencia', 'criadoEm', 'criadoPor', 'criadoPorUid']);
+        && request.resource.data.keys().hasOnly(['status', 'tipo', 'codigo', 'cnpj', 'competencia', 'criadoEm', 'criadoPor', 'criadoPorUid'])
+        // o tipo (07/10/2026): sem ele, baixar as saídas; 'contagem' = o "Contar agora"
+        && (!('tipo' in request.resource.data) || request.resource.data.tipo in ['saidas', 'contagem']);
       allow update, delete: if false;
     }
 
