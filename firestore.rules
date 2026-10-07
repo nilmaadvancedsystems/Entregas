@@ -895,7 +895,9 @@ service cloud.firestore {
         || (doc == 'caixa-fiscal' && usaCaixa('fiscal'))
         || (temPapel('contabil') && !(doc in ['caixa-fiscal', 'gmailEstado-fiscal']))
         // robo/sieg (o robô do SIEG ligado ou não): o fiscal também lê (06/10/2026)
-        || (doc == 'sieg' && temPapel('fiscal'));
+        || (doc == 'sieg' && temPapel('fiscal'))
+        // robo/fgts (o robô do FGTS Digital ligado e de quem é o certificado do escritório): o DP lê (07/10/2026)
+        || (doc == 'fgts' && doSetor('dp'));
       allow write: if false;
     }
 
@@ -924,6 +926,25 @@ service cloud.firestore {
         // o tipo (07/10/2026): sem ele, baixar as saídas; 'contagem' = o "Contar agora"
         && (!('tipo' in request.resource.data) || request.resource.data.tipo in ['saidas', 'contagem', 'xmls']);
       allow update, delete: if false;
+    }
+
+    // O FGTS Digital no DP do nads (07/10/2026): o robô da máquina do Google (nads/robo/fgts-digital.js, pelo Admin SDK)
+    // entra no portal com o certificado do escritório e emite a guia mensal do cliente. Quem pede é o DP (ou o admin),
+    // só com estes campos; o andamento, o resultado, o PDF (arquivo/pdf) e as fotos das telas (telas/) o robô escreve.
+    match /pedidosFgts/{id} {
+      allow read: if ehAdmin() || doSetor('dp');
+      allow create: if (ehAdmin() || doSetor('dp'))
+        && request.resource.data.status == 'pendente'
+        && request.resource.data.criadoPorUid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['status', 'modo', 'cnpj', 'codigo', 'empresa', 'competencia', 'criadoEm', 'criadoPor', 'criadoPorUid'])
+        && request.resource.data.modo in ['ensaio', 'emitir']
+        && request.resource.data.cnpj is string && request.resource.data.cnpj.matches('^[0-9]{14}$')
+        && request.resource.data.competencia is string && request.resource.data.competencia.matches('^[0-9]{4}-(0[1-9]|1[0-2])$');
+      allow update, delete: if false;
+      match /{parte}/{doc} {
+        allow read: if ehAdmin() || doSetor('dp');
+        allow write: if false;
+      }
     }
 
     // ---------- arquivamento (rotina "Claudio Secretario") ----------
