@@ -22,6 +22,8 @@ const TIPO = { NFe: 1, CTe: 2, NFSe: 3, NFCe: 4, CFe: 5 };
 
 const dormir = ms => new Promise(r => setTimeout(r, ms));
 const soDigitos = v => String(v || '').replace(/\D/g, '');
+// o documento do cliente: CNPJ (14) ou CPF (11, o produtor rural; o SIEG conta pelos dois, 07/10/2026)
+const documentoValido = d => d.length === 14 || d.length === 11;
 // o código do cliente no Alterdata: nos clientes do Entregas ele está em codigoOrigem (07/10/2026: com `codigo` só, a
 // contagem não achava ninguém)
 const codigoDe = x => soDigitos(x && (x.codigo != null && x.codigo !== '' ? x.codigo : x.codigoOrigem));
@@ -157,10 +159,12 @@ function periodo(competencia) {
 }
 
 /** As contagens do mês: emitidas (o cliente emitiu) e recebidas (o cliente é o destinatário), por tipo. */
-async function contagemDoMes(c, cnpj, competencia) {
+async function contagemDoMes(c, cnpj, competencia, aoAndar) {
   const p = periodo(competencia);
   const norm = r => ({ NFe: Number(r.NFe) || 0, NFCe: Number(r.NFCe) || 0, NFSe: Number(r.NFSe) || 0, CTe: Number(r.CTe) || 0, CFe: Number(r.CFe) || 0 });
+  if (aoAndar) await aoAndar('emitidas');
   const emitidas = norm(await chamar(c, 'contar-xmls', Object.assign({ CnpjEmit: cnpj }, p)));
+  if (aoAndar) await aoAndar('recebidas');
   const recebidas = norm(await chamar(c, 'contar-xmls', Object.assign({ CnpjDest: cnpj }, p)));
   return { emitidas, recebidas };
 }
@@ -227,17 +231,18 @@ function iniciarSieg({ db, log }) {
         try {
           // o nads conhece a empresa pelo código: o CNPJ vem do cadastro de clientes
           let cnpj = soDigitos(p.cnpj);
-          if (cnpj.length !== 14) {
+          if (!documentoValido(cnpj)) {
             const lista = [];
             (await require('./clientes-cache').clientesAtivos(db)).forEach(x => lista.push(x.data()));
             const cli = lista.find(x => codigoDe(x) === soDigitos(p.codigo));
             cnpj = soDigitos(cli && cli.documento);
-            if (cnpj.length !== 14) throw new Error('o cliente ' + p.codigo + ' não tem CNPJ no cadastro');
+            if (!documentoValido(cnpj)) throw new Error('o cliente ' + p.codigo + ' não tem CNPJ nem CPF no cadastro');
           }
           // o "Contar agora" do nads (07/10/2026): só a contagem desta empresa e mês, sem esperar a madrugada
           if (p.tipo === 'contagem') {
             situacao = 'contando ' + p.codigo + ' (pedido)';
-            const r = await contagemDoMes(c, cnpj, p.competencia);
+            await d.ref.update({ andamento: 'emitidas' });
+            const r = await contagemDoMes(c, cnpj, p.competencia, t => d.ref.update({ andamento: t }).catch(() => {}));
             await db.collection('siegContagens').doc(id).set({ codigo: soDigitos(p.codigo), cnpj, competencia: p.competencia, em: new Date().toISOString(), ...r });
             await d.ref.update({ status: 'concluido', concluidoEm: new Date().toISOString() });
             log('SIEG: contagem de', p.codigo, p.competencia, 'pedida pelo nads');
@@ -249,7 +254,7 @@ function iniciarSieg({ db, log }) {
           log('SIEG: saídas de', p.codigo, p.competencia, '-', series.reduce((s, x) => s + x.numeros.length, 0), 'notas');
         } catch (err) {
           await d.ref.update({ status: 'erro', erro: err.message, erroEm: new Date().toISOString() });
-          log('SIEG: erro nas saídas de', p.codigo, '-', err.message);
+          log('SIEG: erro', p.tipo === 'contagem' ? 'na contagem de' : 'nas saídas de', p.codigo, '-', err.message);
         }
       }
     } catch (err) { log('SIEG: não consegui ler os pedidos -', err.message); }
@@ -270,7 +275,7 @@ function iniciarSieg({ db, log }) {
       if (hoje.getDate() <= 10) comps.push(competenciaDe(new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1)));
       const ativos = [];
       (await require('./clientes-cache').clientesAtivos(db)).forEach(d => ativos.push(d.data()));
-      const comCnpj = ativos.filter(x => soDigitos(x.documento).length === 14 && codigoDe(x));
+      const comCnpj = ativos.filter(x => documentoValido(soDigitos(x.documento)) && codigoDe(x));
       log('SIEG: contando as notas de', comCnpj.length, 'clientes em', comps.join(' e '));
       for (const comp of comps) {
         for (const cli of comCnpj) {
