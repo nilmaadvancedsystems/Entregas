@@ -699,7 +699,7 @@ const ar = require('./avisos-reinf-nads');
 const agoraAr = Date.parse('2026-10-07T15:00:00Z');
 const exAr = e => ({ empresa: 'A7 MOBILE LTDA', codigo: 515, competencia: '2026-09', etapas: { 'dp-reinf': e } });
 igual('REINF do Fiscal avisa o responsável', ar.avisoDaReinf(exAr({ situacao: 'feita', por: 'Heverton (Fiscal)', em: '2026-10-07T14:50:00Z', avisar: 'Fabiana' }), agoraAr),
-  { link: 'https://tarefas-nilma.web.app/tarefas/dp/obrigacoes?parte=reinf&competencia=2026-09', para: 'Fabiana', titulo: 'REINF transmitida', corpo: '515 · A7 MOBILE LTDA · 09/2026 — transmitida por Heverton (Fiscal)' });
+  { link: 'https://tarefas-nilma.web.app/tarefas/dp/obrigacoes?competencia=2026-09', para: 'Fabiana', titulo: 'REINF transmitida', corpo: '515 · A7 MOBILE LTDA · 09/2026 — transmitida por Heverton (Fiscal)' });
 igual('REINF já avisada não repete', ar.avisoDaReinf(exAr({ situacao: 'feita', por: 'x', em: '2026-10-07T14:50:00Z', avisar: 'Fabiana', avisadoEm: 'y' }), agoraAr), null);
 igual('REINF marcada no DP (sem avisar) não avisa', ar.avisoDaReinf(exAr({ situacao: 'feita', por: 'Fabiana', em: '2026-10-07T14:50:00Z' }), agoraAr), null);
 igual('REINF velha não avisa', ar.avisoDaReinf(exAr({ situacao: 'feita', por: 'x', em: '2026-10-01T14:50:00Z', avisar: 'Fabiana' }), agoraAr), null);

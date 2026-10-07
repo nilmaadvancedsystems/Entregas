@@ -6,8 +6,8 @@
 // ela e grava avisadoEm. Transmissão com mais de 2 dias não avisa; cada uma avisa uma vez só.
 const { ouvir } = require('./ouvinte');
 
-// tocar abre a aba REINF das Obrigações do DP, no mês da transmissão
-const LINK = c => 'https://tarefas-nilma.web.app/tarefas/dp/obrigacoes?parte=reinf&competencia=' + c;
+// tocar abre as Obrigações do DP (a tabela com a coluna REINF), no mês da transmissão
+const LINK = c => 'https://tarefas-nilma.web.app/tarefas/dp/obrigacoes?competencia=' + c;
 const VELHO_MS = 2 * 24 * 60 * 60 * 1000;
 
 const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase();
