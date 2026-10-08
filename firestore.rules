@@ -1018,6 +1018,28 @@ service cloud.firestore {
     // Claudio Secretario, de onde a rotina de arquivamento tira na próxima rodada (scripts/envios-do-nads.js).
     // Quem manda cria o envio ('enviando'), sobe os pedaços em partes/ e passa para 'pendente'; o robô grava no
     // Drive, apaga os pedaços e responde no próprio envio. Cada um só lê e mexe no seu.
+    // ── Mandei (nads, 07/10/2026): os tickets mandados aos clientes ──────────────────────────────────────
+    // O ticket inteiro (o controle interno) é só da equipe no nads.
+    match /tickets/{id} {
+      allow read, create, update: if membroNoNads();
+      allow delete: if ehAdmin();
+    }
+    // O formulário do cliente: um documento por link, pelo código (24 letras e números aleatórios, o segredo do link).
+    // Quem tem o código lê só aquele documento (não dá para listar) e, enquanto o link vale (validoAte, a hora do
+    // servidor) e o ticket não foi fechado, só marca que abriu e manda as respostas e a lista dos arquivos.
+    match /ticketsLinks/{codigo} {
+      function vale() {
+        return request.time < resource.data.validoAte && resource.data.get('fechado', false) == false;
+      }
+      allow get: if true;
+      allow list: if false;
+      allow create, delete: if membroNoNads();
+      allow update: if membroNoNads() || (vale()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['abertoEm', 'respostas', 'respondidoEm', 'arquivos'])
+        && request.resource.data.get('respostas', {}) is map && request.resource.data.get('respostas', {}).size() <= 300
+        && request.resource.data.get('arquivos', []) is list && request.resource.data.get('arquivos', []).size() <= 100);
+    }
+
     match /enviosSecretario/{id} {
       function doEnvio() { return (ehAdmin() || temPapel('contabil')) && membroNoNads(); }
       function meu() { return get(/databases/$(database)/documents/enviosSecretario/$(id)).data.criadoPorUid == request.auth.uid; }
@@ -1036,10 +1058,39 @@ service cloud.firestore {
       allow update: if doEnvio() && resource.data.criadoPorUid == request.auth.uid
         && resource.data.status == 'enviando' && request.resource.data.status == 'pendente'
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
+      // Mandei (07/10/2026): o arquivo que o cliente anexa no formulário (sem login), só com o ticket do link e
+      // enquanto ele vale; a equipe no nads acompanha esses envios.
+      function linkVale(codigo) {
+        return exists(/databases/$(database)/documents/ticketsLinks/$(codigo))
+          && request.time < get(/databases/$(database)/documents/ticketsLinks/$(codigo)).data.validoAte
+          && get(/databases/$(database)/documents/ticketsLinks/$(codigo)).data.get('fechado', false) == false;
+      }
+      function ticketDoEnvio() {
+        return get(/databases/$(database)/documents/enviosSecretario/$(id)).data.get('ticket', '');
+      }
+      allow read: if membroNoNads() && resource.data.get('ticket', '') != '';
+      allow create: if request.resource.data.get('ticket', '') is string && request.resource.data.get('ticket', '') != ''
+        && linkVale(request.resource.data.ticket)
+        && request.resource.data.status == 'enviando'
+        && request.resource.data.criadoPorUid == 'mandei'
+        && request.resource.data.keys().hasOnly(['status', 'nome', 'tamanho', 'partes', 'competencia', 'cliente', 'codigo', 'criadoEm', 'criadoPor', 'criadoPorUid', 'ticket'])
+        && request.resource.data.nome is string && request.resource.data.nome.size() <= 200
+        && request.resource.data.tamanho is int && request.resource.data.tamanho > 0 && request.resource.data.tamanho <= 26214400
+        && request.resource.data.partes is int && request.resource.data.partes >= 1 && request.resource.data.partes <= 30
+        && request.resource.data.competencia is string && request.resource.data.competencia.matches('20[0-9]{2}-(0[1-9]|1[0-2])')
+        && request.resource.data.cliente is string && request.resource.data.cliente.size() <= 150
+        && request.resource.data.codigo is string && request.resource.data.codigo.size() <= 20;
+      allow update: if resource.data.get('ticket', '') != '' && linkVale(resource.data.ticket)
+        && resource.data.status == 'enviando' && request.resource.data.status == 'pendente'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
       allow delete: if false;
       match /partes/{n} {
         allow read: if false;
         allow create: if doEnvio() && meu()
+          && request.resource.data.keys().hasOnly(['dados'])
+          && request.resource.data.dados is bytes && request.resource.data.dados.size() <= 950000;
+        // Mandei: os pedaços do arquivo do cliente, enquanto o link do ticket vale
+        allow create: if ticketDoEnvio() != '' && linkVale(ticketDoEnvio())
           && request.resource.data.keys().hasOnly(['dados'])
           && request.resource.data.dados is bytes && request.resource.data.dados.size() <= 950000;
         allow update, delete: if false;
