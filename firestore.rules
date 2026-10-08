@@ -945,6 +945,14 @@ service cloud.firestore {
         allow read: if ehAdmin() || doSetor('dp');
         allow write: if false;
       }
+      // a verificação do gov.br (08/10/2026): a pessoa do DP clica na tela ao vivo do robô; o robô repete e apaga
+      match /cliques/{clique} {
+        allow create: if (ehAdmin() || doSetor('dp'))
+          && request.resource.data.keys().hasOnly(['x', 'y', 'em', 'por'])
+          && request.resource.data.x is number && request.resource.data.y is number
+          && request.resource.data.x >= 0 && request.resource.data.x <= 1280
+          && request.resource.data.y >= 0 && request.resource.data.y <= 900;
+      }
     }
 
     // Escrever para o Claude da rotina pelo nads (07/10/2026): só o admin; o arquivador do PC (Admin SDK) retoma a sessão
