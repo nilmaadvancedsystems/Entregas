@@ -922,10 +922,19 @@ service cloud.firestore {
       allow create: if (ehAdmin() || temPapel('fiscal'))
         && request.resource.data.status == 'pendente'
         && request.resource.data.criadoPorUid == request.auth.uid
-        && request.resource.data.keys().hasOnly(['status', 'tipo', 'codigo', 'cnpj', 'competencia', 'criadoEm', 'criadoPor', 'criadoPorUid'])
-        // o tipo (07/10/2026): sem ele, baixar as saídas; 'contagem' = o "Contar agora"
-        && (!('tipo' in request.resource.data) || request.resource.data.tipo in ['saidas', 'contagem', 'xmls']);
+        && request.resource.data.keys().hasOnly(['status', 'tipo', 'codigo', 'cnpj', 'competencia', 'criadoEm', 'criadoPor', 'criadoPorUid', 'partes'])
+        // o tipo (07/10/2026): sem ele, baixar as saídas; 'contagem' = o "Contar agora"; 'xmlsCliente' (08/10/2026) = os
+        // XMLs que o cliente mandou, em pedaços na subcoleção xmls (partes = quantos)
+        && (!('tipo' in request.resource.data) || request.resource.data.tipo in ['saidas', 'contagem', 'xmls', 'xmlsCliente']);
       allow update, delete: if false;
+      // os pedaços dos XMLs do cliente (o texto, até ~1 MB cada): quem pede escreve antes do pedido; só o robô lê e apaga
+      match /xmls/{n} {
+        allow create: if (ehAdmin() || temPapel('fiscal'))
+          && request.resource.data.keys().hasOnly(['n', 'dados'])
+          && request.resource.data.n is int
+          && request.resource.data.dados is string && request.resource.data.dados.size() <= 1000000;
+        allow read, update, delete: if false;
+      }
     }
 
     // O FGTS Digital no DP do nads (07/10/2026): o robô da máquina do Google (nads/robo/fgts-digital.js, pelo Admin SDK)
