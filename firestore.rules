@@ -1022,6 +1022,21 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // Os extratos que chegam por e-mail (08/10/2026: "ele já jogue o extrato para o nads"): o robô do Gmail guarda o
+    // arquivo (partes/{n}, Base64) com o banco e a conta lidos; o Extratudo (o contábil ou o admin) lê, importa e marca
+    // como importado (só o status e quem/quando/em que linha). Só o robô cria e apaga.
+    match /extratosRecebidos/{id} {
+      allow read: if ehAdmin() || temPapel('contabil');
+      allow update: if (ehAdmin() || temPapel('contabil'))
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'importadoEm', 'importadoPor', 'linha'])
+        && request.resource.data.status in ['importado', 'ignorado'];
+      allow create, delete: if false;
+      match /partes/{n} {
+        allow read: if ehAdmin() || temPapel('contabil');
+        allow write: if false;
+      }
+    }
+
     // Pedido pra abrir um arquivo do Drive pelo app (scripts/abrir-do-drive.js).
     // Cada um só lê o próprio pedido: a resposta traz o link do arquivo.
     match /aberturasDrive/{id} {
