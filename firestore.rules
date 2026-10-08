@@ -947,6 +947,19 @@ service cloud.firestore {
       }
     }
 
+    // Escrever para o Claude da rotina pelo nads (07/10/2026): só o admin; o arquivador do PC (Admin SDK) retoma a sessão
+    // com a mensagem e escreve o andamento. Quem escreve manda no Claude do PC, com as permissões da rotina: por isso só admin.
+    match /arquivadorMensagens/{id} {
+      allow read: if ehAdmin();
+      allow create: if ehAdmin()
+        && request.resource.data.status == 'pendente'
+        && request.resource.data.criadoPorUid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['status', 'texto', 'sessao', 'criadoEm', 'criadoPor', 'criadoPorUid'])
+        && request.resource.data.texto is string && request.resource.data.texto.size() > 0 && request.resource.data.texto.size() <= 4000
+        && request.resource.data.sessao is string && request.resource.data.sessao.size() <= 64;
+      allow update, delete: if false;
+    }
+
     // ---------- arquivamento (rotina "Claudio Secretario") ----------
     // O Pendências pede ("Arquivar agora") e o arquivador deste PC executa
     // (scripts/arquivador.js). Quem pede só cria o pedido, e só no estado
