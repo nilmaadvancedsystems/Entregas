@@ -966,6 +966,17 @@ service cloud.firestore {
       }
     }
 
+    // Parar a organização que está rodando no PC (09/10/2026: "um botão de cancelar a organização"): quem pode pedir o
+    // arquivamento pede para parar; o arquivador do PC (Admin SDK) encerra o Claude que organiza e responde no pedido.
+    match /arquivadorParar/{id} {
+      allow read: if ehAdmin() || temPapel('contabil');
+      allow create: if (ehAdmin() || temPapel('contabil'))
+        && request.resource.data.status == 'pendente'
+        && request.resource.data.criadoPorUid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['status', 'criadoEm', 'criadoPor', 'criadoPorUid']);
+      allow update, delete: if false;
+    }
+
     // Escrever para o Claude da rotina pelo nads (07/10/2026): só o admin; o arquivador do PC (Admin SDK) retoma a sessão
     // com a mensagem e escreve o andamento. Quem escreve manda no Claude do PC, com as permissões da rotina: por isso só admin.
     match /arquivadorMensagens/{id} {
