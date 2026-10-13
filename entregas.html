@@ -207,6 +207,7 @@
         <div class="docs-lista" id="docsAdicionados"></div>
         <div class="docs-add">
           <button type="button" class="btn-chip accent" id="docAddBtn" aria-haspopup="dialog" aria-expanded="false" aria-controls="docAddMenu"><i class="ph ph-plus" aria-hidden="true"></i> Adicionar documento</button>
+          <button type="button" class="btn-chip" id="guiasPastaBtn" hidden><i class="ph ph-folder-open" aria-hidden="true"></i> Puxar guias da pasta</button>
           <div class="docs-planilha" id="docAddMenu" role="dialog" aria-label="Documentos da entrega" hidden></div>
         </div>
         <div class="field-info" id="guiasStatus" hidden></div>
@@ -3926,6 +3927,8 @@
   // de cada), o robô traz cada um (aberturasDrive, modo "ler", como no Creditor) e o leitor de PDF de sempre põe o
   // documento, o valor, o vencimento e o código de pagamento. O mês da guia é o anterior ao da entrega (a guia de
   // setembro é entregue em outubro). O mapa do Drive é só de admin e contábil: para os outros, nada acontece.
+  // Só pelo botão "Puxar guias da pasta" (Vitor, 13/10/2026: "e se eu já tiver entregue? Não deve vir sozinho, tem que
+  // ter um botão"): o botão aparece com o cliente escolhido; as guias entram quando a pessoa clica.
   var ESPERA_DRIVE_MS = 90000;
   var raizDoDrive_ = null;
   var guiasJaPuxadas_ = {};
@@ -3978,6 +3981,15 @@
       .then(function (page) { return page.getTextContent(); })
       .then(function (tc) { return tc.items.map(function (it) { return it.str; }).join(' '); });
   }
+  function mostrarBotaoDasGuias_() {
+    var pode = !!db && (temPapel('admin') || temPapel('contabil')) && !!selectedClienteId && !!(clientesCache.get(selectedClienteId) || {}).codigoOrigem;
+    $('guiasPastaBtn').hidden = !pode;
+    if (!pode) { $('guiasStatus').hidden = true; }
+  }
+  $('guiasPastaBtn').addEventListener('click', function () {
+    var c = selectedClienteId ? clientesCache.get(selectedClienteId) : null;
+    if (c) puxarGuiasDaPasta_(c);
+  });
   function puxarGuiasDaPasta_(c) {
     if (!db || !c || !(temPapel('admin') || temPapel('contabil')) || typeof pdfjsLib === 'undefined') return;
     var codigo = String(c.codigoOrigem || '').trim();
@@ -3986,6 +3998,7 @@
     var chave = c.id + '|' + g.aaaa + '-' + g.mm;
     if (guiasJaPuxadas_[chave]) return;
     guiasJaPuxadas_[chave] = true;
+    $('guiasPastaBtn').disabled = true;
     var status = $('guiasStatus');
     var mostrar = function (t) { status.textContent = t; status.hidden = !t; };
     mostrar('Procurando as guias de ' + g.mm + '/' + g.aaaa + ' na pasta do cliente…');
@@ -4014,7 +4027,11 @@
         return GUIAS_DA_PASTA.map(function (gp) { return achadas[gp.tipo]; }).filter(Boolean);
       });
     }).then(function (guias) {
-      if (!guias.length || selectedClienteId !== c.id) { mostrar(''); return; }
+      if (!guias.length || selectedClienteId !== c.id) {
+        guiasJaPuxadas_[chave] = false;
+        mostrar(selectedClienteId === c.id ? 'Não achei FGTS nem DARF de ' + g.mm + '/' + g.aaaa + ' na pasta do cliente.' : '');
+        return;
+      }
       var trazidas = [];
       mostrar('Puxando ' + guias.map(function (x) { return x.gp.nome; }).join(' e ') + ' de ' + g.mm + '/' + g.aaaa + ' da pasta do cliente…');
       return guias.reduce(function (antes, x) {
@@ -4028,9 +4045,11 @@
       }, Promise.resolve()).then(function () {
         if (selectedClienteId !== c.id) { mostrar(''); return; }
         mostrar(trazidas.length ? trazidas.join(' e ') + ' de ' + g.mm + '/' + g.aaaa + ' vieram da pasta do cliente. Confira os valores.' : '');
-        if (!trazidas.length) { guiasJaPuxadas_[chave] = false; showToast('Não consegui trazer as guias da pasta do cliente. Adicione à mão.', 'error'); }
+        guiasJaPuxadas_[chave] = false;
+        if (!trazidas.length) showToast('Não consegui trazer as guias da pasta do cliente. Adicione à mão.', 'error');
       });
-    }).catch(function (err) {
+    }).then(function () { $('guiasPastaBtn').disabled = false; }, function (err) {
+      $('guiasPastaBtn').disabled = false;
       mostrar('');
       guiasJaPuxadas_[chave] = false;
       // sem acesso ao mapa do Drive (quem não é admin nem contábil): fica como estava, sem aviso
@@ -4683,7 +4702,7 @@
         aplicarZonaDoCliente_(c);
         oferecerRepetirMesPassado_(c);
         atualizarCampoHonorarioPix_();
-        puxarGuiasDaPasta_(c);
+        mostrarBotaoDasGuias_();
       });
       suggestionsEl.appendChild(btn);
     });
@@ -4703,6 +4722,7 @@
 
   clienteInput.addEventListener('input', function () {
     selectedClienteId = null;
+    mostrarBotaoDasGuias_();
     renderSuggestions();
   });
 
@@ -4759,6 +4779,7 @@
     $('clienteField').querySelector('span').textContent = banco ? 'Banco' : 'Cliente';
     selectedClienteId = null;
     clienteInput.value = '';
+    mostrarBotaoDasGuias_();
     suggestionsEl.classList.remove('show');
     if (!banco) $('bancoNomeInput').value = '';
     else $('bancoNomeInput').focus();
@@ -4771,6 +4792,7 @@
     $('avulsoNomeInput').hidden = !avulso;
     selectedClienteId = null;
     clienteInput.value = '';
+    mostrarBotaoDasGuias_();
     suggestionsEl.classList.remove('show');
     if (!avulso) $('avulsoNomeInput').value = '';
     clearFieldError('cliente');
@@ -5003,6 +5025,7 @@
     var manterItens = formMode === 'rota';
     selectedClienteId = null;
     clienteInput.value = '';
+    mostrarBotaoDasGuias_();
     $('avulsoToggle').checked = false;
     $('avulsoNomeInput').value = '';
     $('avulsoNomeInput').hidden = true;
@@ -12335,7 +12358,7 @@
   // Aba em que o app abre: office boy vive em Solicitações, quem faz rota
   // abre em Rota. Guardar isso evita dois toques toda vez que entra.
 
-  var VERSAO_APP_ = '2.409 · 13/10/2026';
+  var VERSAO_APP_ = '2.410 · 13/10/2026';
   // Configurações do usuário: a janela comum (nilma-config.js), a mesma da
   // Pendências e do Fiscal. 'conta' abre em Minha conta; o resto, em
   // Preferências.
