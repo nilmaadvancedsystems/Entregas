@@ -1488,6 +1488,12 @@
       if (anexos.foto) comprovante.foto = anexos.foto;
       lote.set(ref.collection('anexos').doc('comprovante'), comprovante);
     }
+    // as guias que vieram da pasta do cliente (FGTS, DARF): o PDF fica anexado à entrega
+    ((anexos && anexos.guias) || []).forEach(function (g) {
+      var guia = { tipo: g.tipo, nome: g.nome, driveId: g.driveId, tamanho: g.tamanho, em: new Date().toISOString() };
+      if (g.pdf) guia.pdf = g.pdf;
+      lote.set(ref.collection('anexos').doc('guia-' + g.tipo), guia);
+    });
     portalMudou_(parentData.clienteId);
     marcarClienteDeEntrega_(parentData.clienteId);
     if (parentData.temGuia && anexos && anexos.foto) guardarGuiaNoPortal_({ id: ref.id, clienteId: parentData.clienteId }, anexos.foto);
@@ -3933,6 +3939,17 @@
   var raizDoDrive_ = null;
   var guiasJaPuxadas_ = {};
   var GUIAS_DA_PASTA = [{ tipo: 'fgts', palavra: 'FGTS', nome: 'FGTS' }, { tipo: 'darf', palavra: 'DARF', nome: 'DARF' }];
+  // As guias puxadas da pasta vão anexadas à entrega (Vitor, 13/10/2026: "quero que fique anexado o documento que foi
+  // entregue, já que já tem o PDF"): entregas/{id}/anexos/guia-<tipo>, com o PDF (se couber no documento do banco) e o
+  // arquivo do Drive de onde veio. Só vai a guia que ainda estiver nos documentos na hora de gravar.
+  var guiasParaAnexar_ = {};
+  var LIMITE_PDF_ANEXO = 700000;   // bytes do PDF; o documento do banco aceita ~1 MB e o base64 cresce 1/3
+  function guiasParaAnexarAgora_() {
+    return Object.keys(guiasParaAnexar_).map(function (tipo) { return guiasParaAnexar_[tipo]; }).filter(function (g) {
+      var chk = itensGrid.querySelector('input[data-key="' + g.tipo + '"]');
+      return chk && chk.checked;
+    });
+  }
 
   function mesDaGuia_() {
     var m = /^(\d{4})-(\d{2})$/.exec($('competenciaInput').value || '');
@@ -3965,10 +3982,11 @@
             var pedidos = [];
             for (var i = 0; i < p.partes; i++) pedidos.push(ref.collection('partes').doc(String(i)).get());
             Promise.all(pedidos).then(function (ps) {
-              var bin = atob(ps.map(function (x) { return (x.data() || {}).dados || ''; }).join(''));
+              var base64 = ps.map(function (x) { return (x.data() || {}).dados || ''; }).join('');
+              var bin = atob(base64);
               var bytes = new Uint8Array(bin.length);
               for (var k = 0; k < bin.length; k++) bytes[k] = bin.charCodeAt(k);
-              ok(bytes.buffer);
+              ok({ buffer: bytes.buffer, base64: base64, tamanho: bytes.length });
             }).catch(falha);
           }
         }, function (err) { clearTimeout(fim); falha(err); });
@@ -3984,6 +4002,7 @@
   function mostrarBotaoDasGuias_() {
     var pode = !!db && (temPapel('admin') || temPapel('contabil')) && !!selectedClienteId && !!(clientesCache.get(selectedClienteId) || {}).codigoOrigem;
     $('guiasPastaBtn').hidden = !pode;
+    guiasParaAnexar_ = {};
     if (!pode) { $('guiasStatus').hidden = true; }
   }
   $('guiasPastaBtn').addEventListener('click', function () {
@@ -4036,15 +4055,18 @@
       mostrar('Puxando ' + guias.map(function (x) { return x.gp.nome; }).join(' e ') + ' de ' + g.mm + '/' + g.aaaa + ' da pasta do cliente…');
       return guias.reduce(function (antes, x) {
         return antes.then(function () {
-          return lerArquivoDoDrive_(x.arq).then(textoDoPdf_).then(function (texto) {
-            if (selectedClienteId !== c.id) return;
-            aplicarDadosDoPdf_(texto, null, { tipo: x.gp.tipo });
-            trazidas.push(x.gp.nome);
+          return lerArquivoDoDrive_(x.arq).then(function (arquivo) {
+            return textoDoPdf_(arquivo.buffer).then(function (texto) {
+              if (selectedClienteId !== c.id) return;
+              aplicarDadosDoPdf_(texto, null, { tipo: x.gp.tipo });
+              guiasParaAnexar_[x.gp.tipo] = { tipo: x.gp.tipo, nome: x.arq.n, driveId: x.arq.i, tamanho: arquivo.tamanho, pdf: arquivo.tamanho <= LIMITE_PDF_ANEXO ? arquivo.base64 : null };
+              trazidas.push(x.gp.nome);
+            });
           }).catch(function (err) { console.warn('guia da pasta:', x.arq.n, err); });
         });
       }, Promise.resolve()).then(function () {
         if (selectedClienteId !== c.id) { mostrar(''); return; }
-        mostrar(trazidas.length ? trazidas.join(' e ') + ' de ' + g.mm + '/' + g.aaaa + ' vieram da pasta do cliente. Confira os valores.' : '');
+        mostrar(trazidas.length ? trazidas.join(' e ') + ' de ' + g.mm + '/' + g.aaaa + ' vieram da pasta do cliente e vão anexados à entrega. Confira os valores.' : '');
         guiasJaPuxadas_[chave] = false;
         if (!trazidas.length) showToast('Não consegui trazer as guias da pasta do cliente. Adicione à mão.', 'error');
       });
@@ -4988,7 +5010,8 @@
       confirmadoEm: isRota ? null : now
     }, {
       assinatura: (isRota || isFalha) ? null : (mainSigPad.hasSignature ? mainSigPad.dataUrl() : null),
-      foto: fotoDataUrl
+      foto: fotoDataUrl,
+      guias: (isAvulso || isBanco) ? [] : guiasParaAnexarAgora_()
     });
 
     if (isRota && !isLink && cliente && $('zonaSelect').value && cliente.zona !== $('zonaSelect').value) {
@@ -9990,6 +10013,27 @@
           '<button type="button" class="link-btn" data-anexo="foto"><i class="ph ph-download-simple" aria-hidden="true"></i> Salvar foto</button>';
       }
       slot.innerHTML = html || '<p class="card-hint">Sem comprovante anexado.</p>';
+      // as guias anexadas (vieram da pasta do cliente): um botão para baixar o PDF de cada uma
+      db.collection('entregas').doc(entrega.id).collection('anexos').get().then(function (snap) {
+        var guias = snap.docs.filter(function (d) { return d.id.indexOf('guia-') === 0; }).map(function (d) { return d.data(); });
+        if (!guias.length || !$('anexosSlot')) return;
+        var caixa = document.createElement('div');
+        caixa.className = 'guias-anexadas';
+        caixa.innerHTML = guias.map(function (g, i) {
+          return g.pdf
+            ? '<button type="button" class="link-btn" data-guia="' + i + '"><i class="ph ph-file-pdf" aria-hidden="true"></i> Baixar ' + escapeHtml_(g.nome || 'guia.pdf') + '</button>'
+            : '<p class="card-hint"><i class="ph ph-file-pdf" aria-hidden="true"></i> ' + escapeHtml_(g.nome || 'guia') + ' (grande demais para anexar; está na pasta do cliente no Drive)</p>';
+        }).join('');
+        if (slot.querySelector('.card-hint') && !html) slot.innerHTML = '';
+        slot.appendChild(caixa);
+        caixa.querySelectorAll('[data-guia]').forEach(function (b) {
+          b.addEventListener('click', function () {
+            var g = guias[Number(b.dataset.guia)];
+            registrarAuditoria_('guia_baixada', clienteLabel(cliente) + ' · ' + fmtCompetencia(entrega.competencia) + ' · ' + (g.nome || g.tipo));
+            downloadDataUrl('data:application/pdf;base64,' + g.pdf, g.nome || ('guia-' + g.tipo + '.pdf'));
+          });
+        });
+      }).catch(function () {});
 
       // Assinatura e foto são dado de cliente: fica registrado quem abriu e
       // quem baixou, pra ter resposta se um dia alguém questionar o uso.
@@ -12358,7 +12402,7 @@
   // Aba em que o app abre: office boy vive em Solicitações, quem faz rota
   // abre em Rota. Guardar isso evita dois toques toda vez que entra.
 
-  var VERSAO_APP_ = '2.410 · 13/10/2026';
+  var VERSAO_APP_ = '2.411 · 13/10/2026';
   // Configurações do usuário: a janela comum (nilma-config.js), a mesma da
   // Pendências e do Fiscal. 'conta' abre em Minha conta; o resto, em
   // Preferências.
@@ -12863,6 +12907,7 @@
     // os dois somem, ou nenhum some.
     var lote = db.batch();
     lote.delete(ref.collection('anexos').doc('comprovante'));
+    GUIAS_DA_PASTA.forEach(function (gp) { lote.delete(ref.collection('anexos').doc('guia-' + gp.tipo)); });
     lote.delete(ref);
     lote.commit().then(function () {
       portalMudou_(entrega.clienteId);
