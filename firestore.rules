@@ -949,7 +949,8 @@ service cloud.firestore {
         && request.resource.data.criadoPorUid == request.auth.uid
         && request.resource.data.keys().hasOnly(['status', 'modo', 'cnpj', 'codigo', 'empresa', 'competencia', 'criadoEm', 'criadoPor', 'criadoPorUid'])
         && request.resource.data.modo in ['ensaio', 'emitir']
-        && request.resource.data.cnpj is string && request.resource.data.cnpj.matches('^[0-9]{14}$')
+        // o CNPJ, ou o CPF do empregador pessoa física (produtor rural etc., 13/10/2026)
+        && request.resource.data.cnpj is string && request.resource.data.cnpj.matches('^([0-9]{11}|[0-9]{14})$')
         && request.resource.data.competencia is string && request.resource.data.competencia.matches('^[0-9]{4}-(0[1-9]|1[0-2])$');
       // cancelar o pedido (09/10/2026): o DP ou o admin, enquanto está na fila ou com o robô; só o status e quem/quando
       allow update: if (ehAdmin() || doSetor('dp'))
