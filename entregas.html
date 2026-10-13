@@ -3938,7 +3938,25 @@
   var ESPERA_DRIVE_MS = 90000;
   var raizDoDrive_ = null;
   var guiasJaPuxadas_ = {};
-  var GUIAS_DA_PASTA = [{ tipo: 'fgts', palavra: 'FGTS', nome: 'FGTS' }, { tipo: 'darf', palavra: 'DARF', nome: 'DARF' }];
+  // Onde cada guia fica (13/10/2026, também o DAS: "puxar o DAS também"): o robô do FGTS salva em DEPARTAMENTO
+  // PESSOAL / MM / FGTS; a organização arquiva o FGTS em SOCIETÁRIO / IMPOSTOS / FGTS / <ano> ("SETEMBRO 2026.pdf"), o DAS
+  // em FISCAL / SIMPLES NACIONAL / 01. DAS e o DARF em FISCAL / <regime> / 05. DARF. Por isso a guia é achada em qualquer
+  // lugar da pasta, pelo nome da pasta ou do arquivo; a certidão do FGTS fica de fora.
+  var GUIAS_DA_PASTA = [
+    { tipo: 'fgts', nome: 'FGTS', casa: function (p) { var t = p.join(' / '); return t.indexOf('FGTS') !== -1 && t.indexOf('CERTID') === -1; } },
+    { tipo: 'darf', nome: 'DARF', casa: function (p) { return p.join(' / ').indexOf('DARF') !== -1; } },
+    // o DAS: a pasta "01. DAS" (ou "DAS") ou o arquivo que começa com "DAS" — não qualquer nome com "das" no meio
+    { tipo: 'das', nome: 'DAS', casa: function (p) { return p.slice(0, -1).some(function (seg) { return /^(\d+\.\s*)?DAS$/.test(seg); }) || /^DAS[\s._-]/.test(p[p.length - 1]); } }
+  ];
+  var MESES_POR_EXTENSO = ['JANEIRO', 'FEVEREIRO', 'MARCO', 'ABRIL', 'MAIO', 'JUNHO', 'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'];
+  /** o caminho (já normalizado) é do mês da guia? pela pasta "09" ou pelo nome ("09-2026", "06.2026", "SETEMBRO 2026") */
+  function doMesDaGuia_(p, g) {
+    var nome = p[p.length - 1];
+    if (p.slice(0, -1).indexOf(g.mm) !== -1) return true;
+    if (new RegExp('(^|\\D)' + g.mm + '[\\s._/-]?' + g.aaaa + '(\\D|$)').test(nome)) return true;
+    var extenso = MESES_POR_EXTENSO[Number(g.mm) - 1];
+    return nome.indexOf(extenso) !== -1 && nome.indexOf(g.aaaa) !== -1;
+  }
   // As guias puxadas da pasta vão anexadas à entrega (Vitor, 13/10/2026: "quero que fique anexado o documento que foi
   // entregue, já que já tem o PDF"): entregas/{id}/anexos/guia-<tipo>, com o PDF (se couber no documento do banco) e o
   // arquivo do Drive de onde veio. Só vai a guia que ainda estiver nos documentos na hora de gravar.
@@ -4035,10 +4053,9 @@
         itens.forEach(function (it) {
           if (it.t !== 'f' || !/\.pdf$/i.test(it.n)) return;
           var p = caminho(it);
-          if (p[0] !== 'DEPARTAMENTO PESSOAL' || p[1] !== g.mm) return;
-          var tudo = p.join(' / ');
+          if (!doMesDaGuia_(p, g)) return;
           GUIAS_DA_PASTA.forEach(function (gp) {
-            if (tudo.indexOf(gp.palavra) === -1) return;
+            if (!gp.casa(p)) return;
             var atual = achadas[gp.tipo];
             if (!atual || String(it.m || '') > String(atual.arq.m || '')) achadas[gp.tipo] = { gp: gp, arq: it };
           });
@@ -4048,7 +4065,7 @@
     }).then(function (guias) {
       if (!guias.length || selectedClienteId !== c.id) {
         guiasJaPuxadas_[chave] = false;
-        mostrar(selectedClienteId === c.id ? 'Não achei FGTS nem DARF de ' + g.mm + '/' + g.aaaa + ' na pasta do cliente.' : '');
+        mostrar(selectedClienteId === c.id ? 'Não achei FGTS, DARF nem DAS de ' + g.mm + '/' + g.aaaa + ' na pasta do cliente.' : '');
         return;
       }
       var trazidas = [];
@@ -12402,7 +12419,7 @@
   // Aba em que o app abre: office boy vive em Solicitações, quem faz rota
   // abre em Rota. Guardar isso evita dois toques toda vez que entra.
 
-  var VERSAO_APP_ = '2.411 · 13/10/2026';
+  var VERSAO_APP_ = '2.412 · 13/10/2026';
   // Configurações do usuário: a janela comum (nilma-config.js), a mesma da
   // Pendências e do Fiscal. 'conta' abre em Minha conta; o resto, em
   // Preferências.
