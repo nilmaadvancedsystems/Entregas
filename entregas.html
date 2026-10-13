@@ -209,6 +209,7 @@
           <button type="button" class="btn-chip accent" id="docAddBtn" aria-haspopup="dialog" aria-expanded="false" aria-controls="docAddMenu"><i class="ph ph-plus" aria-hidden="true"></i> Adicionar documento</button>
           <div class="docs-planilha" id="docAddMenu" role="dialog" aria-label="Documentos da entrega" hidden></div>
         </div>
+        <div class="field-info" id="guiasStatus" hidden></div>
         <div class="field-error" id="err-itens">Adicione ao menos um documento.</div>
       </div>
 
@@ -3685,7 +3686,11 @@
     else if (ultimoVencimentoAuto_) { campo.value = ''; ultimoVencimentoAuto_ = null; }
   }
 
-  function aplicarDadosDoPdf_(textoBruto, imagemDataUrl) {
+  function aplicarDadosDoPdf_(textoBruto, imagemDataUrl, opcoes) {
+    // opcoes.tipo: o documento já se sabe (a guia veio da pasta do cliente: FGTS ou DARF); nesse caso o cliente e a
+    // competência da entrega ficam como estão (a guia de setembro é entregue em outubro) e o aviso sai uma vez só, no fim
+    opcoes = opcoes || {};
+    var daPasta = !!opcoes.tipo;
     var texto = normalizarTexto_(textoBruto);
     var achados = [];
 
@@ -3697,7 +3702,7 @@
       achados.push('foto');
     }
 
-    var docsEncontrados = texto.match(/\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}|\d{3}\.?\d{3}\.?\d{3}-?\d{2}/g) || [];
+    var docsEncontrados = daPasta ? [] : texto.match(/\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}|\d{3}\.?\d{3}\.?\d{3}-?\d{2}/g) || [];
     var clienteAchado = null;
     for (var i = 0; i < docsEncontrados.length && !clienteAchado; i++) {
       var digitos = docsEncontrados[i].replace(/\D/g, '');
@@ -3710,7 +3715,7 @@
     // dígitos, sem filial/dígito verificador) — não dá pra bater com o
     // documento completo do cadastro. Nesses casos, procura o nome da
     // empresa (ex.: "Razão Social") como texto dentro do PDF.
-    if (!clienteAchado) {
+    if (!clienteAchado && !daPasta) {
       clienteAchado = Array.from(clientesCache.values()).find(function (c) {
         var nome = normalizarTexto_(c.nome || '');
         return nome.length >= 8 && texto.indexOf(nome) !== -1;
@@ -3724,8 +3729,8 @@
       achados.push('cliente');
     }
 
-    var tipoAchado = null;
-    DETECCAO_TIPO.some(function (d) {
+    var tipoAchado = opcoes.tipo || null;
+    if (!tipoAchado) DETECCAO_TIPO.some(function (d) {
       if (d.kws.some(function (kw) { return texto.indexOf(kw) !== -1; })) { tipoAchado = d.key; return true; }
       return false;
     });
@@ -3736,7 +3741,7 @@
     }
 
     var comp = extrairCompetencia_(textoBruto);
-    if (comp) {
+    if (comp && !daPasta) {
       $('competenciaInput').value = comp.ano + '-' + String(comp.mes).padStart(2, '0');
       achados.push('competência');
     }
@@ -3773,6 +3778,7 @@
     }
 
     salvarRascunho_();
+    if (daPasta) return achados;
     $('pdfStatus').textContent = '';
     var semImagem = achados.indexOf('foto') === -1;
     showToast((achados.length
@@ -3912,6 +3918,125 @@
     var file = e.target.files[0];
     if (file) processarPdf_(file);
   });
+
+  // ---------- as guias do DP que já estão na pasta do cliente (13/10/2026) ----------
+  // Vitor: "quero que ele puxe as guias de FGTS e DARF da pasta do cliente caso já tenha salvo lá… e é só clicar em
+  // adicionar na rota sem precisar escrever nada". Ao escolher o cliente: acha a pasta dele no mapa do Drive que o robô
+  // da nuvem mantém (driveIndice), procura em DEPARTAMENTO PESSOAL / <mês da guia> os PDFs de FGTS e DARF (o mais novo
+  // de cada), o robô traz cada um (aberturasDrive, modo "ler", como no Creditor) e o leitor de PDF de sempre põe o
+  // documento, o valor, o vencimento e o código de pagamento. O mês da guia é o anterior ao da entrega (a guia de
+  // setembro é entregue em outubro). O mapa do Drive é só de admin e contábil: para os outros, nada acontece.
+  var ESPERA_DRIVE_MS = 90000;
+  var raizDoDrive_ = null;
+  var guiasJaPuxadas_ = {};
+  var GUIAS_DA_PASTA = [{ tipo: 'fgts', palavra: 'FGTS', nome: 'FGTS' }, { tipo: 'darf', palavra: 'DARF', nome: 'DARF' }];
+
+  function mesDaGuia_() {
+    var m = /^(\d{4})-(\d{2})$/.exec($('competenciaInput').value || '');
+    var d = m ? new Date(Number(m[1]), Number(m[2]) - 1, 1) : new Date();
+    d.setMonth(d.getMonth() - 1);
+    return { mm: String(d.getMonth() + 1).padStart(2, '0'), aaaa: String(d.getFullYear()) };
+  }
+  function itensDaPastaDoDrive_(pastaId) {
+    return db.collection('driveIndice').doc(pastaId).collection('partes').get().then(function (snap) {
+      var itens = [];
+      snap.docs.slice().sort(function (a, b) { return Number(a.id) - Number(b.id); }).forEach(function (p) { itens = itens.concat(p.data().itens || []); });
+      return itens;
+    });
+  }
+  function lerArquivoDoDrive_(arq) {
+    var u = auth.currentUser;
+    return db.collection('aberturasDrive').add({
+      status: 'pendente', fileId: arq.i, nome: arq.n, modo: 'ler',
+      criadoEm: new Date().toISOString(), criadoPor: String((u && u.email) || '').replace(/@nilma\.local$/, '') || 'entregas', criadoPorUid: u.uid
+    }).then(function (ref) {
+      return new Promise(function (ok, falha) {
+        var parar = function () {};
+        var fim = setTimeout(function () { parar(); falha(new Error('o robô do Drive não respondeu a tempo')); }, ESPERA_DRIVE_MS);
+        parar = ref.onSnapshot(function (d) {
+          var p = d.data() || {};
+          if (p.status === 'erro') { clearTimeout(fim); parar(); falha(new Error(p.erro || 'o robô não trouxe o arquivo')); }
+          if (p.status === 'pronto') {
+            clearTimeout(fim); parar();
+            if (!p.partes) { falha(new Error('o robô não entregou o arquivo para leitura')); return; }
+            var pedidos = [];
+            for (var i = 0; i < p.partes; i++) pedidos.push(ref.collection('partes').doc(String(i)).get());
+            Promise.all(pedidos).then(function (ps) {
+              var bin = atob(ps.map(function (x) { return (x.data() || {}).dados || ''; }).join(''));
+              var bytes = new Uint8Array(bin.length);
+              for (var k = 0; k < bin.length; k++) bytes[k] = bin.charCodeAt(k);
+              ok(bytes.buffer);
+            }).catch(falha);
+          }
+        }, function (err) { clearTimeout(fim); falha(err); });
+      });
+    });
+  }
+  function textoDoPdf_(buffer) {
+    return pdfjsLib.getDocument({ data: new Uint8Array(buffer) }).promise
+      .then(function (pdf) { return pdf.getPage(1); })
+      .then(function (page) { return page.getTextContent(); })
+      .then(function (tc) { return tc.items.map(function (it) { return it.str; }).join(' '); });
+  }
+  function puxarGuiasDaPasta_(c) {
+    if (!db || !c || !(temPapel('admin') || temPapel('contabil')) || typeof pdfjsLib === 'undefined') return;
+    var codigo = String(c.codigoOrigem || '').trim();
+    if (!codigo) return;
+    var g = mesDaGuia_();
+    var chave = c.id + '|' + g.aaaa + '-' + g.mm;
+    if (guiasJaPuxadas_[chave]) return;
+    guiasJaPuxadas_[chave] = true;
+    var status = $('guiasStatus');
+    var mostrar = function (t) { status.textContent = t; status.hidden = !t; };
+    mostrar('Procurando as guias de ' + g.mm + '/' + g.aaaa + ' na pasta do cliente…');
+    (raizDoDrive_ ? Promise.resolve(raizDoDrive_) : db.collection('driveIndice').doc('raiz').get().then(function (d) {
+      raizDoDrive_ = (d.exists && d.data().clientes) || [];
+      return raizDoDrive_;
+    })).then(function (pastas) {
+      var pasta = pastas.find(function (p) { return String(p.codigo).trim() === codigo; });
+      if (!pasta) return [];
+      return itensDaPastaDoDrive_(pasta.id).then(function (itens) {
+        var porId = {};
+        itens.forEach(function (it) { porId[it.i] = it; });
+        var caminho = function (it) { var p = [], x = it, n = 0; while (x && n++ < 20) { p.unshift(normalizarTexto_(x.n)); x = porId[x.p]; } return p; };
+        var achadas = {};
+        itens.forEach(function (it) {
+          if (it.t !== 'f' || !/\.pdf$/i.test(it.n)) return;
+          var p = caminho(it);
+          if (p[0] !== 'DEPARTAMENTO PESSOAL' || p[1] !== g.mm) return;
+          var tudo = p.join(' / ');
+          GUIAS_DA_PASTA.forEach(function (gp) {
+            if (tudo.indexOf(gp.palavra) === -1) return;
+            var atual = achadas[gp.tipo];
+            if (!atual || String(it.m || '') > String(atual.arq.m || '')) achadas[gp.tipo] = { gp: gp, arq: it };
+          });
+        });
+        return GUIAS_DA_PASTA.map(function (gp) { return achadas[gp.tipo]; }).filter(Boolean);
+      });
+    }).then(function (guias) {
+      if (!guias.length || selectedClienteId !== c.id) { mostrar(''); return; }
+      var trazidas = [];
+      mostrar('Puxando ' + guias.map(function (x) { return x.gp.nome; }).join(' e ') + ' de ' + g.mm + '/' + g.aaaa + ' da pasta do cliente…');
+      return guias.reduce(function (antes, x) {
+        return antes.then(function () {
+          return lerArquivoDoDrive_(x.arq).then(textoDoPdf_).then(function (texto) {
+            if (selectedClienteId !== c.id) return;
+            aplicarDadosDoPdf_(texto, null, { tipo: x.gp.tipo });
+            trazidas.push(x.gp.nome);
+          }).catch(function (err) { console.warn('guia da pasta:', x.arq.n, err); });
+        });
+      }, Promise.resolve()).then(function () {
+        if (selectedClienteId !== c.id) { mostrar(''); return; }
+        mostrar(trazidas.length ? trazidas.join(' e ') + ' de ' + g.mm + '/' + g.aaaa + ' vieram da pasta do cliente. Confira os valores.' : '');
+        if (!trazidas.length) { guiasJaPuxadas_[chave] = false; showToast('Não consegui trazer as guias da pasta do cliente. Adicione à mão.', 'error'); }
+      });
+    }).catch(function (err) {
+      mostrar('');
+      guiasJaPuxadas_[chave] = false;
+      // sem acesso ao mapa do Drive (quem não é admin nem contábil): fica como estava, sem aviso
+      if (!(err && err.code === 'permission-denied')) console.warn('guias da pasta:', err);
+    });
+  }
 
   // ---------- geolocation ----------
   // Sem enableHighAccuracy o navegador costuma devolver localização por
@@ -4558,6 +4683,7 @@
         aplicarZonaDoCliente_(c);
         oferecerRepetirMesPassado_(c);
         atualizarCampoHonorarioPix_();
+        puxarGuiasDaPasta_(c);
       });
       suggestionsEl.appendChild(btn);
     });
@@ -12209,7 +12335,7 @@
   // Aba em que o app abre: office boy vive em Solicitações, quem faz rota
   // abre em Rota. Guardar isso evita dois toques toda vez que entra.
 
-  var VERSAO_APP_ = '2.408 · 29/09/2026';
+  var VERSAO_APP_ = '2.409 · 13/10/2026';
   // Configurações do usuário: a janela comum (nilma-config.js), a mesma da
   // Pendências e do Fiscal. 'conta' abre em Minha conta; o resto, em
   // Preferências.
