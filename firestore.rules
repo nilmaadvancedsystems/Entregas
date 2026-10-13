@@ -1176,6 +1176,25 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // "Buscar no e-mail" do nads (Bancos, 13/10/2026): o pedido de busca (remetente e período recebido) e o de trazer
+    // um anexo que a própria busca listou. O robô (buscas-email.js) responde no pedido e põe o anexo em partes; tudo
+    // some em 30 min. Só admin ou contábil pede, e cada um lê só o seu.
+    match /buscasEmail/{id} {
+      function doPedido() { return (ehAdmin() || temPapel('contabil')) && membroNoNads(); }
+      allow read: if doPedido() && resource.data.criadoPorUid == request.auth.uid;
+      allow create: if doPedido()
+        && request.resource.data.status == 'pendente'
+        && request.resource.data.criadoPorUid == request.auth.uid
+        && request.resource.data.tipo in ['buscar', 'trazer']
+        && request.resource.data.keys().hasOnly(['tipo', 'status', 'remetente', 'de', 'ate', 'caixa', 'mensagemId', 'anexoId', 'nome', 'criadoEm', 'criadoPor', 'criadoPorUid'])
+        && request.resource.data.get('remetente', '') is string && request.resource.data.get('remetente', '').size() <= 120;
+      allow update, delete: if false;
+      match /partes/{n} {
+        allow read: if doPedido() && get(/databases/$(database)/documents/buscasEmail/$(id)).data.criadoPorUid == request.auth.uid;
+        allow write: if false;
+      }
+    }
+
     // O que foi arquivado: só leitura. Quem escreve é o arquivador, a partir
     // do manifesto da própria rotina.
     match /arquivamentos/{id} {
