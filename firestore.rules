@@ -1176,6 +1176,13 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // O painel dos agentes do Claude Code (nads, Cadastro › Agentes; 13/10/2026): o robô do PC grava o estado de cada
+    // sessão (o projeto, o último pedido, o que cada agente faz e as últimas ações, só o resumo); só o admin lê.
+    match /painelAgentes/{id} {
+      allow read: if ehAdmin();
+      allow write: if false;
+    }
+
     // "Buscar no e-mail" do nads (Bancos, 13/10/2026): o pedido de busca (remetente e período recebido) e o de trazer
     // um anexo que a própria busca listou. O robô (buscas-email.js) responde no pedido e põe o anexo em partes; tudo
     // some em 30 min. Só admin ou contábil pede, e cada um lê só o seu.
