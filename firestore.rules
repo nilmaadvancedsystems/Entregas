@@ -1183,6 +1183,42 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // O painel dos agentes por computador (14/10/2026, decisão do Vitor: só admin; o texto do pedido vai junto; só
+    // entram computadores cadastrados no nads). painelMaquinas/{chave}: o id do documento É a chave secreta do
+    // computador (aleatória, gerada no nads › Cadastro › Sistema e agentes); só o admin lê e grava. Cada computador
+    // grava o resumo vivo de cada conversa do Claude Code em sessoes/{sessão} SEM login (o gancho registro.js, pela
+    // REST): vale só se a chave do caminho existe e o computador não foi desativado, com campos e tamanhos limitados.
+    match /painelMaquinas/{chave} {
+      allow read, write: if ehAdmin();
+
+      match /sessoes/{sessao} {
+        function maquinaAtiva() {
+          return chave.size() >= 32
+            && exists(/databases/$(database)/documents/painelMaquinas/$(chave))
+            && get(/databases/$(database)/documents/painelMaquinas/$(chave)).data.get('ativo', true) != false;
+        }
+        function textoAte(campo, max) {
+          return request.resource.data.get(campo, '') is string && request.resource.data.get(campo, '').size() <= max;
+        }
+        function agoraValido(a) {
+          return a == null || (a is map && a.keys().hasOnly(['ferramenta', 'texto', 'ts'])
+            && a.get('ferramenta', '') is string && a.get('ferramenta', '').size() <= 120
+            && a.get('texto', '') is string && a.get('texto', '').size() <= 300
+            && a.get('ts', '') is string && a.get('ts', '').size() <= 40);
+        }
+        allow read, delete: if ehAdmin();
+        allow create, update: if maquinaAtiva()
+          && sessao.size() <= 64
+          && request.resource.data.keys().hasOnly(['titulo', 'cwd', 'pedido', 'aviso', 'status', 'nivel', 'modelo', 'ultimo', 'agora', 'agentes'])
+          && textoAte('titulo', 200) && textoAte('cwd', 300) && textoAte('pedido', 400) && textoAte('aviso', 400)
+          && textoAte('modelo', 80) && textoAte('ultimo', 40)
+          && request.resource.data.get('status', '') in ['', 'trabalhando', 'esperando', 'parado', 'encerrada']
+          && request.resource.data.get('nivel', '') in ['', 'rapido', 'padrao', 'forte']
+          && agoraValido(request.resource.data.get('agora', null))
+          && request.resource.data.get('agentes', []) is list && request.resource.data.get('agentes', []).size() <= 8;
+      }
+    }
+
     // "Buscar no e-mail" do nads (Bancos, 13/10/2026): o pedido de busca (remetente e período recebido) e o de trazer
     // um anexo que a própria busca listou. O robô (buscas-email.js) responde no pedido e põe o anexo em partes; tudo
     // some em 30 min. Só admin ou contábil pede, e cada um lê só o seu.
