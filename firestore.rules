@@ -433,6 +433,20 @@ service cloud.firestore {
       allow write: if ehAdmin();
     }
 
+    // ---------- a legislação do DP no nads (14/10/2026) ----------
+    // As cadastradas no nads e as do Toriba editadas (id 'toriba-<n>'): a equipe lê; o DP e o admin criam e editam;
+    // ninguém apaga. Só os campos do texto e quem/quando.
+    match /legislacaoDp/{id} {
+      allow read: if membro();
+      allow create, update: if (ehAdmin() || doSetor('dp'))
+        && request.resource.data.keys().hasOnly(['assunto', 'texto', 'observacoes', 'data', 'atualizadoEm', 'atualizadoPor'])
+        && request.resource.data.assunto is string && request.resource.data.assunto.size() > 0 && request.resource.data.assunto.size() <= 200
+        && request.resource.data.texto is string && request.resource.data.texto.size() > 0 && request.resource.data.texto.size() <= 200000
+        && request.resource.data.observacoes is string && request.resource.data.observacoes.size() <= 20000
+        && request.resource.data.data is string && request.resource.data.data.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+      allow delete: if false;
+    }
+
     // ---------- honorários: exceção do mês ----------
     // Nem todo cliente tem honorário/boleto TODO mês (alguns são
     // bimestrais, sazonais, ou simplesmente não devem nada naquele mês).
