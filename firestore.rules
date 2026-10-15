@@ -955,6 +955,18 @@ service cloud.firestore {
       }
     }
 
+    // A situação das notas na SEFAZ (15/10/2026): o robô da máquina do Google (nads/robo/situacao-notas.js, pelo Admin SDK)
+    // consulta cada NF-e, NFC-e e CT-e emitida do mês pela chave, com o certificado do escritório, e grava o andamento e o
+    // resultado no próprio pedido. Quem pede é o fiscal (ou o admin), só com estes campos; o resto o robô escreve.
+    match /pedidosSituacao/{id} {
+      allow read: if ehAdmin() || temPapel('fiscal');
+      allow create: if (ehAdmin() || temPapel('fiscal'))
+        && request.resource.data.status == 'pendente'
+        && request.resource.data.criadoPorUid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['status', 'codigo', 'competencia', 'criadoEm', 'criadoPor', 'criadoPorUid']);
+      allow update, delete: if false;
+    }
+
     // O FGTS Digital no DP do nads (07/10/2026): o robô da máquina do Google (nads/robo/fgts-digital.js, pelo Admin SDK)
     // entra no portal com o certificado do escritório e emite a guia mensal do cliente. Quem pede é o DP (ou o admin),
     // só com estes campos; o andamento, o resultado, o PDF (arquivo/pdf) e as fotos das telas (telas/) o robô escreve.
