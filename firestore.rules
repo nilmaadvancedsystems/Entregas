@@ -911,7 +911,9 @@ service cloud.firestore {
         // robo/sieg (o robô do SIEG ligado ou não): o fiscal também lê (06/10/2026)
         || (doc == 'sieg' && temPapel('fiscal'))
         // robo/fgts (o robô do FGTS Digital ligado e de quem é o certificado do escritório): o DP lê (07/10/2026)
-        || (doc == 'fgts' && doSetor('dp'));
+        || (doc == 'fgts' && doSetor('dp'))
+        // robo/nfse (o emissor de notas do financeiro ligado e o certificado): o diretor lê (15/10/2026)
+        || (doc == 'nfse' && ehDiretorNads());
       allow write: if false;
     }
 
@@ -1260,6 +1262,50 @@ service cloud.firestore {
     // "Buscar no e-mail" do nads (Bancos, 13/10/2026): o pedido de busca (remetente e período recebido) e o de trazer
     // um anexo que a própria busca listou. O robô (buscas-email.js) responde no pedido e põe o anexo em partes; tudo
     // some em 30 min. Só admin ou contábil pede, e cada um lê só o seu.
+    // ---------- o emissor de NFS-e do financeiro (15/10/2026) ----------
+    // As notas de honorários da Nilma (Taiobeiras, E&L), emitidas pelo robô da nuvem com o certificado do escritório.
+    // O admin e o diretor do nads pedem a nota (status 'pedida', só estes campos), voltam uma recusada para a fila com
+    // as correções e pedem o cancelamento de uma autorizada; o resto (dps, chave, XML, erros) só o robô grava (Admin SDK).
+    function ehDiretorNads() {
+      return membroNoNads() && (ehAdmin() || meuDoc().get('nivel', '') == 'diretor');
+    }
+    function pedidoDeNotaOk(d) {
+      return d.tomador is map && d.tomador.keys().hasOnly(['documento', 'nome', 'email', 'fone', 'endereco'])
+        && d.tomador.documento is string && d.tomador.documento.matches('^([0-9]{11}|[0-9]{14})$')
+        && d.tomador.nome is string && d.tomador.nome.size() >= 2 && d.tomador.nome.size() <= 150
+        && d.servico is map && d.servico.keys().hasOnly(['descricao', 'valor', 'competencia'])
+        && d.servico.descricao is string && d.servico.descricao.size() >= 5 && d.servico.descricao.size() <= 2000
+        && d.servico.valor is number && d.servico.valor > 0 && d.servico.valor < 10000000
+        && d.servico.competencia is string && d.servico.competencia.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+    }
+    match /nfseEmissoes/{id} {
+      allow read: if ehDiretorNads();
+      allow create: if ehDiretorNads()
+        && request.resource.data.status == 'pedida'
+        && request.resource.data.ambiente in ['homologacao', 'producao']
+        && request.resource.data.pedidoPorUid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['status', 'ambiente', 'tomador', 'servico', 'empresaCodigo', 'pedidoPor', 'pedidoPorUid', 'pedidoEm'])
+        && pedidoDeNotaOk(request.resource.data);
+      allow update: if ehDiretorNads() && (
+        // a recusada volta para a fila, com as correções (o robô reenvia com o mesmo número de DPS)
+        (resource.data.status == 'erro' && request.resource.data.status == 'pedida'
+          && so(['status', 'erros', 'atualizadoEm', 'tomador', 'servico']) && pedidoDeNotaOk(request.resource.data))
+        // o cancelamento da autorizada (ou de novo, se a prefeitura recusou o pedido de cancelamento)
+        || (resource.data.status in ['autorizada', 'erro-cancelamento'] && request.resource.data.status == 'cancelamento-pedido'
+          && so(['status', 'cancelamento'])
+          && request.resource.data.cancelamento.cMotivo in ['1', '2', '9']
+          && request.resource.data.cancelamento.motivo is string && request.resource.data.cancelamento.motivo.size() >= 15 && request.resource.data.cancelamento.motivo.size() <= 255));
+      allow delete: if false;
+    }
+    // o token da prefeitura: o admin grava e ninguém lê pelo app (só o robô, pelo Admin SDK)
+    match /segredos/{doc} {
+      allow read: if false;
+      allow create, update: if ehAdmin() && membroNoNads() && doc == 'nfse'
+        && request.resource.data.keys().hasOnly(['token', 'gravadoEm', 'gravadoPor'])
+        && request.resource.data.token is string && request.resource.data.token.size() >= 10 && request.resource.data.token.size() <= 200;
+      allow delete: if false;
+    }
+
     match /buscasEmail/{id} {
       function doPedido() { return (ehAdmin() || temPapel('contabil')) && membroNoNads(); }
       allow read: if doPedido() && resource.data.criadoPorUid == request.auth.uid;
