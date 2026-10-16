@@ -1302,6 +1302,11 @@ service cloud.firestore {
         // a recusada volta para a fila, com as correções (o robô reenvia com o mesmo número de DPS)
         (resource.data.status == 'erro' && request.resource.data.status == 'pedida'
           && so(['status', 'erros', 'atualizadoEm', 'tomador', 'servico']) && pedidoDeNotaOk(request.resource.data))
+        // mandar a nota autorizada por e-mail (de novo ou para outro endereço): só o pedido; o robô envia e apaga (15/10/2026)
+        || (resource.data.status == 'autorizada' && so(['envioEmail'])
+          && request.resource.data.envioEmail.keys().hasOnly(['para', 'pedidoPor', 'pedidoEm'])
+          && request.resource.data.envioEmail.para is string && request.resource.data.envioEmail.para.size() <= 150
+          && request.resource.data.envioEmail.para.matches('^[^@ ]+@[^@ ]+[.][^@ ]+$'))
         // o cancelamento da autorizada (ou de novo, se a prefeitura recusou o pedido de cancelamento)
         || (resource.data.status in ['autorizada', 'erro-cancelamento'] && request.resource.data.status == 'cancelamento-pedido'
           && so(['status', 'cancelamento'])
