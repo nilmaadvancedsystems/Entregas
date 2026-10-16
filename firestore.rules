@@ -1009,6 +1009,14 @@ service cloud.firestore {
         && resource.data.status in ['pendente', 'trabalhando', 'verificacao']
         && request.resource.data.status == 'cancelado'
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'canceladoEm', 'canceladoPor']);
+      // liberar a guia com aviso para a Área do Cliente (16/10/2026): o DP, o admin ou o diretor do nads marcam
+      // liberadoCliente = true, com quem e quando; não mexem em mais nada do pedido (nem desmarcam: só o robô)
+      allow update: if (ehAdmin() || doSetor('dp') || ehDiretorNads())
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['liberadoCliente', 'liberadoPor', 'liberadoEm'])
+        && request.resource.data.liberadoCliente == true
+        && request.resource.data.liberadoPor is string && request.resource.data.liberadoPor.size() > 0 && request.resource.data.liberadoPor.size() <= 200
+        && (request.resource.data.liberadoEm == request.time
+          || (request.resource.data.liberadoEm is string && request.resource.data.liberadoEm.size() <= 40));
       allow delete: if false;
       match /{parte}/{doc} {
         allow read: if ehAdmin() || doSetor('dp');
@@ -1163,13 +1171,21 @@ service cloud.firestore {
       allow create: if doEnvio()
         && request.resource.data.status == 'enviando'
         && request.resource.data.criadoPorUid == request.auth.uid
-        && request.resource.data.keys().hasOnly(['status', 'nome', 'tamanho', 'partes', 'competencia', 'cliente', 'codigo', 'criadoEm', 'criadoPor', 'criadoPorUid'])
+        && request.resource.data.keys().hasOnly(['status', 'nome', 'tamanho', 'partes', 'competencia', 'cliente', 'codigo', 'criadoEm', 'criadoPor', 'criadoPorUid',
+             'guia', 'vencimento', 'valor'])
         && request.resource.data.nome is string && request.resource.data.nome.size() <= 200
         && request.resource.data.tamanho is int && request.resource.data.tamanho > 0 && request.resource.data.tamanho <= 26214400
         && request.resource.data.partes is int && request.resource.data.partes >= 1 && request.resource.data.partes <= 30
         && request.resource.data.competencia is string && request.resource.data.competencia.matches('20[0-9]{2}-(0[1-9]|1[0-2])')
         && request.resource.data.cliente is string && request.resource.data.cliente.size() <= 150
-        && request.resource.data.codigo is string && request.resource.data.codigo.size() <= 20;
+        && request.resource.data.codigo is string && request.resource.data.codigo.size() <= 20
+        // a guia que vai para a Área do Cliente (16/10/2026), opcional: qual (DAS ou DAE), o vencimento (dd/mm/aaaa) e o
+        // valor como está na guia (texto). Só no envio da equipe; o do cliente pelo Mandei, logo abaixo, não leva.
+        && (!('guia' in request.resource.data) || request.resource.data.guia in ['DAS', 'DAE'])
+        && (!('vencimento' in request.resource.data) || (request.resource.data.vencimento is string
+          && request.resource.data.vencimento.matches('^(0[1-9]|[12][0-9]|3[01])/(0[1-9]|1[0-2])/20[0-9]{2}$')))
+        && (!('valor' in request.resource.data) || (request.resource.data.valor is string
+          && request.resource.data.valor.size() > 0 && request.resource.data.valor.size() <= 30));
       // só o "subi tudo": enviando -> pendente
       allow update: if doEnvio() && resource.data.criadoPorUid == request.auth.uid
         && resource.data.status == 'enviando' && request.resource.data.status == 'pendente'
@@ -1397,6 +1413,144 @@ service cloud.firestore {
         allow update: if false;
         allow delete: if conversaEhMinha();
       }
+    }
+
+    // ---------- Área do Cliente (SEM LOGIN, link secreto por empresa; 16/10/2026) ----------
+    // Contrato: nads-pub/docs/area-do-cliente/contrato.md. O cliente abre cliente.nilmacontabilidade.com com um token
+    // NOVO (40 hex aleatórios, separado do portal do Entregas) e lê SÓ o espelho areasCliente/{token}/..., que o robô
+    // grava pelo Admin SDK com lista branca de campos. Ele nunca lê coleção interna. O que ele manda (chamado, arquivo)
+    // entra numa caixa de entrada onde só se CRIA; o robô valida, processa e apaga. Revogar o link = apagar o documento
+    // do link: o espelho deixa de abrir na hora (toda leitura dele exige que o link exista) e as caixas recusam o token.
+    function tokenDaArea(t) {
+      return t is string && t.matches('^[0-9a-f]{40}$')
+        && exists(/databases/$(database)/documents/areasCliente/$(t));
+    }
+    // a hora que o cliente manda: a do servidor (serverTimestamp) ou um texto ISO curto
+    function horaDoCliente(v) {
+      return v == request.time || (v is string && v.size() <= 40);
+    }
+
+    // O link. Gerar, trocar (criar outro e apagar o antigo) e revogar: só o admin e os diretores do nads.
+    // Sem `list` pra quem não tem login: com ele, um estranho varria a coleção e ficava com todos os links.
+    match /areasCliente/{token} {
+      function espelhoVale() {
+        return exists(/databases/$(database)/documents/areasCliente/$(token));
+      }
+      // o cliente lê o próprio link só se ele existe (link revogado = negado, não um documento vazio)
+      allow get: if resource != null || ehDiretorNads();
+      allow list: if ehDiretorNads();
+      allow create: if ehDiretorNads()
+        && token.matches('^[0-9a-f]{40}$')
+        && request.resource.data.keys().hasOnly(['codigos', 'nome', 'criadoEm', 'criadoPor', 'atualizadoEm'])
+        && request.resource.data.codigos is list && request.resource.data.codigos.size() >= 1 && request.resource.data.codigos.size() <= 50
+        && request.resource.data.codigos[0] is int
+        && request.resource.data.nome is string && request.resource.data.nome.size() > 0 && request.resource.data.nome.size() <= 200;
+      // corrigir as empresas ou o nome do link; quem criou e quando não mudam
+      allow update: if ehDiretorNads()
+        && request.resource.data.keys().hasOnly(['codigos', 'nome', 'criadoEm', 'criadoPor', 'atualizadoEm'])
+        && naoMexeuEm(['criadoEm', 'criadoPor'])
+        && request.resource.data.codigos is list && request.resource.data.codigos.size() >= 1 && request.resource.data.codigos.size() <= 50
+        && request.resource.data.codigos[0] is int
+        && request.resource.data.nome is string && request.resource.data.nome.size() > 0 && request.resource.data.nome.size() <= 200;
+      allow delete: if ehDiretorNads();
+
+      // O espelho: só o robô grava. Quem tem o token lê (get e list) enquanto o link existe (espelhoVale, acima).
+      match /resumo/{doc} {
+        allow get, list: if espelhoVale();
+        allow write: if false;
+      }
+      match /guias/{guia} {
+        allow get, list: if espelhoVale();
+        allow write: if false;
+        // o PDF da guia, em pedaços de até 700 KB ({ base64, n, total })
+        match /pdf/{n} {
+          allow get, list: if espelhoVale();
+          allow write: if false;
+        }
+      }
+      // um documento por mês do VENCIMENTO (AAAA-MM)
+      match /agenda/{mes} {
+        allow get, list: if espelhoVale();
+        allow write: if false;
+      }
+      // o recibo de cada arquivo que o cliente mandou
+      match /envios/{envio} {
+        allow get, list: if espelhoVale();
+        allow write: if false;
+      }
+      // o chamado como o cliente vê (o autor do escritório vira "Escritório"; nota interna não sai)
+      match /chamados/{chamado} {
+        allow get, list: if espelhoVale();
+        allow write: if false;
+      }
+      // documentos do escritório para o cliente (futuro)
+      match /documentos/{documento} {
+        allow get, list: if espelhoVale();
+        allow write: if false;
+      }
+    }
+
+    // Para o nads achar o link de cada empresa (pelo código do ERP). Só a equipe lê; o admin e os diretores gravam.
+    match /areasClientePorEmpresa/{codigo} {
+      allow read: if membroNoNads();
+      allow create, update: if ehDiretorNads()
+        && codigo.matches('^[0-9]{1,10}$')
+        && request.resource.data.keys().hasOnly(['token', 'atualizadoEm'])
+        && request.resource.data.token is string && request.resource.data.token.matches('^[0-9a-f]{40}$');
+      allow delete: if ehDiretorNads();
+    }
+
+    // Caixa de entrada dos chamados (sem login): abrir um chamado novo ou responder um que já existe (chamadoId, que tem
+    // de estar no espelho DESTE link: ninguém responde chamado de outra empresa). Só cria; ninguém lê, muda nem apaga
+    // pelo app — o robô valida, cria/atualiza chamados/{id} e apaga daqui.
+    match /areaClienteChamados/{id} {
+      allow create: if tokenDaArea(request.resource.data.get('token', null))
+        && request.resource.data.keys().hasAll(['token', 'tipo', 'texto', 'criadoEm'])
+        && request.resource.data.keys().hasOnly(['token', 'chamadoId', 'tipo', 'titulo', 'texto', 'criadoEm'])
+        && request.resource.data.tipo in ['admissao', 'ferias', 'demissao', 'duvida', 'documento', 'outro']
+        && request.resource.data.texto is string && request.resource.data.texto.size() > 0 && request.resource.data.texto.size() <= 4000
+        && (!('titulo' in request.resource.data) || (request.resource.data.titulo is string && request.resource.data.titulo.size() <= 120))
+        && (!('chamadoId' in request.resource.data) || (request.resource.data.chamadoId is string
+          && request.resource.data.chamadoId.matches('^[A-Za-z0-9_-]{1,64}$')
+          && exists(/databases/$(database)/documents/areasCliente/$(request.resource.data.token)/chamados/$(request.resource.data.chamadoId))))
+        && horaDoCliente(request.resource.data.criadoEm);
+      allow read, update, delete: if false;
+    }
+
+    // Caixa de entrada dos arquivos (sem login): o arquivo vem inteiro no documento, em base64. 700 KB de arquivo viram
+    // ~956 mil letras em base64, por isso o teto do texto é 960 mil (o documento não passa de 1 MB). Só cria; o robô
+    // guarda no Drive do cliente, registra em areaClienteRecebidos, devolve o recibo no espelho e apaga daqui.
+    match /areaClienteEnvios/{id} {
+      allow create: if tokenDaArea(request.resource.data.get('token', null))
+        && request.resource.data.keys().hasAll(['token', 'nome', 'tipo', 'mime', 'tamanho', 'base64', 'criadoEm'])
+        && request.resource.data.keys().hasOnly(['token', 'nome', 'tipo', 'mime', 'tamanho', 'base64', 'criadoEm'])
+        && request.resource.data.nome is string && request.resource.data.nome.size() > 0 && request.resource.data.nome.size() <= 200
+        && request.resource.data.tipo in ['extrato', 'nota', 'comprovante', 'outro']
+        // PDF, JPG, PNG, XML e ZIP (os que a tela aceita); a tela manda o tipo pela extensão
+        && request.resource.data.mime in ['application/pdf', 'image/jpeg', 'image/png', 'application/xml', 'text/xml',
+             'application/zip', 'application/x-zip-compressed']
+        && request.resource.data.tamanho is int && request.resource.data.tamanho > 0 && request.resource.data.tamanho <= 716800
+        && request.resource.data.base64 is string && request.resource.data.base64.size() > 0 && request.resource.data.base64.size() <= 960000
+        && horaDoCliente(request.resource.data.criadoEm);
+      allow read, update, delete: if false;
+    }
+
+    // O chamado de verdade (interno): o robô cria a partir da caixa de entrada e copia para o espelho. A equipe no nads
+    // lê e responde (as mensagens), muda a situação e carimba a hora; de quem é o chamado (token, códigos, empresa,
+    // tipo, título) e quando abriu não mudam. Ninguém cria nem apaga pelo app.
+    match /chamados/{id} {
+      allow read: if membroNoNads();
+      allow update: if membroNoNads()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['mensagens', 'situacao', 'atualizadoEm'])
+        && request.resource.data.situacao in ['aberto', 'em andamento', 'respondido', 'concluido']
+        && request.resource.data.mensagens is list && request.resource.data.mensagens.size() <= 500;
+      allow create, delete: if false;
+    }
+
+    // O que o cliente mandou e o robô já guardou no Drive dele (nome, tipo, tamanho, a pasta): a equipe lê; só o robô grava.
+    match /areaClienteRecebidos/{id} {
+      allow read: if membroNoNads();
+      allow write: if false;
     }
 
     // ---------- porta fechada ----------
