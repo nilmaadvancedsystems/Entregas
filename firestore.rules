@@ -814,6 +814,41 @@ service cloud.firestore {
         allow delete: if ehAdmin();
       }
     }
+    // O sênior no Cadastro do nads (19/10/2026, pedido do Vitor: "os sênior possam ver e mexer no cadastro das empresas e
+    // enviar feedbacks"): o cadastro acima já é de quem está no nads (o app é que mostra o Cadastro só ao admin, ao diretor
+    // e, agora, ao sênior); apagar a empresa continua só do admin e o Link do cliente (areasCliente) só do admin e do diretor.
+    function ehSeniorNads() {
+      return membroNoNads() && (ehAdmin() || meuDoc().get('nivel', '') in ['diretor', 'senior']);
+    }
+    // Os feedbacks sobre a empresa (19/10/2026): o recado para a equipe na ficha da empresa, com a prioridade. A equipe do
+    // nads lê; o sênior, o diretor e o admin escrevem, sempre em nome próprio (autorUid == quem grava) e com a hora do
+    // servidor; marcar como resolvido (ou reabrir) e apagar, só o autor, o diretor ou o admin. empresa = o id do cadastro.
+    match /feedbacksEmpresa/{id} {
+      function doAutorOuDiretor() {
+        return resource.data.autorUid == request.auth.uid || ehDiretorNads();
+      }
+      allow read: if membroNoNads();
+      allow create: if ehSeniorNads()
+        && request.resource.data.keys().hasOnly(['empresa', 'codigo', 'texto', 'prioridade', 'autorUid', 'autorNome', 'criadoEm', 'resolvido'])
+        && request.resource.data.keys().hasAll(['empresa', 'codigo', 'texto', 'prioridade', 'autorUid', 'autorNome', 'criadoEm', 'resolvido'])
+        && request.resource.data.empresa is string && request.resource.data.empresa.matches('^[a-z0-9-]{1,120}$')
+        && (request.resource.data.codigo == null || (request.resource.data.codigo is int && request.resource.data.codigo >= 0 && request.resource.data.codigo <= 99999999))
+        && request.resource.data.texto is string && request.resource.data.texto.size() >= 1 && request.resource.data.texto.size() <= 1000
+        && request.resource.data.prioridade in ['baixa', 'media', 'alta']
+        && request.resource.data.autorUid == request.auth.uid
+        && request.resource.data.autorNome is string && request.resource.data.autorNome.size() >= 1 && request.resource.data.autorNome.size() <= 80
+        && request.resource.data.criadoEm == request.time
+        && request.resource.data.resolvido == false;
+      allow update: if membroNoNads() && doAutorOuDiretor()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['resolvido', 'resolvidoPor', 'resolvidoEm'])
+        && ((request.resource.data.resolvido == true
+              && request.resource.data.get('resolvidoPor', '') is string
+              && request.resource.data.get('resolvidoPor', '').size() >= 1 && request.resource.data.get('resolvidoPor', '').size() <= 80
+              && request.resource.data.get('resolvidoEm', null) == request.time)
+          || (request.resource.data.resolvido == false
+              && !('resolvidoPor' in request.resource.data) && !('resolvidoEm' in request.resource.data)));
+      allow delete: if membroNoNads() && doAutorOuDiretor();
+    }
 
     // Balancete do cliente (29/09/2026): só o texto das contas, subido em
     // Clientes e ajustes; o Creditor do Extratudo lê pela ponte do Entregas.
