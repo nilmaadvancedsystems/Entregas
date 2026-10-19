@@ -1306,6 +1306,15 @@ service cloud.firestore {
         && d.servico.valor is number && d.servico.valor > 0 && d.servico.valor < 10000000
         && d.servico.competencia is string && d.servico.competencia.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
     }
+    // O financeiro do escritório no nads (19/10/2026): o movimento de caixa (financeiroCaixa; o histórico veio do Toriba)
+    // e o plano de contas (financeiroPlano). Só o diretor (ou o admin) do nads lê e grava, como as notas dos honorários.
+    match /financeiroCaixa/{id} {
+      allow read, write: if ehDiretorNads();
+    }
+    match /financeiroPlano/{id} {
+      allow read, write: if ehDiretorNads();
+    }
+
     match /nfseEmissoes/{id} {
       allow read: if ehDiretorNads();
       allow create: if ehDiretorNads()
