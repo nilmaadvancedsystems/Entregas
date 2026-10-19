@@ -1349,6 +1349,14 @@ service cloud.firestore {
     match /financeiroPlano/{id} {
       allow read, write: if ehDiretorNads();
     }
+    // os honorários a receber (19/10/2026): o cliente e o valor (financeiroHonorarios) e o que foi recebido em cada mês
+    // (financeiroRecebimentos/{contrato}_{AAAA-MM}); sem vencimento, só pago ou em aberto
+    match /financeiroHonorarios/{id} {
+      allow read, write: if ehDiretorNads();
+    }
+    match /financeiroRecebimentos/{id} {
+      allow read, write: if ehDiretorNads();
+    }
 
     match /nfseEmissoes/{id} {
       allow read: if ehDiretorNads();
