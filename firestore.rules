@@ -729,9 +729,26 @@ service cloud.firestore {
         && request.resource.data.imagem is string && request.resource.data.imagem.size() <= 900000
         // a prioridade que quem manda escolhe (19/10/2026, pedido do Vitor); sem ela, o nads antigo ainda aberto continua mandando
         && (!('prioridade' in request.resource.data) || request.resource.data.prioridade in ['baixa', 'media', 'alta'])
-        && request.resource.data.keys().hasOnly(['uid', 'nome', 'email', 'texto', 'imagem', 'tela', 'versao', 'criadoEm', 'status', 'prioridade']);
+        // o bug do suporte de leitura (20/10/2026, pedido do Vitor): o balão manda tipo 'bug', a conversa (caminho), o
+        // contexto (empresa, tela, meses), o arquivo (nome, tamanho, pedaços) e analise 'pendente'; o robô do PC do
+        // escritório (Admin SDK) investiga e escreve o report
+        && (!('tipo' in request.resource.data) || request.resource.data.tipo == 'bug')
+        && (!('caminho' in request.resource.data) || (request.resource.data.caminho is string && request.resource.data.caminho.size() <= 500))
+        && (!('contexto' in request.resource.data) || request.resource.data.contexto is map)
+        && (!('arquivo' in request.resource.data) || request.resource.data.arquivo is map)
+        && (!('analise' in request.resource.data) || request.resource.data.analise == 'pendente')
+        && request.resource.data.keys().hasOnly(['uid', 'nome', 'email', 'texto', 'imagem', 'tela', 'versao', 'criadoEm', 'status', 'prioridade', 'tipo', 'caminho', 'contexto', 'arquivo', 'analise']);
       allow update: if ehAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
       allow delete: if ehAdmin();
+      // o arquivo do bug, em pedaços (como o enviosSecretario): quem mandou o bug grava; só o admin lê (para baixar)
+      match /partes/{n} {
+        allow read: if ehAdmin();
+        allow create: if membroNoNads()
+          && get(/databases/$(database)/documents/feedbacks/$(id)).data.uid == request.auth.uid
+          && request.resource.data.keys().hasOnly(['dados'])
+          && request.resource.data.dados is bytes && request.resource.data.dados.size() <= 950000;
+        allow delete: if ehAdmin();
+      }
     }
     match /nadsPedidos/{id} {
       allow read: if membro() && (ehAdmin() || resource.data.uid == request.auth.uid);
