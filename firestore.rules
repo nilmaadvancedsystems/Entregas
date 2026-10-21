@@ -909,13 +909,24 @@ service cloud.firestore {
         || (doc == 'estado' && usaCaixa('robo'))
         || (doc == 'caixa-contabil' && usaCaixa('contabil'))
         || (doc == 'caixa-fiscal' && usaCaixa('fiscal'))
-        || (temPapel('contabil') && !(doc in ['caixa-fiscal', 'gmailEstado-fiscal']))
+        || (temPapel('contabil') && !(doc in ['caixa-fiscal', 'gmailEstado-fiscal', 'painelPC', 'painelVM']))
         // robo/sieg (o robô do SIEG ligado ou não): o fiscal também lê (06/10/2026)
         || (doc == 'sieg' && temPapel('fiscal'))
         // robo/fgts (o robô do FGTS Digital ligado e de quem é o certificado do escritório): o DP lê (07/10/2026)
         || (doc == 'fgts' && doSetor('dp'))
         // robo/nfse (o emissor de notas do financeiro ligado e o certificado): o diretor lê (15/10/2026)
-        || (doc == 'nfse' && ehDiretorNads());
+        || (doc == 'nfse' && ehDiretorNads())
+        // robo/painelPC e robo/painelVM (o painel do robô, 21/10/2026): o batimento de cada robô, o que está fazendo, as
+        // filas e o que foi arquivado. Só o admin e o diretor (o contábil, que lê o resto de robo/*, fica de fora)
+        || (doc in ['painelPC', 'painelVM'] && ehDiretorNads());
+      allow write: if false;
+    }
+
+    // A atividade do robô (o painel do robô, 21/10/2026): uma linha por coisa que o robô do PC ou o da nuvem fez
+    // (arquivou, emitiu a guia, baixou os XMLs, deu erro), com o texto curto e o detalhe. Só o admin e o diretor leem;
+    // quem grava e apaga (as de mais de 7 dias) é o robô, pelo Admin SDK.
+    match /roboAtividade/{id} {
+      allow read: if ehAdmin() || ehDiretorNads();
       allow write: if false;
     }
 
