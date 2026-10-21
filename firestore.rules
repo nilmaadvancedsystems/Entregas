@@ -948,7 +948,10 @@ service cloud.firestore {
         || (doc == 'estado' && usaCaixa('robo'))
         || (doc == 'caixa-contabil' && usaCaixa('contabil'))
         || (doc == 'caixa-fiscal' && usaCaixa('fiscal'))
-        || (temPapel('contabil') && !(doc in ['caixa-fiscal', 'gmailEstado-fiscal', 'painelPC', 'painelVM']))
+        // robo/saudeBanco (o site do admin, 21/10/2026): o resumo diário da saúde do banco (o tamanho das coleções, os
+        // órfãos, o uso por dia, o armazenamento e a hospedagem), que o robô da nuvem grava. Só o admin (o ehAdmin() de
+        // cima): fica de fora do que o contábil lê
+        || (temPapel('contabil') && !(doc in ['caixa-fiscal', 'gmailEstado-fiscal', 'painelPC', 'painelVM', 'saudeBanco']))
         // robo/sieg (o robô do SIEG ligado ou não): o fiscal também lê (06/10/2026)
         || (doc == 'sieg' && temPapel('fiscal'))
         // robo/fgts (o robô do FGTS Digital ligado e de quem é o certificado do escritório): o DP lê (07/10/2026)
