@@ -951,7 +951,9 @@ service cloud.firestore {
         // robo/saudeBanco (o site do admin, 21/10/2026): o resumo diário da saúde do banco (o tamanho das coleções, os
         // órfãos, o uso por dia, o armazenamento e a hospedagem), que o robô da nuvem grava. Só o admin (o ehAdmin() de
         // cima): fica de fora do que o contábil lê
-        || (temPapel('contabil') && !(doc in ['caixa-fiscal', 'gmailEstado-fiscal', 'painelPC', 'painelVM', 'saudeBanco']))
+        // robo/arquivadorNovo (o arquivador novo, 22/10/2026): o config dele e o acompanhamento que o site do admin mostra
+        // (os arquivos de cada cliente, o porquê de cada decisão, os não identificados). Só o admin (o ehAdmin() de cima)
+        || (temPapel('contabil') && !(doc in ['caixa-fiscal', 'gmailEstado-fiscal', 'painelPC', 'painelVM', 'saudeBanco', 'arquivadorNovo']))
         // robo/sieg (o robô do SIEG ligado ou não): o fiscal também lê (06/10/2026)
         || (doc == 'sieg' && temPapel('fiscal'))
         // robo/fgts (o robô do FGTS Digital ligado e de quem é o certificado do escritório): o DP lê (07/10/2026)
@@ -961,6 +963,13 @@ service cloud.firestore {
         // robo/painelPC e robo/painelVM (o painel do robô, 21/10/2026): o batimento de cada robô, o que está fazendo, as
         // filas e o que foi arquivado. Só o admin e o diretor (o contábil, que lê o resto de robo/*, fica de fora)
         || (doc in ['painelPC', 'painelVM'] && ehDiretorNads());
+      allow write: if false;
+    }
+    // O histórico do dia do arquivador novo (Admin › Arquivador, 22/10/2026): robo/arquivadorNovo/dias/{AAAA-MM-DD}-{n},
+    // as partes com cada arquivo decidido no dia (o nome, o cliente, o destino e o porquê). Só o admin lê; quem grava é o
+    // robô do PC, pelo Admin SDK.
+    match /robo/arquivadorNovo/dias/{parte} {
+      allow read: if ehAdmin();
       allow write: if false;
     }
 
