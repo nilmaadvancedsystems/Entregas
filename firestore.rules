@@ -973,6 +973,13 @@ service cloud.firestore {
       allow read: if ehAdmin();
       allow write: if false;
     }
+    // O resumo de cada mês do arquivador novo (Admin › Arquivador › Arquivados, 23/10/2026: "um acompanhamento de todo
+    // período"): robo/arquivadorNovo/meses/{AAAA-MM}, as contagens por ação, tipo e cliente e as de cada dia. Só o admin
+    // lê; quem grava é o robô do PC, pelo Admin SDK.
+    match /robo/arquivadorNovo/meses/{mes} {
+      allow read: if ehAdmin();
+      allow write: if false;
+    }
 
     // A atividade do robô (o painel do robô, 21/10/2026): uma linha por coisa que o robô do PC ou o da nuvem fez
     // (arquivou, emitiu a guia, baixou os XMLs, deu erro), com o texto curto e o detalhe. Só o admin e o diretor leem;
