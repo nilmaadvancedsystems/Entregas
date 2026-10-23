@@ -1145,9 +1145,14 @@ service cloud.firestore {
     match /pedidosArquivador/{id} {
       allow read: if ehAdmin();
       allow create: if ehAdmin()
-        && request.resource.data.keys().hasOnly(['tipo', 'rel', 'hash', 'nome', 'codigo', 'tipoDoc', 'competencia', 'pedidoPor', 'pedidoPorUid', 'criadoEm', 'status'])
+        && request.resource.data.keys().hasOnly(['tipo', 'rel', 'hash', 'nome', 'codigo', 'tipoDoc', 'competencia', 'lembrar', 'pedidoPor', 'pedidoPorUid', 'criadoEm', 'status'])
         && request.resource.data.keys().hasAll(['tipo', 'rel', 'hash', 'pedidoPorUid', 'criadoEm', 'status'])
-        && request.resource.data.tipo in ['abrir', 'previa', 'arquivar', 'descartar']
+        // grupoPrevia / grupo (23/10/2026, a migração): Para resolver em grupos pela causa e pela pasta de origem; rel = a
+        // pasta do grupo, hash = o id do grupo; o mesmo cliente e tipo para o grupo inteiro; lembrar (só no grupo) = a
+        // decisão vira regra do mapa da migração no PC do robô
+        && request.resource.data.tipo in ['abrir', 'previa', 'arquivar', 'descartar', 'grupoPrevia', 'grupo']
+        && (!('lembrar' in request.resource.data) || (request.resource.data.lembrar is bool && request.resource.data.tipo == 'grupo'))
+        && (!(request.resource.data.tipo in ['grupoPrevia', 'grupo']) || ('codigo' in request.resource.data && 'tipoDoc' in request.resource.data))
         && request.resource.data.status == 'pendente'
         && request.resource.data.pedidoPorUid == request.auth.uid
         && request.resource.data.criadoEm == request.time
