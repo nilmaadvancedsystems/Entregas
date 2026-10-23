@@ -953,7 +953,8 @@ service cloud.firestore {
         // cima): fica de fora do que o contábil lê
         // robo/arquivadorNovo (o arquivador novo, 22/10/2026): o config dele e o acompanhamento que o site do admin mostra
         // (os arquivos de cada cliente, o porquê de cada decisão, os não identificados). Só o admin (o ehAdmin() de cima)
-        || (temPapel('contabil') && !(doc in ['caixa-fiscal', 'gmailEstado-fiscal', 'painelPC', 'painelVM', 'saudeBanco', 'arquivadorNovo']))
+        // robo/arquivadorNovoCadastro (23/10/2026): os clientes e os tipos do formulário "Arquivar em…" do admin
+        || (temPapel('contabil') && !(doc in ['caixa-fiscal', 'gmailEstado-fiscal', 'painelPC', 'painelVM', 'saudeBanco', 'arquivadorNovo', 'arquivadorNovoCadastro']))
         // robo/sieg (o robô do SIEG ligado ou não): o fiscal também lê (06/10/2026)
         || (doc == 'sieg' && temPapel('fiscal'))
         // robo/fgts (o robô do FGTS Digital ligado e de quem é o certificado do escritório): o DP lê (07/10/2026)
@@ -1126,6 +1127,35 @@ service cloud.firestore {
     // inicial; quem muda status, liga execução e grava resposta é o arquivador,
     // pelo Admin SDK. A única mudança permitida pela tela é cancelar um pedido
     // que ainda não começou.
+    // Os pedidos do Admin › Arquivador ao robô do PC (23/10/2026: "coloca um botão para abrir o arquivo direto daqui e
+    // selecionar para onde vai também"): abrir o arquivo, a prévia do destino, arquivar em… e descartar. Só o admin cria
+    // e lê, com as chaves travadas, o tipo da lista, o status "pendente", o uid dele e a hora do servidor; o robô responde
+    // e apaga (pelo Admin SDK) depois de 30 min. As partes (o conteúdo do arquivo aberto) só o admin lê.
+    match /pedidosArquivador/{id} {
+      allow read: if ehAdmin();
+      allow create: if ehAdmin()
+        && request.resource.data.keys().hasOnly(['tipo', 'rel', 'hash', 'nome', 'codigo', 'tipoDoc', 'competencia', 'pedidoPor', 'pedidoPorUid', 'criadoEm', 'status'])
+        && request.resource.data.keys().hasAll(['tipo', 'rel', 'hash', 'pedidoPorUid', 'criadoEm', 'status'])
+        && request.resource.data.tipo in ['abrir', 'previa', 'arquivar', 'descartar']
+        && request.resource.data.status == 'pendente'
+        && request.resource.data.pedidoPorUid == request.auth.uid
+        && request.resource.data.criadoEm == request.time
+        && request.resource.data.rel is string && request.resource.data.rel.size() > 0 && request.resource.data.rel.size() <= 400
+        && request.resource.data.hash is string && request.resource.data.hash.size() > 0 && request.resource.data.hash.size() <= 80
+        && (!('nome' in request.resource.data) || (request.resource.data.nome is string && request.resource.data.nome.size() <= 200))
+        && (!('pedidoPor' in request.resource.data) || (request.resource.data.pedidoPor is string && request.resource.data.pedidoPor.size() <= 80))
+        && (!('codigo' in request.resource.data) || (request.resource.data.codigo is int && request.resource.data.codigo > 0 && request.resource.data.codigo < 100000))
+        && (!('tipoDoc' in request.resource.data) || (request.resource.data.tipoDoc is string && request.resource.data.tipoDoc.matches('^[A-Z_]{2,30}$')))
+        && (!('competencia' in request.resource.data) || (request.resource.data.competencia is string && request.resource.data.competencia.matches('^[0-9]{4}(-[0-9]{2})?$')))
+        && (request.resource.data.tipo != 'arquivar' || ('codigo' in request.resource.data && 'tipoDoc' in request.resource.data))
+        && (request.resource.data.tipo != 'previa' || ('codigo' in request.resource.data && 'tipoDoc' in request.resource.data));
+      allow update, delete: if false;
+      match /partes/{n} {
+        allow read: if ehAdmin();
+        allow write: if false;
+      }
+    }
+
     match /solicitacoesArquivo/{id} {
       allow read: if ehAdmin() || temPapel('contabil');
       allow create: if (ehAdmin() || temPapel('contabil'))
