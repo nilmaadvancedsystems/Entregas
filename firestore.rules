@@ -1427,6 +1427,14 @@ service cloud.firestore {
     match /financeiroRecebimentos/{id} {
       allow read, write: if ehDiretorNads();
     }
+    // o extrato do banco (23/10/2026: a Conciliação virou o importador de extrato, à parte do Caixa): as linhas
+    // (financeiroBanco, o id fixo pelo banco, data, valor e histórico) e as importações (financeiroBancoImportacoes)
+    match /financeiroBanco/{id} {
+      allow read, write: if ehDiretorNads();
+    }
+    match /financeiroBancoImportacoes/{id} {
+      allow read, write: if ehDiretorNads();
+    }
 
     match /nfseEmissoes/{id} {
       allow read: if ehDiretorNads();
