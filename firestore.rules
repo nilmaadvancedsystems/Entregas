@@ -963,7 +963,11 @@ service cloud.firestore {
         || (doc == 'nfse' && ehDiretorNads())
         // robo/painelPC e robo/painelVM (o painel do robô, 21/10/2026): o batimento de cada robô, o que está fazendo, as
         // filas e o que foi arquivado. Só o admin e o diretor (o contábil, que lê o resto de robo/*, fica de fora)
-        || (doc in ['painelPC', 'painelVM'] && ehDiretorNads());
+        || (doc in ['painelPC', 'painelVM'] && ehDiretorNads())
+        // robo/arquivadorResumo (a janela do Arquivador no Drive da Tarefas, 23/10/2026): o resumo pequeno do arquivador
+        // novo (o modo, o que está fazendo, os números de hoje, quantos estão para resolver, o último arquivado pelo nome
+        // final padronizado; nunca o nome original). O admin e o contábil (pelo papel ou pelo setor do Cadastro do nads)
+        || (doc == 'arquivadorResumo' && doSetor('contabil'));
       allow write: if false;
     }
     // O histórico do dia do arquivador novo (Admin › Arquivador, 22/10/2026): robo/arquivadorNovo/dias/{AAAA-MM-DD}-{n},
