@@ -1189,10 +1189,11 @@ service cloud.firestore {
     // Mapa da pasta do ano no Drive (scripts/drive-indice.js). Só leitura, e
     // só pra quem vê o Arquivo: é a lista de documentos de todos os clientes.
     match /driveIndice/{id} {
-      allow read: if ehAdmin() || temPapel('contabil');
+      // o Drive liberado para toda a equipe do nads (26/10/2026: "libera o drive para todos os usuarios"); antes, o admin e o contábil
+      allow read: if membroNoNads();
       allow write: if false;
       match /partes/{n} {
-        allow read: if ehAdmin() || temPapel('contabil');
+        allow read: if membroNoNads();
         allow write: if false;
       }
     }
@@ -1200,8 +1201,8 @@ service cloud.firestore {
     // "Atualizar o mapa" pedido pelo nads (Tarefas › Drive; scripts/drive-indice.js). Cada um só lê o seu;
     // pastaId vazio = a pasta do ano inteira. O robô responde no próprio pedido.
     match /pedidosMapaDrive/{id} {
-      allow read: if (ehAdmin() || temPapel('contabil')) && resource.data.criadoPorUid == request.auth.uid;
-      allow create: if (ehAdmin() || temPapel('contabil'))
+      allow read: if membroNoNads() && resource.data.criadoPorUid == request.auth.uid;
+      allow create: if membroNoNads()
         && request.resource.data.status == 'pendente'
         && request.resource.data.criadoPorUid == request.auth.uid
         && request.resource.data.keys().hasOnly(['status', 'pastaId', 'criadoEm', 'criadoPor', 'criadoPorUid'])
@@ -1227,8 +1228,8 @@ service cloud.firestore {
     // Pedido pra abrir um arquivo do Drive pelo app (scripts/abrir-do-drive.js).
     // Cada um só lê o próprio pedido: a resposta traz o link do arquivo.
     match /aberturasDrive/{id} {
-      allow read: if (ehAdmin() || temPapel('contabil')) && resource.data.criadoPorUid == request.auth.uid;
-      allow create: if (ehAdmin() || temPapel('contabil'))
+      allow read: if membroNoNads() && resource.data.criadoPorUid == request.auth.uid;
+      allow create: if membroNoNads()
         && request.resource.data.status == 'pendente'
         && request.resource.data.criadoPorUid == request.auth.uid
         && request.resource.data.fileId is string
@@ -1243,7 +1244,7 @@ service cloud.firestore {
       allow update, delete: if false;
       // o conteúdo do modo 'ler', que o robô grava: só quem pediu lê
       match /partes/{n} {
-        allow read: if (ehAdmin() || temPapel('contabil')) && resource.data.uid == request.auth.uid;
+        allow read: if membroNoNads() && resource.data.uid == request.auth.uid;
         allow write: if false;
       }
     }
@@ -1275,7 +1276,7 @@ service cloud.firestore {
     }
 
     match /enviosSecretario/{id} {
-      function doEnvio() { return (ehAdmin() || temPapel('contabil')) && membroNoNads(); }
+      function doEnvio() { return membroNoNads(); }
       function meu() { return get(/databases/$(database)/documents/enviosSecretario/$(id)).data.criadoPorUid == request.auth.uid; }
       allow read: if doEnvio() && resource.data.criadoPorUid == request.auth.uid;
       allow create: if doEnvio()
