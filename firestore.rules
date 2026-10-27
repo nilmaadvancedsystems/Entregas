@@ -436,6 +436,37 @@ service cloud.firestore {
     // ---------- a legislação do DP no nads (14/10/2026) ----------
     // As cadastradas no nads e as do Toriba editadas (id 'toriba-<n>'): a equipe lê; o DP e o admin criam e editam;
     // ninguém apaga. Só os campos do texto e quem/quando.
+    // o controle de tributos do Fiscal (27/10/2026: a folha do Protocolo de Entrega de Tributos preenchida no nads): a
+    // linha de cada empresa no mês ({AAAA-MM}_{código}) e o fim da folha de cada grupo ({AAAA-MM}_{sn|lp}: as observações
+    // e a retificação). Toda a equipe do nads lê; o Fiscal e o admin gravam (sem apagar)
+    function gravaControleTributos() {
+      return membroNoNads() && (ehAdmin() || doSetor('fiscal'));
+    }
+    match /controleTributos/{id} {
+      allow read: if membroNoNads();
+      allow create, update: if gravaControleTributos()
+        && id.matches('^20[0-9]{2}-(0[1-9]|1[0-2])_[0-9]{1,6}$')
+        && request.resource.data.keys().hasOnly(['competencia', 'codigo', 'grupo', 'valores', 'data', 'marcas', 'entregue', 'atualizadoEm', 'atualizadoPor'])
+        && request.resource.data.competencia == id.split('_')[0]
+        && request.resource.data.codigo is int && string(request.resource.data.codigo) == id.split('_')[1]
+        && request.resource.data.grupo in ['sn', 'lp']
+        && request.resource.data.valores is map && request.resource.data.valores.size() <= 12
+        && request.resource.data.marcas is map && request.resource.data.marcas.size() <= 8
+        && request.resource.data.data is string && request.resource.data.data.size() <= 10
+        && request.resource.data.entregue in ['', 'impresso', 'zap', 'email', 'nao']
+        && request.resource.data.atualizadoEm is string && request.resource.data.atualizadoEm.size() <= 40
+        && request.resource.data.atualizadoPor is string && request.resource.data.atualizadoPor.size() <= 100;
+    }
+    match /controleTributosFolha/{id} {
+      allow read: if membroNoNads();
+      allow create, update: if gravaControleTributos()
+        && id.matches('^20[0-9]{2}-(0[1-9]|1[0-2])_(sn|lp)$')
+        && request.resource.data.keys().hasOnly(['observacoes', 'retificacoes', 'atualizadoEm', 'atualizadoPor'])
+        && request.resource.data.observacoes is list && request.resource.data.observacoes.size() <= 30
+        && request.resource.data.retificacoes is list && request.resource.data.retificacoes.size() <= 30
+        && request.resource.data.atualizadoEm is string && request.resource.data.atualizadoEm.size() <= 40
+        && request.resource.data.atualizadoPor is string && request.resource.data.atualizadoPor.size() <= 100;
+    }
     match /legislacaoDp/{id} {
       allow read: if membro();
       allow create, update: if (ehAdmin() || doSetor('dp'))
