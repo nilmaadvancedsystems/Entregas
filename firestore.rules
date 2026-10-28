@@ -764,6 +764,24 @@ service cloud.firestore {
     }
     // os feedbacks do nads (07/10/2026): quem está no nads manda o seu (o print vai no próprio documento, até ~900 KB);
     // só o admin lê todos e marca visto/feito
+    // o mural de avisos do escritório, no Início da Tarefas (27/10/2026): toda a equipe no nads lê; só o admin e o diretor
+    // criam (texto de 1 a 1000 caracteres, quem e quando), fixam/soltam (só o campo fixado) e apagam
+    function escreveAvisos() {
+      return membroNoNads() && (ehAdmin() || meuDoc().get('nivel', '') == 'diretor');
+    }
+    match /nadsAvisos/{id} {
+      allow read: if membroNoNads();
+      allow create: if escreveAvisos()
+        && request.resource.data.keys().hasOnly(['texto', 'por', 'em', 'fixado'])
+        && request.resource.data.texto is string && request.resource.data.texto.size() > 0 && request.resource.data.texto.size() <= 1000
+        && request.resource.data.por is string && request.resource.data.por.size() <= 120
+        && request.resource.data.em is string && request.resource.data.em.size() <= 40
+        && request.resource.data.fixado == false;
+      allow update: if escreveAvisos()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['fixado'])
+        && request.resource.data.fixado is bool;
+      allow delete: if escreveAvisos();
+    }
     match /feedbacks/{id} {
       allow read: if ehAdmin() || (membro() && resource.data.uid == request.auth.uid);
       allow create: if membroNoNads()
