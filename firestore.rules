@@ -782,6 +782,68 @@ service cloud.firestore {
         && request.resource.data.fixado is bool;
       allow delete: if escreveAvisos();
     }
+    // o delegador de tarefas do nads (28/10/2026, o "Minhas Tarefas" do Toriba): toda a equipe no nads lê (a Central de
+    // cada um busca as suas pelo campo pessoas; o número da tarefa nova vem do maior que existe); quem cria é o criadaPor
+    // (o próprio login), sem pareceres e sem anexos, com pessoas = [quem criou, o responsável]; mudam quem criou e o
+    // responsável (sem trocar quem criou, o número e a data de criação); apagam quem criou e o admin. Os anexos vão em
+    // pedaços em partes/{anexo}-{n} (até 950 KB cada; o nads limita 10 MB por arquivo, 20 arquivos e 30 MB por tarefa):
+    // gravam quem criou e o responsável; apagam eles e o admin; lê a equipe no nads.
+    function pessoaDaTarefaValida(p) {
+      return p is map && p.keys().hasOnly(['uid', 'nome'])
+        && p.uid is string && p.uid.size() > 0 && p.uid.size() <= 128
+        && p.nome is string && p.nome.size() <= 120;
+    }
+    function tarefaDelegadaValida(d) {
+      return d.keys().hasOnly(['numero', 'titulo', 'descricao', 'cliente', 'prioridade', 'prazo', 'status', 'criadaPor', 'responsavel',
+          'pessoas', 'criadaEm', 'concluidaEm', 'atualizadaEm', 'pareceres', 'historico', 'anexos'])
+        && d.keys().hasAll(['numero', 'titulo', 'descricao', 'cliente', 'prioridade', 'prazo', 'status', 'criadaPor', 'responsavel',
+          'pessoas', 'criadaEm', 'concluidaEm', 'atualizadaEm', 'pareceres', 'historico', 'anexos'])
+        && d.numero is int && d.numero > 0
+        && d.titulo is string && d.titulo.size() > 0 && d.titulo.size() <= 200
+        && d.descricao is string && d.descricao.size() <= 5000
+        && (d.cliente == null || (d.cliente is map && d.cliente.keys().hasOnly(['codigo', 'nome'])
+          && d.cliente.nome is string && d.cliente.nome.size() > 0 && d.cliente.nome.size() <= 200
+          && (d.cliente.get('codigo', null) == null || d.cliente.codigo is int)))
+        && d.prioridade in ['baixa', 'normal', 'alta', 'urgente']
+        && d.prazo is string && (d.prazo == '' || d.prazo.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$'))
+        && d.status in ['pendente', 'andamento', 'cancelada', 'concluida']
+        && pessoaDaTarefaValida(d.criadaPor) && pessoaDaTarefaValida(d.responsavel)
+        && d.pessoas is list && d.pessoas.size() >= 1 && d.pessoas.size() <= 2
+        && d.pessoas.hasAll([d.criadaPor.uid, d.responsavel.uid])
+        && d.criadaEm is string && d.criadaEm.size() > 0 && d.criadaEm.size() <= 40
+        && d.concluidaEm is string && d.concluidaEm.size() <= 40
+        && d.atualizadaEm is string && d.atualizadaEm.size() <= 40
+        && d.pareceres is list && d.pareceres.size() <= 200
+        && d.historico is list && d.historico.size() <= 300
+        && d.anexos is list && d.anexos.size() <= 20;
+    }
+    // quem está logado é quem criou ou o responsável da tarefa (a regra dos pedaços olha a tarefa, que precisa existir)
+    function daTarefaDelegada(id) {
+      let t = get(/databases/$(database)/documents/nadsTarefasDelegadas/$(id)).data;
+      return t.criadaPor.uid == request.auth.uid || t.responsavel.uid == request.auth.uid;
+    }
+    match /nadsTarefasDelegadas/{id} {
+      allow read: if membroNoNads();
+      allow create: if membroNoNads()
+        && tarefaDelegadaValida(request.resource.data)
+        && request.resource.data.criadaPor.uid == request.auth.uid
+        && request.resource.data.pareceres.size() == 0
+        && request.resource.data.anexos.size() == 0;
+      allow update: if membroNoNads()
+        && (resource.data.criadaPor.uid == request.auth.uid || resource.data.responsavel.uid == request.auth.uid)
+        && tarefaDelegadaValida(request.resource.data)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['titulo', 'descricao', 'cliente', 'prioridade', 'prazo', 'status',
+          'responsavel', 'pessoas', 'concluidaEm', 'atualizadaEm', 'pareceres', 'historico', 'anexos']);
+      allow delete: if membroNoNads() && (resource.data.criadaPor.uid == request.auth.uid || ehAdmin());
+      match /partes/{parte} {
+        allow read: if membroNoNads();
+        allow create: if membroNoNads() && daTarefaDelegada(id)
+          && parte.matches('^[A-Za-z0-9]{1,40}-[0-9]{1,3}$')
+          && request.resource.data.keys().hasOnly(['dados'])
+          && request.resource.data.dados is bytes && request.resource.data.dados.size() <= 950000;
+        allow delete: if membroNoNads() && (ehAdmin() || daTarefaDelegada(id));
+      }
+    }
     match /feedbacks/{id} {
       allow read: if ehAdmin() || (membro() && resource.data.uid == request.auth.uid);
       allow create: if membroNoNads()
