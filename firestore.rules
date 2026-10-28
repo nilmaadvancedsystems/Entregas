@@ -432,6 +432,13 @@ service cloud.firestore {
       allow read: if membro();
       allow write: if ehAdmin();
     }
+    // o modelo do e-mail do nads › DP › Envios (28/10/2026, como o e-mail da NFS-e): o DP também grava, só o assunto e o texto
+    match /config/envioDp {
+      allow write: if (ehAdmin() || doSetor('dp'))
+        && request.resource.data.keys().hasOnly(['assunto', 'texto', 'atualizadoEm', 'atualizadoPor'])
+        && request.resource.data.get('assunto', '') is string && request.resource.data.get('assunto', '').size() <= 200
+        && request.resource.data.get('texto', '') is string && request.resource.data.get('texto', '').size() <= 5000;
+    }
 
     // ---------- a legislação do DP no nads (14/10/2026) ----------
     // As cadastradas no nads e as do Toriba editadas (id 'toriba-<n>'): a equipe lê; o DP e o admin criam e editam;
