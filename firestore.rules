@@ -1252,6 +1252,46 @@ service cloud.firestore {
     // só pra quem vê o Arquivo: é a lista de documentos de todos os clientes.
     // os documentos do DP de cada mês nas pastas dos clientes (nads › DP › Envios, 27/10/2026): só o robô grava
     // (robo/envios-do-dp.js, a cada releitura da pasta); a equipe do nads lê, como o mapa do Drive
+    // o lote do nads › DP › Envios (28/10/2026): o DP e o admin sobem os arquivos (em pedaços), revisam (a escolha do
+    // cliente, do tipo e da competência, ou tirar do lote) e pedem o disparo; o robô lê, dispara, grava no Drive e responde
+    // no próprio lote (robo/lote-dp.js). A pessoa só mexe no status de enviando para pendente e de lido/disparado para disparar
+    function fazLoteDp() {
+      return membroNoNads() && (ehAdmin() || doSetor('dp'));
+    }
+    match /lotesDp/{lote} {
+      allow read: if fazLoteDp();
+      allow create: if fazLoteDp() && request.resource.data.criadoPorUid == request.auth.uid
+        && request.resource.data.status == 'enviando'
+        && request.resource.data.keys().hasOnly(['status', 'criadoEm', 'criadoPor', 'criadoPorUid', 'total'])
+        && request.resource.data.total is int && request.resource.data.total > 0 && request.resource.data.total <= 150;
+      allow update: if fazLoteDp() && (
+        (resource.data.status == 'enviando' && request.resource.data.status == 'pendente'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']))
+        || (resource.data.status in ['lido', 'disparado'] && request.resource.data.status == 'disparar'
+          && request.resource.data.disparadoPorUid == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'disparadoPor', 'disparadoPorUid', 'pedidoEm'])));
+      allow delete: if false;
+      match /arquivos/{k} {
+        allow read: if fazLoteDp();
+        allow create: if fazLoteDp() && k.matches('^[0-9]{1,3}$')
+          && request.resource.data.keys().hasOnly(['nome', 'tamanho', 'partes', 'status'])
+          && request.resource.data.status == 'enviando'
+          && request.resource.data.nome is string && request.resource.data.nome.size() <= 200
+          && request.resource.data.tamanho is int && request.resource.data.tamanho <= 26214400
+          && request.resource.data.partes is int && request.resource.data.partes >= 1 && request.resource.data.partes <= 30;
+        allow update: if fazLoteDp() && (
+          (resource.data.status == 'enviando' && request.resource.data.status == 'pendente'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']))
+          || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['escolha', 'fora']));
+        allow delete: if false;
+        match /partes/{n} {
+          allow create: if fazLoteDp() && n.matches('^([0-9]|[12][0-9])$')
+            && request.resource.data.keys().hasOnly(['dados'])
+            && request.resource.data.dados is bytes && request.resource.data.dados.size() <= 950000;
+          allow read, update, delete: if false;
+        }
+      }
+    }
     match /dpArquivos/{competencia} {
       allow read: if membroNoNads();
       allow write: if false;
