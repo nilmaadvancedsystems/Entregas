@@ -616,9 +616,15 @@ service cloud.firestore {
         (request.resource.data.get('tipo', '') != 'disparo' ||
          (ehAdmin() && request.resource.data.get('criadoPorUid', '') == request.auth.uid)) &&
         (request.resource.data.get('tipo', '') != 'responder' ||
-         (usaCaixa(request.resource.data.get('caixa', 'robo')) && request.resource.data.get('criadoPorUid', '') == request.auth.uid));
+         (usaCaixa(request.resource.data.get('caixa', 'robo')) && request.resource.data.get('criadoPorUid', '') == request.auth.uid)) &&
+        // os documentos do DP do mês para o cliente (nads › DP › Envios, 27/10/2026): o DP e o admin, em nome próprio, só com estas chaves
+        (request.resource.data.get('tipo', '') != 'envioDp' ||
+         ((ehAdmin() || doSetor('dp')) && request.resource.data.get('criadoPorUid', '') == request.auth.uid
+          && request.resource.data.status == 'pendente'
+          && request.resource.data.keys().hasOnly(['tipo', 'status', 'competencia', 'codigo', 'empresa', 'arquivos', 'criadoEm', 'criadoPor', 'criadoPorEmail', 'criadoPorUid'])
+          && request.resource.data.arquivos is list && request.resource.data.arquivos.size() <= 80));
       allow update: if membro() &&
-        ((!(resource.data.get('tipo', '') in ['disparo', 'responder']) && !(request.resource.data.get('tipo', '') in ['disparo', 'responder'])) || ehAdmin());
+        ((!(resource.data.get('tipo', '') in ['disparo', 'responder', 'envioDp']) && !(request.resource.data.get('tipo', '') in ['disparo', 'responder', 'envioDp'])) || ehAdmin());
       allow delete: if ehAdmin();
       match /partes/{n} {
         allow create: if (ehAdmin() || doSetor('contabil') || doSetor('fiscal')) && n.matches('^([0-9]|1[01])$')
@@ -1188,6 +1194,12 @@ service cloud.firestore {
 
     // Mapa da pasta do ano no Drive (scripts/drive-indice.js). Só leitura, e
     // só pra quem vê o Arquivo: é a lista de documentos de todos os clientes.
+    // os documentos do DP de cada mês nas pastas dos clientes (nads › DP › Envios, 27/10/2026): só o robô grava
+    // (robo/envios-do-dp.js, a cada releitura da pasta); a equipe do nads lê, como o mapa do Drive
+    match /dpArquivos/{competencia} {
+      allow read: if membroNoNads();
+      allow write: if false;
+    }
     match /driveIndice/{id} {
       // o Drive liberado para toda a equipe do nads (26/10/2026: "libera o drive para todos os usuarios"); antes, o admin e o contábil
       allow read: if membroNoNads();
