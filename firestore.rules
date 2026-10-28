@@ -1595,6 +1595,20 @@ service cloud.firestore {
     match /financeiroPlano/{id} {
       allow read, write: if ehDiretorNads();
     }
+    // as contas a pagar do escritório (28/10/2026, a "Contas a Pagar" do Toriba): os fornecedores e as contas, com o boleto e
+    // o comprovante em pedaços (anexos/{anexo}/partes/{n}); como o resto do financeiro, só o diretor e o admin do nads
+    match /financeiroFornecedores/{id} {
+      allow read, write: if ehDiretorNads();
+    }
+    match /financeiroContasPagar/{id} {
+      allow read, write: if ehDiretorNads();
+      match /anexos/{anexo} {
+        allow read, write: if ehDiretorNads();
+        match /partes/{n} {
+          allow read, write: if ehDiretorNads();
+        }
+      }
+    }
     // os honorários a receber (19/10/2026): o cliente e o valor (financeiroHonorarios) e o que foi recebido em cada mês
     // (financeiroRecebimentos/{contrato}_{AAAA-MM}); sem vencimento, só pago ou em aberto
     match /financeiroHonorarios/{id} {
