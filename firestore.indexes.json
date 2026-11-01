@@ -1,4 +1,17 @@
 {
   "indexes": [],
-  "fieldOverrides": []
+  "fieldOverrides": [
+    {
+      "collectionGroup": "dias",
+      "fieldPath": "itens",
+      "ttl": false,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "partes",
+      "fieldPath": "itens",
+      "ttl": false,
+      "indexes": []
+    }
+  ]
 }
