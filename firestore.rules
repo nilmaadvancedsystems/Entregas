@@ -439,6 +439,13 @@ service cloud.firestore {
         && request.resource.data.get('assunto', '') is string && request.resource.data.get('assunto', '').size() <= 200
         && request.resource.data.get('texto', '') is string && request.resource.data.get('texto', '').size() <= 5000;
     }
+    // o modelo do e-mail das guias do nads › Fiscal › Enviar guias (03/11/2026): o fiscal também grava, só o assunto e o texto
+    match /config/envioFiscal {
+      allow write: if (ehAdmin() || doSetor('fiscal'))
+        && request.resource.data.keys().hasOnly(['assunto', 'texto', 'atualizadoEm', 'atualizadoPor'])
+        && request.resource.data.get('assunto', '') is string && request.resource.data.get('assunto', '').size() <= 200
+        && request.resource.data.get('texto', '') is string && request.resource.data.get('texto', '').size() <= 5000;
+    }
 
     // ---------- a legislação do DP no nads (14/10/2026) ----------
     // As cadastradas no nads e as do Toriba editadas (id 'toriba-<n>'): a equipe lê; o DP e o admin criam e editam;
@@ -662,7 +669,7 @@ service cloud.firestore {
           && request.resource.data.keys().hasOnly(['tipo', 'status', 'competencia', 'codigo', 'empresa', 'arquivos', 'criadoEm', 'criadoPor', 'criadoPorEmail', 'criadoPorUid'])
           && request.resource.data.arquivos is list && request.resource.data.arquivos.size() <= 80));
       allow update: if membro() &&
-        ((!(resource.data.get('tipo', '') in ['disparo', 'responder', 'envioDp']) && !(request.resource.data.get('tipo', '') in ['disparo', 'responder', 'envioDp'])) || ehAdmin());
+        ((!(resource.data.get('tipo', '') in ['disparo', 'responder', 'envioDp', 'envioFiscal']) && !(request.resource.data.get('tipo', '') in ['disparo', 'responder', 'envioDp', 'envioFiscal'])) || ehAdmin());
       allow delete: if ehAdmin();
       match /partes/{n} {
         allow create: if (ehAdmin() || doSetor('contabil') || doSetor('fiscal')) && n.matches('^([0-9]|1[01])$')
@@ -1348,6 +1355,45 @@ service cloud.firestore {
         allow delete: if false;
         match /partes/{n} {
           allow create: if fazLoteDp() && n.matches('^([0-9]|[12][0-9])$')
+            && request.resource.data.keys().hasOnly(['dados'])
+            && request.resource.data.dados is bytes && request.resource.data.dados.size() <= 950000;
+          allow read, update, delete: if false;
+        }
+      }
+    }
+    // o lote do nads › Fiscal › Relatório › Enviar guias (03/11/2026), igual ao lotesDp: o fiscal e o admin sobem, revisam e pedem o disparo; o robô (robo/lote-fiscal.js) lê, dispara e preenche o Relatório
+    function fazLoteFiscal() {
+      return membroNoNads() && (ehAdmin() || doSetor('fiscal'));
+    }
+    match /lotesFiscal/{lote} {
+      allow read: if fazLoteFiscal();
+      allow create: if fazLoteFiscal() && request.resource.data.criadoPorUid == request.auth.uid
+        && request.resource.data.status == 'enviando'
+        && request.resource.data.keys().hasOnly(['status', 'grupo', 'criadoEm', 'criadoPor', 'criadoPorUid', 'total'])
+        && request.resource.data.grupo in ['sn', 'lp']
+        && request.resource.data.total is int && request.resource.data.total > 0 && request.resource.data.total <= 150;
+      allow update: if fazLoteFiscal() && (
+        (resource.data.status == 'enviando' && request.resource.data.status == 'pendente'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']))
+        || (resource.data.status in ['lido', 'disparado'] && request.resource.data.status == 'disparar'
+          && request.resource.data.disparadoPorUid == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'disparadoPor', 'disparadoPorUid', 'pedidoEm'])));
+      allow delete: if false;
+      match /arquivos/{k} {
+        allow read: if fazLoteFiscal();
+        allow create: if fazLoteFiscal() && k.matches('^[0-9]{1,3}$')
+          && request.resource.data.keys().hasOnly(['nome', 'tamanho', 'partes', 'status'])
+          && request.resource.data.status == 'enviando'
+          && request.resource.data.nome is string && request.resource.data.nome.size() <= 200
+          && request.resource.data.tamanho is int && request.resource.data.tamanho <= 26214400
+          && request.resource.data.partes is int && request.resource.data.partes >= 1 && request.resource.data.partes <= 30;
+        allow update: if fazLoteFiscal() && (
+          (resource.data.status == 'enviando' && request.resource.data.status == 'pendente'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']))
+          || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['escolha', 'fora']));
+        allow delete: if false;
+        match /partes/{n} {
+          allow create: if fazLoteFiscal() && n.matches('^([0-9]|[12][0-9])$')
             && request.resource.data.keys().hasOnly(['dados'])
             && request.resource.data.dados is bytes && request.resource.data.dados.size() <= 950000;
           allow read, update, delete: if false;
