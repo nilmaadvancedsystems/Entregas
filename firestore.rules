@@ -1396,7 +1396,9 @@ service cloud.firestore {
           allow create: if fazLoteFiscal() && n.matches('^([0-9]|[12][0-9])$')
             && request.resource.data.keys().hasOnly(['dados'])
             && request.resource.data.dados is bytes && request.resource.data.dados.size() <= 950000;
-          allow read, update, delete: if false;
+          // ver a guia antes do envio (04/11/2026): o Fiscal lê os pedaços que subiu; o robô apaga depois do e-mail
+          allow read: if fazLoteFiscal();
+          allow update, delete: if false;
         }
       }
     }
