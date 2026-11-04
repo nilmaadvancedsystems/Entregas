@@ -1098,7 +1098,10 @@ service cloud.firestore {
         // robo/arquivadorResumo (a janela do Arquivador no Drive da Tarefas, 23/10/2026): o resumo pequeno do arquivador
         // novo (o modo, o que está fazendo, os números de hoje, quantos estão para resolver, o último arquivado pelo nome
         // final padronizado; nunca o nome original). O admin e o contábil (pelo papel ou pelo setor do Cadastro do nads)
-        || (doc == 'arquivadorResumo' && doSetor('contabil'));
+        || (doc == 'arquivadorResumo' && doSetor('contabil'))
+        // robo/alterdata (04/11/2026): o Contábil de cada máquina do robô do Alterdata (aberto e logado, na tela de
+        // login, fechado), para a página Alterdata da empresa avisar quando os pedidos vão esperar. Quem pede lê
+        || (doc == 'alterdata' && doSetor('contabil'));
       allow write: if false;
     }
     // O histórico do dia do arquivador novo (Admin › Arquivador, 22/10/2026): robo/arquivadorNovo/dias/{AAAA-MM-DD}-{n},
@@ -1186,7 +1189,10 @@ service cloud.firestore {
         && request.resource.data.status == 'pendente'
         && request.resource.data.criadoPorUid == request.auth.uid
         && request.resource.data.keys().hasOnly(['status', 'tipo', 'codigo', 'empresa', 'competencia', 'criadoEm', 'criadoPor', 'criadoPorUid'])
-        && request.resource.data.tipo in ['balancete']
+        // balancete: o da Conferência; mensal: o balancete e o razão de todas as contas do mês, pedidos na página
+        // Alterdata da empresa aberta no nads › Tarefas (04/11/2026: "quero criar um robo que puxa balancete e planilha
+        // de conta e upa no nads"); os arquivos voltam em pedaços em pedidosAlterdata/{id}/partes (só leitura, abaixo)
+        && request.resource.data.tipo in ['balancete', 'mensal']
         && request.resource.data.codigo is int && request.resource.data.codigo > 0
         && request.resource.data.empresa is string && request.resource.data.empresa.size() <= 200
         && request.resource.data.competencia is string && request.resource.data.competencia.matches('^[0-9]{4}-(0[1-9]|1[0-2])$');
