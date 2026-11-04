@@ -467,7 +467,7 @@ service cloud.firestore {
         && request.resource.data.valores is map && request.resource.data.valores.size() <= 12
         && request.resource.data.marcas is map && request.resource.data.marcas.size() <= 8
         && request.resource.data.data is string && request.resource.data.data.size() <= 10
-        && request.resource.data.entregue in ['', 'impresso', 'zap', 'email', 'nao']
+        && request.resource.data.entregue in ['', 'impresso', 'zap', 'email', 'econtador', 'nao']
         && request.resource.data.atualizadoEm is string && request.resource.data.atualizadoEm.size() <= 40
         && request.resource.data.atualizadoPor is string && request.resource.data.atualizadoPor.size() <= 100;
     }
