@@ -484,7 +484,9 @@ service cloud.firestore {
     match /legislacaoDp/{id} {
       allow read: if membro();
       allow create, update: if (ehAdmin() || doSetor('dp'))
-        && request.resource.data.keys().hasOnly(['assunto', 'texto', 'observacoes', 'data', 'atualizadoEm', 'atualizadoPor'])
+        && request.resource.data.keys().hasOnly(['assunto', 'texto', 'observacoes', 'data', 'atualizadoEm', 'atualizadoPor', 'excluida', 'excluidaEm', 'excluidaPor'])
+        // excluir é marcar (Vitor, 04/11/2026: a lixeira na Legislação do DP): o documento fica, com quem e quando
+        && (!('excluida' in request.resource.data) || request.resource.data.excluida is bool)
         && request.resource.data.assunto is string && request.resource.data.assunto.size() > 0 && request.resource.data.assunto.size() <= 200
         && request.resource.data.texto is string && request.resource.data.texto.size() > 0 && request.resource.data.texto.size() <= 200000
         && request.resource.data.observacoes is string && request.resource.data.observacoes.size() <= 20000
