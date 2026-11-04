@@ -1381,7 +1381,11 @@ service cloud.firestore {
         // excluir o lote parado (04/11/2026): vira cancelado e o robô apaga tudo
         || (resource.data.status in ['lido', 'disparado', 'erro'] && request.resource.data.status == 'cancelado'
           && request.resource.data.canceladoPorUid == request.auth.uid
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'canceladoPor', 'canceladoPorUid', 'canceladoEm'])));
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'canceladoPor', 'canceladoPorUid', 'canceladoEm']))
+        // a via de cada cliente (04/11/2026: Gmail ou Impresso; o impresso vira entrega na rota do Entregas): só as vias, com o lote parado
+        || (resource.data.status in ['lido', 'disparado'] && request.resource.data.status == resource.data.status
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['vias'])
+          && request.resource.data.vias is map && request.resource.data.vias.size() <= 150));
       allow delete: if false;
       match /arquivos/{k} {
         allow read: if fazLoteFiscal();
