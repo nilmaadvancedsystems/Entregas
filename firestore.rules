@@ -1381,6 +1381,11 @@ service cloud.firestore {
       allow update: if fazLoteFiscal() && (
         (resource.data.status == 'enviando' && request.resource.data.status == 'pendente'
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']))
+        // mais guias no mesmo lote (05/11/2026): o lido, ainda não disparado, volta a enviando com o total maior
+        || (resource.data.status == 'lido' && request.resource.data.status == 'enviando'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'total'])
+          && request.resource.data.total is int && request.resource.data.total > resource.data.total
+          && request.resource.data.total <= 150)
         || (resource.data.status in ['lido', 'disparado'] && request.resource.data.status == 'disparar'
           && request.resource.data.disparadoPorUid == request.auth.uid
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'disparadoPor', 'disparadoPorUid', 'pedidoEm']))
