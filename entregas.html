@@ -3942,12 +3942,29 @@
   // PESSOAL / MM / FGTS; a organização arquiva o FGTS em SOCIETÁRIO / IMPOSTOS / FGTS / <ano> ("SETEMBRO 2026.pdf"), o DAS
   // em FISCAL / SIMPLES NACIONAL / 01. DAS e o DARF em FISCAL / <regime> / 05. DARF. Por isso a guia é achada em qualquer
   // lugar da pasta, pelo nome da pasta ou do arquivo; a certidão do FGTS fica de fora.
+  // Vitor, 06/11/2026: "adicione a função de puxar DAS, folha de pagamento da pasta do drive". A folha o arquivador do
+  // nads guarda em DEPARTAMENTO PESSOAL / MM / FOLHA (nome original); ela não tem valor nem código de pagamento, então só
+  // marca o documento e vai anexada (semTexto: o PDF não é lido).
   var GUIAS_DA_PASTA = [
     { tipo: 'fgts', nome: 'FGTS', casa: function (p) { var t = p.join(' / '); return t.indexOf('FGTS') !== -1 && t.indexOf('CERTID') === -1; } },
     { tipo: 'darf', nome: 'DARF', casa: function (p) { return p.join(' / ').indexOf('DARF') !== -1; } },
-    // o DAS: a pasta "01. DAS" (ou "DAS") ou o arquivo que começa com "DAS" — não qualquer nome com "das" no meio
-    { tipo: 'das', nome: 'DAS', casa: function (p) { return p.slice(0, -1).some(function (seg) { return /^(\d+\.\s*)?DAS$/.test(seg); }) || /^DAS[\s._-]/.test(p[p.length - 1]); } }
+    { tipo: 'das', nome: 'DAS', casa: function (p) { return ehGuiaDoDas_(p); } },
+    { tipo: 'folha_pagamento', nome: 'a folha de pagamento', semTexto: true, casa: function (p) { return ehFolhaDePagamento_(p); } }
   ];
+  // o DAS: a pasta "01. DAS" (ou "DAS") ou o arquivo que começa com "DAS" — não qualquer nome com "das" no meio. Na
+  // 01. DAS o arquivador põe, ao lado da guia (MM-AAAA.pdf), o PGDAS-D (declaração, recibo, extrato), a apuração do SCI
+  // e a DEFIS: esses não são a guia e não podem ser puxados no lugar dela (o mais novo ganhava).
+  function ehGuiaDoDas_(p) {
+    var nome = p[p.length - 1];
+    if (/PGDAS|APURACAO|DEFIS|EXTRATO|RECIBO|DECLARACAO|PARCELAMENTO/.test(nome)) return false;
+    return p.slice(0, -1).some(function (seg) { return /^(\d+\.\s*)?DAS$/.test(seg); }) || /^DAS[\s._-]/.test(nome);
+  }
+  // a folha: DEPARTAMENTO PESSOAL / MM / FOLHA (ou uma pasta "FOLHA DE PAGAMENTO"); o cartão de ponto fica de fora
+  function ehFolhaDePagamento_(p) {
+    var nome = p[p.length - 1];
+    if (/PONTO/.test(nome)) return false;
+    return p.slice(0, -1).some(function (seg) { return /^(\d+\.\s*)?FOLHA( DE PAGAMENTO)?$/.test(seg); });
+  }
   var MESES_POR_EXTENSO = ['JANEIRO', 'FEVEREIRO', 'MARCO', 'ABRIL', 'MAIO', 'JUNHO', 'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'];
   /** o caminho (já normalizado) é do mês da guia? pela pasta "09" ou pelo nome ("09-2026", "06.2026", "SETEMBRO 2026") */
   function doMesDaGuia_(p, g) {
@@ -4017,6 +4034,12 @@
       .then(function (page) { return page.getTextContent(); })
       .then(function (tc) { return tc.items.map(function (it) { return it.str; }).join(' '); });
   }
+  // marca o documento na entrega sem ler o PDF (a folha: nem valor nem código de pagamento para tirar dela)
+  function marcarDocumento_(tipo) {
+    var chk = itensGrid.querySelector('input[data-key="' + tipo + '"]');
+    if (chk && !chk.checked) { chk.checked = true; chk.dispatchEvent(new Event('change', { bubbles: true })); }
+    salvarRascunho_();
+  }
   function mostrarBotaoDasGuias_() {
     var pode = !!db && (temPapel('admin') || temPapel('contabil')) && !!selectedClienteId && !!(clientesCache.get(selectedClienteId) || {}).codigoOrigem;
     $('guiasPastaBtn').hidden = !pode;
@@ -4065,7 +4088,7 @@
     }).then(function (guias) {
       if (!guias.length || selectedClienteId !== c.id) {
         guiasJaPuxadas_[chave] = false;
-        mostrar(selectedClienteId === c.id ? 'Não achei FGTS, DARF nem DAS de ' + g.mm + '/' + g.aaaa + ' na pasta do cliente.' : '');
+        mostrar(selectedClienteId === c.id ? 'Não achei FGTS, DARF, DAS nem folha de pagamento de ' + g.mm + '/' + g.aaaa + ' na pasta do cliente.' : '');
         return;
       }
       var trazidas = [];
@@ -4073,9 +4096,10 @@
       return guias.reduce(function (antes, x) {
         return antes.then(function () {
           return lerArquivoDoDrive_(x.arq).then(function (arquivo) {
-            return textoDoPdf_(arquivo.buffer).then(function (texto) {
+            return (x.gp.semTexto ? Promise.resolve(null) : textoDoPdf_(arquivo.buffer)).then(function (texto) {
               if (selectedClienteId !== c.id) return;
-              aplicarDadosDoPdf_(texto, null, { tipo: x.gp.tipo });
+              if (texto === null) marcarDocumento_(x.gp.tipo);
+              else aplicarDadosDoPdf_(texto, null, { tipo: x.gp.tipo });
               guiasParaAnexar_[x.gp.tipo] = { tipo: x.gp.tipo, nome: x.arq.n, driveId: x.arq.i, tamanho: arquivo.tamanho, pdf: arquivo.tamanho <= LIMITE_PDF_ANEXO ? arquivo.base64 : null };
               trazidas.push(x.gp.nome);
             });
@@ -5101,7 +5125,8 @@
     $('fotoPreviewWrap').hidden = true;
     atualizarModoFalha();
     if (manterItens) clienteInput.focus();
-    limparRascunho_();
+    // na rota os documentos ficam para o próximo cliente: guarda só eles
+    if (manterItens) salvarRascunho_(); else limparRascunho_();
   }
 
   // ---------- rascunho da entrega em andamento ----------
@@ -5138,12 +5163,26 @@
     try { localStorage.removeItem(RASCUNHO_KEY); } catch (e) {}
   }
 
+  // só grava se já tem algo que doeria perder de verdade — não enche o
+  // armazenamento local com rascunho de formulário vazio. Os documentos
+  // contam (Vitor, 06/11/2026: "quando eu clique em rota, não reinicie o que
+  // eu protocolei"): na rota eles ficam de um cliente para o outro, sem
+  // cliente escolhido, e só existiam na memória da página — qualquer recarga
+  // (o app do celular voltando, uma atualização) zerava a lista montada.
+  function rascunhoValeGuardar_(r) {
+    return !!(r.assinaturaDataUrl || r.fotoDataUrl || r.selectedClienteId || String(r.avulsoNome || '').trim() ||
+      (r.itensChecados && r.itensChecados.length) || String(r.outro || '').trim());
+  }
+  // o aviso de "rascunho restaurado" é para o que a pessoa estava no meio de
+  // fazer (um cliente, assinatura, foto), não para os documentos mantidos
+  function rascunhoTemEntregaEmCurso_(r) {
+    return !!(r.assinaturaDataUrl || r.fotoDataUrl || r.selectedClienteId || String(r.avulsoNome || '').trim() || String(r.clienteInputValor || '').trim());
+  }
+
   function salvarRascunho_() {
-    // só grava se já tem algo que doeria perder de verdade — não enche o
-    // armazenamento local com rascunho de formulário vazio
-    var temAlgoValioso = mainSigPad.hasSignature || fotoDataUrl || selectedClienteId || $('avulsoNomeInput').value.trim();
-    if (!temAlgoValioso) { limparRascunho_(); return; }
-    try { localStorage.setItem(RASCUNHO_KEY, JSON.stringify(coletarRascunho_())); } catch (e) {}
+    var r = coletarRascunho_();
+    if (!rascunhoValeGuardar_(r)) { limparRascunho_(); return; }
+    try { localStorage.setItem(RASCUNHO_KEY, JSON.stringify(r)); } catch (e) {}
   }
 
   function restaurarRascunhoSeExistir_() {
@@ -5193,7 +5232,7 @@
     }
     if (r.assinaturaDataUrl) mainSigPad.carregar(r.assinaturaDataUrl);
 
-    showToast('Rascunho da entrega restaurado — confira antes de confirmar.');
+    if (rascunhoTemEntregaEmCurso_(r)) showToast('Rascunho da entrega restaurado — confira antes de confirmar.');
   }
 
   $('form-nova').addEventListener('input', aoParar(salvarRascunho_, 700));
@@ -12419,7 +12458,7 @@
   // Aba em que o app abre: office boy vive em Solicitações, quem faz rota
   // abre em Rota. Guardar isso evita dois toques toda vez que entra.
 
-  var VERSAO_APP_ = '2.412 · 13/10/2026';
+  var VERSAO_APP_ = '2.413 · 06/11/2026';
   // Configurações do usuário: a janela comum (nilma-config.js), a mesma da
   // Pendências e do Fiscal. 'conta' abre em Minha conta; o resto, em
   // Preferências.

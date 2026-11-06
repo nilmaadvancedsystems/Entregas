@@ -83,5 +83,30 @@ igual('fora da lista, perto do centro: entra depois da parada do centro',
 igual('ponto no centro da cidade não conta: vai pro fim',
   ordenarPerto(naRota.slice(0, 3).concat([{ id: 'e7', clienteId: 'cidade', criadoEm: '2026-09-01T06:00:00Z' }])).map(function (e) { return e.id; }), ['e3', 'e2', 'e1', 'e7']);
 
+// ---------- puxar da pasta do cliente: o DAS certo e a folha de pagamento ----------
+const das = new Function(pega('ehGuiaDoDas_') + '; return ehGuiaDoDas_;')();
+const folha = new Function(pega('ehFolhaDePagamento_') + '; return ehFolhaDePagamento_;')();
+const caminho = t => t.split('/');
+igual('a guia na 01. DAS é o DAS', das(caminho('FISCAL/SIMPLES NACIONAL/01. DAS/09-2026.PDF')), true);
+igual('o PGDAS-D ao lado da guia não é o DAS', das(caminho('FISCAL/SIMPLES NACIONAL/01. DAS/09-2026 - PGDAS-D DECLARACAO.PDF')), false);
+igual('o recibo do PGDAS-D não é o DAS', das(caminho('FISCAL/SIMPLES NACIONAL/01. DAS/09-2026 - PGDAS-D RECIBO.PDF')), false);
+igual('a apuração do SCI não é o DAS', das(caminho('FISCAL/SIMPLES NACIONAL/01. DAS/09-2026 - APURACAO SN SCI.PDF')), false);
+igual('arquivo que começa com DAS fora da pasta é o DAS', das(caminho('DOCUMENTOS/DAS 09-2026.PDF')), true);
+igual('"das" no meio do nome não é o DAS', das(caminho('DOCUMENTOS/NOTAS DAS VENDAS 09-2026.PDF')), false);
+igual('o PDF na DEPARTAMENTO PESSOAL/09/FOLHA é a folha', folha(caminho('DEPARTAMENTO PESSOAL/09/FOLHA/RESUMO DA FOLHA 09-2026.PDF')), true);
+igual('a pasta FOLHA DE PAGAMENTO também vale', folha(caminho('SOCIETARIO/FOLHA DE PAGAMENTO/09-2026.PDF')), true);
+igual('o FGTS não é a folha', folha(caminho('DEPARTAMENTO PESSOAL/09/FGTS/FGTS 09-2026.PDF')), false);
+igual('o cartão de ponto na FOLHA não é a folha', folha(caminho('DEPARTAMENTO PESSOAL/09/FOLHA/CARTAO DE PONTO 09-2026.PDF')), false);
+
+// ---------- a rota não zera os documentos montados ----------
+const vale = new Function(pega('rascunhoValeGuardar_') + '; return rascunhoValeGuardar_;')();
+const emCurso = new Function(pega('rascunhoTemEntregaEmCurso_') + '; return rascunhoTemEntregaEmCurso_;')();
+const depoisDeIrPraRota = { formMode: 'rota', selectedClienteId: null, itensChecados: ['das', 'fgts'], valoresState: { das: '120,00' }, outro: '', avulsoNome: '' };
+igual('documentos mantidos na rota, sem cliente, ficam guardados no aparelho', vale(depoisDeIrPraRota), true);
+igual('documentos mantidos não dão o aviso de rascunho restaurado', emCurso(depoisDeIrPraRota), false);
+igual('formulário vazio não guarda nada', vale({ itensChecados: [], outro: '', avulsoNome: '' }), false);
+igual('"Outro documento" digitado também guarda', vale({ itensChecados: [], outro: 'Contrato social' }), true);
+igual('com cliente escolhido é entrega em curso', emCurso({ selectedClienteId: 'c1' }), true);
+
 console.log(falhas ? falhas + ' de ' + total + ' FALHARAM' : total + ' testes, todos passaram');
 process.exit(falhas ? 1 : 0);
