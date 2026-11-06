@@ -111,14 +111,23 @@ service cloud.firestore {
             && conviteValido(request.resource.data.codigoConvite)
             && request.resource.data.roles ==
                get(/databases/$(database)/documents/convites/$(request.resource.data.codigoConvite)).data.roles
+            // o departamento e o nível do nads, se vierem, são os do convite (06/11/2026): sem isso, quem entra pelo
+            // convite podia se criar como diretor, e o diretor lê o financeiro e escreve no mural. Sem eles (a página
+            // do Entregas não grava), o admin põe depois na tela Usuários
+            && (!('departamento' in request.resource.data) || request.resource.data.departamento ==
+               get(/databases/$(database)/documents/convites/$(request.resource.data.codigoConvite)).data.get('departamento', null))
+            && (!('nivel' in request.resource.data) || request.resource.data.nivel ==
+               get(/databases/$(database)/documents/convites/$(request.resource.data.codigoConvite)).data.get('nivel', null))
           )
         );
 
       // O dono mexe nas próprias preferências — tema, paleta, nome, foto,
       // token de notificação. Em `roles`, não: nem no próprio, nem no dos
-      // outros. Só admin muda papel.
+      // outros. Só admin muda papel. Nem o departamento e o nível do nads (06/11/2026, mapa das permissões: o
+      // departamento abre o setor (doSetor) e o nível diretor abre o financeiro e o mural; a pessoa se promovia
+      // sozinha), nem o ativo (o desativado se reativava) — tudo isso é do admin, na tela Usuários.
       allow update: if membro() && (
-        (request.auth.uid == uid && naoMexeuEm(['roles', 'email', 'criadoEm']))
+        (request.auth.uid == uid && naoMexeuEm(['roles', 'email', 'criadoEm', 'departamento', 'nivel', 'ativo', 'codigoConvite']))
         || ehAdmin()
       );
 
