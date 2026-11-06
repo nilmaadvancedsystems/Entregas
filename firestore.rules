@@ -1211,7 +1211,9 @@ service cloud.firestore {
     // A Conferência pede o balancete (tipo, empresa, competência); o robô do PC gera no Contábil logado e põe o .xlsx em
     // arquivo/xlsx. O contábil e o admin leem e pedem; quem pode pedir pode cancelar enquanto espera; só o robô grava o resto.
     match /pedidosAlterdata/{id} {
-      allow read: if ehAdmin() || doSetor('contabil');
+      allow read: if ehAdmin() || doSetor('contabil')
+        // o Importar no Alterdata (06/11/2026): quem pediu acompanha o próprio pedido (o DP e o fiscal também importam)
+        || (logado() && resource.data.criadoPorUid == request.auth.uid);
       allow create: if (ehAdmin() || doSetor('contabil'))
         && request.resource.data.status == 'pendente'
         && request.resource.data.criadoPorUid == request.auth.uid
@@ -1223,6 +1225,23 @@ service cloud.firestore {
         && request.resource.data.codigo is int && request.resource.data.codigo > 0
         && request.resource.data.empresa is string && request.resource.data.empresa.size() <= 200
         && request.resource.data.competencia is string && request.resource.data.competencia.matches('^[0-9]{4}-(0[1-9]|1[0-2])$');
+      // importar lançamentos no Contábil (06/11/2026, Vitor: "importar os lancamentos direto no alterdata"): a planilha de
+      // 10 colunas que o nads gera (Creditor, Cartões, Bancos, Concilia aí, Honorários, FGTS, INSS, Adiantamento, Pró-labore)
+      // vai em base64 no pedido; o robô do servidor importa num lote novo (Importação financeira › Importação Personalizada -
+      // Excel) e escreve o resultado. Pedem o contábil, o DP, o fiscal e o admin.
+      allow create: if (ehAdmin() || doSetor('contabil') || doSetor('dp') || doSetor('fiscal'))
+        && request.resource.data.status == 'pendente'
+        && request.resource.data.tipo == 'importar'
+        && request.resource.data.criadoPorUid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['status', 'tipo', 'codigo', 'empresa', 'lote', 'origem', 'planilha', 'linhas', 'criadoEm', 'criadoPor', 'criadoPorUid'])
+        && request.resource.data.codigo is int && request.resource.data.codigo > 0
+        && request.resource.data.empresa is string && request.resource.data.empresa.size() <= 200
+        && request.resource.data.lote is string && request.resource.data.lote.size() > 0 && request.resource.data.lote.size() <= 60
+        && request.resource.data.origem is string && request.resource.data.origem.size() <= 40
+        && request.resource.data.planilha is string && request.resource.data.planilha.size() > 0 && request.resource.data.planilha.size() <= 900000
+        && request.resource.data.linhas is int && request.resource.data.linhas > 0
+        && request.resource.data.criadoEm is string && request.resource.data.criadoEm.size() <= 40
+        && request.resource.data.criadoPor is string && request.resource.data.criadoPor.size() <= 200;
       allow update: if (ehAdmin() || doSetor('contabil'))
         && resource.data.status in ['pendente', 'trabalhando']
         && request.resource.data.status == 'cancelado'
