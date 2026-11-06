@@ -4,8 +4,7 @@
 // arquivo é lido aqui no navegador e vai pro banco SÓ o texto das contas
 // (código, nome, grupo, sintética e a ordem do plano) — o arquivo não é
 // guardado. Fica em balancetes/{código do cliente no ERP}. Quem usa é o
-// Creditor do Extratudo: a conta de cada cliente sai daqui (pela ponte,
-// nilma-ponte-extratudo.js).
+// Creditor: a conta de cada cliente sai daqui.
 //
 // Leitura igual à da Conferência (nads, conferencia/arquivos lerBalancete):
 // coluna C = "NOME [código]", o recuo diz o nível; conta com filha abaixo
