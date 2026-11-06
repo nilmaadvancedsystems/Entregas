@@ -1520,7 +1520,7 @@ service cloud.firestore {
         && request.resource.data.status == 'enviando'
         && request.resource.data.criadoPorUid == request.auth.uid
         && request.resource.data.keys().hasOnly(['status', 'nome', 'tamanho', 'partes', 'competencia', 'cliente', 'codigo', 'criadoEm', 'criadoPor', 'criadoPorUid',
-             'guia', 'vencimento', 'valor'])
+             'guia', 'vencimento', 'valor', 'substituir'])
         && request.resource.data.nome is string && request.resource.data.nome.size() <= 200
         && request.resource.data.tamanho is int && request.resource.data.tamanho > 0 && request.resource.data.tamanho <= 26214400
         && request.resource.data.partes is int && request.resource.data.partes >= 1 && request.resource.data.partes <= 30
@@ -1533,7 +1533,11 @@ service cloud.firestore {
         && (!('vencimento' in request.resource.data) || (request.resource.data.vencimento is string
           && request.resource.data.vencimento.matches('^(0[1-9]|[12][0-9]|3[01])/(0[1-9]|1[0-2])/20[0-9]{2}$')))
         && (!('valor' in request.resource.data) || (request.resource.data.valor is string
-          && request.resource.data.valor.size() > 0 && request.resource.data.valor.size() <= 30));
+          && request.resource.data.valor.size() > 0 && request.resource.data.valor.size() <= 30))
+        // o extrato do mês que já está no Drive e que este troca (06/11/2026), opcional: o id do arquivo; o robô só move
+        // para SUBSTITUÍDOS um arquivo da pasta da própria empresa (pelo mapa), nunca apaga
+        && (!('substituir' in request.resource.data) || (request.resource.data.substituir is string
+          && request.resource.data.substituir.matches('^[A-Za-z0-9_-]{10,100}$')));
       // só o "subi tudo": enviando -> pendente
       allow update: if doEnvio() && resource.data.criadoPorUid == request.auth.uid
         && resource.data.status == 'enviando' && request.resource.data.status == 'pendente'
