@@ -979,9 +979,27 @@ service cloud.firestore {
     // lançamentos e o histórico do que mudou; o plano de contas fica em plano/atual.
     // A Tarefas (Cadastro) edita; o Extrator e o Creditor do Extratudo leem e gravam.
     // id = o nome da empresa em slug (o mesmo das outras coleções do nads).
+    // Responsável da empresa (06/11/2026, pedido do Vitor): só o Diretor (admin) troca empresas ou escolhe quem cuida.
+    // Sênior, Pleno e Júnior só respondem à troca que já foi pedida: aceitar (marca o aceite e, com os dois, o
+    // destinatário vira o responsável), recusar ou cancelar. Pedir troca nova ou mudar o responsável direto, não.
+    function respostaDaTroca(antes, depois, d) {
+      let tA = antes.get('transferencias', {}).get(d, null);
+      let tD = depois.get('transferencias', {}).get(d, null);
+      let rA = antes.get('responsaveis', {}).get(d, '');
+      let rD = depois.get('responsaveis', {}).get(d, '');
+      return (tA == tD && rA == rD)
+        || (tA != null && tD == null && (rD == rA || rD == tA.para))
+        || (tA != null && tD != null && rD == rA
+          && tD.de == tA.de && tD.para == tA.para && tD.pedidoPor == tA.pedidoPor && tD.em == tA.em
+          && tD.get('troca', '') == tA.get('troca', ''));
+    }
+    function responsavelOk(antes, depois) {
+      return ehAdmin() || (respostaDaTroca(antes, depois, 'fiscal') && respostaDaTroca(antes, depois, 'contabil'));
+    }
     match /cadastro/{id} {
       allow read: if membroNoNads();
       allow create, update: if membroNoNads()
+        && responsavelOk(request.method == 'create' ? {} : resource.data, request.resource.data)
         && id.matches('^[a-z0-9-]{1,120}$')
         && request.resource.data.nome is string
         && request.resource.data.historico is list && request.resource.data.historico.size() <= 200
