@@ -1425,6 +1425,17 @@ service cloud.firestore {
       allow read: if membroNoNads();
       allow write: if false;
     }
+    // o que o DP tirou da lista de envios do mês no nads › DP › Envios (06/11/2026, a lixeira como a do Enviar guias do
+    // Fiscal): clientes.<código>: { tudo, arquivos: [ids] }; o robô (envios-do-dp.js) não manda o que está aqui
+    match /dpEnviosFora/{competencia} {
+      allow read: if membroNoNads();
+      allow create, update: if (ehAdmin() || doSetor('dp'))
+        && competencia.matches('^20[0-9]{2}-(0[1-9]|1[0-2])$')
+        && request.resource.data.keys().hasOnly(['clientes', 'atualizadoEm', 'atualizadoPor'])
+        && request.resource.data.get('clientes', {}) is map
+        && request.resource.data.get('clientes', {}).size() <= 1000;
+      allow delete: if false;
+    }
     match /driveIndice/{id} {
       // o Drive liberado para toda a equipe do nads (26/10/2026: "libera o drive para todos os usuarios"); antes, o admin e o contábil
       allow read: if membroNoNads();
