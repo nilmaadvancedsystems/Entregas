@@ -1154,6 +1154,39 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // ---------- a Central dos robôs (o site robos-nilma, robos.nilmacontabilidade.com; 07/11/2026) ----------
+    // O estado de cada máquina (robosMaquinas/{servidor|nuvem|escritorio}: o batimento, CPU, memória, disco, os robôs
+    // pausados) e o espelho do log de cada robô (robosRegistros/{robo}: as últimas 200 linhas, sem segredo). Só o admin
+    // lê; quem grava é o robô de cada máquina (robo/central.js), pelo Admin SDK.
+    match /robosMaquinas/{maquina} {
+      allow read: if ehAdmin();
+      allow write: if false;
+    }
+    match /robosRegistros/{robo} {
+      allow read: if ehAdmin();
+      allow write: if false;
+    }
+    // Os comandos aos robôs (robosComandos/{id}): só o admin lê o histórico e cria o pedido, e só com estes campos, como
+    // 'pendente', em nome dele mesmo, para uma das 3 máquinas e com uma ação da LISTA FECHADA. Ninguém muda nem apaga
+    // pela tela: quem responde (aceito, feito, erro, recusado) e apaga os de mais de 30 dias é o robô, pelo Admin SDK, e
+    // ele confere tudo de novo (comando velho, repetido, robô e tarefa que a máquina conhece).
+    match /robosComandos/{id} {
+      allow read: if ehAdmin();
+      allow create: if ehAdmin()
+        && request.resource.data.keys().hasOnly(['maquina', 'robo', 'acao', 'tarefa', 'por', 'porNome', 'em', 'status', 'expiraEm'])
+        && request.resource.data.keys().hasAll(['maquina', 'robo', 'acao', 'tarefa', 'por', 'porNome', 'em', 'status', 'expiraEm'])
+        && request.resource.data.status == 'pendente'
+        && request.resource.data.por == request.auth.uid
+        && request.resource.data.maquina in ['servidor', 'nuvem', 'escritorio']
+        && request.resource.data.acao in ['pausar', 'retomar', 'rodar-agora', 'limpar-fila', 'reiniciar', 'atualizar', 'assistir']
+        && request.resource.data.robo is string && request.resource.data.robo.size() <= 40
+        && request.resource.data.tarefa is string && request.resource.data.tarefa.size() <= 40
+        && request.resource.data.porNome is string && request.resource.data.porNome.size() <= 80
+        && request.resource.data.em is string && request.resource.data.em.size() <= 40
+        && request.resource.data.expiraEm is timestamp;
+      allow update, delete: if false;
+    }
+
     // O SIEG no Fiscal do nads (06/10/2026): o robô deste PC (scripts/sieg.js, pelo Admin SDK) conta as notas de cada
     // cliente (siegContagens) e baixa as saídas do mês quando o nads pede (pedidosSieg → siegSaidas). A tela lê; quem
     // pede é o fiscal (ou o admin), só com estes campos; o resto do pedido o robô escreve.
