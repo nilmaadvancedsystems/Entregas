@@ -31,7 +31,9 @@ service cloud.firestore {
     }
 
     function meusPapeis() {
+      // a conta desativada não tem papel nenhum, em nenhuma tela (Vitor, 09/11/2026)
       return logado() && exists(/databases/$(database)/documents/usuarios/$(request.auth.uid))
+          && meuDoc().get('ativo', true) != false
         ? meuDoc().get('roles', [])
         : [];
     }
@@ -42,6 +44,12 @@ service cloud.firestore {
 
     function ehAdmin() {
       return temPapel('admin');
+    }
+
+    // Admin com o nível Diretor (Vitor, 09/11/2026): só ele cria contas e convites e muda papéis, nível, departamento e ativo.
+    // Sem isso, qualquer admin se promovia a Diretor e entrava no Financeiro.
+    function ehDiretorAdmin() {
+      return ehAdmin() && meuDoc().get('nivel', '') == 'diretor';
     }
 
     // O setor da pessoa (01/10/2026): o departamento escolhido no Cadastro do nads (usuarios.departamento) ou o
@@ -103,7 +111,7 @@ service cloud.firestore {
       allow create: if logado()
         && request.resource.data.roles is list
         && (
-          ehAdmin()
+          ehDiretorAdmin()
           || (
             request.auth.uid == uid
             && request.resource.data.get('codigoConvite', '') != ''
@@ -128,12 +136,13 @@ service cloud.firestore {
       // sozinha), nem o ativo (o desativado se reativava) — tudo isso é do admin, na tela Usuários.
       allow update: if membro() && (
         (request.auth.uid == uid && naoMexeuEm(['roles', 'email', 'criadoEm', 'departamento', 'nivel', 'ativo', 'codigoConvite']))
-        || ehAdmin()
+        || (ehAdmin() && naoMexeuEm(['roles', 'departamento', 'nivel', 'ativo', 'codigoConvite']))
+        || ehDiretorAdmin()
       );
 
       // Apagar acesso é ato de administração, e some com o histórico de quem
-      // entregou o quê. Fica com o admin.
-      allow delete: if ehAdmin();
+      // entregou o quê. Fica com o Diretor.
+      allow delete: if ehDiretorAdmin();
 
       // Anotações pessoais: só o dono vê, ponto. Nem o admin.
       match /notas/{nota} {
@@ -163,12 +172,12 @@ service cloud.firestore {
     // Liberar `list` aqui é entregar o escritório.
     match /convites/{codigo} {
       allow get: if true;
-      allow list: if ehAdmin();
+      allow list: if ehDiretorAdmin();
       // Dois formatos de convite: "novo" (cria acesso, carrega os papéis que
       // a pessoa vai ter) e "reset" (troca senha de uma conta que já existe,
       // preso a um uidAlvo — não carrega papéis nenhum). Exigir `roles` nos
       // dois faria o botão "Gerar link de nova senha" ser recusado sempre.
-      allow create: if ehAdmin()
+      allow create: if ehDiretorAdmin()
         && request.resource.data.usado == false
         && request.resource.data.expiraEm is timestamp
         && (
@@ -178,8 +187,8 @@ service cloud.firestore {
       // Quem aceita o convite só pode carimbá-lo como usado. Não pode mudar
       // os papéis que ele concede, nem reabrir um convite já queimado.
       allow update: if (membro() && so(['usado', 'usadoEm', 'nome']) && request.resource.data.usado == true)
-        || ehAdmin();
-      allow delete: if ehAdmin();
+        || ehDiretorAdmin();
+      allow delete: if ehDiretorAdmin();
     }
 
     // ---------- clientes ----------
@@ -927,7 +936,11 @@ service cloud.firestore {
         && request.resource.data.status == 'pendente'
         && request.resource.data.authTime == string(request.auth.token.auth_time)
         && request.resource.data.keys().hasOnly(['uid', 'nome', 'email', 'computador', 'authTime', 'status', 'criadoEm']);
-      allow update, delete: if ehAdmin();
+      // ninguém aprova o próprio pedido, e o pedido não troca de dono (Vitor, 09/11/2026)
+      allow update: if ehAdmin() && request.resource.data.uid == resource.data.uid && (
+        request.resource.data.status != 'aprovado' || resource.data.status == 'aprovado'
+        || (resource.data.uid != request.auth.uid && request.resource.data.get('aprovadoPorUid', '') == request.auth.uid));
+      allow delete: if ehAdmin();
       // o código de 6 dígitos: só o admin
       match /codigo/{doc} {
         allow read, write: if ehAdmin();
@@ -1729,9 +1742,11 @@ service cloud.firestore {
       return membroNoNads() && (ehAdmin() || meuDoc().get('nivel', '') == 'diretor');
     }
     // O Financeiro do nads (Vitor, 09/11/2026): quem é Diretor sempre tem; os outros, só com o papel financeiro, que o Diretor
-    // autoriza na ficha da pessoa. O admin sem o nível Diretor não entra, como no app.
+    // autoriza na ficha da pessoa. O admin sem o nível Diretor não entra, como no app. Sempre com o login liberado, admin
+    // inclusive e mesmo com a proteção desligada: sem isso, a senha de um Diretor abria os dados de qualquer computador.
     function podeNoFinanceiroNads() {
-      return membroNoNads() && (meuDoc().get('nivel', '') == 'diretor' || temPapel('financeiro'));
+      return membro() && exists(/databases/$(database)/documents/nadsSessoes/$(loginNads()))
+        && (meuDoc().get('nivel', '') == 'diretor' || temPapel('financeiro'));
     }
     function pedidoDeNotaOk(d) {
       return d.tomador is map && d.tomador.keys().hasOnly(['documento', 'nome', 'email', 'fone', 'endereco'])
