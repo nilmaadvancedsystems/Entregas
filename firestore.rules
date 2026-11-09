@@ -881,7 +881,12 @@ service cloud.firestore {
         && (!('arquivo' in request.resource.data) || request.resource.data.arquivo is map)
         && (!('analise' in request.resource.data) || request.resource.data.analise == 'pendente')
         && request.resource.data.keys().hasOnly(['uid', 'nome', 'email', 'texto', 'imagem', 'tela', 'versao', 'criadoEm', 'status', 'prioridade', 'tipo', 'caminho', 'contexto', 'arquivo', 'analise']);
-      allow update: if ehAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
+      // o admin muda a situação (resolvido leva a data: o ticket sai do chat às 18:00); quem mandou responde o teste, só em
+      // Testando (09/11/2026): funcionou (feito) ou ainda com problema (volta a resolvendo)
+      allow update: if (ehAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'resolvidoEm']))
+        || (membroNoNads() && resource.data.uid == request.auth.uid && resource.data.status == 'testando'
+          && request.resource.data.status in ['feito', 'resolvendo']
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'resolvidoEm']));
       allow delete: if ehAdmin();
       // o arquivo do bug, em pedaços (como o enviosSecretario): quem mandou o bug grava; só o admin lê (para baixar)
       match /partes/{n} {
