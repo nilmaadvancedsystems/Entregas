@@ -1121,7 +1121,7 @@ service cloud.firestore {
         // robo/fgts (o robô do FGTS Digital ligado e de quem é o certificado do escritório): o DP lê (07/10/2026)
         || (doc == 'fgts' && doSetor('dp'))
         // robo/nfse (o emissor de notas do financeiro ligado e o certificado): o diretor lê (15/10/2026)
-        || (doc == 'nfse' && ehDiretorNads())
+        || (doc == 'nfse' && podeNoFinanceiroNads())
         // robo/painelPC e robo/painelVM (o painel do robô, 21/10/2026): o batimento de cada robô, o que está fazendo, as
         // filas e o que foi arquivado. Só o admin e o diretor (o contábil, que lê o resto de robo/*, fica de fora)
         || (doc in ['painelPC', 'painelVM'] && ehDiretorNads())
@@ -1723,6 +1723,11 @@ service cloud.firestore {
     function ehDiretorNads() {
       return membroNoNads() && (ehAdmin() || meuDoc().get('nivel', '') == 'diretor');
     }
+    // O Financeiro do nads (Vitor, 09/11/2026): quem é Diretor sempre tem; os outros, só com o papel financeiro, que o Diretor
+    // autoriza na ficha da pessoa. O admin sem o nível Diretor não entra, como no app.
+    function podeNoFinanceiroNads() {
+      return membroNoNads() && (meuDoc().get('nivel', '') == 'diretor' || temPapel('financeiro'));
+    }
     function pedidoDeNotaOk(d) {
       return d.tomador is map && d.tomador.keys().hasOnly(['documento', 'nome', 'email', 'fone', 'endereco'])
         && d.tomador.documento is string && d.tomador.documento.matches('^([0-9]{11}|[0-9]{14})$')
@@ -1735,51 +1740,51 @@ service cloud.firestore {
     // O financeiro do escritório no nads (19/10/2026): o movimento de caixa (financeiroCaixa; o histórico veio do Toriba)
     // e o plano de contas (financeiroPlano). Só o diretor (ou o admin) do nads lê e grava, como as notas dos honorários.
     match /financeiroCaixa/{id} {
-      allow read, write: if ehDiretorNads();
+      allow read, write: if podeNoFinanceiroNads();
     }
     match /financeiroPlano/{id} {
-      allow read, write: if ehDiretorNads();
+      allow read, write: if podeNoFinanceiroNads();
     }
     // as contas a pagar do escritório (28/10/2026, a "Contas a Pagar" do Toriba): os fornecedores e as contas, com o boleto e
     // o comprovante em pedaços (anexos/{anexo}/partes/{n}); como o resto do financeiro, só o diretor e o admin do nads
     match /financeiroFornecedores/{id} {
-      allow read, write: if ehDiretorNads();
+      allow read, write: if podeNoFinanceiroNads();
     }
     match /financeiroContasPagar/{id} {
-      allow read, write: if ehDiretorNads();
+      allow read, write: if podeNoFinanceiroNads();
       match /anexos/{anexo} {
-        allow read, write: if ehDiretorNads();
+        allow read, write: if podeNoFinanceiroNads();
         match /partes/{n} {
-          allow read, write: if ehDiretorNads();
+          allow read, write: if podeNoFinanceiroNads();
         }
       }
     }
     // os honorários a receber (19/10/2026): o cliente e o valor (financeiroHonorarios) e o que foi recebido em cada mês
     // (financeiroRecebimentos/{contrato}_{AAAA-MM}); sem vencimento, só pago ou em aberto
     match /financeiroHonorarios/{id} {
-      allow read, write: if ehDiretorNads();
+      allow read, write: if podeNoFinanceiroNads();
     }
     match /financeiroRecebimentos/{id} {
-      allow read, write: if ehDiretorNads();
+      allow read, write: if podeNoFinanceiroNads();
     }
     // o extrato do banco (23/10/2026: a Conciliação virou o importador de extrato, à parte do Caixa): as linhas
     // (financeiroBanco, o id fixo pelo banco, data, valor e histórico) e as importações (financeiroBancoImportacoes)
     match /financeiroBanco/{id} {
-      allow read, write: if ehDiretorNads();
+      allow read, write: if podeNoFinanceiroNads();
     }
     match /financeiroBancoImportacoes/{id} {
-      allow read, write: if ehDiretorNads();
+      allow read, write: if podeNoFinanceiroNads();
     }
 
     match /nfseEmissoes/{id} {
-      allow read: if ehDiretorNads();
-      allow create: if ehDiretorNads()
+      allow read: if podeNoFinanceiroNads();
+      allow create: if podeNoFinanceiroNads()
         && request.resource.data.status == 'pedida'
         && request.resource.data.ambiente in ['homologacao', 'producao']
         && request.resource.data.pedidoPorUid == request.auth.uid
         && request.resource.data.keys().hasOnly(['status', 'ambiente', 'tomador', 'servico', 'empresaCodigo', 'pedidoPor', 'pedidoPorUid', 'pedidoEm'])
         && pedidoDeNotaOk(request.resource.data);
-      allow update: if ehDiretorNads() && (
+      allow update: if podeNoFinanceiroNads() && (
         // a recusada volta para a fila, com as correções (o robô reenvia com o mesmo número de DPS)
         (resource.data.status == 'erro' && request.resource.data.status == 'pedida'
           && so(['status', 'erros', 'atualizadoEm', 'tomador', 'servico']) && pedidoDeNotaOk(request.resource.data))
