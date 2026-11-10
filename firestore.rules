@@ -1868,7 +1868,9 @@ service cloud.firestore {
     // os boletos de honorários aos clientes (nads › Financeiro › Boletos, 10/11/2026): quem pode no Financeiro sobe os PDFs
     // prontos (o boleto e os pedaços do PDF) e revisa (o cliente, para quem vai, tirar do lote); o que foi lido do PDF não
     // muda. O disparo (envio na fila) é só do Diretor, em nome próprio, para os destinatários que estão no boleto, e nunca
-    // de novo para quem já está na fila, enviando ou enviado. O robô manda e grava o resultado pelo Admin SDK. Ninguém apaga.
+    // de novo para quem já está na fila, enviando ou enviado. O robô manda e grava o resultado pelo Admin SDK.
+    // Excluir (Vitor, 10/11/2026: "não tem o botão de excluir guia"): quem pode no Financeiro apaga o boleto (e os pedaços
+    // do PDF, antes) enquanto ele não está na fila, enviando ou enviado; o que já saiu fica para o histórico.
     function envioDoBoleto(d) {
       return d.get('envio', {}).get('status', '');
     }
@@ -1903,13 +1905,15 @@ service cloud.firestore {
           && resource.data.destinatarios.size() > 0
           && resource.data.contratoId != ''
           && resource.data.get('fora', false) != true));
-      allow delete: if false;
+      allow delete: if podeNoFinanceiroNads() && !(envioDoBoleto(resource.data) in ['fila', 'enviando', 'enviado']);
       match /partes/{n} {
         allow read: if podeNoFinanceiroNads();
         allow create: if podeNoFinanceiroNads() && n.matches('^([0-9]|[12][0-9])$')
           && request.resource.data.keys().hasOnly(['dados'])
           && request.resource.data.dados is bytes && request.resource.data.dados.size() <= 950000;
-        allow update, delete: if false;
+        allow update: if false;
+        allow delete: if podeNoFinanceiroNads()
+          && !(envioDoBoleto(get(/databases/$(database)/documents/financeiroBoletos/$(id)).data) in ['fila', 'enviando', 'enviado']);
       }
     }
     // o extrato do banco (23/10/2026: a Conciliação virou o importador de extrato, à parte do Caixa): as linhas
