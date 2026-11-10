@@ -76,6 +76,35 @@ service cloud.firestore {
       return meusPapeis().size() > 0;
     }
 
+    // ---------- quem pode o quê na Central dos robôs (10/11/2026) ----------
+    // robosPermissoes/{uid}: ver, comandar (só os robôs da lista) ou administrar. O admin pode tudo; sem o documento, sem acesso.
+    function contaAtiva() {
+      return logado() && exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) && meuDoc().get('ativo', true) != false;
+    }
+    function permDosRobos() {
+      return get(/databases/$(database)/documents/robosPermissoes/$(request.auth.uid)).data;
+    }
+    function temPermDosRobos() {
+      return contaAtiva() && exists(/databases/$(database)/documents/robosPermissoes/$(request.auth.uid));
+    }
+    function papelNosRobos() {
+      return temPermDosRobos() ? permDosRobos().get('papel', '') : '';
+    }
+    function podeVerRobos() {
+      return ehAdmin() || papelNosRobos() in ['ver', 'comandar', 'administrar'];
+    }
+    function administraRobos() {
+      return ehAdmin() || papelNosRobos() == 'administrar';
+    }
+    function podeCriarComando(acao, robo) {
+      return administraRobos()
+        || (podeVerRobos() && acao == 'assistir')
+        || (papelNosRobos() == 'comandar' && acao in ['pausar', 'retomar', 'rodar-agora', 'limpar-fila', 'refazer', 'cancelar-item', 'na-frente', 'pedir-cliente'] && robo in permDosRobos().get('robos', []));
+    }
+    function soMudou(campos) {
+      return request.resource.data.diff(resource == null ? {} : resource.data).affectedKeys().hasOnly(campos.concat(['atualizadoEm', 'atualizadoPor']));
+    }
+
     // Campos que o dono do documento NÃO pode mexer em si mesmo.
     function naoMexeuEm(campos) {
       return !request.resource.data.diff(resource.data).affectedKeys().hasAny(campos);
@@ -450,6 +479,20 @@ service cloud.firestore {
       allow read: if membro();
       allow write: if ehAdmin();
     }
+    // Os Ajustes da Central dos robôs (10/11/2026): quem administra os robôs muda só estes campos, nunca segredo nenhum
+    match /config/fgts { allow create, update: if administraRobos() && soMudou(['onde']); }
+    match /config/cobranca { allow create, update: if administraRobos() && soMudou(['regua', 'diaLimite', 'comprovanteEmail', 'assinatura']); }
+    match /config/caixasGmail { allow create, update: if administraRobos() && soMudou(['enviarPeloRobo']); }
+    match /config/roboIgnorados { allow create, update: if administraRobos() && soMudou(['remetentes']); }
+    match /config/indiceDrive { allow create, update: if administraRobos() && soMudou(['contas', 'marcar']); }
+    match /config/integracoes { allow create, update: if administraRobos() && soMudou(['iaMotor', 'iaModeloClaude', 'iaModelo']); }
+    match /config/avisoCertificados { allow create, update: if administraRobos() && soMudou(['ligado']); }
+    match /config/robosHorarios { allow create, update: if administraRobos() && request.resource.data.keys().hasOnly(['robos', 'atualizadoEm', 'atualizadoPor']); }
+    match /config/robosAlertas {
+      allow create, update: if administraRobos()
+        && request.resource.data.keys().hasOnly(['ligado', 'pessoas', 'erro', 'semSinal', 'disco', 'repetirMin', 'maxPorHora', 'atualizadoEm', 'atualizadoPor'])
+        && request.resource.data.pessoas is list && request.resource.data.pessoas.size() <= 30;
+    }
     // o modelo do e-mail do nads › DP › Envios (28/10/2026, como o e-mail da NFS-e): o DP também grava, só o assunto e o texto
     match /config/envioDp {
       allow write: if (ehAdmin() || doSetor('dp'))
@@ -821,7 +864,7 @@ service cloud.firestore {
     function tarefaDelegadaValida(d) {
       // os clientes (vários, até 20) e a hora do prazo são de 09/11/2026: a tarefa de antes não tem esses campos
       return d.keys().hasOnly(['numero', 'titulo', 'descricao', 'cliente', 'clientes', 'prioridade', 'prazo', 'prazoHora', 'status', 'criadaPor', 'responsavel',
-          'pessoas', 'criadaEm', 'concluidaEm', 'atualizadaEm', 'pareceres', 'historico', 'anexos'])
+          'pessoas', 'criadaEm', 'concluidaEm', 'atualizadaEm', 'pareceres', 'historico', 'anexos', 'etapaDelegada'])
         && d.keys().hasAll(['numero', 'titulo', 'descricao', 'cliente', 'prioridade', 'prazo', 'status', 'criadaPor', 'responsavel',
           'pessoas', 'criadaEm', 'concluidaEm', 'atualizadaEm', 'pareceres', 'historico', 'anexos'])
         && d.numero is int && d.numero > 0
@@ -831,7 +874,9 @@ service cloud.firestore {
           && d.cliente.nome is string && d.cliente.nome.size() > 0 && d.cliente.nome.size() <= 200
           && (d.cliente.get('codigo', null) == null || d.cliente.codigo is int)))
         && (!('clientes' in d) || (d.clientes is list && d.clientes.size() <= 20))
-        && d.prioridade in ['baixa', 'normal', 'alta', 'urgente']
+        // a etapa delegada (Clientes ou Fornecedores, 10/11/2026): a empresa, o período, as contas e as já feitas
+          && (!('etapaDelegada' in d) || (d.etapaDelegada is map && d.etapaDelegada.etapa in ['clientes', 'fornecedores'] && d.etapaDelegada.contas is list && d.etapaDelegada.contas.size() <= 2000 && d.etapaDelegada.feitas is list && d.etapaDelegada.feitas.size() <= 2000))
+          && d.prioridade in ['baixa', 'normal', 'alta', 'urgente']
         && d.prazo is string && (d.prazo == '' || d.prazo.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$'))
         && (!('prazoHora' in d) || (d.prazoHora is string && (d.prazoHora == '' || d.prazoHora.matches('^([01][0-9]|2[0-3]):[0-5][0-9]$'))))
         && d.status in ['pendente', 'andamento', 'pausada', 'cancelada', 'concluida']
@@ -861,7 +906,7 @@ service cloud.firestore {
         && (resource.data.criadaPor.uid == request.auth.uid || resource.data.responsavel.uid == request.auth.uid)
         && tarefaDelegadaValida(request.resource.data)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['titulo', 'descricao', 'cliente', 'clientes', 'prioridade', 'prazo', 'prazoHora', 'status',
-          'responsavel', 'pessoas', 'concluidaEm', 'atualizadaEm', 'pareceres', 'historico', 'anexos']);
+          'responsavel', 'pessoas', 'concluidaEm', 'atualizadaEm', 'pareceres', 'historico', 'anexos', 'etapaDelegada']);
       allow delete: if membroNoNads() && (resource.data.criadaPor.uid == request.auth.uid || ehAdmin());
       match /partes/{parte} {
         allow read: if membroNoNads();
@@ -1142,7 +1187,7 @@ service cloud.firestore {
         || (doc == 'nfse' && podeNoFinanceiroNads())
         // robo/painelPC e robo/painelVM (o painel do robô, 21/10/2026): o batimento de cada robô, o que está fazendo, as
         // filas e o que foi arquivado. Só o admin e o diretor (o contábil, que lê o resto de robo/*, fica de fora)
-        || (doc in ['painelPC', 'painelVM'] && ehDiretorNads())
+        || (doc in ['painelPC', 'painelVM'] && (ehDiretorNads() || podeVerRobos()))
         // robo/arquivadorResumo (a janela do Arquivador no Drive da Tarefas, 23/10/2026): o resumo pequeno do arquivador
         // novo (o modo, o que está fazendo, os números de hoje, quantos estão para resolver, o último arquivado pelo nome
         // final padronizado; nunca o nome original). O admin e o contábil (pelo papel ou pelo setor do Cadastro do nads)
@@ -1171,7 +1216,7 @@ service cloud.firestore {
     // (arquivou, emitiu a guia, baixou os XMLs, deu erro), com o texto curto e o detalhe. Só o admin e o diretor leem;
     // quem grava e apaga (as de mais de 7 dias) é o robô, pelo Admin SDK.
     match /roboAtividade/{id} {
-      allow read: if ehAdmin() || ehDiretorNads();
+      allow read: if ehAdmin() || ehDiretorNads() || podeVerRobos();
       allow write: if false;
     }
 
@@ -1180,32 +1225,46 @@ service cloud.firestore {
     // pausados) e o espelho do log de cada robô (robosRegistros/{robo}: as últimas 200 linhas, sem segredo). Só o admin
     // lê; quem grava é o robô de cada máquina (robo/central.js), pelo Admin SDK.
     match /robosMaquinas/{maquina} {
-      allow read: if ehAdmin();
+      allow read: if podeVerRobos();
       allow write: if false;
     }
     match /robosRegistros/{robo} {
-      allow read: if ehAdmin();
+      allow read: if podeVerRobos();
       allow write: if false;
     }
-    // Os comandos aos robôs (robosComandos/{id}): só o admin lê o histórico e cria o pedido, e só com estes campos, como
-    // 'pendente', em nome dele mesmo, para uma das 3 máquinas e com uma ação da LISTA FECHADA. Ninguém muda nem apaga
-    // pela tela: quem responde (aceito, feito, erro, recusado) e apaga os de mais de 30 dias é o robô, pelo Admin SDK, e
-    // ele confere tudo de novo (comando velho, repetido, robô e tarefa que a máquina conhece).
+    // Os comandos aos robôs (robosComandos/{id}): quem vê os robôs lê o histórico; cria quem tem o papel para aquela ação
+    // (podeCriarComando), só com estes campos, como 'pendente', em nome dele mesmo, para uma das 3 máquinas e com uma ação
+    // da LISTA FECHADA. Ninguém muda nem apaga pela tela: quem responde (aceito, feito, erro, recusado) e apaga os de mais
+    // de 30 dias é o robô, pelo Admin SDK, e ele confere tudo de novo (comando velho, repetido, quem pediu, robô e tarefa).
     match /robosComandos/{id} {
-      allow read: if ehAdmin();
-      allow create: if ehAdmin()
-        && request.resource.data.keys().hasOnly(['maquina', 'robo', 'acao', 'tarefa', 'por', 'porNome', 'em', 'status', 'expiraEm'])
+      allow read: if podeVerRobos();
+      allow create: if podeCriarComando(request.resource.data.acao, request.resource.data.robo)
+        && request.resource.data.keys().hasOnly(['maquina', 'robo', 'acao', 'tarefa', 'por', 'porNome', 'em', 'status', 'expiraEm', 'item', 'cliente', 'competencia', 'ate', 'rotulo'])
         && request.resource.data.keys().hasAll(['maquina', 'robo', 'acao', 'tarefa', 'por', 'porNome', 'em', 'status', 'expiraEm'])
         && request.resource.data.status == 'pendente'
         && request.resource.data.por == request.auth.uid
         && request.resource.data.maquina in ['servidor', 'nuvem', 'escritorio']
-        && request.resource.data.acao in ['pausar', 'retomar', 'rodar-agora', 'limpar-fila', 'reiniciar', 'atualizar', 'assistir']
+        && request.resource.data.acao in ['pausar', 'retomar', 'rodar-agora', 'limpar-fila', 'reiniciar', 'atualizar', 'assistir', 'refazer', 'cancelar-item', 'na-frente', 'pedir-cliente', 'parar-tudo', 'retomar-tudo']
         && request.resource.data.robo is string && request.resource.data.robo.size() <= 40
         && request.resource.data.tarefa is string && request.resource.data.tarefa.size() <= 40
         && request.resource.data.porNome is string && request.resource.data.porNome.size() <= 80
         && request.resource.data.em is string && request.resource.data.em.size() <= 40
-        && request.resource.data.expiraEm is timestamp;
+        && request.resource.data.expiraEm is timestamp
+        && request.resource.data.get('item', '') is string && request.resource.data.get('item', '').size() <= 128
+        && request.resource.data.get('cliente', '') is string && request.resource.data.get('cliente', '').size() <= 9
+        && request.resource.data.get('competencia', '') is string && request.resource.data.get('competencia', '').size() <= 7
+        && request.resource.data.get('ate', '') is string && request.resource.data.get('ate', '').size() <= 40
+        && request.resource.data.get('rotulo', '') is string && request.resource.data.get('rotulo', '').size() <= 120;
       allow update, delete: if false;
+    }
+    // Quem pode o quê na Central (10/11/2026): só o admin muda; cada um lê o próprio
+    match /robosPermissoes/{uid} {
+      allow read: if ehAdmin() || request.auth.uid == uid;
+      allow create, update: if ehAdmin()
+        && request.resource.data.keys().hasOnly(['papel', 'robos', 'atualizadoEm', 'atualizadoPor'])
+        && request.resource.data.papel in ['ver', 'comandar', 'administrar']
+        && request.resource.data.robos is list && request.resource.data.robos.size() <= 20;
+      allow delete: if ehAdmin();
     }
 
     // O SIEG no Fiscal do nads (06/10/2026): o robô deste PC (scripts/sieg.js, pelo Admin SDK) conta as notas de cada
@@ -1225,7 +1284,7 @@ service cloud.firestore {
       allow write: if false;
     }
     match /pedidosSieg/{id} {
-      allow read: if ehAdmin() || temPapel('fiscal');
+      allow read: if ehAdmin() || temPapel('fiscal') || podeVerRobos();
       allow create: if (ehAdmin() || temPapel('fiscal'))
         && request.resource.data.status == 'pendente'
         && request.resource.data.criadoPorUid == request.auth.uid
@@ -1250,7 +1309,7 @@ service cloud.firestore {
     // consulta cada NF-e, NFC-e e CT-e emitida do mês pela chave, com o certificado do escritório, e grava o andamento e o
     // resultado no próprio pedido. Quem pede é o fiscal (ou o admin), só com estes campos; o resto o robô escreve.
     match /pedidosSituacao/{id} {
-      allow read: if ehAdmin() || temPapel('fiscal');
+      allow read: if ehAdmin() || temPapel('fiscal') || podeVerRobos();
       allow create: if (ehAdmin() || temPapel('fiscal'))
         && request.resource.data.status == 'pendente'
         && request.resource.data.criadoPorUid == request.auth.uid
@@ -1265,7 +1324,7 @@ service cloud.firestore {
     // A Conferência pede o balancete (tipo, empresa, competência); o robô do PC gera no Contábil logado e põe o .xlsx em
     // arquivo/xlsx. O contábil e o admin leem e pedem; quem pode pedir pode cancelar enquanto espera; só o robô grava o resto.
     match /pedidosAlterdata/{id} {
-      allow read: if ehAdmin() || doSetor('contabil')
+      allow read: if ehAdmin() || doSetor('contabil') || podeVerRobos()
         // o Importar no Alterdata (06/11/2026): quem pediu acompanha o próprio pedido (o DP e o fiscal também importam)
         || (logado() && resource.data.criadoPorUid == request.auth.uid);
       allow create: if (ehAdmin() || doSetor('contabil'))
@@ -1308,7 +1367,7 @@ service cloud.firestore {
     }
 
     match /pedidosFgts/{id} {
-      allow read: if ehAdmin() || doSetor('dp');
+      allow read: if ehAdmin() || doSetor('dp') || podeVerRobos();
       allow create: if (ehAdmin() || doSetor('dp'))
         && request.resource.data.status == 'pendente'
         && request.resource.data.criadoPorUid == request.auth.uid
@@ -1410,7 +1469,7 @@ service cloud.firestore {
     }
 
     match /solicitacoesArquivo/{id} {
-      allow read: if ehAdmin() || temPapel('contabil');
+      allow read: if ehAdmin() || temPapel('contabil') || podeVerRobos();
       allow create: if (ehAdmin() || temPapel('contabil'))
         && request.resource.data.status == 'pendente'
         && request.resource.data.modo in ['PRODUCAO', 'SIMULACAO']
