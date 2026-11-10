@@ -1865,6 +1865,53 @@ service cloud.firestore {
     match /financeiroRecebimentos/{id} {
       allow read, write: if podeNoFinanceiroNads();
     }
+    // os boletos de honorários aos clientes (nads › Financeiro › Boletos, 10/11/2026): quem pode no Financeiro sobe os PDFs
+    // prontos (o boleto e os pedaços do PDF) e revisa (o cliente, para quem vai, tirar do lote); o que foi lido do PDF não
+    // muda. O disparo (envio na fila) é só do Diretor, em nome próprio, para os destinatários que estão no boleto, e nunca
+    // de novo para quem já está na fila, enviando ou enviado. O robô manda e grava o resultado pelo Admin SDK. Ninguém apaga.
+    function envioDoBoleto(d) {
+      return d.get('envio', {}).get('status', '');
+    }
+    function revisaoDoBoletoOk(d) {
+      return d.contratoId is string && d.contratoId.size() <= 60
+        && d.achadoPor in ['documento', 'nome', 'mao', '']
+        && d.destinatarios is list && d.destinatarios.size() <= 10
+        && (!('fora' in d) || d.fora is bool);
+    }
+    match /financeiroBoletos/{id} {
+      allow read: if podeNoFinanceiroNads();
+      allow create: if podeNoFinanceiroNads()
+        && request.resource.data.criadoPorUid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['competencia', 'arquivo', 'contratoId', 'achadoPor', 'linha', 'valor', 'vencimento', 'destinatarios', 'tamanho', 'partes', 'criadoEm', 'criadoPor', 'criadoPorUid'])
+        && request.resource.data.competencia is string && request.resource.data.competencia.matches('^[0-9]{4}-(0[1-9]|1[0-2])$')
+        && request.resource.data.arquivo is string && request.resource.data.arquivo.size() >= 1 && request.resource.data.arquivo.size() <= 200
+        && request.resource.data.linha is string && request.resource.data.linha.matches('^([0-9]{47,48})?$')
+        && (request.resource.data.valor == null || (request.resource.data.valor is number && request.resource.data.valor > 0 && request.resource.data.valor < 10000000))
+        && (request.resource.data.vencimento == null || (request.resource.data.vencimento is string && request.resource.data.vencimento.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')))
+        && request.resource.data.tamanho is int && request.resource.data.tamanho > 0 && request.resource.data.tamanho <= 26214400
+        && request.resource.data.partes is int && request.resource.data.partes >= 1 && request.resource.data.partes <= 30
+        && revisaoDoBoletoOk(request.resource.data);
+      allow update: if podeNoFinanceiroNads() && !(envioDoBoleto(resource.data) in ['fila', 'enviando', 'enviado']) && (
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['contratoId', 'achadoPor', 'destinatarios', 'fora', 'atualizadoEm', 'atualizadoPor'])
+          && revisaoDoBoletoOk(request.resource.data))
+        || (meuDoc().get('nivel', '') == 'diretor'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['envio'])
+          && request.resource.data.envio.keys().hasOnly(['status', 'para', 'em', 'por', 'porUid'])
+          && request.resource.data.envio.status == 'fila'
+          && request.resource.data.envio.porUid == request.auth.uid
+          && request.resource.data.envio.para == resource.data.destinatarios
+          && resource.data.destinatarios.size() > 0
+          && resource.data.contratoId != ''
+          && resource.data.get('fora', false) != true));
+      allow delete: if false;
+      match /partes/{n} {
+        allow read: if podeNoFinanceiroNads();
+        allow create: if podeNoFinanceiroNads() && n.matches('^([0-9]|[12][0-9])$')
+          && request.resource.data.keys().hasOnly(['dados'])
+          && request.resource.data.dados is bytes && request.resource.data.dados.size() <= 950000;
+        allow update, delete: if false;
+      }
+    }
     // o extrato do banco (23/10/2026: a Conciliação virou o importador de extrato, à parte do Caixa): as linhas
     // (financeiroBanco, o id fixo pelo banco, data, valor e histórico) e as importações (financeiroBancoImportacoes)
     match /financeiroBanco/{id} {
