@@ -695,6 +695,16 @@ service cloud.firestore {
       allow read, write: if membro() && (ehAdmin() || temPapel('fiscal'));
     }
 
+    // ---------- LCDPR mês a mês no nads (11/11/2026) ----------
+    // lcdprEmpresas/{empresa}: a conta de pagamento lembrada de cada fornecedor; meses/{AAAA-MM}: os lançamentos do mês;
+    // cadastros/alterdata: os históricos e as contas do movimento do Alterdata. Quem pode o mesmo que no lcdpr/config.
+    match /lcdprEmpresas/{empresa} {
+      allow read, write: if membro() && (ehAdmin() || temPapel('fiscal'));
+      match /{resto=**} {
+        allow read, write: if membro() && (ehAdmin() || temPapel('fiscal'));
+      }
+    }
+
     // ---------- conciliações (Contábil: conciliador.html, cheque-especial.html) ----------
     // Essas duas ferramentas não vieram no mesmo pacote — se este arquivo
     // fosse publicado sem esta seção, a aba Contábil inteira parava de
@@ -874,8 +884,8 @@ service cloud.firestore {
           && d.cliente.nome is string && d.cliente.nome.size() > 0 && d.cliente.nome.size() <= 200
           && (d.cliente.get('codigo', null) == null || d.cliente.codigo is int)))
         && (!('clientes' in d) || (d.clientes is list && d.clientes.size() <= 20))
-        // a etapa delegada (Clientes ou Fornecedores, 10/11/2026): a empresa, o período, as contas e as já feitas
-          && (!('etapaDelegada' in d) || (d.etapaDelegada is map && d.etapaDelegada.etapa in ['clientes', 'fornecedores'] && d.etapaDelegada.contas is list && d.etapaDelegada.contas.size() <= 2000 && d.etapaDelegada.feitas is list && d.etapaDelegada.feitas.size() <= 2000))
+        // a etapa delegada (Clientes ou Fornecedores, 10/11/2026; a Contabilização da Folha, dp, 11/11/2026): a empresa, o período, as contas e as já feitas
+          && (!('etapaDelegada' in d) || (d.etapaDelegada is map && d.etapaDelegada.etapa in ['clientes', 'fornecedores', 'dp'] && d.etapaDelegada.contas is list && d.etapaDelegada.contas.size() <= 2000 && d.etapaDelegada.feitas is list && d.etapaDelegada.feitas.size() <= 2000))
           && d.prioridade in ['baixa', 'normal', 'alta', 'urgente']
         && d.prazo is string && (d.prazo == '' || d.prazo.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$'))
         && (!('prazoHora' in d) || (d.prazoHora is string && (d.prazoHora == '' || d.prazoHora.matches('^([01][0-9]|2[0-3]):[0-5][0-9]$'))))
@@ -1893,10 +1903,14 @@ service cloud.firestore {
         && request.resource.data.tamanho is int && request.resource.data.tamanho > 0 && request.resource.data.tamanho <= 26214400
         && request.resource.data.partes is int && request.resource.data.partes >= 1 && request.resource.data.partes <= 30
         && revisaoDoBoletoOk(request.resource.data);
-      allow update: if podeNoFinanceiroNads() && !(envioDoBoleto(resource.data) in ['fila', 'enviando', 'enviado']) && (
-        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['contratoId', 'achadoPor', 'destinatarios', 'fora', 'atualizadoEm', 'atualizadoPor'])
+      // o Enviar de novo (10/11/2026: "reenviar o gmail pro mesmo cliente quantas vezes forem necessarias"): a revisão continua
+      // travada no que saiu; o disparo do Diretor aceita também o já enviado (só não o que o robô está mandando)
+      allow update: if podeNoFinanceiroNads() && (
+        (!(envioDoBoleto(resource.data) in ['fila', 'enviando', 'enviado'])
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['contratoId', 'achadoPor', 'destinatarios', 'fora', 'atualizadoEm', 'atualizadoPor'])
           && revisaoDoBoletoOk(request.resource.data))
-        || (meuDoc().get('nivel', '') == 'diretor'
+        || (!(envioDoBoleto(resource.data) in ['fila', 'enviando'])
+          && meuDoc().get('nivel', '') == 'diretor'
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['envio'])
           && request.resource.data.envio.keys().hasOnly(['status', 'para', 'em', 'por', 'porUid'])
           && request.resource.data.envio.status == 'fila'
@@ -1905,7 +1919,8 @@ service cloud.firestore {
           && resource.data.destinatarios.size() > 0
           && resource.data.contratoId != ''
           && resource.data.get('fora', false) != true));
-      allow delete: if podeNoFinanceiroNads() && !(envioDoBoleto(resource.data) in ['fila', 'enviando', 'enviado']);
+      // apagar também o já enviado (10/11/2026: "excluir os de teste"); nunca o que o robô está mandando
+      allow delete: if podeNoFinanceiroNads() && !(envioDoBoleto(resource.data) in ['fila', 'enviando']);
       match /partes/{n} {
         allow read: if podeNoFinanceiroNads();
         allow create: if podeNoFinanceiroNads() && n.matches('^([0-9]|[12][0-9])$')
@@ -1913,7 +1928,7 @@ service cloud.firestore {
           && request.resource.data.dados is bytes && request.resource.data.dados.size() <= 950000;
         allow update: if false;
         allow delete: if podeNoFinanceiroNads()
-          && !(envioDoBoleto(get(/databases/$(database)/documents/financeiroBoletos/$(id)).data) in ['fila', 'enviando', 'enviado']);
+          && !(envioDoBoleto(get(/databases/$(database)/documents/financeiroBoletos/$(id)).data) in ['fila', 'enviando']);
       }
     }
     // o extrato do banco (23/10/2026: a Conciliação virou o importador de extrato, à parte do Caixa): as linhas
