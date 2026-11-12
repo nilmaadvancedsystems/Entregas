@@ -213,10 +213,11 @@ service cloud.firestore {
     // Liberar `list` aqui é entregar o escritório.
     // A troca do e-mail de entrada (Vitor, 12/11/2026): o Diretor ou o Dono do nads pede (Cadastro › Usuários › Acesso) e o
     // robô da nuvem (Admin SDK, robo/contas-pedidos.js) confere quem pediu, troca o login no Firebase Auth e o
-    // usuarios/{uid}.email e marca feito ou erro. Ninguém muda nem apaga o pedido pelo app.
+    // usuarios/{uid}.email e marca feito ou erro. Ninguém muda nem apaga o pedido pelo app. O próprio e-mail, qualquer um da
+    // equipe troca (Vitor, 12/11/2026, na Minha conta): o pedido com uidAlvo = quem pede.
     match /pedidosConta/{id} {
-      allow read: if ehDiretorAdmin();
-      allow create: if ehDiretorAdmin()
+      allow read: if ehDiretorAdmin() || (membro() && resource.data.pedidoPor.uid == request.auth.uid);
+      allow create: if (ehDiretorAdmin() || (membro() && request.resource.data.uidAlvo == request.auth.uid))
         && request.resource.data.keys().hasOnly(['acao', 'uidAlvo', 'emailNovo', 'pedidoPor', 'em', 'status'])
         && request.resource.data.acao == 'trocarEmail'
         && request.resource.data.status == 'fila'
