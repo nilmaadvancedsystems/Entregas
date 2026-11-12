@@ -178,6 +178,17 @@ service cloud.firestore {
       match /notas/{nota} {
         allow read, write: if membro() && request.auth.uid == uid;
       }
+      // As finanças pessoais da Carteira do nads (12/11/2026): como as Anotações, só a dona vê (nem o admin)
+      match /carteiraLancamentos/{lancamento} {
+        allow read, delete: if membro() && request.auth.uid == uid;
+        allow create, update: if membro() && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly(['tipo', 'data', 'descricao', 'categoria', 'valor'])
+          && request.resource.data.tipo in ['entrada', 'saida']
+          && request.resource.data.data is string && request.resource.data.data.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+          && request.resource.data.descricao is string && request.resource.data.descricao.size() > 0 && request.resource.data.descricao.size() <= 200
+          && request.resource.data.categoria is string && request.resource.data.categoria.size() <= 40
+          && request.resource.data.valor is number && request.resource.data.valor > 0;
+      }
     }
 
     function conviteValido(codigo) {
@@ -1859,13 +1870,70 @@ service cloud.firestore {
     match /financeiroFornecedores/{id} {
       allow read, write: if podeNoFinanceiroNads();
     }
+    // A conta ligada à Carteira de um funcionário (funcionario.uid; 12/11/2026: "ao registrar uma conta, vincular a essa
+    // carteira individual do funcionário"): a própria pessoa lê a conta e os anexos dela (o comprovante); só lê.
+    function contaDoFuncionario(id) {
+      return membroNoNads()
+        && get(/databases/$(database)/documents/financeiroContasPagar/$(id)).data.funcionario.uid == request.auth.uid;
+    }
     match /financeiroContasPagar/{id} {
-      allow read, write: if podeNoFinanceiroNads();
+      allow read: if podeNoFinanceiroNads()
+        // (o caminho direto, para a consulta da Carteira, where funcionario.uid == o login, passar na regra)
+        || (membroNoNads() && resource.data.funcionario.uid == request.auth.uid);
+      allow write: if podeNoFinanceiroNads();
       match /anexos/{anexo} {
-        allow read, write: if podeNoFinanceiroNads();
+        allow read: if podeNoFinanceiroNads() || contaDoFuncionario(id);
+        allow write: if podeNoFinanceiroNads();
         match /partes/{n} {
-          allow read, write: if podeNoFinanceiroNads();
+          allow read: if podeNoFinanceiroNads() || contaDoFuncionario(id);
+          allow write: if podeNoFinanceiroNads();
         }
+      }
+    }
+    // A Carteira do nads (12/11/2026): as comissões de cada pessoa e os holerites e comprovantes que o Financeiro sobe.
+    // carteiraComissoes: a pessoa lê as dela, cria em nome dela (lançada) e mexe e apaga enquanto está lançada (sem trocar
+    // o dono nem a situação); o Financeiro lê todas e decide (aprova, recusa, paga ou volta para lançada).
+    function comissaoOk(d) {
+      return d.competencia is string && d.competencia.matches('^[0-9]{4}-(0[1-9]|1[0-2])$')
+        && d.data is string && d.data.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && d.cliente is string && d.cliente.size() > 0 && d.cliente.size() <= 150
+        && d.descricao is string && d.descricao.size() > 0 && d.descricao.size() <= 500
+        && d.valor is number && d.valor > 0 && d.valor < 1000000;
+    }
+    match /carteiraComissoes/{id} {
+      allow read: if membroNoNads() && (resource.data.uid == request.auth.uid || podeNoFinanceiroNads());
+      allow create: if membroNoNads()
+        && request.resource.data.keys().hasOnly(['uid', 'nome', 'competencia', 'data', 'cliente', 'descricao', 'valor', 'situacao', 'criadoEm'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.nome is string && request.resource.data.nome.size() <= 100
+        && request.resource.data.situacao == 'lancada'
+        && comissaoOk(request.resource.data);
+      allow update: if (membroNoNads() && resource.data.uid == request.auth.uid && resource.data.situacao == 'lancada'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['competencia', 'data', 'cliente', 'descricao', 'valor'])
+          && comissaoOk(request.resource.data))
+        || (podeNoFinanceiroNads()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['situacao', 'decididoPor', 'decididoEm', 'motivo', 'pagoEm'])
+          && request.resource.data.situacao in ['lancada', 'aprovada', 'paga', 'recusada']);
+      allow delete: if (membroNoNads() && resource.data.uid == request.auth.uid && resource.data.situacao == 'lancada') || podeNoFinanceiroNads();
+    }
+    // carteiraDocumentos (+ partes): o holerite e o comprovante de cada pessoa, em pedaços; o Financeiro sobe e tira, a
+    // pessoa só lê os dela
+    match /carteiraDocumentos/{id} {
+      allow read: if membroNoNads() && (resource.data.uid == request.auth.uid || podeNoFinanceiroNads());
+      allow create, update: if podeNoFinanceiroNads()
+        && request.resource.data.keys().hasOnly(['uid', 'nome', 'tipo', 'competencia', 'valor', 'arquivo', 'tamanho', 'partes', 'enviadoEm', 'enviadoPor'])
+        && request.resource.data.uid is string && request.resource.data.tipo in ['holerite', 'comprovante']
+        && request.resource.data.competencia is string && request.resource.data.competencia.matches('^[0-9]{4}-(0[1-9]|1[0-2])$')
+        && request.resource.data.tamanho is int && request.resource.data.tamanho <= 10485760
+        && request.resource.data.partes is int && request.resource.data.partes >= 1 && request.resource.data.partes <= 20;
+      allow delete: if podeNoFinanceiroNads();
+      match /partes/{n} {
+        // pelo documento do holerite (a leitura dos pedaços é uma lista, sem filtro pelo dono)
+        allow read: if membroNoNads() && (podeNoFinanceiroNads()
+          || get(/databases/$(database)/documents/carteiraDocumentos/$(id)).data.uid == request.auth.uid);
+        allow create, update: if podeNoFinanceiroNads() && n.matches('^[0-9]{1,2}$')
+          && request.resource.data.keys().hasOnly(['dados', 'uid']) && request.resource.data.uid is string;
+        allow delete: if podeNoFinanceiroNads();
       }
     }
     // os honorários a receber (19/10/2026): o cliente e o valor (financeiroHonorarios) e o que foi recebido em cada mês
