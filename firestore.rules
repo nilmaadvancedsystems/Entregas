@@ -53,6 +53,13 @@ service cloud.firestore {
       return ehAdmin() && meuDoc().get('nivel', '') in ['dono', 'diretor'];
     }
 
+    // O Dono é um só (Vitor, 12/11/2026): ninguém vira Dono pelo app (quem põe é o desenvolvedor, direto no banco) e o nível
+    // do Dono só ele mesmo tira (o Deixar de ser dono, em Usuários › Acesso). Vale para o cadastro e para o convite.
+    function nivelDoDonoIntacto(uid) {
+      return (request.resource.data.get('nivel', '') != 'dono' || resource.data.get('nivel', '') == 'dono')
+        && (resource.data.get('nivel', '') != 'dono' || request.resource.data.get('nivel', '') == 'dono' || request.auth.uid == uid);
+    }
+
     // O setor da pessoa (01/10/2026): o departamento escolhido no Cadastro do nads (usuarios.departamento) ou o
     // papel (roles). Decide qual caixa do Gmail do setor ela vê e de qual ela pode mandar.
     function doSetor(setor) {
@@ -140,6 +147,7 @@ service cloud.firestore {
       // criar conta no Firebase, abria o banco inteiro pra estranhos.
       allow create: if logado()
         && request.resource.data.roles is list
+        && request.resource.data.get('nivel', '') != 'dono'
         && (
           ehDiretorAdmin()
           || (
@@ -167,12 +175,12 @@ service cloud.firestore {
       allow update: if membro() && (
         (request.auth.uid == uid && naoMexeuEm(['roles', 'email', 'criadoEm', 'departamento', 'nivel', 'ativo', 'codigoConvite']))
         || (ehAdmin() && naoMexeuEm(['roles', 'departamento', 'nivel', 'ativo', 'codigoConvite']))
-        || ehDiretorAdmin()
+        || (ehDiretorAdmin() && nivelDoDonoIntacto(uid))
       );
 
       // Apagar acesso é ato de administração, e some com o histórico de quem
       // entregou o quê. Fica com o Diretor.
-      allow delete: if ehDiretorAdmin();
+      allow delete: if ehDiretorAdmin() && resource.data.get('nivel', '') != 'dono';
 
       // Anotações pessoais: só o dono vê, ponto. Nem o admin.
       match /notas/{nota} {
@@ -238,6 +246,7 @@ service cloud.firestore {
       // preso a um uidAlvo — não carrega papéis nenhum). Exigir `roles` nos
       // dois faria o botão "Gerar link de nova senha" ser recusado sempre.
       allow create: if ehDiretorAdmin()
+        && request.resource.data.get('nivel', '') != 'dono'
         && request.resource.data.usado == false
         && request.resource.data.expiraEm is timestamp
         && (
@@ -247,7 +256,7 @@ service cloud.firestore {
       // Quem aceita o convite só pode carimbá-lo como usado. Não pode mudar
       // os papéis que ele concede, nem reabrir um convite já queimado.
       allow update: if (membro() && so(['usado', 'usadoEm', 'nome']) && request.resource.data.usado == true)
-        || ehDiretorAdmin();
+        || (ehDiretorAdmin() && request.resource.data.get('nivel', '') != 'dono');
       allow delete: if ehDiretorAdmin();
     }
 
@@ -919,7 +928,8 @@ service cloud.firestore {
         && (!('tipo' in d) || d.tipo == 'documentos')
         && (!('visualizadaEm' in d) || (d.visualizadaEm is string && d.visualizadaEm.size() <= 40))
         // a etapa delegada (Clientes ou Fornecedores, 10/11/2026; a Contabilização da Folha, dp, 11/11/2026): a empresa, o período, as contas e as já feitas
-          && (!('etapaDelegada' in d) || (d.etapaDelegada is map && d.etapaDelegada.etapa in ['clientes', 'fornecedores', 'dp'] && d.etapaDelegada.contas is list && d.etapaDelegada.contas.size() <= 2000 && d.etapaDelegada.feitas is list && d.etapaDelegada.feitas.size() <= 2000))
+        // e a tarefa em conjunto (12/11/2026): com conjunto, a etapa é o id de qualquer etapa da rotina
+          && (!('etapaDelegada' in d) || (d.etapaDelegada is map && (d.etapaDelegada.etapa in ['clientes', 'fornecedores', 'dp'] || (d.etapaDelegada.get('conjunto', false) == true && d.etapaDelegada.etapa is string && d.etapaDelegada.etapa.size() > 0 && d.etapaDelegada.etapa.size() <= 60)) && d.etapaDelegada.contas is list && d.etapaDelegada.contas.size() <= 2000 && d.etapaDelegada.feitas is list && d.etapaDelegada.feitas.size() <= 2000))
           && d.prioridade in ['baixa', 'normal', 'alta', 'urgente']
         && d.prazo is string && (d.prazo == '' || d.prazo.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$'))
         && (!('prazoHora' in d) || (d.prazoHora is string && (d.prazoHora == '' || d.prazoHora.matches('^([01][0-9]|2[0-3]):[0-5][0-9]$'))))
@@ -1969,6 +1979,29 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['lista', 'atualizadoEm', 'atualizadoPor'])
         && request.resource.data.lista is list && request.resource.data.lista.size() <= 100
         && request.resource.data.atualizadoPor is string && request.resource.data.atualizadoPor.size() <= 100;
+    }
+    // carteiraInsumos (12/11/2026: "um menu de Insumos, onde a pessoa registra impressões, pastas, envelopes e caixas
+    // criadas"): a pessoa lê os dela, cria em nome dela e muda e apaga os dela (sem trocar o dono); o Diretor, o Dono e o
+    // Financeiro leem todos (os totais por pessoa e por cliente) e apagam.
+    function insumoOk(d) {
+      return d.competencia is string && d.competencia.matches('^[0-9]{4}-(0[1-9]|1[0-2])$')
+        && d.data is string && d.data.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && d.tipo in ['impressao', 'pasta', 'envelope', 'caixa']
+        && d.quantidade is int && d.quantidade > 0 && d.quantidade <= 100000
+        && d.cliente is string && d.cliente.size() > 0 && d.cliente.size() <= 150
+        && (d.get('codigo', null) == null || d.get('codigo', null) is int);
+    }
+    match /carteiraInsumos/{id} {
+      allow read: if membroNoNads() && (resource.data.uid == request.auth.uid || podeNoFinanceiroNads());
+      allow create: if membroNoNads()
+        && request.resource.data.keys().hasOnly(['uid', 'nome', 'competencia', 'data', 'tipo', 'quantidade', 'cliente', 'codigo', 'criadoEm'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.nome is string && request.resource.data.nome.size() <= 100
+        && insumoOk(request.resource.data);
+      allow update: if membroNoNads() && resource.data.uid == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['competencia', 'data', 'tipo', 'quantidade', 'cliente', 'codigo'])
+        && insumoOk(request.resource.data);
+      allow delete: if membroNoNads() && (resource.data.uid == request.auth.uid || podeNoFinanceiroNads());
     }
     // carteiraDocumentos (+ partes): o holerite e o comprovante de cada pessoa, em pedaços; o Financeiro sobe e tira, a
     // pessoa só lê os dela
