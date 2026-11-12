@@ -211,6 +211,24 @@ service cloud.firestore {
     // inclusive os de redefinição de senha, que o serviço de contas aceita
     // como única autorização pra trocar a senha de uma conta existente.
     // Liberar `list` aqui é entregar o escritório.
+    // A troca do e-mail de entrada (Vitor, 12/11/2026): o Diretor ou o Dono do nads pede (Cadastro › Usuários › Acesso) e o
+    // robô da nuvem (Admin SDK, robo/contas-pedidos.js) confere quem pediu, troca o login no Firebase Auth e o
+    // usuarios/{uid}.email e marca feito ou erro. Ninguém muda nem apaga o pedido pelo app.
+    match /pedidosConta/{id} {
+      allow read: if ehDiretorAdmin();
+      allow create: if ehDiretorAdmin()
+        && request.resource.data.keys().hasOnly(['acao', 'uidAlvo', 'emailNovo', 'pedidoPor', 'em', 'status'])
+        && request.resource.data.acao == 'trocarEmail'
+        && request.resource.data.status == 'fila'
+        && request.resource.data.uidAlvo is string && request.resource.data.uidAlvo.size() > 0 && request.resource.data.uidAlvo.size() <= 128
+        && request.resource.data.emailNovo is string && request.resource.data.emailNovo.size() <= 200
+        && request.resource.data.emailNovo.matches('^[^@ ]+@[^@ ]+[.][^@ ]+$')
+        && request.resource.data.pedidoPor is map && request.resource.data.pedidoPor.keys().hasOnly(['uid', 'nome'])
+        && request.resource.data.pedidoPor.uid == request.auth.uid
+        && request.resource.data.em is string && request.resource.data.em.size() <= 40;
+      allow update, delete: if false;
+    }
+
     match /convites/{codigo} {
       allow get: if true;
       allow list: if ehDiretorAdmin();
