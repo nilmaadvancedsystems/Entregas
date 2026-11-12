@@ -46,10 +46,11 @@ service cloud.firestore {
       return temPapel('admin');
     }
 
+    // O nível Dono (Vitor, 12/11/2026: 'o master do master, tem acesso a tudo') vale onde vale o Diretor.
     // Admin com o nível Diretor (Vitor, 09/11/2026): só ele cria contas e convites e muda papéis, nível, departamento e ativo.
     // Sem isso, qualquer admin se promovia a Diretor e entrava no Financeiro.
     function ehDiretorAdmin() {
-      return ehAdmin() && meuDoc().get('nivel', '') == 'diretor';
+      return ehAdmin() && meuDoc().get('nivel', '') in ['dono', 'diretor'];
     }
 
     // O setor da pessoa (01/10/2026): o departamento escolhido no Cadastro do nads (usuarios.departamento) ou o
@@ -845,7 +846,7 @@ service cloud.firestore {
     // o mural de avisos do escritório, no Início da Tarefas (27/10/2026): toda a equipe no nads lê; só o admin e o diretor
     // criam (texto de 1 a 1000 caracteres, quem e quando), fixam/soltam (só o campo fixado) e apagam
     function escreveAvisos() {
-      return membroNoNads() && (ehAdmin() || meuDoc().get('nivel', '') == 'diretor');
+      return membroNoNads() && (ehAdmin() || meuDoc().get('nivel', '') in ['dono', 'diretor']);
     }
     match /nadsAvisos/{id} {
       allow read: if membroNoNads();
@@ -1827,14 +1828,14 @@ service cloud.firestore {
     // O admin e o diretor do nads pedem a nota (status 'pedida', só estes campos), voltam uma recusada para a fila com
     // as correções e pedem o cancelamento de uma autorizada; o resto (dps, chave, XML, erros) só o robô grava (Admin SDK).
     function ehDiretorNads() {
-      return membroNoNads() && (ehAdmin() || meuDoc().get('nivel', '') == 'diretor');
+      return membroNoNads() && (ehAdmin() || meuDoc().get('nivel', '') in ['dono', 'diretor']);
     }
     // O Financeiro do nads (Vitor, 09/11/2026): quem é Diretor sempre tem; os outros, só com o papel financeiro, que o Diretor
     // autoriza na ficha da pessoa. O admin sem o nível Diretor não entra, como no app. Sempre com o login liberado, admin
     // inclusive e mesmo com a proteção desligada: sem isso, a senha de um Diretor abria os dados de qualquer computador.
     function podeNoFinanceiroNads() {
       return membro() && exists(/databases/$(database)/documents/nadsSessoes/$(loginNads()))
-        && (meuDoc().get('nivel', '') == 'diretor' || temPapel('financeiro'));
+        && (meuDoc().get('nivel', '') in ['dono', 'diretor'] || temPapel('financeiro'));
     }
     function pedidoDeNotaOk(d) {
       return d.tomador is map && d.tomador.keys().hasOnly(['documento', 'nome', 'email', 'fone', 'endereco'])
@@ -1910,7 +1911,7 @@ service cloud.firestore {
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['contratoId', 'achadoPor', 'destinatarios', 'fora', 'atualizadoEm', 'atualizadoPor'])
           && revisaoDoBoletoOk(request.resource.data))
         || (!(envioDoBoleto(resource.data) in ['fila', 'enviando'])
-          && meuDoc().get('nivel', '') == 'diretor'
+          && meuDoc().get('nivel', '') in ['dono', 'diretor']
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['envio'])
           && request.resource.data.envio.keys().hasOnly(['status', 'para', 'em', 'por', 'porUid'])
           && request.resource.data.envio.status == 'fila'
