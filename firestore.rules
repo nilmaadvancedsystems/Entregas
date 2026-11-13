@@ -1972,10 +1972,15 @@ service cloud.firestore {
       allow delete: if (membroNoNads() && resource.data.uid == request.auth.uid && resource.data.situacao == 'lancada') || podeNoFinanceiroNads();
     }
     // os serviços comissionados e a % de cada um (carteiraConfig/servicos; 12/11/2026): todos no nads leem (a janela de
-    // registrar a comissão), só o Financeiro grava
+    // registrar a comissão), só o Financeiro grava. A % própria por pessoa (carteiraConfig/porPessoa; 13/11/2026: "só os
+    // diretores podem ver"): só o Diretor e o Dono leem e gravam, até 50 pessoas
     match /carteiraConfig/{id} {
-      allow read: if membroNoNads();
-      allow create, update: if podeNoFinanceiroNads() && id == 'servicos'
+      allow read: if (id == 'servicos' && membroNoNads()) || (id == 'porPessoa' && membroNoNads() && meuDoc().get('nivel', '') in ['dono', 'diretor']);
+      allow create, update: if (id == 'porPessoa' && membroNoNads() && meuDoc().get('nivel', '') in ['dono', 'diretor']
+        && request.resource.data.keys().hasOnly(['lista', 'atualizadoEm', 'atualizadoPor'])
+        && request.resource.data.lista is list && request.resource.data.lista.size() <= 50
+        && request.resource.data.atualizadoPor is string && request.resource.data.atualizadoPor.size() <= 100)
+        || podeNoFinanceiroNads() && id == 'servicos'
         && request.resource.data.keys().hasOnly(['lista', 'atualizadoEm', 'atualizadoPor'])
         && request.resource.data.lista is list && request.resource.data.lista.size() <= 100
         && request.resource.data.atualizadoPor is string && request.resource.data.atualizadoPor.size() <= 100;
