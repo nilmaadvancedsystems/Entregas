@@ -895,18 +895,136 @@ service cloud.firestore {
     function escreveAvisos() {
       return membroNoNads() && (ehAdmin() || meuDoc().get('nivel', '') in ['dono', 'diretor']);
     }
+    // o comunicado das Notificações do Início novo (13/11/2026): o tipo (reuniao, estudo, geral; o aviso fica sem), o título,
+    // o link (o aviso não tem), o dia da reunião, quem escreveu (o próprio login), o pedido de confirmação ("Recebido"), para
+    // quem é (setores ou pessoas), o jeito do aviso (datas, norma) e o PDF da norma (em pedaços em partes/{arquivo}-{n})
+    function anexoDoNadsValido(a) {
+      return a is map && a.keys().hasOnly(['id', 'nome', 'extensao', 'tamanho', 'em', 'por', 'partes', 'gzip'])
+        && a.id is string && a.id.size() > 0 && a.id.size() <= 60
+        && a.nome is string && a.nome.size() > 0 && a.nome.size() <= 200
+        && a.extensao is string && a.extensao.size() <= 10
+        && a.tamanho is int && a.tamanho >= 0 && a.tamanho <= 10485760
+        && a.em is string && a.em.size() <= 40
+        && a.por is string && a.por.size() <= 120
+        && a.partes is int && a.partes > 0 && a.partes <= 20
+        && (!('gzip' in a) || a.gzip == true);
+    }
+    function linkDoNadsValido(l) {
+      return l is string && l.size() <= 500 && l.matches('^https?://.+');
+    }
+    function avisoNovoValido(d) {
+      return d.keys().hasOnly(['texto', 'por', 'em', 'fixado', 'tipo', 'titulo', 'link', 'quando', 'porUid', 'pedeConfirmacao', 'para', 'jeito', 'anexo'])
+        && d.texto is string && d.texto.size() > 0 && d.texto.size() <= 1000
+        && d.por is string && d.por.size() <= 120
+        && d.em is string && d.em.size() <= 40
+        && d.fixado == false
+        && (!('tipo' in d) || d.tipo in ['reuniao', 'estudo', 'geral'])
+        && (!('titulo' in d) || (d.titulo is string && d.titulo.size() <= 120))
+        && (!('link' in d) || linkDoNadsValido(d.link))
+        && (!('quando' in d) || (d.quando is string && d.quando.size() <= 20))
+        && (!('porUid' in d) || d.porUid == request.auth.uid)
+        && (!('pedeConfirmacao' in d) || d.pedeConfirmacao == true)
+        && (!('para' in d) || (d.para is map
+          && ((d.para.tipo == 'setor' && d.para.keys().hasOnly(['tipo', 'setores']) && d.para.setores is list && d.para.setores.size() > 0 && d.para.setores.size() <= 20)
+            || (d.para.tipo == 'pessoas' && d.para.keys().hasOnly(['tipo', 'pessoas']) && d.para.pessoas is list && d.para.pessoas.size() > 0 && d.para.pessoas.size() <= 200))))
+        && (!('jeito' in d) || d.jeito in ['datas', 'norma'])
+        && (!('anexo' in d) || anexoDoNadsValido(d.anexo));
+    }
+    // o Recebido: quem está no nads põe só o seu no fim da lista (um por vez, sem tirar os outros), e só no aviso que pede
+    function recebidoValido() {
+      let antes = resource.data.get('recebidos', []);
+      let depois = request.resource.data.recebidos;
+      return resource.data.get('pedeConfirmacao', false) == true
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['recebidos'])
+        && depois is list && depois.size() == antes.size() + 1 && depois.size() <= 300
+        && depois.hasAll(antes)
+        && depois[antes.size()] is map && depois[antes.size()].keys().hasOnly(['uid', 'nome', 'em'])
+        && depois[antes.size()].uid == request.auth.uid
+        && depois[antes.size()].nome is string && depois[antes.size()].nome.size() <= 120
+        && depois[antes.size()].em is string && depois[antes.size()].em.size() <= 40;
+    }
     match /nadsAvisos/{id} {
       allow read: if membroNoNads();
-      allow create: if escreveAvisos()
-        && request.resource.data.keys().hasOnly(['texto', 'por', 'em', 'fixado'])
-        && request.resource.data.texto is string && request.resource.data.texto.size() > 0 && request.resource.data.texto.size() <= 1000
-        && request.resource.data.por is string && request.resource.data.por.size() <= 120
-        && request.resource.data.em is string && request.resource.data.em.size() <= 40
-        && request.resource.data.fixado == false;
-      allow update: if escreveAvisos()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['fixado'])
-        && request.resource.data.fixado is bool;
+      allow create: if escreveAvisos() && avisoNovoValido(request.resource.data);
+      allow update: if (escreveAvisos()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['fixado'])
+          && request.resource.data.fixado is bool)
+        || (membroNoNads() && recebidoValido());
       allow delete: if escreveAvisos();
+      match /partes/{parte} {
+        allow read: if membroNoNads();
+        allow create: if escreveAvisos()
+          && parte.matches('^[A-Za-z0-9]{1,40}-[0-9]{1,3}$')
+          && request.resource.data.keys().hasOnly(['dados'])
+          && request.resource.data.dados is bytes && request.resource.data.dados.size() <= 950000;
+        allow delete: if escreveAvisos();
+      }
+    }
+    // as reuniões das Notificações do Início novo (13/11/2026): o Sênior pede (entra em-analise), o Diretor e o Dono marcam
+    // direto (entra aprovada) e decidem (revisar, aprovar, recusar com a justificativa obrigatória, remarcar, encerrar); quem
+    // pediu remarca, anexa o Problema e a Solução e finaliza depois de aprovada; os outros só respondem a presença e comentam.
+    // O documento vai inteiro a cada passo; quem criou, a origem e a data não mudam. Os arquivos vão em partes/{arquivo}-{n}.
+    // o arquivo da reunião, num teste mais curto (o documento inteiro vai a cada passo e a regra tem o limite de 1000 contas)
+    function anexoDaReuniaoValido(a) {
+      return a is map && a.keys().hasOnly(['id', 'nome', 'extensao', 'tamanho', 'em', 'por', 'partes', 'gzip'])
+        && a.nome is string && a.nome.size() <= 200 && a.partes is int && a.partes > 0 && a.partes <= 20;
+    }
+    function reuniaoValida(d) {
+      return d.keys().hasOnly(['titulo', 'pauta', 'quando', 'link', 'criadaPor', 'origem', 'participantes', 'tipo', 'duracao', 'comDiretor', 'status',
+          'prazoDaRevisao', 'decididoPor', 'observacao', 'problema', 'solucao', 'comentarios', 'presencas', 'historico', 'em'])
+        && d.keys().hasAll(['titulo', 'pauta', 'quando', 'criadaPor', 'origem', 'participantes', 'comDiretor', 'status', 'comentarios', 'presencas', 'historico', 'em'])
+        && d.titulo is string && d.titulo.size() > 0 && d.titulo.size() <= 120
+        && d.pauta is string && d.pauta.size() > 0 && d.pauta.size() <= 1000
+        && d.quando is string && d.quando.size() <= 20
+        && (!('link' in d) || linkDoNadsValido(d.link))
+        && pessoaDaTarefaValida(d.criadaPor)
+        && d.origem in ['pedido', 'direta']
+        && d.participantes is list && d.participantes.size() <= 100
+        && (!('tipo' in d) || d.tipo == 'live')
+        && (!('duracao' in d) || (d.duracao is int && d.duracao > 0 && d.duracao <= 480))
+        && d.comDiretor is bool
+        && d.status in ['em-analise', 'revisando', 'aprovada', 'remarcada', 'recusada', 'finalizada', 'concluida', 'encerrada']
+        && (!('prazoDaRevisao' in d) || (d.prazoDaRevisao is string && d.prazoDaRevisao.size() <= 10))
+        && (!('decididoPor' in d) || (d.decididoPor is string && d.decididoPor.size() <= 120))
+        && (!('observacao' in d) || (d.observacao is string && d.observacao.size() <= 500))
+        && (d.status != 'recusada' || ('observacao' in d && d.observacao.size() > 0))
+        && (!('problema' in d) || anexoDaReuniaoValido(d.problema))
+        && (!('solucao' in d) || anexoDaReuniaoValido(d.solucao))
+        && d.comentarios is list && d.comentarios.size() <= 100
+        && d.presencas is list && d.presencas.size() <= 100
+        && d.historico is list && d.historico.size() <= 300
+        && d.em is string && d.em.size() <= 40;
+    }
+    match /nadsReunioes/{id} {
+      allow read: if membroNoNads();
+      allow create: if membroNoNads() && reuniaoValida(request.resource.data)
+        && request.resource.data.criadaPor.uid == request.auth.uid
+        && request.resource.data.comentarios.size() == 0 && request.resource.data.presencas.size() == 0
+        && ((request.resource.data.origem == 'pedido' && request.resource.data.status == 'em-analise'
+            && (escreveAvisos() || meuDoc().get('nivel', '') == 'senior'))
+          || (request.resource.data.origem == 'direta' && request.resource.data.status == 'aprovada' && escreveAvisos()));
+      allow update: if membroNoNads() && reuniaoValida(request.resource.data)
+        && request.resource.data.criadaPor == resource.data.criadaPor
+        && request.resource.data.origem == resource.data.origem
+        && request.resource.data.em == resource.data.em
+        && (escreveAvisos()
+          || (resource.data.criadaPor.uid == request.auth.uid
+            && resource.data.status in ['aprovada', 'remarcada', 'finalizada', 'concluida']
+            && request.resource.data.status in [resource.data.status, 'remarcada', 'finalizada', 'concluida']
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['quando', 'status', 'problema', 'solucao', 'historico']))
+          || (resource.data.status in ['aprovada', 'remarcada', 'finalizada']
+            && (request.resource.data.status == resource.data.status || (resource.data.status == 'finalizada' && request.resource.data.status == 'concluida'))
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['presencas', 'comentarios', 'historico', 'status'])));
+      allow delete: if ehAdmin();
+      match /partes/{parte} {
+        allow read: if membroNoNads();
+        allow create: if membroNoNads()
+          && (escreveAvisos() || get(/databases/$(database)/documents/nadsReunioes/$(id)).data.criadaPor.uid == request.auth.uid)
+          && parte.matches('^[A-Za-z0-9]{1,40}-[0-9]{1,3}$')
+          && request.resource.data.keys().hasOnly(['dados'])
+          && request.resource.data.dados is bytes && request.resource.data.dados.size() <= 950000;
+        allow delete: if ehAdmin();
+      }
     }
     // o delegador de tarefas do nads (28/10/2026, o "Minhas Tarefas" do Toriba): toda a equipe no nads lê (a Central de
     // cada um busca as suas pelo campo pessoas; o número da tarefa nova vem do maior que existe); quem cria é o criadaPor
@@ -922,7 +1040,7 @@ service cloud.firestore {
     function tarefaDelegadaValida(d) {
       // os clientes (vários, até 20) e a hora do prazo são de 09/11/2026: a tarefa de antes não tem esses campos
       return d.keys().hasOnly(['numero', 'titulo', 'descricao', 'cliente', 'clientes', 'prioridade', 'prazo', 'prazoHora', 'status', 'criadaPor', 'responsavel',
-          'pessoas', 'criadaEm', 'concluidaEm', 'atualizadaEm', 'pareceres', 'historico', 'anexos', 'etapaDelegada', 'tipo', 'visualizadaEm'])
+          'pessoas', 'criadaEm', 'concluidaEm', 'atualizadaEm', 'pareceres', 'historico', 'anexos', 'etapaDelegada', 'tipo', 'visualizadaEm', 'entrega', 'links'])
         && d.keys().hasAll(['numero', 'titulo', 'descricao', 'cliente', 'prioridade', 'prazo', 'status', 'criadaPor', 'responsavel',
           'pessoas', 'criadaEm', 'concluidaEm', 'atualizadaEm', 'pareceres', 'historico', 'anexos'])
         && d.numero is int && d.numero > 0
@@ -933,7 +1051,10 @@ service cloud.firestore {
           && (d.cliente.get('codigo', null) == null || d.cliente.codigo is int)))
         && (!('clientes' in d) || (d.clientes is list && d.clientes.size() <= 20))
         // o pedido de documentos e o Visualizado (12/11/2026): o tipo só 'documentos'; quando quem recebeu abriu a tarefa
-        && (!('tipo' in d) || d.tipo == 'documentos')
+        // e o envio e o requerer de documentos (13/11/2026): o tipo 'envio'; a entrega do requerer (enviada para conferir, contestada); os links fixados
+        && (!('tipo' in d) || d.tipo in ['documentos', 'envio'])
+        && (!('entrega' in d) || d.entrega in ['', 'enviada', 'contestada'])
+        && (!('links' in d) || (d.links is list && d.links.size() <= 20))
         && (!('visualizadaEm' in d) || (d.visualizadaEm is string && d.visualizadaEm.size() <= 40))
         // a etapa delegada (Clientes ou Fornecedores, 10/11/2026; a Contabilização da Folha, dp, 11/11/2026): a empresa, o período, as contas e as já feitas
         // e a tarefa em conjunto (12/11/2026): com conjunto, a etapa é o id de qualquer etapa da rotina
@@ -968,7 +1089,7 @@ service cloud.firestore {
         && (resource.data.criadaPor.uid == request.auth.uid || resource.data.responsavel.uid == request.auth.uid)
         && tarefaDelegadaValida(request.resource.data)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['titulo', 'descricao', 'cliente', 'clientes', 'prioridade', 'prazo', 'prazoHora', 'status',
-          'responsavel', 'pessoas', 'concluidaEm', 'atualizadaEm', 'pareceres', 'historico', 'anexos', 'etapaDelegada', 'visualizadaEm']);
+          'responsavel', 'pessoas', 'concluidaEm', 'atualizadaEm', 'pareceres', 'historico', 'anexos', 'etapaDelegada', 'visualizadaEm', 'entrega', 'links']);
       allow delete: if membroNoNads() && (resource.data.criadaPor.uid == request.auth.uid || ehAdmin());
       match /partes/{parte} {
         allow read: if membroNoNads();
