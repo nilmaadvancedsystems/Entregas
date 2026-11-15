@@ -2104,7 +2104,9 @@ service cloud.firestore {
     // registrar a comissão), só o Financeiro grava. A % própria por pessoa (carteiraConfig/porPessoa; 13/11/2026: "só os
     // diretores podem ver"): só o Diretor e o Dono leem e gravam, até 50 pessoas
     match /carteiraConfig/{id} {
-      allow read: if (id == 'servicos' && membroNoNads()) || (id == 'porPessoa' && membroNoNads() && meuDoc().get('nivel', '') in ['dono', 'diretor']);
+      // os insumos (carteiraConfig/insumos; 15/11/2026: "o preço do insumo é o financeiro que decide, e quais insumos são"): todos
+      // no nads leem (a janela de registrar), só o Financeiro grava, até 30 insumos
+      allow read: if ((id == 'servicos' || id == 'insumos') && membroNoNads()) || (id == 'porPessoa' && membroNoNads() && meuDoc().get('nivel', '') in ['dono', 'diretor']);
       allow create, update: if (id == 'porPessoa' && membroNoNads() && meuDoc().get('nivel', '') in ['dono', 'diretor']
         && request.resource.data.keys().hasOnly(['lista', 'atualizadoEm', 'atualizadoPor'])
         && request.resource.data.lista is list && request.resource.data.lista.size() <= 50
@@ -2112,6 +2114,10 @@ service cloud.firestore {
         || podeNoFinanceiroNads() && id == 'servicos'
         && request.resource.data.keys().hasOnly(['lista', 'atualizadoEm', 'atualizadoPor'])
         && request.resource.data.lista is list && request.resource.data.lista.size() <= 100
+        && request.resource.data.atualizadoPor is string && request.resource.data.atualizadoPor.size() <= 100
+        || podeNoFinanceiroNads() && id == 'insumos'
+        && request.resource.data.keys().hasOnly(['lista', 'atualizadoEm', 'atualizadoPor'])
+        && request.resource.data.lista is list && request.resource.data.lista.size() > 0 && request.resource.data.lista.size() <= 30
         && request.resource.data.atualizadoPor is string && request.resource.data.atualizadoPor.size() <= 100;
     }
     // carteiraInsumos (12/11/2026: "um menu de Insumos, onde a pessoa registra impressões, pastas, envelopes e caixas
@@ -2120,7 +2126,11 @@ service cloud.firestore {
     function insumoOk(d) {
       return d.competencia is string && d.competencia.matches('^[0-9]{4}-(0[1-9]|1[0-2])$')
         && d.data is string && d.data.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
-        && d.tipo in ['impressao', 'pasta', 'envelope', 'caixa']
+        // o insumo da lista do Financeiro (15/11/2026): o id dele (os de antes: impressao, pasta, envelope, caixa), o nome e o
+        // preço de cada unidade no dia do registro (os dois opcionais: os registros de antes não têm)
+        && d.tipo is string && d.tipo.size() > 0 && d.tipo.size() <= 60
+        && (!('nomeDoTipo' in d) || (d.nomeDoTipo is string && d.nomeDoTipo.size() <= 80))
+        && (!('preco' in d) || ((d.preco is int || d.preco is float) && d.preco >= 0 && d.preco <= 100000))
         && d.quantidade is int && d.quantidade > 0 && d.quantidade <= 100000
         && d.cliente is string && d.cliente.size() > 0 && d.cliente.size() <= 150
         && (d.get('codigo', null) == null || d.get('codigo', null) is int);
@@ -2128,12 +2138,12 @@ service cloud.firestore {
     match /carteiraInsumos/{id} {
       allow read: if membroNoNads() && (resource.data.uid == request.auth.uid || podeNoFinanceiroNads());
       allow create: if membroNoNads()
-        && request.resource.data.keys().hasOnly(['uid', 'nome', 'competencia', 'data', 'tipo', 'quantidade', 'cliente', 'codigo', 'criadoEm'])
+        && request.resource.data.keys().hasOnly(['uid', 'nome', 'competencia', 'data', 'tipo', 'nomeDoTipo', 'preco', 'quantidade', 'cliente', 'codigo', 'criadoEm'])
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.nome is string && request.resource.data.nome.size() <= 100
         && insumoOk(request.resource.data);
       allow update: if membroNoNads() && resource.data.uid == request.auth.uid
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['competencia', 'data', 'tipo', 'quantidade', 'cliente', 'codigo'])
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['competencia', 'data', 'tipo', 'nomeDoTipo', 'preco', 'quantidade', 'cliente', 'codigo'])
         && insumoOk(request.resource.data);
       allow delete: if membroNoNads() && (resource.data.uid == request.auth.uid || podeNoFinanceiroNads());
     }
