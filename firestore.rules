@@ -1100,6 +1100,15 @@ service cloud.firestore {
         allow delete: if membroNoNads() && (ehAdmin() || daTarefaDelegada(id));
       }
     }
+    function delegacaoDoFeedbackValida(d) {
+      return d is map && d.keys().hasOnly(['uid', 'nome', 'por', 'em'])
+        && d.uid is string && d.uid.size() > 0 && d.uid.size() <= 128
+        && d.nome is string && d.nome.size() > 0 && d.nome.size() <= 120
+        && d.por is string && d.por.size() <= 120
+        && d.em is string && d.em.size() <= 40
+        && exists(/databases/$(database)/documents/usuarios/$(d.uid))
+        && 'desenvolvedor' in get(/databases/$(database)/documents/usuarios/$(d.uid)).data.get('roles', []);
+    }
     match /feedbacks/{id} {
       allow read: if ehAdmin() || (membro() && resource.data.uid == request.auth.uid);
       allow create: if membroNoNads()
@@ -1119,8 +1128,10 @@ service cloud.firestore {
         && (!('analise' in request.resource.data) || request.resource.data.analise == 'pendente')
         && request.resource.data.keys().hasOnly(['uid', 'nome', 'email', 'texto', 'imagem', 'tela', 'versao', 'criadoEm', 'status', 'prioridade', 'tipo', 'caminho', 'contexto', 'arquivo', 'analise']);
       // o admin muda a situação (resolvido leva a data: o ticket sai do chat às 18:00); quem mandou responde o teste, só em
-      // Testando (09/11/2026): funcionou (feito) ou ainda com problema (volta a resolvendo)
-      allow update: if (ehAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'resolvidoEm']))
+      // Testando (09/11/2026): funcionou (feito) ou ainda com problema (volta a resolvendo). O admin também delega a
+      // solicitação a quem tem a função de desenvolvedor (16/11/2026): o mapa delegacao { uid, nome, por, em }
+      allow update: if (ehAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'resolvidoEm', 'delegacao'])
+          && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['delegacao']) || delegacaoDoFeedbackValida(request.resource.data.delegacao)))
         || (membroNoNads() && resource.data.uid == request.auth.uid && resource.data.status == 'testando'
           && request.resource.data.status in ['feito', 'resolvendo']
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'resolvidoEm']));
