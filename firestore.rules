@@ -1526,7 +1526,9 @@ service cloud.firestore {
     match /pedidosAlterdata/{id} {
       allow read: if ehAdmin() || doSetor('contabil') || podeVerRobos()
         // o Importar no Alterdata (06/11/2026): quem pediu acompanha o próprio pedido (o DP e o fiscal também importam)
-        || (logado() && resource.data.criadoPorUid == request.auth.uid);
+        || (logado() && resource.data.criadoPorUid == request.auth.uid)
+        // as notas do Fiscal (16/11/2026): o fiscal vê os pedidos do Fiscal de todos (a mesma empresa na Importação)
+        || (doSetor('fiscal') && resource.data.tipo == 'fiscal');
       allow create: if (ehAdmin() || doSetor('contabil'))
         && request.resource.data.status == 'pendente'
         && request.resource.data.criadoPorUid == request.auth.uid
@@ -1555,13 +1557,31 @@ service cloud.firestore {
         && request.resource.data.linhas is int && request.resource.data.linhas > 0
         && request.resource.data.criadoEm is string && request.resource.data.criadoEm.size() <= 40
         && request.resource.data.criadoPor is string && request.resource.data.criadoPor.size() <= 200;
-      allow update: if (ehAdmin() || doSetor('contabil'))
+      // as notas do Alterdata Fiscal (16/11/2026, Vitor: "ensinar o robo do servidor a pegar entradas, saidas e tomados e
+      // prestados da etapa de importacao"): o relatório, a empresa e o período (competencia até ate: um mês ou o lote da
+      // Tarefa); o robô do servidor filtra e exporta no Fiscal e a planilha volta em partes/fiscal-nnn. Pedem e acompanham o
+      // contábil, o fiscal e o admin (só gera um relatório: não muda dado nenhum).
+      allow create: if (ehAdmin() || doSetor('contabil') || doSetor('fiscal'))
+        && request.resource.data.status == 'pendente'
+        && request.resource.data.tipo == 'fiscal'
+        && request.resource.data.criadoPorUid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['status', 'tipo', 'relatorio', 'codigo', 'empresa', 'competencia', 'ate', 'criadoEm', 'criadoPor', 'criadoPorUid'])
+        && request.resource.data.relatorio in ['entradas', 'saidas', 'tomados', 'prestados']
+        && request.resource.data.codigo is int && request.resource.data.codigo > 0
+        && request.resource.data.empresa is string && request.resource.data.empresa.size() <= 200
+        && request.resource.data.competencia is string && request.resource.data.competencia.matches('^[0-9]{4}-(0[1-9]|1[0-2])$')
+        && request.resource.data.ate is string && request.resource.data.ate.matches('^[0-9]{4}-(0[1-9]|1[0-2])$')
+        && request.resource.data.ate >= request.resource.data.competencia
+        && request.resource.data.criadoEm is string && request.resource.data.criadoEm.size() <= 40
+        && request.resource.data.criadoPor is string && request.resource.data.criadoPor.size() <= 200;
+      allow update: if (ehAdmin() || doSetor('contabil') || (doSetor('fiscal') && resource.data.tipo == 'fiscal'))
         && resource.data.status in ['pendente', 'trabalhando']
         && request.resource.data.status == 'cancelado'
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'canceladoEm', 'canceladoPor']);
       allow delete: if false;
       match /{parte}/{doc} {
-        allow read: if ehAdmin() || doSetor('contabil');
+        // o fiscal lê as partes (a planilha do Fiscal que ele pediu, 16/11/2026)
+        allow read: if ehAdmin() || doSetor('contabil') || doSetor('fiscal');
         allow write: if false;
       }
     }
