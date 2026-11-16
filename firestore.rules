@@ -1223,6 +1223,12 @@ service cloud.firestore {
         allow update, delete: if false;
       }
     }
+    // Excluir usuário (Vitor, 16/11/2026): antes de apagar um inativo, o nads confere se a pessoa fez alguma etapa, procurando o
+    // nome dela em todos os eventos das rotinas de uma vez (collectionGroup 'eventos', limit 1). Só o Diretor e o Dono, que são
+    // os que excluem; ler um evento pelo caminho continua na regra de cima. Só a rotinas tem a subcoleção eventos.
+    match /{caminho=**}/eventos/{ev} {
+      allow list: if ehDiretorNads();
+    }
 
     // Cadastro da empresa do nads (30/09/2026): contas bancárias, contas padrão dos
     // lançamentos e o histórico do que mudou; o plano de contas fica em plano/atual.
