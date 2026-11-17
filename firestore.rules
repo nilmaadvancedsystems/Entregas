@@ -1530,7 +1530,7 @@ service cloud.firestore {
         // as notas do Fiscal (16/11/2026): o fiscal vê os pedidos do Fiscal de todos (a mesma empresa na Importação)
         || (doSetor('fiscal') && resource.data.tipo == 'fiscal');
       allow create: if (ehAdmin() || doSetor('contabil'))
-        && request.resource.data.status == 'pendente'
+        && request.resource.data.status in ['pendente', 'pendentePc']
         && request.resource.data.criadoPorUid == request.auth.uid
         && request.resource.data.keys().hasOnly(['status', 'tipo', 'codigo', 'empresa', 'competencia', 'criadoEm', 'criadoPor', 'criadoPorUid'])
         // balancete: o da Conferência; mensal: o balancete e o razão de todas as contas do mês, pedidos na página
@@ -1562,7 +1562,7 @@ service cloud.firestore {
       // Tarefa); o robô do servidor filtra e exporta no Fiscal e a planilha volta em partes/fiscal-nnn. Pedem e acompanham o
       // contábil, o fiscal e o admin (só gera um relatório: não muda dado nenhum).
       allow create: if (ehAdmin() || doSetor('contabil') || doSetor('fiscal'))
-        && request.resource.data.status == 'pendente'
+        && request.resource.data.status in ['pendente', 'pendentePc']
         && request.resource.data.tipo == 'fiscal'
         && request.resource.data.criadoPorUid == request.auth.uid
         && request.resource.data.keys().hasOnly(['status', 'tipo', 'relatorio', 'codigo', 'empresa', 'competencia', 'ate', 'criadoEm', 'criadoPor', 'criadoPorUid'])
@@ -1574,8 +1574,24 @@ service cloud.firestore {
         && request.resource.data.ate >= request.resource.data.competencia
         && request.resource.data.criadoEm is string && request.resource.data.criadoEm.size() <= 40
         && request.resource.data.criadoPor is string && request.resource.data.criadoPor.size() <= 200;
+      // o razão de uma conta do Contábil (17/11/2026, o caminho que o Vitor gravou: Consultas › Lançamentos, Exportar para excel):
+      // a empresa, a conta contábil do banco e o período; a planilha volta em partes/fiscal-nnn e entra na linha "Razão" do banco
+      allow create: if (ehAdmin() || doSetor('contabil'))
+        // 'pendentePc': a fila só do robô no PC do dono (17/11/2026: o servidor ainda no robô antigo pegava e errava)
+        && request.resource.data.status in ['pendente', 'pendentePc']
+        && request.resource.data.tipo == 'razaoConta'
+        && request.resource.data.criadoPorUid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['status', 'tipo', 'codigo', 'empresa', 'conta', 'competencia', 'ate', 'criadoEm', 'criadoPor', 'criadoPorUid'])
+        && request.resource.data.codigo is int && request.resource.data.codigo > 0
+        && request.resource.data.empresa is string && request.resource.data.empresa.size() <= 200
+        && request.resource.data.conta is string && request.resource.data.conta.matches('^[0-9.]{1,30}$')
+        && request.resource.data.competencia is string && request.resource.data.competencia.matches('^[0-9]{4}-(0[1-9]|1[0-2])$')
+        && request.resource.data.ate is string && request.resource.data.ate.matches('^[0-9]{4}-(0[1-9]|1[0-2])$')
+        && request.resource.data.ate >= request.resource.data.competencia
+        && request.resource.data.criadoEm is string && request.resource.data.criadoEm.size() <= 40
+        && request.resource.data.criadoPor is string && request.resource.data.criadoPor.size() <= 200;
       allow update: if (ehAdmin() || doSetor('contabil') || (doSetor('fiscal') && resource.data.tipo == 'fiscal'))
-        && resource.data.status in ['pendente', 'trabalhando']
+        && resource.data.status in ['pendente', 'pendentePc', 'trabalhando']
         && request.resource.data.status == 'cancelado'
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'canceladoEm', 'canceladoPor']);
       allow delete: if false;
