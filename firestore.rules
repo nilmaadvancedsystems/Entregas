@@ -1590,10 +1590,11 @@ service cloud.firestore {
         && request.resource.data.ate >= request.resource.data.competencia
         && request.resource.data.criadoEm is string && request.resource.data.criadoEm.size() <= 40
         && request.resource.data.criadoPor is string && request.resource.data.criadoPor.size() <= 200;
-      // o Balancete Dinâmico do período numa consulta só (17/11/2026, o caminho que o Vitor gravou): a empresa e o período
+      // o Balancete Dinâmico do período numa consulta só e o Balancete (Livros e Relatórios) do período (17/11/2026, os caminhos que
+      // o Vitor gravou): a empresa e o período
       allow create: if (ehAdmin() || doSetor('contabil'))
         && request.resource.data.status in ['pendente', 'pendentePc']
-        && request.resource.data.tipo == 'balanceteDinamico'
+        && request.resource.data.tipo in ['balanceteDinamico', 'balancetePeriodo']
         && request.resource.data.criadoPorUid == request.auth.uid
         && request.resource.data.keys().hasOnly(['status', 'tipo', 'codigo', 'empresa', 'competencia', 'ate', 'criadoEm', 'criadoPor', 'criadoPorUid'])
         && request.resource.data.codigo is int && request.resource.data.codigo > 0
