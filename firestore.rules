@@ -2070,11 +2070,14 @@ service cloud.firestore {
       return membroNoNads() && (ehAdmin() || meuDoc().get('nivel', '') in ['dono', 'diretor']);
     }
     // O Financeiro do nads (Vitor, 09/11/2026): quem é Diretor sempre tem; os outros, só com o papel financeiro, que o Diretor
-    // autoriza na ficha da pessoa. O admin sem o nível Diretor não entra, como no app. Sempre com o login liberado, admin
-    // inclusive e mesmo com a proteção desligada: sem isso, a senha de um Diretor abria os dados de qualquer computador.
+    // autoriza na ficha da pessoa. O admin sem o nível Diretor não entra, como no app. O Diretor e o Dono entram direto, sem
+    // pedir a liberação do computador (Vitor, 17/11/2026: "quem é diretor/dono já deve ter acesso"), com a conta ativa; quem
+    // só tem o papel financeiro continua precisando do login liberado, mesmo com a proteção desligada.
     function podeNoFinanceiroNads() {
-      return membro() && exists(/databases/$(database)/documents/nadsSessoes/$(loginNads()))
-        && (meuDoc().get('nivel', '') in ['dono', 'diretor'] || temPapel('financeiro'));
+      return membro() && (
+        (contaAtiva() && meuDoc().get('nivel', '') in ['dono', 'diretor'])
+        || (temPapel('financeiro') && exists(/databases/$(database)/documents/nadsSessoes/$(loginNads())))
+      );
     }
     function pedidoDeNotaOk(d) {
       return d.tomador is map && d.tomador.keys().hasOnly(['documento', 'nome', 'email', 'fone', 'endereco'])
