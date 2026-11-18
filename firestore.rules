@@ -971,7 +971,7 @@ service cloud.firestore {
     }
     function reuniaoValida(d) {
       return d.keys().hasOnly(['titulo', 'pauta', 'quando', 'link', 'criadaPor', 'origem', 'participantes', 'tipo', 'duracao', 'comDiretor', 'status',
-          'prazoDaRevisao', 'decididoPor', 'observacao', 'problema', 'solucao', 'comentarios', 'presencas', 'historico', 'em'])
+          'prazoDaRevisao', 'decididoPor', 'observacao', 'problema', 'solucao', 'comentarios', 'presencas', 'historico', 'em', 'pedirPresenca'])
         && d.keys().hasAll(['titulo', 'pauta', 'quando', 'criadaPor', 'origem', 'participantes', 'comDiretor', 'status', 'comentarios', 'presencas', 'historico', 'em'])
         && d.titulo is string && d.titulo.size() > 0 && d.titulo.size() <= 120
         && d.pauta is string && d.pauta.size() > 0 && d.pauta.size() <= 1000
@@ -982,6 +982,8 @@ service cloud.firestore {
         && d.participantes is list && d.participantes.size() <= 100
         && (!('tipo' in d) || d.tipo == 'live')
         && (!('duracao' in d) || (d.duracao is int && d.duracao > 0 && d.duracao <= 480))
+        // quem marca pede a confirmação de presença (18/11/2026)
+        && (!('pedirPresenca' in d) || d.pedirPresenca == true)
         && d.comDiretor is bool
         && d.status in ['em-analise', 'revisando', 'aprovada', 'remarcada', 'recusada', 'finalizada', 'concluida', 'encerrada']
         && (!('prazoDaRevisao' in d) || (d.prazoDaRevisao is string && d.prazoDaRevisao.size() <= 10))
