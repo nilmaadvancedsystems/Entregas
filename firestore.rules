@@ -1023,7 +1023,7 @@ service cloud.firestore {
     }
     function reuniaoValida(d) {
       return d.keys().hasOnly(['titulo', 'pauta', 'quando', 'link', 'criadaPor', 'origem', 'participantes', 'tipo', 'duracao', 'comDiretor', 'status',
-          'prazoDaRevisao', 'decididoPor', 'observacao', 'problema', 'solucao', 'comentarios', 'presencas', 'historico', 'em', 'pedirPresenca', 'iniciadaEm', 'remarcadaDe', 'remarcadaEm', 'canceladaEm'])
+          'prazoDaRevisao', 'decididoPor', 'observacao', 'problema', 'solucao', 'comentarios', 'presencas', 'historico', 'em', 'pedirPresenca', 'iniciadaEm', 'remarcadaDe', 'remarcadaEm', 'canceladaEm', 'fixada'])
         && d.keys().hasAll(['titulo', 'pauta', 'quando', 'criadaPor', 'origem', 'participantes', 'comDiretor', 'status', 'comentarios', 'presencas', 'historico', 'em'])
         && d.titulo is string && d.titulo.size() > 0 && d.titulo.size() <= 120
         && d.pauta is string && d.pauta.size() > 0 && d.pauta.size() <= 1000
@@ -1042,6 +1042,8 @@ service cloud.firestore {
         && (!('remarcadaDe' in d) || (d.remarcadaDe is string && d.remarcadaDe.size() <= 20))
         && (!('remarcadaEm' in d) || (d.remarcadaEm is string && d.remarcadaEm.size() <= 40))
         && (!('canceladaEm' in d) || (d.canceladaEm is string && d.canceladaEm.size() <= 40))
+        // fixada no Painel pelo Diretor ou pelo Dono (24/11/2026): só eles mudam (o caminho do escreveAvisos)
+        && (!('fixada' in d) || d.fixada == true)
         && d.comDiretor is bool
         && d.status in ['em-analise', 'revisando', 'aprovada', 'remarcada', 'recusada', 'cancelada', 'finalizada', 'concluida', 'encerrada']
         && (!('prazoDaRevisao' in d) || (d.prazoDaRevisao is string && d.prazoDaRevisao.size() <= 10))
