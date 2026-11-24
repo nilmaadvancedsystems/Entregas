@@ -219,7 +219,7 @@ service cloud.firestore {
     // inclusive os de redefinição de senha, que o serviço de contas aceita
     // como única autorização pra trocar a senha de uma conta existente.
     // Liberar `list` aqui é entregar o escritório.
-    // A troca do e-mail de entrada (Vitor, 12/11/2026): o Diretor ou o Dono do nads pede (Cadastro › Usuários › Acesso) e o
+    // A troca do e-mail de entrada (Vitor, 12/11/2026): o Diretor ou o Dono do nads pede (Cadastro › Usuários �� Acesso) e o
     // robô da nuvem (Admin SDK, robo/contas-pedidos.js) confere quem pediu, troca o login no Firebase Auth e o
     // usuarios/{uid}.email e marca feito ou erro. Ninguém muda nem apaga o pedido pelo app. O próprio e-mail, qualquer um da
     // equipe troca (Vitor, 12/11/2026, na Minha conta): o pedido com uidAlvo = quem pede.
@@ -535,6 +535,10 @@ service cloud.firestore {
     match /config/indiceDrive { allow create, update: if administraRobos() && soMudou(['contas', 'marcar']); }
     match /config/integracoes { allow create, update: if administraRobos() && soMudou(['iaMotor', 'iaModeloClaude', 'iaModelo']); }
     match /config/avisoCertificados { allow create, update: if administraRobos() && soMudou(['ligado']); }
+    // a Tela de Insights (plano do Acessórias, 18/11/2026): ligar e desligar o robô que monta os números
+    match /config/insights { allow create, update: if administraRobos() && soMudou(['ligado']); }
+      // o documento do cliente vencendo vira tarefa (22/11/2026, ficha M03)
+      match /config/papeisViramTarefa { allow create, update: if administraRobos() && soMudou(['ligado']); }
     match /config/robosHorarios { allow create, update: if administraRobos() && request.resource.data.keys().hasOnly(['robos', 'atualizadoEm', 'atualizadoPor']); }
     match /config/robosAlertas {
       allow create, update: if administraRobos()
@@ -590,6 +594,24 @@ service cloud.firestore {
         && request.resource.data.atualizadoEm is string && request.resource.data.atualizadoEm.size() <= 40
         && request.resource.data.atualizadoPor is string && request.resource.data.atualizadoPor.size() <= 100;
     }
+    // o Controle contábil (23/11/2026): uma linha por empresa e ano; lê a equipe do nads; grava e tira o Contábil e o admin
+    function gravaControleContabil() {
+      return membroNoNads() && (ehAdmin() || doSetor('contabil'));
+    }
+    match /controleContabil/{id} {
+      allow read: if membroNoNads();
+      allow delete: if gravaControleContabil() && id.matches('^20[0-9]{2}_[0-9]{1,6}$');
+      allow create, update: if gravaControleContabil()
+        && id.matches('^20[0-9]{2}_[0-9]{1,6}$')
+        && request.resource.data.keys().hasOnly(['ano', 'codigo', 'feitaAte', 'observacao', 'pausada', 'atualizadoEm', 'atualizadoPor'])
+        && request.resource.data.ano is int && string(request.resource.data.ano) == id.split('_')[0]
+        && request.resource.data.codigo is int && string(request.resource.data.codigo) == id.split('_')[1]
+        && request.resource.data.feitaAte is int && request.resource.data.feitaAte >= 0 && request.resource.data.feitaAte <= 12
+        && request.resource.data.observacao is string && request.resource.data.observacao.size() <= 500
+        && request.resource.data.pausada is string && request.resource.data.pausada.size() <= 120
+        && request.resource.data.atualizadoEm is string && request.resource.data.atualizadoEm.size() <= 40
+        && request.resource.data.atualizadoPor is string && request.resource.data.atualizadoPor.size() <= 100;
+    }
     match /legislacaoDp/{id} {
       allow read: if membro();
       allow create, update: if (ehAdmin() || doSetor('dp'))
@@ -598,6 +620,36 @@ service cloud.firestore {
         && request.resource.data.texto is string && request.resource.data.texto.size() > 0 && request.resource.data.texto.size() <= 200000
         && request.resource.data.observacoes is string && request.resource.data.observacoes.size() <= 20000
         && request.resource.data.data is string && request.resource.data.data.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+      allow delete: if false;
+    }
+
+    // ---------- o Arquivo físico do nads (19/11/2026) ----------
+    // uma caixa por documento, com os envelopes e as retiradas dentro. A equipe lê e grava; marcar como descartada
+    // (descartadaEm) só o admin; apagar, só a caixa sem envelopes (a criada por engano)
+    match /arquivoFisico/{id} {
+      allow read: if membro();
+      allow create, update: if membro()
+        && id.matches('^[0-9]+-[0-9]{4}-[FCP]-[0-9]{3}$')
+        && request.resource.data.keys().hasOnly(['codigo', 'nome', 'tipo', 'departamento', 'ano', 'numero', 'arquivadaEm', 'local', 'observacoes', 'envelopes', 'retiradas', 'descartadaEm', 'descartadaPor', 'devolvidaEm', 'devolvidaPor', 'devolvidaPara', 'atualizadaEm', 'atualizadaPor'])
+        && request.resource.data.codigo is int && request.resource.data.ano is int && request.resource.data.numero is int
+        && request.resource.data.departamento in ['Fiscal', 'Contábil', 'Pessoal']
+        && request.resource.data.nome is string && request.resource.data.nome.size() <= 200
+        && request.resource.data.local is string && request.resource.data.local.size() <= 200
+        && request.resource.data.observacoes is string && request.resource.data.observacoes.size() <= 2000
+        && request.resource.data.envelopes is list && request.resource.data.envelopes.size() <= 400
+        && request.resource.data.retiradas is list && request.resource.data.retiradas.size() <= 400
+        && (ehAdmin() || request.resource.data.descartadaEm == (resource == null ? '' : resource.data.descartadaEm));
+      allow delete: if membro() && resource.data.envelopes.size() == 0;
+    }
+    // os envelopes impressos esperando quem arquive (19/11/2026: "o responsável imprime, coloca o envelope, e outra pessoa
+    // arquiva"); o id é o código do envelope (37-F-2026-05); confirmar o arquivamento preenche arquivadoEm
+    match /arquivoFisicoImpressos/{id} {
+      allow read: if membro();
+      allow create, update: if membro()
+        && id.matches('^[0-9]+-[FCP]-[0-9]{4}(-[0-9]{2})?$')
+        && request.resource.data.keys().hasOnly(['codigo', 'nome', 'departamento', 'competencia', 'impressoEm', 'impressoPor', 'arquivadoEm', 'arquivadoPor', 'caixa'])
+        && request.resource.data.codigo is int
+        && request.resource.data.departamento in ['Fiscal', 'Contábil', 'Pessoal'];
       allow delete: if false;
     }
 
@@ -971,7 +1023,7 @@ service cloud.firestore {
     }
     function reuniaoValida(d) {
       return d.keys().hasOnly(['titulo', 'pauta', 'quando', 'link', 'criadaPor', 'origem', 'participantes', 'tipo', 'duracao', 'comDiretor', 'status',
-          'prazoDaRevisao', 'decididoPor', 'observacao', 'problema', 'solucao', 'comentarios', 'presencas', 'historico', 'em', 'pedirPresenca'])
+          'prazoDaRevisao', 'decididoPor', 'observacao', 'problema', 'solucao', 'comentarios', 'presencas', 'historico', 'em', 'pedirPresenca', 'iniciadaEm'])
         && d.keys().hasAll(['titulo', 'pauta', 'quando', 'criadaPor', 'origem', 'participantes', 'comDiretor', 'status', 'comentarios', 'presencas', 'historico', 'em'])
         && d.titulo is string && d.titulo.size() > 0 && d.titulo.size() <= 120
         && d.pauta is string && d.pauta.size() > 0 && d.pauta.size() <= 1000
@@ -984,6 +1036,8 @@ service cloud.firestore {
         && (!('duracao' in d) || (d.duracao is int && d.duracao > 0 && d.duracao <= 480))
         // quem marca pede a confirmação de presença (18/11/2026)
         && (!('pedirPresenca' in d) || d.pedirPresenca == true)
+        // quem criou clicou em Iniciar reunião (24/11/2026): o card para de piscar
+        && (!('iniciadaEm' in d) || (d.iniciadaEm is string && d.iniciadaEm.size() <= 40))
         && d.comDiretor is bool
         && d.status in ['em-analise', 'revisando', 'aprovada', 'remarcada', 'recusada', 'finalizada', 'concluida', 'encerrada']
         && (!('prazoDaRevisao' in d) || (d.prazoDaRevisao is string && d.prazoDaRevisao.size() <= 10))
@@ -1013,7 +1067,7 @@ service cloud.firestore {
           || (resource.data.criadaPor.uid == request.auth.uid
             && resource.data.status in ['aprovada', 'remarcada', 'finalizada', 'concluida']
             && request.resource.data.status in [resource.data.status, 'remarcada', 'finalizada', 'concluida']
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['quando', 'status', 'problema', 'solucao', 'historico']))
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['quando', 'status', 'problema', 'solucao', 'historico', 'iniciadaEm']))
           || (resource.data.status in ['aprovada', 'remarcada', 'finalizada']
             && (request.resource.data.status == resource.data.status || (resource.data.status == 'finalizada' && request.resource.data.status == 'concluida'))
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['presencas', 'comentarios', 'historico', 'status'])));
@@ -1042,7 +1096,7 @@ service cloud.firestore {
     function tarefaDelegadaValida(d) {
       // os clientes (vários, até 20) e a hora do prazo são de 09/11/2026: a tarefa de antes não tem esses campos
       return d.keys().hasOnly(['numero', 'titulo', 'descricao', 'cliente', 'clientes', 'prioridade', 'prazo', 'prazoHora', 'status', 'criadaPor', 'responsavel',
-          'pessoas', 'criadaEm', 'concluidaEm', 'atualizadaEm', 'pareceres', 'historico', 'anexos', 'etapaDelegada', 'tipo', 'visualizadaEm', 'entrega', 'links'])
+          'pessoas', 'criadaEm', 'concluidaEm', 'atualizadaEm', 'pareceres', 'historico', 'anexos', 'etapaDelegada', 'tipo', 'visualizadaEm', 'entrega', 'links', 'recorrencia'])
         && d.keys().hasAll(['numero', 'titulo', 'descricao', 'cliente', 'prioridade', 'prazo', 'status', 'criadaPor', 'responsavel',
           'pessoas', 'criadaEm', 'concluidaEm', 'atualizadaEm', 'pareceres', 'historico', 'anexos'])
         && d.numero is int && d.numero > 0
@@ -1058,6 +1112,13 @@ service cloud.firestore {
         && (!('entrega' in d) || d.entrega in ['', 'enviada', 'contestada'])
         && (!('links' in d) || (d.links is list && d.links.size() <= 20))
         && (!('visualizadaEm' in d) || (d.visualizadaEm is string && d.visualizadaEm.size() <= 40))
+        // a tarefa recorrente (18/11/2026): de quanto em quanto tempo, a data planejada e o dia do mês
+        && (!('recorrencia' in d) || (d.recorrencia is map && d.recorrencia.keys().hasOnly(['repete', 'ancora', 'dia', 'vezes', 'n'])
+          && d.recorrencia.repete in ['diaria', 'semanal', 'quinzenal', 'mensal', 'anual']
+          && d.recorrencia.ancora is string && d.recorrencia.ancora.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+          && d.recorrencia.dia is int && d.recorrencia.dia >= 1 && d.recorrencia.dia <= 31
+          && (!('vezes' in d.recorrencia) || (d.recorrencia.vezes is int && d.recorrencia.vezes >= 1 && d.recorrencia.vezes <= 120))
+          && (!('n' in d.recorrencia) || (d.recorrencia.n is int && d.recorrencia.n >= 1 && d.recorrencia.n <= 120))))
         // a etapa delegada (Clientes ou Fornecedores, 10/11/2026; a Contabilização da Folha, dp, 11/11/2026): a empresa, o período, as contas e as já feitas
         // e a tarefa em conjunto (12/11/2026): com conjunto, a etapa é o id de qualquer etapa da rotina
           && (!('etapaDelegada' in d) || (d.etapaDelegada is map && (d.etapaDelegada.etapa in ['clientes', 'fornecedores', 'dp'] || (d.etapaDelegada.get('conjunto', false) == true && d.etapaDelegada.etapa is string && d.etapaDelegada.etapa.size() > 0 && d.etapaDelegada.etapa.size() <= 60)) && d.etapaDelegada.contas is list && d.etapaDelegada.contas.size() <= 2000 && d.etapaDelegada.feitas is list && d.etapaDelegada.feitas.size() <= 2000))
@@ -1188,7 +1249,8 @@ service cloud.firestore {
       }
     }
     match /nadsSessoes/{id} {
-      allow read: if membro() && (ehAdmin() || id == loginNads());
+      // a própria pessoa lê e apaga as sessões dela ("Meus acessos" e "Não fui eu"; 22/11/2026, ficha E21)
+      allow read: if membro() && (ehAdmin() || id == loginNads() || resource.data.uid == request.auth.uid);
       allow create: if membro()
         && id == loginNads()
         && request.resource.data.uid == request.auth.uid
@@ -1202,7 +1264,21 @@ service cloud.firestore {
         && request.time < get(/databases/$(database)/documents/nadsPedidos/$(request.resource.data.pedidoId)).data.validoAte
         && get(/databases/$(database)/documents/nadsPedidos/$(request.resource.data.pedidoId)/codigo/atual).data.codigo == request.resource.data.codigo;
       allow update: if false;
-      allow delete: if ehAdmin() || (membro() && id == loginNads());
+      allow delete: if ehAdmin() || (membro() && (id == loginNads() || resource.data.uid == request.auth.uid));
+    }
+
+    // o "Não fui eu" (22/11/2026, ficha E21; o dono: "pode fazer tudo"): a pessoa só cria o alerta dela; o admin lê; o robô avisa
+    match /nadsAlertas/{id} {
+      allow read: if ehAdmin();
+      allow create: if membro()
+        && request.resource.data.keys().hasOnly(['tipo', 'uid', 'nome', 'sessao', 'computador', 'em'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.tipo == 'nao-fui-eu'
+        && request.resource.data.nome is string && request.resource.data.nome.size() <= 80
+        && request.resource.data.sessao is string && request.resource.data.sessao.size() <= 120
+        && request.resource.data.computador is string && request.resource.data.computador.size() <= 120
+        && request.resource.data.em is string && request.resource.data.em.size() <= 40;
+      allow update, delete: if false;
     }
 
     // O cofre de senhas gov.br e certificados do nads (07/10/2026): todo o escritório. O que é segredo chega embaralhado
@@ -1547,7 +1623,8 @@ service cloud.firestore {
       // vai em base64 no pedido; o robô do servidor importa num lote novo (Importação financeira › Importação Personalizada -
       // Excel) e escreve o resultado. Pedem o contábil, o DP, o fiscal e o admin.
       allow create: if (ehAdmin() || doSetor('contabil') || doSetor('dp') || doSetor('fiscal'))
-        && request.resource.data.status == 'pendente'
+        // o dono do robô de PC importa no PC dele ('pendentePc', 18/11/2026)
+        && request.resource.data.status in ['pendente', 'pendentePc']
         && request.resource.data.tipo == 'importar'
         && request.resource.data.criadoPorUid == request.auth.uid
         && request.resource.data.keys().hasOnly(['status', 'tipo', 'codigo', 'empresa', 'lote', 'origem', 'planilha', 'linhas', 'criadoEm', 'criadoPor', 'criadoPorUid'])
@@ -2134,7 +2211,7 @@ service cloud.firestore {
         && d.valor is number && d.valor > 0 && d.valor < 1000000
         // o cliente do cadastro (código) ou avulso (porte), o serviço comissionado, o valor dele e a % (12/11/2026)
         && (!('clienteCodigo' in d) || d.clienteCodigo == null || d.clienteCodigo is int)
-        && (!('porte' in d) || d.porte == null || d.porte in ['MEI', 'ME', 'EPP', 'Demais'])
+        && (!('porte' in d) || d.porte == null || d.porte in ['MEI', 'ME', 'EPP', 'Demais', 'Pessoa física'])
         && (!('servico' in d) || (d.servico is string && d.servico.size() <= 80))
         && (!('valorServico' in d) || (d.valorServico is number && d.valorServico > 0 && d.valorServico < 10000000))
         && (!('percentual' in d) || (d.percentual is number && d.percentual > 0 && d.percentual <= 100));
@@ -2164,13 +2241,15 @@ service cloud.firestore {
           && request.resource.data.situacao == 'aprovada'
           && comissaoOk(request.resource.data));
       // a pessoa mexe enquanto está lançada, sem trocar o mês do pagamento
+      // virou o mês (o do pagamento chegou), a da pessoa trava: só o Financeiro mexe (Vitor, 19/11/2026: "Virou o mes, a comissao e bloqueada")
       allow update: if (membroNoNads() && resource.data.uid == request.auth.uid && resource.data.situacao == 'lancada'
+          && resource.data.competencia > mesDeHojeNoBrasil()
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['data', 'cliente', 'descricao', 'valor', 'clienteCodigo', 'porte', 'servico', 'valorServico', 'percentual'])
           && comissaoOk(request.resource.data))
         || (podeNoFinanceiroNads()
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['situacao', 'decididoPor', 'decididoEm', 'motivo', 'pagoEm'])
           && request.resource.data.situacao in ['lancada', 'aprovada', 'paga', 'recusada']);
-      allow delete: if (membroNoNads() && resource.data.uid == request.auth.uid && resource.data.situacao == 'lancada') || podeNoFinanceiroNads();
+      allow delete: if (membroNoNads() && resource.data.uid == request.auth.uid && resource.data.situacao == 'lancada' && resource.data.competencia > mesDeHojeNoBrasil()) || podeNoFinanceiroNads();
     }
     // os serviços comissionados e a % de cada um (carteiraConfig/servicos; 12/11/2026): todos no nads leem (a janela de
     // registrar a comissão), só o Financeiro grava. A % própria por pessoa (carteiraConfig/porPessoa; 13/11/2026: "só os
@@ -2427,9 +2506,20 @@ service cloud.firestore {
     // grava pelo Admin SDK com lista branca de campos. Ele nunca lê coleção interna. O que ele manda (chamado, arquivo)
     // entra numa caixa de entrada onde só se CRIA; o robô valida, processa e apaga. Revogar o link = apagar o documento
     // do link: o espelho deixa de abrir na hora (toda leitura dele exige que o link exista) e as caixas recusam o token.
+    // A senha por pessoa (18/11/2026; o dono: "a area de cliente vai ter senha de acesso", "Uma por pessoa"): o link com
+    // exigeSenha só abre para quem entrou com um login que tem este link (o robô da nuvem põe { cliente: true, a: [tokens] }
+    // no login de cada pessoa que a equipe cadastrou em areaClientePessoas). Sem exigeSenha, tudo como antes.
+    function clienteDoLink(t) {
+      return request.auth != null && request.auth.token.get('cliente', false) == true
+        && t in request.auth.token.get('a', []);
+    }
+    function linkPedeSenha(t) {
+      return get(/databases/$(database)/documents/areasCliente/$(t)).data.get('exigeSenha', false) == true;
+    }
     function tokenDaArea(t) {
       return t is string && t.matches('^[0-9a-f]{40}$')
-        && exists(/databases/$(database)/documents/areasCliente/$(t));
+        && exists(/databases/$(database)/documents/areasCliente/$(t))
+        && (!linkPedeSenha(t) || clienteDoLink(t));
     }
     // a hora que o cliente manda: a do servidor (serverTimestamp) ou um texto ISO curto
     function horaDoCliente(v) {
@@ -2440,20 +2530,23 @@ service cloud.firestore {
     // Sem `list` pra quem não tem login: com ele, um estranho varria a coleção e ficava com todos os links.
     match /areasCliente/{token} {
       function espelhoVale() {
-        return exists(/databases/$(database)/documents/areasCliente/$(token));
+        return exists(/databases/$(database)/documents/areasCliente/$(token))
+          && (!linkPedeSenha(token) || clienteDoLink(token));
       }
       // o cliente lê o próprio link só se ele existe (link revogado = negado, não um documento vazio)
       allow get: if resource != null || ehDiretorNads();
       allow list: if ehDiretorNads();
       allow create: if ehDiretorNads()
         && token.matches('^[0-9a-f]{40}$')
-        && request.resource.data.keys().hasOnly(['codigos', 'nome', 'criadoEm', 'criadoPor', 'atualizadoEm'])
+        && request.resource.data.keys().hasOnly(['codigos', 'nome', 'criadoEm', 'criadoPor', 'atualizadoEm', 'exigeSenha'])
+        && request.resource.data.get('exigeSenha', false) is bool
         && request.resource.data.codigos is list && request.resource.data.codigos.size() >= 1 && request.resource.data.codigos.size() <= 50
         && request.resource.data.codigos[0] is int
         && request.resource.data.nome is string && request.resource.data.nome.size() > 0 && request.resource.data.nome.size() <= 200;
       // corrigir as empresas ou o nome do link; quem criou e quando não mudam
       allow update: if ehDiretorNads()
-        && request.resource.data.keys().hasOnly(['codigos', 'nome', 'criadoEm', 'criadoPor', 'atualizadoEm'])
+        && request.resource.data.keys().hasOnly(['codigos', 'nome', 'criadoEm', 'criadoPor', 'atualizadoEm', 'exigeSenha'])
+        && request.resource.data.get('exigeSenha', false) is bool
         && naoMexeuEm(['criadoEm', 'criadoPor'])
         && request.resource.data.codigos is list && request.resource.data.codigos.size() >= 1 && request.resource.data.codigos.size() <= 50
         && request.resource.data.codigos[0] is int
@@ -2509,6 +2602,19 @@ service cloud.firestore {
     // Caixa de entrada dos chamados (sem login): abrir um chamado novo ou responder um que já existe (chamadoId, que tem
     // de estar no espelho DESTE link: ninguém responde chamado de outra empresa). Só cria; ninguém lê, muda nem apaga
     // pelo app — o robô valida, cria/atualiza chamados/{id} e apaga daqui.
+    // O pedido de criar ou trocar a senha da Área do Cliente (19/11/2026; o dono: "Sim, pelo robô"): sem login (quem esqueceu a
+    // senha não está logado); só se CRIA, com o link e o e-mail. O robô da nuvem apaga na hora e só manda o e-mail se aquele
+    // e-mail tem acesso àquele link (as permissões do login), no máximo 3 por e-mail por dia.
+    match /areaClienteSenhas/{id} {
+      allow create: if request.resource.data.keys().hasOnly(['token', 'email', 'criadoEm'])
+        && request.resource.data.token is string && request.resource.data.token.matches('^[0-9a-f]{40}$')
+        && exists(/databases/$(database)/documents/areasCliente/$(request.resource.data.token))
+        && request.resource.data.email is string && request.resource.data.email.size() <= 254
+        && request.resource.data.email.matches('^[^ @]{1,64}@[^ @]{1,190}[.][a-z]{2,24}$')
+        && horaDoCliente(request.resource.data.criadoEm);
+      allow read, update, delete: if false;
+    }
+
     match /areaClienteChamados/{id} {
       allow create: if tokenDaArea(request.resource.data.get('token', null))
         && request.resource.data.keys().hasAll(['token', 'tipo', 'texto', 'criadoEm'])
@@ -2547,7 +2653,9 @@ service cloud.firestore {
     match /chamados/{id} {
       allow read: if membroNoNads();
       allow update: if membroNoNads()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['mensagens', 'situacao', 'atualizadoEm'])
+        // os passos do pedido do DP (23/11/2026, ficha processos-visiveis): a equipe marca; o robô leva só o atual ao cliente
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['mensagens', 'situacao', 'atualizadoEm', 'passos'])
+        && (!('passos' in request.resource.data) || request.resource.data.passos is map || request.resource.data.passos is list)
         && request.resource.data.situacao in ['aberto', 'em andamento', 'respondido', 'concluido']
         && request.resource.data.mensagens is list && request.resource.data.mensagens.size() <= 500;
       allow create, delete: if false;
@@ -2556,6 +2664,72 @@ service cloud.firestore {
     // O que o cliente mandou e o robô já guardou no Drive dele (nome, tipo, tamanho, a pasta): a equipe lê; só o robô grava.
     match /areaClienteRecebidos/{id} {
       allow read: if membroNoNads();
+      allow write: if false;
+    }
+
+    // A recusa do documento mandado pelo cliente (22/11/2026, Documentos do cliente; o dono: "Faz e publica a regra"):
+    // a equipe recusa um recebido com o motivo que o cliente vê (um recebido, uma recusa); o robô do PC trata (Admin SDK).
+    match /areaClienteRecusas/{id} {
+      allow read: if membroNoNads();
+      allow create: if membroNoNads()
+        && request.resource.data.keys().hasOnly(['motivo', 'por', 'porUid', 'em', 'tratada'])
+        && request.resource.data.keys().hasAll(['motivo', 'por', 'porUid', 'em', 'tratada'])
+        && request.resource.data.motivo is string && request.resource.data.motivo.size() >= 3 && request.resource.data.motivo.size() <= 300
+        && request.resource.data.por is string && request.resource.data.por.size() <= 80
+        && request.resource.data.porUid == request.auth.uid
+        && request.resource.data.em is string && request.resource.data.em.size() <= 40
+        && request.resource.data.tratada == false
+        && exists(/databases/$(database)/documents/areaClienteRecebidos/$(id));
+      allow update, delete: if false;
+    }
+
+    // os comunicados do escritório aos clientes (22/11/2026, ficha comunicados): a equipe lê; o admin e os diretores publicam; o robô do PC espelha por link
+    match /areaClienteComunicados/{id} {
+      allow read: if membroNoNads();
+      allow create, update: if ehDiretorNads()
+        && request.resource.data.keys().hasOnly(['titulo', 'texto', 'alvo', 'publicarEm', 'ate', 'por', 'atualizadoEm'])
+        && request.resource.data.titulo is string && request.resource.data.titulo.size() > 0 && request.resource.data.titulo.size() <= 80
+        && request.resource.data.texto is string && request.resource.data.texto.size() > 0 && request.resource.data.texto.size() <= 600
+        && request.resource.data.alvo is map
+        && request.resource.data.publicarEm is string && request.resource.data.publicarEm.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && request.resource.data.ate is string && request.resource.data.ate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && request.resource.data.por is string && request.resource.data.por.size() <= 120
+        && request.resource.data.atualizadoEm is string && request.resource.data.atualizadoEm.size() <= 40;
+      allow delete: if ehDiretorNads();
+    }
+
+    // o aceite da política de privacidade pelo link da Área do Cliente (22/11/2026, ficha aceite-lgpd): o cliente só cria; a equipe lê
+    match /areaClienteAceites/{id} {
+      allow create: if request.resource.data.keys().hasOnly(['token', 'versao', 'criadoEm'])
+        && request.resource.data.token is string && request.resource.data.token.matches('^[0-9a-f]{40}$')
+        && exists(/databases/$(database)/documents/areasCliente/$(request.resource.data.token))
+        && request.resource.data.versao is string && request.resource.data.versao.size() <= 20
+        && request.resource.data.criadoEm == request.time;
+      allow read: if membroNoNads();
+      allow update, delete: if false;
+    }
+
+    // As pessoas com senha na Área do Cliente (18/11/2026; o dono: "Uma por pessoa"): uma ficha por pessoa e empresa. O
+    // admin e os diretores cadastram e tiram (ativo); o robô da nuvem cria o login e responde na ficha (situacao, erro, uid).
+    match /areaClientePessoas/{id} {
+      allow read: if ehDiretorNads();
+      allow create: if ehDiretorNads()
+        && request.resource.data.keys().hasOnly(['codigo', 'nome', 'email', 'ativo', 'criadoEm', 'criadoPor', 'atualizadoEm'])
+        && request.resource.data.codigo is int
+        && request.resource.data.nome is string && request.resource.data.nome.size() >= 2 && request.resource.data.nome.size() <= 80
+        && request.resource.data.email is string && request.resource.data.email.matches('^[^ @]{1,64}@[^ @]{1,190}[.][a-z]{2,24}$')
+        && request.resource.data.ativo == true;
+      allow update: if ehDiretorNads()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nome', 'ativo', 'criadoEm', 'criadoPor', 'atualizadoEm'])
+        && request.resource.data.ativo is bool
+        && request.resource.data.nome is string && request.resource.data.nome.size() >= 2 && request.resource.data.nome.size() <= 80;
+      allow delete: if false;
+    }
+
+    // A Tela de Insights (plano do Acessórias, 18/11/2026; o dono: "esses paineis so vao ser vistos por diretor e admin"):
+    // os números do escritório que o robô monta a cada 15 min. Só o Diretor, o Dono e o admin leem; só o robô grava (Admin SDK).
+    match /nadsInsights/{id} {
+      allow read: if ehDiretorNads();
       allow write: if false;
     }
 
